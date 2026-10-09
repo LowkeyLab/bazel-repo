@@ -415,6 +415,14 @@ fn append_release_fixture_fact(
     id
 }
 fn seed_branch_release(store: &Store, path: &std::path::Path) -> crate::release::ReleaseOperation {
+    seed_release(store, path, false)
+}
+
+fn seed_release(
+    store: &Store,
+    path: &std::path::Path,
+    detached: bool,
+) -> crate::release::ReleaseOperation {
     use crate::{
         acquisition::{AcquisitionEvent, Assignment, AssignmentState},
         management::{
@@ -491,8 +499,8 @@ fn seed_branch_release(store: &Store, path: &std::path::Path) -> crate::release:
         assignment_handle: handle,
         state: ReleaseState::Intended,
         tip: "1".repeat(40),
-        branch: Some("refs/heads/caller".into()),
-        preservation_reference: None,
+        branch: (!detached).then(|| "refs/heads/caller".into()),
+        preservation_reference: detached.then(|| format!("refs/worktree-pool/{operation_id}")),
         intent_event_id: String::new(),
         last_checkpoint: "release_intended".into(),
     };
@@ -722,4 +730,268 @@ fn creation_batch_sync_failure_never_exposes_uncounted_or_unowned_preparation() 
             assert_that!(state.repositories[1].revision, eq(0));
         }
     }
+}
+
+fn seed_preserved_release_recovery(
+    store: &Store,
+    root: &std::path::Path,
+) -> crate::recovery::RecoveryOperation {
+    use crate::{
+        management::{ManagementEvent, OperationId},
+        recovery::{RecoveryDisposition, RecoveryEvent, RecoveryOperation, RecoveryState},
+    };
+    let target = seed_release(store, root, true);
+    let mut operation = RecoveryOperation {
+        operation_id: OperationId::new(),
+        repository_id: target.repository_id,
+        worktree_id: target.worktree_id,
+        assignment_handle: Some(target.assignment_handle),
+        state: RecoveryState::Intended,
+        tip: Some(target.tip),
+        branch: None,
+        preservation_reference: target.preservation_reference,
+        intent_event_id: String::new(),
+        last_checkpoint: "recovery_intended".into(),
+        target_operation_id: Some(target.operation_id),
+        disposition: RecoveryDisposition::Released,
+        protected_reason: None,
+    };
+    let cause = append_release_fixture_fact(
+        store,
+        ManagementEvent::Recovery(RecoveryEvent::Started(operation.clone())),
+        Some(&target.intent_event_id),
+    );
+    operation.intent_event_id = append_release_fixture_fact(
+        store,
+        ManagementEvent::Recovery(RecoveryEvent::Preserved {
+            operation_id: operation.operation_id,
+            repository_id: operation.repository_id,
+            worktree_id: operation.worktree_id,
+        }),
+        Some(&cause),
+    );
+    operation.state = RecoveryState::Preserved;
+    operation.last_checkpoint = "recovery_preserved".into();
+    operation
+}
+
+#[googletest::test]
+fn recovery_completion_sync_failure_keeps_history_ownership_recency_and_linked_release_atomic() {
+    use crate::{
+        acquisition::AssignmentState,
+        domain::{decode_event, management_event_caused_by},
+        error::PoolError,
+        management::ManagementEvent,
+        recovery::{RecoveryEvent, RecoveryState},
+        release::ReleaseState,
+    };
+    for fail_sync in [false, true] {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("catalog.redb");
+        let id = CatalogId::new();
+        Store::create_with_id(&path, id).unwrap();
+        let store = Store::open(&path, id).unwrap();
+        let operation = seed_preserved_release_recovery(&store, directory.path());
+        let before = store.projection().unwrap();
+        let old_events = store.events().unwrap();
+        let wire = management_event_caused_by(
+            id,
+            &ManagementEvent::Recovery(RecoveryEvent::Finished {
+                operation_id: operation.operation_id,
+                repository_id: operation.repository_id,
+                worktree_id: operation.worktree_id,
+                successful: true,
+            }),
+            &operation.intent_event_id,
+        )
+        .unwrap();
+        let result_id = wire["id"].as_str().unwrap().to_owned();
+        let expected_revision = decode_event(&wire, id)
+            .unwrap()
+            .expected_revision(&before)
+            .unwrap();
+        // Expected transitions come from the ownership/history contract, independently
+        // of the reducer being exercised by append and reopen validation.
+        let mut completed = before.clone();
+        completed.revision += 1;
+        completed.repositories[0].revision += 1;
+        completed.assignments[0].state = AssignmentState::Released;
+        completed.worktrees[0].last_release_position = Some(completed.revision);
+        completed.releases[0].state = ReleaseState::Completed;
+        completed.releases[0].last_checkpoint = "release_reconciled".into();
+        completed.recoveries[0].state = RecoveryState::Completed;
+        completed.recoveries[0].last_checkpoint = "recovery_committed".into();
+        completed.recoveries[0]
+            .intent_event_id
+            .clone_from(&result_id);
+        let mut completed_events = old_events.clone();
+        completed_events.push(wire.clone());
+        drop(store);
+
+        let armed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let backend = SyncFailureBackend {
+            inner: redb::backends::FileBackend::new(
+                std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&path)
+                    .unwrap(),
+            )
+            .unwrap(),
+            armed: armed.clone(),
+        };
+        let store = Store::open_with_fault_backend(id, backend).unwrap();
+        armed.store(fail_sync, std::sync::atomic::Ordering::SeqCst);
+        let result = store.append(expected_revision, wire.clone());
+        if fail_sync {
+            assert_that!(matches!(result, Err(PoolError::CommitUnknown)), eq(true));
+        } else {
+            assert_that!(result.unwrap(), eq(&completed));
+        }
+        drop(store);
+
+        let reopened = Store::open(&path, id).unwrap();
+        let observed = reopened.projection().unwrap();
+        let events = reopened.events().unwrap();
+        if observed.revision == before.revision {
+            assert_that!(fail_sync, eq(true));
+            assert_that!(&observed, eq(&before));
+            assert_that!(&events, eq(&old_events));
+            assert_that!(
+                events
+                    .iter()
+                    .any(|event| event["id"].as_str() == Some(&result_id)),
+                eq(false)
+            );
+            assert_that!(
+                reopened.append(expected_revision, wire.clone()).unwrap(),
+                eq(&completed)
+            );
+        } else {
+            assert_that!(&observed, eq(&completed));
+            assert_that!(&events, eq(&completed_events));
+            assert_that!(
+                events
+                    .iter()
+                    .filter(|event| event["id"].as_str() == Some(&result_id))
+                    .count(),
+                eq(1)
+            );
+        }
+        assert_that!(reopened.projection().unwrap(), eq(&completed));
+        assert_that!(reopened.events().unwrap(), eq(&completed_events));
+        assert_that!(
+            matches!(
+                reopened.append_batch(completed.revision, vec![wire.clone()]),
+                Err(PoolError::Conflict)
+            ),
+            eq(true),
+        );
+        assert_that!(reopened.projection().unwrap(), eq(&completed));
+        assert_that!(reopened.events().unwrap(), eq(&completed_events));
+        drop(reopened);
+        let final_store = Store::open(&path, id).unwrap();
+        assert_that!(final_store.projection().unwrap(), eq(&completed));
+        assert_that!(final_store.events().unwrap(), eq(&completed_events));
+    }
+}
+
+#[googletest::test]
+fn recovery_replay_rejects_forged_binding_cause_protection_and_unpreserved_release() {
+    use crate::{
+        domain::{decode_event, management_event_caused_by, reduce},
+        management::{ManagementEvent, OperationId},
+        recovery::{RecoveryDisposition, RecoveryEvent, RecoveryOperation, RecoveryState},
+    };
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("catalog.redb");
+    let id = CatalogId::new();
+    Store::create_with_id(&path, id).unwrap();
+    let store = Store::open(&path, id).unwrap();
+    let target = seed_release(&store, directory.path(), true);
+    let before = store.projection().unwrap();
+    let valid = RecoveryOperation {
+        operation_id: OperationId::new(),
+        repository_id: target.repository_id,
+        worktree_id: target.worktree_id,
+        assignment_handle: Some(target.assignment_handle),
+        state: RecoveryState::Intended,
+        tip: Some(target.tip),
+        branch: None,
+        preservation_reference: target.preservation_reference,
+        intent_event_id: String::new(),
+        last_checkpoint: "recovery_intended".into(),
+        target_operation_id: Some(target.operation_id),
+        disposition: RecoveryDisposition::Released,
+        protected_reason: None,
+    };
+    for invalidity in [
+        "identity_alias",
+        "cause",
+        "target",
+        "missing_owner",
+        "unassigned_owner",
+        "missing_protection",
+        "preservation",
+    ] {
+        let mut invalid = valid.clone();
+        let mut cause = target.intent_event_id.clone();
+        match invalidity {
+            "identity_alias" => invalid.operation_id = target.operation_id,
+            "cause" => cause = uuid::Uuid::new_v4().to_string(),
+            "target" => invalid.target_operation_id = Some(OperationId::new()),
+            "missing_owner" => invalid.assignment_handle = None,
+            "unassigned_owner" => invalid.disposition = RecoveryDisposition::Unassigned,
+            "missing_protection" => {
+                invalid.disposition = RecoveryDisposition::Withheld;
+                invalid.preservation_reference = None;
+            }
+            "preservation" => invalid.preservation_reference = None,
+            _ => unreachable!(),
+        }
+        let wire = management_event_caused_by(
+            id,
+            &ManagementEvent::Recovery(RecoveryEvent::Started(invalid)),
+            &cause,
+        )
+        .unwrap();
+        let fact = decode_event(&wire, id).unwrap();
+        assert_that!(
+            reduce(Some(&before), before.revision, &fact).is_err(),
+            eq(true)
+        );
+    }
+    let wire = management_event_caused_by(
+        id,
+        &ManagementEvent::Recovery(RecoveryEvent::Started(valid.clone())),
+        &target.intent_event_id,
+    )
+    .unwrap();
+    let started = reduce(
+        Some(&before),
+        before.revision,
+        &decode_event(&wire, id).unwrap(),
+    )
+    .unwrap();
+    let finish = management_event_caused_by(
+        id,
+        &ManagementEvent::Recovery(RecoveryEvent::Finished {
+            operation_id: valid.operation_id,
+            repository_id: valid.repository_id,
+            worktree_id: valid.worktree_id,
+            successful: true,
+        }),
+        wire["id"].as_str().unwrap(),
+    )
+    .unwrap();
+    assert_that!(
+        reduce(
+            Some(&started),
+            started.revision,
+            &decode_event(&finish, id).unwrap()
+        )
+        .is_err(),
+        eq(true)
+    );
+    assert_that!(store.projection().unwrap(), eq(&before));
 }

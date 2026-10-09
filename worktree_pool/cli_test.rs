@@ -3610,3 +3610,1510 @@ fn created_worktree_paths_preserve_catalog_bytes_and_user_only_permissions() {
         eq("HEAD")
     );
 }
+
+#[googletest::test]
+fn recovery_preview_observes_known_active_ownership_without_changing_protected_state() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    let acquired = fixture.json(&["acquire", "--repo", &id]);
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    let before = fixture.json(&["events", "list"]);
+    let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let index_path = fixture.git_text(
+        &checkout,
+        &["rev-parse", "--path-format=absolute", "--git-path", "index"],
+    );
+    let index = fs::read(&index_path).unwrap();
+    let preview = fixture.json(&["recover", "preview", "--assignment", handle]);
+    assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(preview["data"]["ownership"].as_str(), eq(Some("active")));
+    assert_that!(
+        preview["data"]["availability"].as_str(),
+        eq(Some("withheld"))
+    );
+    assert_that!(
+        preview["context"]["assignment_handle"].as_str(),
+        eq(Some(handle))
+    );
+    assert_that!(fixture.json(&["events", "list"]), eq(&before));
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+        eq(&head)
+    );
+    assert_that!(fs::read(&index_path).unwrap(), eq(&index));
+}
+
+#[googletest::test]
+fn explicit_abandonment_preserves_the_actual_detached_tip_before_ending_ownership() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    let acquired = fixture.json(&["acquire", "--repo", &id]);
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    fixture.git(
+        &checkout,
+        &[
+            "commit".as_ref(),
+            "--allow-empty".as_ref(),
+            "-m".as_ref(),
+            "abandoned committed work".as_ref(),
+        ],
+    );
+    let tip = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let recovered = fixture.json(&["recover", "apply", "--assignment", handle, "--abandon"]);
+    assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        recovered["data"]["ownership"].as_str(),
+        eq(Some("released"))
+    );
+    let reference = recovered["data"]["preservation_reference"]
+        .as_str()
+        .unwrap();
+    assert_that!(
+        fixture.git_text(&checkout, &["show-ref", "--verify", "--hash", reference]),
+        eq(&tip)
+    );
+    assert_that!(
+        fixture.json(&["assignment", "inspect", handle])["data"]["assignment"]["state"].as_str(),
+        eq(Some("released"))
+    );
+    let op = recovered["context"]["operation_id"].as_str().unwrap();
+    assert_that!(
+        fixture.json(&["operation", "inspect", op])["data"]["operation"]["state"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+        eq(&tip)
+    );
+}
+
+#[googletest::test]
+fn every_public_inspection_preserves_catalog_bytes_as_well_as_history_and_checkout() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    let acquired = fixture.json(&["acquire", "--repo", &id]);
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    let operation = acquired["context"]["operation_id"].as_str().unwrap();
+    let worktree = acquired["context"]["worktree_id"].as_str().unwrap();
+    let database = fs::read(fixture.database()).unwrap();
+    let locator = fs::read(fixture.root.path().join("state/worktree-pool/active.json")).unwrap();
+    let head = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+    let index = fs::read(checkout.join(".git/index")).unwrap();
+    for args in [
+        vec!["catalog", "info"],
+        vec!["catalog", "check"],
+        vec!["repo", "list"],
+        vec!["repo", "inspect", &id],
+        vec!["worktree", "list"],
+        vec!["worktree", "inspect", worktree],
+        vec!["assignment", "list"],
+        vec!["assignment", "inspect", handle],
+        vec!["operation", "list"],
+        vec!["operation", "inspect", operation],
+        vec!["events", "list"],
+        vec!["recover", "preview", "--assignment", handle],
+    ] {
+        let result = fixture.run(&args);
+        assert_that!(result.status.code(), eq(Some(0)));
+        assert_that!(fs::read(fixture.database()).unwrap() == database, eq(true));
+        assert_that!(
+            fs::read(fixture.root.path().join("state/worktree-pool/active.json")).unwrap()
+                == locator,
+            eq(true)
+        );
+        assert_that!(
+            fs::read(checkout.join(".git/index")).unwrap() == index,
+            eq(true)
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&head)
+        );
+    }
+}
+
+impl Fixture {
+    fn paused_recovery(&self, handle: &str, checkpoint: &str, continuable: bool) -> Child {
+        use std::io::{BufRead, BufReader};
+        let binary = PathBuf::from(env::var_os("TEST_SRCDIR").unwrap())
+            .join(env::var_os("TEST_WORKSPACE").unwrap())
+            .join(env!("CRASH_BINARY"));
+        let environment = self.command();
+        let mut command = Command::new(binary);
+        command.env_clear();
+        for (name, value) in environment.get_envs() {
+            if let Some(value) = value {
+                command.env(name, value);
+            }
+        }
+        let mut child = command
+            .env("OPERATION", "recover")
+            .env("ASSIGNMENT_HANDLE", handle)
+            .env("CHECKPOINT", checkpoint)
+            .env("CONTINUABLE", if continuable { "1" } else { "0" })
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let reader = thread::spawn(move || {
+            let mut line = String::new();
+            BufReader::new(stdout).read_line(&mut line).unwrap();
+            let _ = sender.send(line);
+        });
+        let observed = receiver.recv_timeout(Duration::from_secs(15));
+        if observed.as_ref().is_err()
+            || observed
+                .as_ref()
+                .is_ok_and(|s| s != &format!("checkpoint:{checkpoint}\n"))
+        {
+            let _ = child.kill();
+            panic!(
+                "recovery checkpoint missing: {observed:?}; {:?}",
+                child.wait_with_output().unwrap()
+            );
+        }
+        reader.join().unwrap();
+        child
+    }
+}
+
+#[googletest::test]
+fn interrupted_recovery_resumes_the_recorded_operation_without_duplicate_preservation_or_release() {
+    for checkpoint in ["intent", "preservation-effect", "preserved", "result"] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        let acquired = fixture.json(&["acquire", "--repo", &id]);
+        let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+        let mut child = fixture.paused_recovery(handle, checkpoint, false);
+        child.kill().unwrap();
+        child.wait().unwrap();
+        if checkpoint == "intent" {
+            let mut resumed = fixture.paused_recovery(handle, "preservation-effect", false);
+            resumed.kill().unwrap();
+            resumed.wait().unwrap();
+        }
+        let operations = fixture.json(&["operation", "list"]);
+        let recoveries: Vec<_> = operations["data"]["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|o| {
+                o["last_checkpoint"]
+                    .as_str()
+                    .is_some_and(|s| s.starts_with("recovery_"))
+            })
+            .collect();
+        assert_that!(recoveries.len(), eq(1));
+        let operation_id = recoveries[0]["operation_id"].as_str().unwrap();
+        let before = fixture.json(&["events", "list"]);
+        let preview = fixture.json(&["recover", "preview", "--operation", operation_id]);
+        assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(fixture.json(&["events", "list"]), eq(&before));
+        let reconciled = fixture.json(&["recover", "apply", "--operation", operation_id]);
+        assert_that!(reconciled["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            reconciled["context"]["operation_id"].as_str(),
+            eq(Some(operation_id))
+        );
+        assert_that!(
+            reconciled["data"]["ownership"].as_str(),
+            eq(Some("released"))
+        );
+        let reference = reconciled["data"]["preservation_reference"]
+            .as_str()
+            .unwrap();
+        assert_that!(
+            fixture.git_text(&checkout, &["show-ref", "--verify", "--hash", reference]),
+            eq(&fixture.git_text(&checkout, &["rev-parse", "HEAD"]))
+        );
+        let events = fixture.json(&["events", "list"]);
+        let count = events["data"]["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["operationid"].as_str() == Some(operation_id))
+            .count();
+        assert_that!(count, eq(3));
+        let repeated = fixture.json(&["recover", "apply", "--operation", operation_id]);
+        assert_that!(repeated["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(fixture.json(&["events", "list"]), eq(&events));
+    }
+}
+
+#[googletest::test]
+fn recovery_observes_a_completed_checkout_and_activates_the_same_preparing_assignment() {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
+    let mut child = fixture.paused_acquire(&id, "checkout-effect", false);
+    child.kill().unwrap();
+    child.wait().unwrap();
+    let assignments = fixture.json(&["assignment", "list"]);
+    let assignment = &assignments["data"]["assignments"][0];
+    let handle = assignment["assignment_handle"].as_str().unwrap();
+    let operation = assignment["operation_id"].as_str().unwrap();
+    let before = fixture.json(&["events", "list"]);
+    let database = fs::read(fixture.database()).unwrap();
+    let preview = fixture.json(&["recover", "preview", "--operation", operation]);
+    assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(preview["data"]["ownership"].as_str(), eq(Some("preparing")));
+    assert_that!(fs::read(fixture.database()).unwrap() == database, eq(true));
+    assert_that!(fixture.json(&["events", "list"]), eq(&before));
+    let recovered = fixture.json(&["recover", "apply", "--operation", operation]);
+    assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(recovered["data"]["ownership"].as_str(), eq(Some("active")));
+    assert_that!(
+        recovered["context"]["assignment_handle"].as_str(),
+        eq(Some(handle))
+    );
+    assert_that!(
+        recovered["context"]["operation_id"].as_str() != Some(operation),
+        eq(true)
+    );
+    assert_that!(
+        fixture.json(&["assignment", "list"])["data"]["assignments"]
+            .as_array()
+            .unwrap()
+            .len(),
+        eq(1)
+    );
+    assert_that!(
+        fixture.json(&["operation", "inspect", operation])["data"]["operation"]["state"].as_str(),
+        eq(Some("completed"))
+    );
+    assert_that!(
+        fixture.json(&["acquire", "--repo", &id])["reason_code"].as_str(),
+        eq(Some("capacity_all_assigned"))
+    );
+    assert_that!(
+        fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+        eq(&assignment["resolved_commit"].as_str().unwrap().to_owned())
+    );
+}
+
+#[googletest::test]
+fn creation_reconciliation_observes_linked_operations_and_keeps_unproven_partial_paths_withheld() {
+    use std::os::unix::fs::MetadataExt;
+    for checkpoint in ["creation-intent", "creation-path", "creation-effect"] {
+        let fixture = Fixture::new();
+        let (_, _, id) = fixture.empty_pool();
+        fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
+        let mut child = fixture.paused_acquire(&id, checkpoint, false);
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let listed = fixture.json(&["worktree", "list"]);
+        let w = &listed["data"]["worktrees"][0];
+        let creation = w["creation"]["operation_id"].as_str().unwrap();
+        let acquisition = w["creation"]["acquisition_operation_id"].as_str().unwrap();
+        let handle = w["assignment_handle"].as_str().unwrap();
+        let bytes: Vec<u8> = serde_json::from_value(w["path"]["bytes"].clone()).unwrap();
+        let path = PathBuf::from(OsString::from_vec(bytes));
+        let before_path = fs::symlink_metadata(&path)
+            .ok()
+            .map(|m| (m.dev(), m.ino(), m.mode()));
+        let database = fs::read(fixture.database()).unwrap();
+        let preview = fixture.json(&["recover", "preview", "--operation", creation]);
+        assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(fs::read(fixture.database()).unwrap() == database, eq(true));
+        let recovered = fixture.json(&["recover", "apply", "--operation", creation]);
+        assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            recovered["data"]["ownership"].as_str(),
+            eq(Some(if checkpoint == "creation-effect" {
+                "active"
+            } else {
+                "preparing"
+            }))
+        );
+        assert_that!(
+            recovered["data"]["availability"].as_str(),
+            eq(Some("withheld"))
+        );
+        assert_that!(
+            recovered["context"]["assignment_handle"].as_str(),
+            eq(Some(handle))
+        );
+        for operation in [creation, acquisition] {
+            assert_that!(
+                fixture.json(&["operation", "inspect", operation])["data"]["operation"]["state"]
+                    .as_str(),
+                eq(Some(if checkpoint == "creation-effect" {
+                    "completed"
+                } else {
+                    "reconciled"
+                }))
+            );
+        }
+        assert_that!(
+            fs::symlink_metadata(&path)
+                .ok()
+                .map(|m| (m.dev(), m.ino(), m.mode())),
+            eq(before_path)
+        );
+        if checkpoint == "creation-path" {
+            assert_that!(fs::read_dir(&path).unwrap().count(), eq(0));
+        }
+        assert_that!(
+            fixture.json(&["repo", "inspect", &id])["data"]["registered_count"].as_u64(),
+            eq(Some(1))
+        );
+        assert_that!(
+            fixture.json(&["acquire", "--repo", &id])["reason_code"].as_str(),
+            eq(Some("capacity_all_assigned"))
+        );
+    }
+}
+
+impl Fixture {
+    fn paused_catalog(&self, operation: &str, checkpoint: &str, continuable: bool) -> Child {
+        self.paused_recovery_checkpoint(operation, checkpoint, continuable, None)
+    }
+    fn paused_repository_recovery(&self, operation_id: &str, checkpoint: &str) -> Child {
+        self.paused_recovery_checkpoint("recover-repository", checkpoint, false, Some(operation_id))
+    }
+    fn paused_recovery_checkpoint(
+        &self,
+        operation: &str,
+        checkpoint: &str,
+        continuable: bool,
+        operation_id: Option<&str>,
+    ) -> Child {
+        use std::io::{BufRead, BufReader};
+        let binary = PathBuf::from(env::var_os("TEST_SRCDIR").unwrap())
+            .join(env::var_os("TEST_WORKSPACE").unwrap())
+            .join(env!("CRASH_BINARY"));
+        let environment = self.command();
+        let mut command = Command::new(binary);
+        command.env_clear();
+        for (name, value) in environment.get_envs() {
+            if let Some(value) = value {
+                command.env(name, value);
+            }
+        }
+        if let Some(operation_id) = operation_id {
+            command.env("OPERATION_ID", operation_id);
+        }
+        let mut child = command
+            .env("OPERATION", operation)
+            .env("CHECKPOINT", checkpoint)
+            .env("CONTINUABLE", if continuable { "1" } else { "0" })
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let reader = thread::spawn(move || {
+            let mut line = String::new();
+            BufReader::new(stdout).read_line(&mut line).unwrap();
+            let _ = sender.send(line);
+        });
+        let observed = receiver.recv_timeout(Duration::from_secs(15));
+        if observed.as_ref().is_err()
+            || observed
+                .as_ref()
+                .is_ok_and(|s| s != &format!("checkpoint:{checkpoint}\n"))
+        {
+            let _ = child.kill();
+            panic!(
+                "catalog checkpoint missing: {observed:?}; {:?}",
+                child.wait_with_output().unwrap()
+            );
+        }
+        reader.join().unwrap();
+        child
+    }
+}
+
+#[googletest::test]
+fn catalog_bootstrap_recovery_is_explicit_readonly_previewed_and_inspectable_by_its_recorded_id() {
+    for checkpoint in ["intent", "store"] {
+        let fixture = Fixture::new();
+        let mut child = fixture.paused_catalog("init", checkpoint, false);
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let locator =
+            fs::read(fixture.root.path().join("state/worktree-pool/active.json")).unwrap();
+        let database = fs::read(fixture.database()).ok();
+        let preview = fixture.json(&["recover", "preview", "--catalog"]);
+        assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            preview["data"]["authority"]["phase"].as_str(),
+            eq(Some("initializing"))
+        );
+        assert_that!(
+            fs::read(fixture.root.path().join("state/worktree-pool/active.json")).unwrap()
+                == locator,
+            eq(true)
+        );
+        assert_that!(fs::read(fixture.database()).ok() == database, eq(true));
+        let recovered = fixture.json(&["recover", "apply", "--catalog"]);
+        assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            &recovered["context"]["catalog_id"],
+            eq(&preview["context"]["catalog_id"])
+        );
+        assert_that!(
+            recovered["data"]["authority"]["phase"].as_str(),
+            eq(Some("active"))
+        );
+        let id = recovered["context"]["operation_id"].as_str().unwrap();
+        assert_that!(
+            fixture.json(&["operation", "inspect", id])["data"]["operation"]["state"].as_str(),
+            eq(Some("completed"))
+        );
+        assert_that!(
+            fixture.json(&["operation", "list"])["data"]["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|o| o["operation_id"].as_str() == Some(id)),
+            eq(true)
+        );
+        let before = fs::read(fixture.database()).unwrap();
+        let before_locator =
+            fs::read(fixture.root.path().join("state/worktree-pool/active.json")).unwrap();
+        assert_that!(
+            fixture.json(&["recover", "preview", "--operation", id])["outcome"].as_str(),
+            eq(Some("completed"))
+        );
+        assert_that!(
+            fixture.json(&["recover", "apply", "--operation", id])["outcome"].as_str(),
+            eq(Some("completed"))
+        );
+        assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+        assert_that!(
+            fs::read(fixture.root.path().join("state/worktree-pool/active.json")).unwrap()
+                == before_locator,
+            eq(true)
+        );
+        assert_that!(
+            fixture.json(&["events", "list"])["data"]["events"]
+                .as_array()
+                .unwrap()
+                .len(),
+            eq(1)
+        );
+    }
+}
+
+#[googletest::test]
+fn release_reconciliation_observes_or_completes_the_recorded_preservation_before_release() {
+    for checkpoint in ["intent", "preservation-effect", "preserved"] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        let acquired = fixture.json(&["acquire", "--repo", &id]);
+        let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+        fixture.git(
+            &checkout,
+            &[
+                "commit".as_ref(),
+                "--allow-empty".as_ref(),
+                "-m".as_ref(),
+                "committed caller work".as_ref(),
+            ],
+        );
+        let tip = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let mut child = fixture.paused_release(handle, checkpoint, false);
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let operations = fixture.json(&["operation", "list"]);
+        let release = operations["data"]["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|o| {
+                o["assignment_handle"].as_str() == Some(handle)
+                    && o["tip"].as_str() == Some(tip.as_str())
+            })
+            .unwrap();
+        let operation = release["operation_id"].as_str().unwrap();
+        let before = fs::read(fixture.database()).unwrap();
+        let preview = fixture.json(&["recover", "preview", "--operation", operation]);
+        assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(preview["data"]["ownership"].as_str(), eq(Some("active")));
+        assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+        let recovered = fixture.json(&["recover", "apply", "--operation", operation]);
+        assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            recovered["data"]["ownership"].as_str(),
+            eq(Some("released"))
+        );
+        assert_that!(
+            recovered["context"]["assignment_handle"].as_str(),
+            eq(Some(handle))
+        );
+        let reference = release["preservation_reference"].as_str().unwrap();
+        assert_that!(
+            fixture.git_text(&checkout, &["show-ref", "--verify", "--hash", reference]),
+            eq(&tip)
+        );
+        assert_that!(
+            fixture.json(&["operation", "inspect", operation])["data"]["operation"]["state"]
+                .as_str(),
+            eq(Some("completed"))
+        );
+        let events = fixture.json(&["events", "list"]);
+        assert_that!(
+            fixture.json(&["release", handle])["reason_code"].as_str(),
+            eq(Some("already_released"))
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&events));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&tip)
+        );
+    }
+}
+
+#[googletest::test]
+fn refresh_reconciliation_never_repeats_fetch_or_claims_observed_refs_are_fresh() {
+    for checkpoint in ["intent", "fetch"] {
+        let fixture = Fixture::new();
+        let (source, checkout, id) = fixture.acquisition();
+        let mut child = fixture.paused_refresh(&id, checkpoint);
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let operations = fixture.json(&["operation", "list", "--repo", &id]);
+        let operation = operations["data"]["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|o| o["state"].as_str() == Some("pending"))
+            .unwrap()["operation_id"]
+            .as_str()
+            .unwrap();
+        let before = fs::read(fixture.database()).unwrap();
+        assert_that!(
+            fixture.json(&["recover", "preview", "--operation", operation])["outcome"].as_str(),
+            eq(Some("completed"))
+        );
+        assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+        let ref_before = fixture.git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"]);
+        fixture.git(
+            &source,
+            &[
+                "commit".as_ref(),
+                "--allow-empty".as_ref(),
+                "-m".as_ref(),
+                "remote advanced after interrupted fetch".as_ref(),
+            ],
+        );
+        let recovered = fixture.json(&["recover", "apply", "--operation", operation]);
+        assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            recovered["data"]["fresh_fetch_proven"].as_bool(),
+            eq(Some(false))
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"]),
+            eq(&ref_before)
+        );
+        assert_that!(
+            fixture.json(&["operation", "inspect", operation])["data"]["operation"]["state"]
+                .as_str(),
+            eq(Some("reconciled"))
+        );
+        let history = fixture.json(&["events", "list"]);
+        assert_that!(
+            fixture.json(&["recover", "apply", "--operation", operation])["outcome"].as_str(),
+            eq(Some("completed"))
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&history));
+        assert_that!(
+            fixture.json(&["repo", "refresh", "--repo", &id])["outcome"].as_str(),
+            eq(Some("completed"))
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"]),
+            eq(&fixture.git_text(&source, &["rev-parse", "HEAD"]))
+        );
+    }
+}
+
+#[googletest::test]
+fn unidentified_recovery_lists_candidates_and_requires_an_exact_identity_without_ending_ownership()
+{
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "2"]);
+    let first = fixture.json(&["acquire", "--repo", &id]);
+    let second = fixture.json(&["acquire", "--repo", &id]);
+    let first_handle = first["context"]["assignment_handle"].as_str().unwrap();
+    let second_handle = second["context"]["assignment_handle"].as_str().unwrap();
+    let first_worktree = first["context"]["worktree_id"].as_str().unwrap();
+    let before = fs::read(fixture.database()).unwrap();
+    let index_path = fixture.git_text(
+        &checkout,
+        &["rev-parse", "--path-format=absolute", "--git-path", "index"],
+    );
+    let index = fs::read(&index_path).unwrap();
+    let preview = fixture.json(&["recover", "preview", "--repo", &id]);
+    assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+    let candidates = preview["data"]["candidates"].as_array().unwrap();
+    assert_that!(candidates.len(), eq(2));
+    assert_that!(
+        candidates
+            .iter()
+            .any(|a| a["assignment_handle"].as_str() == Some(first_handle)),
+        eq(true)
+    );
+    assert_that!(
+        candidates
+            .iter()
+            .any(|a| a["assignment_handle"].as_str() == Some(second_handle)),
+        eq(true)
+    );
+    assert_that!(
+        fixture.json(&["recover", "apply", "--repo", &id])["outcome"].as_str(),
+        eq(Some("rejected"))
+    );
+    assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+    assert_that!(fs::read(&index_path).unwrap() == index, eq(true));
+    let recovered = fixture.json(&[
+        "recover",
+        "apply",
+        "--worktree",
+        first_worktree,
+        "--repo",
+        &id,
+    ]);
+    assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        recovered["context"]["assignment_handle"].as_str(),
+        eq(Some(first_handle))
+    );
+    assert_that!(recovered["data"]["ownership"].as_str(), eq(Some("active")));
+    assert_that!(
+        recovered["data"]["availability"].as_str(),
+        eq(Some("withheld"))
+    );
+    assert_that!(
+        fixture.json(&["assignment", "inspect", second_handle])["data"]["assignment"]["state"]
+            .as_str(),
+        eq(Some("active"))
+    );
+    assert_that!(
+        fixture.git_text(
+            &checkout,
+            &[
+                "show-ref",
+                "--verify",
+                "--hash",
+                recovered["data"]["preservation_reference"]
+                    .as_str()
+                    .unwrap()
+            ]
+        ),
+        eq(&fixture.git_text(&checkout, &["rev-parse", "HEAD"]))
+    );
+}
+
+#[googletest::test]
+fn unassigned_withheld_worktree_reconciliation_observes_protected_work_and_releases_only_safe_withholding()
+ {
+    let fixture = Fixture::new();
+    let (_, checkout, id) = fixture.acquisition();
+    fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "1"]);
+    let registered = fixture.json(&["worktree", "list", "--repo", &id]);
+    let worktree = registered["data"]["worktrees"][0]["worktree_id"]
+        .as_str()
+        .unwrap();
+    fs::write(checkout.join("tracked"), b"protected unfinished work\n").unwrap();
+    assert_that!(
+        fixture.json(&["acquire", "--repo", &id])["outcome"].as_str(),
+        eq(Some("rejected"))
+    );
+    let before = fs::read(fixture.database()).unwrap();
+    let index_path = fixture.git_text(
+        &checkout,
+        &["rev-parse", "--path-format=absolute", "--git-path", "index"],
+    );
+    let index = fs::read(&index_path).unwrap();
+    let preview = fixture.path_json(&["recover", "preview", "--worktree"], &checkout);
+    assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        preview["data"]["observation"]["safe"].as_bool(),
+        eq(Some(false))
+    );
+    assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+    assert_that!(fs::read(&index_path).unwrap() == index, eq(true));
+    let unsafe_result = fixture.json(&["recover", "apply", "--worktree", worktree]);
+    assert_that!(unsafe_result["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        unsafe_result["data"]["ownership"].as_str(),
+        eq(Some("unassigned"))
+    );
+    assert_that!(
+        unsafe_result["data"]["availability"].as_str(),
+        eq(Some("withheld"))
+    );
+    assert_that!(
+        fs::read(checkout.join("tracked")).unwrap(),
+        eq(&b"protected unfinished work\n".to_vec())
+    );
+    assert_that!(fs::read(&index_path).unwrap() == index, eq(true));
+    // The caller explicitly saves the unfinished content; recovery itself never edits it.
+    fixture.git(&checkout, &["add".as_ref(), "tracked".as_ref()]);
+    fixture.git(
+        &checkout,
+        &[
+            "commit".as_ref(),
+            "-m".as_ref(),
+            "caller saved protected work".as_ref(),
+        ],
+    );
+    let recovered = fixture.json(&["recover", "apply", "--worktree", worktree]);
+    assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        recovered["data"]["ownership"].as_str(),
+        eq(Some("unassigned"))
+    );
+    assert_that!(
+        recovered["data"]["availability"].as_str(),
+        eq(Some("unverified"))
+    );
+    assert_that!(
+        fixture.json(&["assignment", "list"])["data"]["assignments"]
+            .as_array()
+            .unwrap()
+            .is_empty(),
+        eq(true)
+    );
+    assert_that!(
+        fixture.json(&["worktree", "inspect", worktree])["data"]["worktree"]["availability"]
+            .as_str(),
+        eq(Some("unverified"))
+    );
+}
+
+#[googletest::test]
+fn recovery_pending_survives_process_death_blocks_competing_effects_and_allows_an_independent_repository()
+ {
+    let fixture = Fixture::new();
+    let (source, _, id) = fixture.acquisition();
+    let acquired = fixture.json(&["acquire", "--repo", &id]);
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    let other = fixture.root.path().join("independent-recovery-clone");
+    fixture.git(
+        fixture.root.path(),
+        &["clone".as_ref(), source.as_os_str(), other.as_os_str()],
+    );
+    let registered = fixture.path_json(&["repo", "register"], &other);
+    let other_id = registered["context"]["repository_id"].as_str().unwrap();
+    fixture.path_json(&["worktree", "register", "--repo", other_id], &other);
+    let mut recovering = fixture.paused_recovery(handle, "intent", false);
+    let mut waiting = Vec::new();
+    for args in [
+        vec!["acquire", "--repo", &id],
+        vec!["release", handle],
+        vec!["repo", "refresh", "--repo", &id],
+    ] {
+        let mut command = fixture.command();
+        command.args(args);
+        waiting.push(command.spawn().unwrap());
+    }
+    assert_that!(
+        fixture.json(&["acquire", "--repo", other_id])["outcome"].as_str(),
+        eq(Some("completed"))
+    );
+    recovering.kill().unwrap();
+    recovering.wait().unwrap();
+    let before = fixture.json(&["events", "list"]);
+    for child in waiting {
+        let result = wait(child);
+        assert_that!(result.status.code(), eq(Some(3)));
+        let value: Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_that!(value["reason_code"].as_str(), eq(Some("operation_pending")));
+    }
+    assert_that!(fixture.json(&["events", "list"]), eq(&before));
+    let operations = fixture.json(&["operation", "list", "--repo", &id]);
+    let recovery = operations["data"]["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|o| o["last_checkpoint"].as_str() == Some("recovery_intended"))
+        .unwrap()["operation_id"]
+        .as_str()
+        .unwrap();
+    let mut resumes = Vec::new();
+    for _ in 0..2 {
+        let mut command = fixture.command();
+        command.args(["recover", "apply", "--operation", recovery]);
+        resumes.push(command.spawn().unwrap());
+    }
+    for child in resumes {
+        assert_that!(wait(child).status.code(), eq(Some(0)));
+    }
+    let after = fixture.json(&["events", "list"]);
+    assert_that!(
+        after["data"]["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["operationid"].as_str() == Some(recovery))
+            .count(),
+        eq(3)
+    );
+    assert_that!(
+        fixture.json(&["release", handle])["reason_code"].as_str(),
+        eq(Some("already_released"))
+    );
+    assert_that!(fixture.json(&["events", "list"]), eq(&after));
+}
+
+#[googletest::test]
+fn preparing_assignment_abandonment_requires_safe_work_and_settles_the_original_preparation() {
+    for checkpoint in ["reservation", "checkout-effect"] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        let mut child = fixture.paused_acquire(&id, checkpoint, false);
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let assignments = fixture.json(&["assignment", "list", "--repo", &id]);
+        let assignment = &assignments["data"]["assignments"][0];
+        let handle = assignment["assignment_handle"].as_str().unwrap();
+        let operation = assignment["operation_id"].as_str().unwrap();
+        fs::write(
+            checkout.join("tracked"),
+            b"caller owns unfinished preparation\n",
+        )
+        .unwrap();
+        let before = fixture.json(&["events", "list"]);
+        assert_that!(
+            fixture.json(&["recover", "apply", "--assignment", handle, "--abandon"])["reason_code"]
+                .as_str(),
+            eq(Some("unfinished_work"))
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&before));
+        fixture.git(&checkout, &["add".as_ref(), "tracked".as_ref()]);
+        fixture.git(
+            &checkout,
+            &[
+                "commit".as_ref(),
+                "-m".as_ref(),
+                "caller saved interrupted preparation".as_ref(),
+            ],
+        );
+        let tip = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let recovered = fixture.json(&["recover", "apply", "--assignment", handle, "--abandon"]);
+        assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            recovered["data"]["ownership"].as_str(),
+            eq(Some("released"))
+        );
+        assert_that!(
+            fixture.json(&["operation", "inspect", operation])["data"]["operation"]["state"]
+                .as_str(),
+            eq(Some("reconciled"))
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&tip)
+        );
+        assert_that!(
+            fixture.json(&["release", handle])["reason_code"].as_str(),
+            eq(Some("already_released"))
+        );
+        assert_that!(
+            fixture.json(&["acquire", "--repo", &id])["outcome"].as_str(),
+            eq(Some("completed"))
+        );
+    }
+}
+
+#[googletest::test]
+fn recovery_rejects_conflicting_or_symbolic_preservation_roots_without_ending_ownership() {
+    for symbolic in [false, true] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        let acquired = fixture.json(&["acquire", "--repo", &id]);
+        let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+        let old = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        fixture.git(
+            &checkout,
+            &[
+                "commit".as_ref(),
+                "--allow-empty".as_ref(),
+                "-m".as_ref(),
+                "new detached caller tip".as_ref(),
+            ],
+        );
+        let tip = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+        let mut child = fixture.paused_recovery(handle, "intent", false);
+        child.kill().unwrap();
+        child.wait().unwrap();
+        let operations = fixture.json(&["operation", "list", "--repo", &id]);
+        let operation = operations["data"]["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|o| o["last_checkpoint"].as_str() == Some("recovery_intended"))
+            .unwrap();
+        let recovery = operation["operation_id"].as_str().unwrap();
+        let reference = operation["preservation_reference"].as_str().unwrap();
+        if symbolic {
+            fixture.git(
+                &checkout,
+                &[
+                    "update-ref".as_ref(),
+                    "refs/heads/private-fixture".as_ref(),
+                    tip.as_ref(),
+                ],
+            );
+            fixture.git(
+                &checkout,
+                &[
+                    "symbolic-ref".as_ref(),
+                    reference.as_ref(),
+                    "refs/heads/private-fixture".as_ref(),
+                ],
+            );
+        } else {
+            fixture.git(
+                &checkout,
+                &["update-ref".as_ref(), reference.as_ref(), old.as_ref()],
+            );
+        }
+        let before = fixture.json(&["events", "list"]);
+        let before_refs = fixture.git_text(&checkout, &["show-ref"]);
+        let result = fixture.json(&["recover", "apply", "--operation", recovery]);
+        assert_that!(result["outcome"].as_str(), eq(Some("pending")));
+        assert_that!(result["data"]["ownership"].as_str(), eq(Some("active")));
+        assert_that!(fixture.json(&["events", "list"]), eq(&before));
+        assert_that!(fixture.git_text(&checkout, &["show-ref"]), eq(&before_refs));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            eq(&tip)
+        );
+    }
+}
+
+#[googletest::test]
+fn exact_reconciled_original_ids_return_the_same_completed_withheld_result_without_new_history() {
+    for creation in [false, true] {
+        let fixture = Fixture::new();
+        let (_, checkout, id) = fixture.acquisition();
+        let original = if creation {
+            fixture.json(&["acquire", "--repo", &id]);
+            fixture.json(&["pool", "configure", "--repo", &id, "--max-worktrees", "2"]);
+            let mut child = fixture.paused_acquire(&id, "creation-path", false);
+            child.kill().unwrap();
+            child.wait().unwrap();
+            let operations = fixture.json(&["operation", "list", "--repo", &id]);
+            operations["data"]["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|o| o["last_checkpoint"].as_str() == Some("creation_path_prepared"))
+                .unwrap()["operation_id"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        } else {
+            let acquired = fixture.json(&["acquire", "--repo", &id]);
+            let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+            let mut child = fixture.paused_release(handle, "intent", false);
+            child.kill().unwrap();
+            child.wait().unwrap();
+            fs::write(
+                checkout.join("tracked"),
+                b"protected work after interrupted release",
+            )
+            .unwrap();
+            let operations = fixture.json(&["operation", "list", "--repo", &id]);
+            operations["data"]["operations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|o| o["last_checkpoint"].as_str() == Some("release_intended"))
+                .unwrap()["operation_id"]
+                .as_str()
+                .unwrap()
+                .to_owned()
+        };
+        let first = fixture.json(&["recover", "apply", "--operation", &original]);
+        assert_that!(first["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(first["data"]["availability"].as_str(), eq(Some("withheld")));
+        let events = fixture.json(&["events", "list"]);
+        let bytes = fs::read(fixture.database()).unwrap();
+        let repeated = fixture.json(&["recover", "apply", "--operation", &original]);
+        assert_that!(
+            repeated["context"]["operation_id"].as_str(),
+            eq(first["context"]["operation_id"].as_str())
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&events));
+        assert_that!(fs::read(fixture.database()).unwrap() == bytes, eq(true));
+        assert_that!(
+            fixture.json(&[
+                "recover",
+                "preview",
+                "--operation",
+                &original,
+                "--repo",
+                "11111111-1111-4111-8111-111111111111"
+            ])["outcome"]
+                .as_str(),
+            eq(Some("rejected"))
+        );
+        assert_that!(fs::read(fixture.database()).unwrap() == bytes, eq(true));
+    }
+}
+
+#[googletest::test]
+fn repository_recovery_resumes_its_exact_id_after_each_committed_boundary_without_fetch_or_duplicate_facts()
+ {
+    use std::os::unix::process::ExitStatusExt;
+    for checkpoint in ["intent", "result"] {
+        let fixture = Fixture::new();
+        let (source, checkout, repository) = fixture.acquisition();
+        let mut refresh = fixture.paused_refresh(&repository, "intent");
+        refresh.kill().unwrap();
+        assert_that!(refresh.wait().unwrap().signal(), eq(Some(9)));
+        let listed = fixture.json(&["operation", "list", "--repo", &repository]);
+        let original = listed["data"]["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|operation| operation["state"].as_str() == Some("pending"))
+            .unwrap()["operation_id"]
+            .as_str()
+            .unwrap();
+        let reference_before =
+            fixture.git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"]);
+        let index_path = fixture.git_text(
+            &checkout,
+            &["rev-parse", "--path-format=absolute", "--git-path", "index"],
+        );
+        let index_before = fs::read(&index_path).unwrap();
+        fixture.git(
+            &source,
+            &[
+                "commit".as_ref(),
+                "--allow-empty".as_ref(),
+                "-m".as_ref(),
+                "remote advanced before explicit reconciliation".as_ref(),
+            ],
+        );
+        assert_that!(
+            fixture.git_text(&source, &["rev-parse", "HEAD"]) == reference_before,
+            eq(false)
+        );
+
+        let mut recovery = fixture.paused_repository_recovery(original, checkpoint);
+        recovery.kill().unwrap();
+        assert_that!(recovery.wait().unwrap().signal(), eq(Some(9)));
+        let operations = fixture.json(&["operation", "list", "--repo", &repository]);
+        let recorded: Vec<_> = operations["data"]["operations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|operation| operation["target_operation_id"].as_str() == Some(original))
+            .collect();
+        assert_that!(recorded.len(), eq(1));
+        let own_id = recorded[0]["operation_id"].as_str().unwrap();
+        assert_that!(own_id == original, eq(false));
+        let inspected = fixture.json(&["operation", "inspect", own_id]);
+        assert_that!(inspected["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            inspected["data"]["operation"]["target_operation_id"].as_str(),
+            eq(Some(original))
+        );
+        assert_that!(
+            inspected["data"]["operation"]["state"].as_str(),
+            eq(Some(if checkpoint == "intent" {
+                "intended"
+            } else {
+                "completed"
+            }))
+        );
+        let database_before = fs::read(fixture.database()).unwrap();
+        let locator_path = fixture.root.path().join("state/worktree-pool/active.json");
+        let locator_before = fs::read(&locator_path).unwrap();
+        let preview = fixture.json(&["recover", "preview", "--operation", own_id]);
+        assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            preview["context"]["operation_id"].as_str(),
+            eq(Some(own_id))
+        );
+        assert_that!(
+            preview["data"]["fresh_fetch_proven"].as_bool(),
+            eq(Some(false))
+        );
+        assert_that!(
+            fs::read(fixture.database()).unwrap() == database_before,
+            eq(true)
+        );
+        assert_that!(fs::read(&locator_path).unwrap() == locator_before, eq(true));
+        assert_that!(fs::read(&index_path).unwrap() == index_before, eq(true));
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"]),
+            eq(&reference_before)
+        );
+
+        let resumed = fixture.json(&["recover", "apply", "--operation", own_id]);
+        assert_that!(resumed["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            resumed["context"]["operation_id"].as_str(),
+            eq(Some(own_id))
+        );
+        assert_that!(
+            resumed["data"]["operation"]["state"].as_str(),
+            eq(Some("completed"))
+        );
+        assert_that!(
+            resumed["data"]["fresh_fetch_proven"].as_bool(),
+            eq(Some(false))
+        );
+        assert_that!(resumed["data"]["ownership"].is_null(), eq(true));
+        assert_that!(resumed["data"]["availability"].is_null(), eq(true));
+        assert_that!(
+            fixture.json(&["operation", "inspect", original])["data"]["operation"]["state"]
+                .as_str(),
+            eq(Some("reconciled"))
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"]),
+            eq(&reference_before)
+        );
+        assert_that!(fs::read(&index_path).unwrap() == index_before, eq(true));
+
+        let history = fixture.json(&["events", "list"]);
+        let events = history["data"]["events"].as_array().unwrap();
+        let own_facts: Vec<_> = events
+            .iter()
+            .filter(|event| event["operationid"].as_str() == Some(own_id))
+            .collect();
+        assert_that!(own_facts.len(), eq(2));
+        assert_that!(
+            own_facts[0]["type"].as_str(),
+            eq(Some(
+                "io.lowkeylab.worktreepool.repository.recovery.started.v1"
+            ))
+        );
+        assert_that!(
+            own_facts[1]["type"].as_str(),
+            eq(Some(
+                "io.lowkeylab.worktreepool.repository.recovery.finished.v1"
+            ))
+        );
+        let refresh_facts: Vec<_> = events
+            .iter()
+            .filter(|event| event["operationid"].as_str() == Some(original))
+            .collect();
+        assert_that!(refresh_facts.len(), eq(1));
+        assert_that!(&own_facts[0]["causationid"], eq(&refresh_facts[0]["id"]));
+        assert_that!(&own_facts[1]["causationid"], eq(&own_facts[0]["id"]));
+        let completed_database = fs::read(fixture.database()).unwrap();
+        let repeated = fixture.json(&["recover", "apply", "--operation", own_id]);
+        assert_that!(repeated["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            repeated["context"]["operation_id"].as_str(),
+            eq(Some(own_id))
+        );
+        assert_that!(fixture.json(&["events", "list"]), eq(&history));
+        assert_that!(
+            fs::read(fixture.database()).unwrap() == completed_database,
+            eq(true)
+        );
+        assert_that!(
+            fixture.git_text(&checkout, &["rev-parse", "refs/remotes/origin/main"]),
+            eq(&reference_before)
+        );
+    }
+}
+
+#[googletest::test]
+fn recovery_preview_and_abandonment_protect_dirty_hidden_operation_moved_mismatched_and_required_ref_state()
+ {
+    for condition in [
+        "dirty",
+        "index",
+        "operation",
+        "moved",
+        "mismatched",
+        "required-root",
+    ] {
+        let fixture = Fixture::new();
+        let (source, checkout, id) = fixture.acquisition();
+        fixture.git(
+            &checkout,
+            &["checkout".as_ref(), "--detach".as_ref(), "HEAD".as_ref()],
+        );
+        let acquired = fixture.json(&["acquire", "--repo", &id]);
+        let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+        let acquisition = acquired["context"]["operation_id"].as_str().unwrap();
+        let mut actual = checkout.clone();
+        match condition {
+            "dirty" => fs::write(checkout.join("tracked"), b"protected unfinished work\n").unwrap(),
+            "index" => {
+                fixture.git(
+                    &checkout,
+                    &[
+                        "update-index".as_ref(),
+                        "--skip-worktree".as_ref(),
+                        "tracked".as_ref(),
+                    ],
+                );
+                fs::write(checkout.join("tracked"), b"hidden protected work\n").unwrap();
+            }
+            "operation" => fs::write(
+                checkout.join(".git/MERGE_HEAD"),
+                fixture.git_text(&checkout, &["rev-parse", "HEAD"]),
+            )
+            .unwrap(),
+            "moved" | "mismatched" => {
+                actual = fixture.root.path().join("caller-moved-checkout");
+                fs::rename(&checkout, &actual).unwrap();
+                if condition == "mismatched" {
+                    fixture.git(
+                        &source,
+                        &[
+                            "worktree".as_ref(),
+                            "add".as_ref(),
+                            "--detach".as_ref(),
+                            checkout.as_os_str(),
+                            "HEAD".as_ref(),
+                        ],
+                    );
+                }
+            }
+            "required-root" => {
+                fixture.git(
+                    &checkout,
+                    &[
+                        "commit".as_ref(),
+                        "--allow-empty".as_ref(),
+                        "-m".as_ref(),
+                        "caller advanced detached work".as_ref(),
+                    ],
+                );
+                let tip = fixture.git_text(&checkout, &["rev-parse", "HEAD"]);
+                fixture.git(
+                    &checkout,
+                    &[
+                        "update-ref".as_ref(),
+                        format!("refs/worktree-pool/{acquisition}").as_ref(),
+                        tip.as_ref(),
+                    ],
+                );
+            }
+            _ => unreachable!(),
+        }
+        let protected = fs::read(actual.join("tracked")).unwrap();
+        let index = fs::read(actual.join(".git/index")).unwrap();
+        let refs = fixture.git_text(&actual, &["show-ref"]);
+        let before = fs::read(fixture.database()).unwrap();
+        let preview = fixture.json(&["recover", "preview", "--assignment", handle]);
+        assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            preview["data"]["observation"]["safe"].as_bool(),
+            eq(Some(false))
+        );
+        assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+        assert_that!(
+            fs::read(actual.join(".git/index")).unwrap() == index,
+            eq(true)
+        );
+        let applied = fixture.json(&["recover", "apply", "--assignment", handle, "--abandon"]);
+        assert_that!(
+            applied["outcome"].as_str(),
+            eq(Some(if condition == "required-root" {
+                "pending"
+            } else {
+                "rejected"
+            }))
+        );
+        assert_that!(
+            fixture.json(&["assignment", "inspect", handle])["data"]["assignment"]["state"]
+                .as_str(),
+            eq(Some("active"))
+        );
+        assert_that!(
+            fs::read(actual.join("tracked")).unwrap() == protected,
+            eq(true)
+        );
+        assert_that!(
+            fs::read(actual.join(".git/index")).unwrap() == index,
+            eq(true)
+        );
+        assert_that!(fixture.git_text(&actual, &["show-ref"]), eq(&refs));
+        if condition != "required-root" {
+            assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+        }
+    }
+}
+
+#[googletest::test]
+fn pending_catalog_operation_is_inspectable_without_storage_and_only_its_exact_id_can_resume() {
+    for checkpoint in ["intent", "store", "published"] {
+        let fixture = Fixture::new();
+        let mut initialize = fixture.paused_catalog("init", "intent", false);
+        initialize.kill().unwrap();
+        initialize.wait().unwrap();
+        let mut recovery = fixture.paused_catalog("recover-catalog", checkpoint, false);
+        recovery.kill().unwrap();
+        recovery.wait().unwrap();
+
+        let locator_path = fixture.root.path().join("state/worktree-pool/active.json");
+        let locator = fs::read(&locator_path).unwrap();
+        let database = fs::read(fixture.database()).ok();
+        assert_that!(database.is_none(), eq(checkpoint == "intent"));
+        let listed = fixture.json(&["operation", "list"]);
+        assert_that!(
+            listed["outcome"].as_str(),
+            eq(Some(if checkpoint == "published" {
+                "completed"
+            } else {
+                "pending"
+            }))
+        );
+        assert_that!(
+            listed["data"]["repository_operations_available"].as_bool(),
+            eq(Some(checkpoint == "published"))
+        );
+        let operations = listed["data"]["operations"].as_array().unwrap();
+        assert_that!(operations.len(), eq(1));
+        let id = operations[0]["operation_id"].as_str().unwrap();
+        assert_that!(operations[0]["scope"].as_str(), eq(Some("catalog")));
+        let inspected = fixture.json(&["operation", "inspect", id]);
+        assert_that!(inspected["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(
+            inspected["data"]["operation"]["state"].as_str(),
+            eq(Some(if checkpoint == "published" {
+                "completed"
+            } else {
+                "pending"
+            }))
+        );
+        assert_that!(
+            inspected["data"]["operation"]["checkpoint"].as_str(),
+            eq(Some(if checkpoint == "published" {
+                "completed"
+            } else {
+                "intent_recorded"
+            }))
+        );
+        let preview = fixture.json(&["recover", "preview", "--operation", id]);
+        assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(preview["data"]["ownership"].is_null(), eq(true));
+        assert_that!(preview["data"]["availability"].is_null(), eq(true));
+        assert_that!(
+            preview["data"]["catalog_mutations_available"].as_bool(),
+            eq(Some(checkpoint == "published"))
+        );
+        assert_that!(fs::read(&locator_path).unwrap() == locator, eq(true));
+        assert_that!(fs::read(fixture.database()).ok() == database, eq(true));
+
+        let conflicted = fixture.json(&[
+            "recover",
+            "apply",
+            "--operation",
+            id,
+            "--repo",
+            "missing-repository",
+        ]);
+        assert_that!(
+            conflicted["reason_code"].as_str(),
+            eq(Some("selector_conflict"))
+        );
+        let unknown = fixture.json(&[
+            "recover",
+            "apply",
+            "--operation",
+            "11111111-1111-4111-8111-111111111111",
+        ]);
+        assert_that!(unknown["outcome"].as_str() == Some("completed"), eq(false));
+        assert_that!(fs::read(&locator_path).unwrap() == locator, eq(true));
+        assert_that!(fs::read(fixture.database()).ok() == database, eq(true));
+
+        let recovered = fixture.json(&["recover", "apply", "--operation", id]);
+        assert_that!(recovered["outcome"].as_str(), eq(Some("completed")));
+        assert_that!(recovered["context"]["operation_id"].as_str(), eq(Some(id)));
+        assert_that!(
+            recovered["data"]["operation"]["state"].as_str(),
+            eq(Some("completed"))
+        );
+        assert_that!(
+            recovered["data"]["authority"]["phase"].as_str(),
+            eq(Some("active"))
+        );
+        assert_that!(
+            recovered["data"]["catalog_mutations_available"].as_bool(),
+            eq(Some(true))
+        );
+        assert_that!(
+            fixture.json(&["events", "list"])["data"]["events"]
+                .as_array()
+                .unwrap()
+                .len(),
+            eq(1)
+        );
+    }
+}
+
+#[googletest::test]
+fn recovery_selects_non_utf8_registered_paths_and_known_historical_results_without_guessing() {
+    let fixture = Fixture::new();
+    fixture.json(&["catalog", "init"]);
+    let source = fixture.repository();
+    let checkout = fixture
+        .root
+        .path()
+        .join(OsString::from_vec(b"recovery-\xff".to_vec()));
+    fixture.git(
+        fixture.root.path(),
+        &["clone".as_ref(), source.as_os_str(), checkout.as_os_str()],
+    );
+    let registered = fixture.path_json(&["repo", "register"], &checkout);
+    let repository = registered["context"]["repository_id"].as_str().unwrap();
+    fixture.path_json(&["worktree", "register", "--repo", repository], &checkout);
+    let acquired = fixture.json(&["acquire", "--repo", repository]);
+    let handle = acquired["context"]["assignment_handle"].as_str().unwrap();
+    let original = acquired["context"]["operation_id"].as_str().unwrap();
+    let before = fs::read(fixture.database()).unwrap();
+    let preview = fixture.path_json(&["recover", "preview", "--worktree"], &checkout);
+    assert_that!(preview["outcome"].as_str(), eq(Some("completed")));
+    assert_that!(
+        preview["context"]["assignment_handle"].as_str(),
+        eq(Some(handle))
+    );
+    let bytes: Vec<u8> =
+        serde_json::from_value(preview["data"]["assignment"]["path"]["bytes"].clone()).unwrap();
+    assert_that!(bytes.as_slice(), eq(checkout.as_os_str().as_bytes()));
+    assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+    assert_that!(
+        fixture.path_json(&["recover", "apply", "--worktree"], &checkout)["data"]["ownership"]
+            .as_str(),
+        eq(Some("active"))
+    );
+    assert_that!(fixture.json(&["recover","apply","--assignment",handle,"--abandon"])["data"]["ownership"].as_str(),eq(Some("released")));
+    assert_that!(
+        fixture.json(&["recover", "preview", "--operation", original])["data"]["availability"]
+            .is_null(),
+        eq(true)
+    );
+    let before = fs::read(fixture.database()).unwrap();
+    for args in [
+        vec![
+            "recover",
+            "apply",
+            "--assignment",
+            handle,
+            "--operation",
+            original,
+        ],
+        vec!["recover", "apply", "--operation", original, "--abandon"],
+        vec!["recover", "apply", "--catalog", "--assignment", handle],
+    ] {
+        assert_that!(
+            fixture.json(&args)["outcome"].as_str(),
+            eq(Some("rejected"))
+        );
+    }
+    assert_that!(fs::read(fixture.database()).unwrap() == before, eq(true));
+}

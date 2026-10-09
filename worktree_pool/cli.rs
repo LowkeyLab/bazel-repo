@@ -35,6 +35,10 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    Recover {
+        #[command(subcommand)]
+        command: RecoveryCommand,
+    },
     Pool {
         #[command(subcommand)]
         command: PoolCommand,
@@ -68,6 +72,31 @@ enum Command {
     Events {
         #[command(subcommand)]
         command: EventsCommand,
+    },
+}
+#[derive(Subcommand)]
+enum RecoveryCommand {
+    Apply {
+        #[arg(long, conflicts_with_all=["assignment","worktree","abandon"])]
+        catalog: bool,
+        #[arg(long, conflicts_with_all=["operation","worktree"])]
+        assignment: Option<String>,
+        #[arg(long, conflicts_with_all=["operation","assignment"])]
+        worktree: Option<OsString>,
+        #[arg(long, conflicts_with = "abandon")]
+        operation: Option<String>,
+        #[arg(long)]
+        abandon: bool,
+    },
+    Preview {
+        #[arg(long, conflicts_with_all=["assignment","worktree"])]
+        catalog: bool,
+        #[arg(long, conflicts_with_all=["operation","worktree"])]
+        assignment: Option<String>,
+        #[arg(long, conflicts_with_all=["operation","assignment"])]
+        worktree: Option<OsString>,
+        #[arg(long)]
+        operation: Option<String>,
     },
 }
 #[derive(Subcommand)]
@@ -159,6 +188,10 @@ impl Envelope {
 }
 const fn command_name(cli: &Cli) -> &'static str {
     match &cli.command {
+        Command::Recover { command } => match command {
+            RecoveryCommand::Preview { .. } => "recover preview",
+            RecoveryCommand::Apply { .. } => "recover apply",
+        },
         Command::Pool { .. } => "pool configure",
         Command::Catalog { command } => match command {
             CatalogCommand::Init => "catalog init",
@@ -191,6 +224,47 @@ const fn command_name(cli: &Cli) -> &'static str {
 }
 fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
     let command = command_name(cli);
+    if let Command::Recover { command: recovery } = &cli.command {
+        return handle_recovery(cli, paths, recovery);
+    }
+
+    if let Command::Operation {
+        command: RecordedCommand::Inspect { selector },
+    } = &cli.command
+        && let Some(envelope) = crate::catalog_recovery_cli::inspect_known_operation(
+            paths,
+            cli.repo.as_deref(),
+            selector,
+        )
+    {
+        return Ok(envelope);
+    }
+    if matches!(
+        &cli.command,
+        Command::Operation {
+            command: RecordedCommand::List
+        }
+    ) && cli.repo.is_none()
+    {
+        let lifecycle = crate::catalog_recovery_cli::lifecycle_operations(paths)?;
+        match resources(cli, paths, command) {
+            Ok(mut envelope) => {
+                envelope.data["operations"]
+                    .as_array_mut()
+                    .ok_or(PoolError::Corrupt)?
+                    .extend(lifecycle);
+                envelope.data["repository_operations_available"] = json!(true);
+                return Ok(envelope);
+            }
+            Err(error @ (PoolError::Pending | PoolError::Missing)) => {
+                let mut envelope = Envelope::failure(command.into(), &error);
+                envelope.data["operations"] = json!(lifecycle);
+                envelope.data["repository_operations_available"] = json!(false);
+                return Ok(envelope);
+            }
+            Err(error) => return Err(error),
+        }
+    }
     if matches!(
         cli.command,
         Command::Pool { .. }
@@ -212,11 +286,12 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
             (p, data)
         }
         Command::Catalog { .. } => {
-            let session = catalog::open(paths)?;
-            let data = serde_json::to_value(&session.projection).map_err(|_| PoolError::Corrupt)?;
-            (session.projection, data)
+            let projection = catalog::inspect_projection(paths)?;
+            let data = serde_json::to_value(&projection).map_err(|_| PoolError::Corrupt)?;
+            (projection, data)
         }
-        Command::Pool { .. }
+        Command::Recover { .. }
+        | Command::Pool { .. }
         | Command::Repo { .. }
         | Command::Worktree { .. }
         | Command::Release { .. }
@@ -224,9 +299,8 @@ fn handle(cli: &Cli, paths: &Paths) -> Result<Envelope, PoolError> {
         | Command::Assignment { .. }
         | Command::Operation { .. } => unreachable!(),
         Command::Events { .. } => {
-            let session = catalog::open(paths)?;
-            let events = session.store().events()?;
-            (session.projection, json!({"events": events}))
+            let (projection, events) = catalog::inspect_events(paths)?;
+            (projection, json!({"events": events}))
         }
     };
     Ok(Envelope {
@@ -277,10 +351,7 @@ fn resources(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolEr
             command: RepoCommand::Refresh { selector },
         } => {
             if selector.is_some() && cli.repo.is_some() {
-                let state = {
-                    let session = catalog::open(paths)?;
-                    session.projection
-                };
+                let state = { catalog::inspect_projection(paths)? };
                 if workflows::repository(&state, selector.as_deref())?.repository_id
                     != workflows::repository(&state, cli.repo.as_deref())?.repository_id
                 {
@@ -322,7 +393,7 @@ fn resources(cli: &Cli, paths: &Paths, command: &str) -> Result<Envelope, PoolEr
             (state, json!({"worktree": view}))
         }
         _ => {
-            let state = catalog::open(paths)?.projection;
+            let state = catalog::inspect_projection(paths)?;
             let data = resource_query(cli, &state, &mut context)?;
             (state, data)
         }
@@ -458,30 +529,21 @@ fn worktree_view(
     let mut pending: Vec<Value> = state
         .operations
         .iter()
-        .filter(|o| {
-            o.repository_id == worktree.repository_id
-                && o.state != crate::management::RefreshState::Completed
-        })
+        .filter(|o| o.repository_id == worktree.repository_id && o.state.is_pending())
         .map(|o| json!(o))
         .collect();
     pending.extend(
         state
             .acquisitions
             .iter()
-            .filter(|o| {
-                o.worktree_id == worktree.worktree_id
-                    && o.state != crate::acquisition::AcquisitionState::Completed
-            })
+            .filter(|o| o.worktree_id == worktree.worktree_id && o.state.is_pending())
             .map(|o| json!(o)),
     );
     pending.extend(
         state
             .releases
             .iter()
-            .filter(|o| {
-                o.worktree_id == worktree.worktree_id
-                    && o.state != crate::release::ReleaseState::Completed
-            })
+            .filter(|o| o.worktree_id == worktree.worktree_id && o.state.is_pending())
             .map(|o| json!(o)),
     );
     value["availability"] = json!(if registration_state == "registered"
@@ -509,9 +571,7 @@ fn worktree_view(
         .iter()
         .find(|o| o.worktree_id == worktree.worktree_id);
     value["creation"] = json!(creation);
-    if let Some(creation) =
-        creation.filter(|o| o.state != crate::creation::CreationState::Completed)
-    {
+    if let Some(creation) = creation.filter(|o| o.state.is_pending()) {
         pending.push(json!(creation));
     }
     value["pending_work"] = json!(pending);
@@ -726,6 +786,28 @@ fn operation_query(
                 })
                 .map(|o| json!(o)),
         );
+        operations.extend(
+            state
+                .repository_recoveries
+                .iter()
+                .filter(|o| {
+                    selected
+                        .as_ref()
+                        .is_none_or(|r| r.repository_id == o.repository_id)
+                })
+                .map(|o| json!(o)),
+        );
+        operations.extend(
+            state
+                .recoveries
+                .iter()
+                .filter(|o| {
+                    selected
+                        .as_ref()
+                        .is_none_or(|r| r.repository_id == o.repository_id)
+                })
+                .map(|o| json!(o)),
+        );
         match command {
             RecordedCommand::List => json!({"operations":operations}),
             RecordedCommand::Inspect { selector } => {
@@ -751,20 +833,29 @@ fn release_command(
         .map_err(|_| PoolError::UnknownAssignment)?;
     let (state, assignment, operation, already) =
         crate::release_workflow::release(paths, cli.repo.as_deref(), handle)?;
-    let (outcome, reason_code) = if operation.state != crate::release::ReleaseState::Completed {
-        ("pending", "operation_pending")
-    } else if already {
+    let (outcome, reason_code) = if already {
         ("completed", "already_released")
+    } else if operation.as_ref().is_some_and(|o| o.state.is_pending()) {
+        ("pending", "operation_pending")
     } else {
         ("completed", "ok")
     };
+    let recovery_operation = state.recoveries.iter().rev().find(|o| {
+        o.assignment_handle == Some(assignment.assignment_handle)
+            && o.disposition == crate::recovery::RecoveryDisposition::Released
+            && o.state == crate::recovery::RecoveryState::Completed
+    });
+    let operation_id = operation
+        .as_ref()
+        .map(|o| o.operation_id)
+        .or_else(|| recovery_operation.map(|o| o.operation_id));
     Ok(Envelope {
         schema_version: 1,
         command: "release".into(),
         outcome,
         reason_code,
-        context: json!({"catalog_id":state.catalog_id,"catalog_path":EncodedPath::from_path(&paths.catalog),"repository_id":assignment.repository_id,"worktree_id":assignment.worktree_id,"assignment_handle":assignment.assignment_handle,"operation_id":operation.operation_id}),
-        data: json!({"assignment":assignment,"operation":operation,"already_released":already,"current_availability":null,"revision":state.revision,"next_action":if outcome=="pending" {"inspect the recorded release; explicit reconciliation is required"}else{"stop using this assignment handle; inspect the worktree before another acquisition"}}),
+        context: json!({"catalog_id":state.catalog_id,"catalog_path":EncodedPath::from_path(&paths.catalog),"repository_id":assignment.repository_id,"worktree_id":assignment.worktree_id,"assignment_handle":assignment.assignment_handle,"operation_id":operation_id}),
+        data: json!({"assignment":assignment,"operation":operation,"recovery_operation":recovery_operation,"already_released":already,"current_availability":null,"revision":state.revision,"next_action":if outcome=="pending" {"inspect the recorded release; explicit reconciliation is required"}else{"stop using this assignment handle; inspect the worktree before another acquisition"}}),
         warnings: Vec::new(),
     })
 }
@@ -817,4 +908,133 @@ fn registration_state(
             Err(_) => "unreadable",
         },
     }
+}
+
+fn handle_recovery(
+    cli: &Cli,
+    paths: &Paths,
+    recovery: &RecoveryCommand,
+) -> Result<Envelope, PoolError> {
+    let command = command_name(cli);
+
+    let (apply, catalog_scope, operation, abandon) = match recovery {
+        RecoveryCommand::Apply {
+            catalog,
+            operation,
+            abandon,
+            ..
+        } => (true, *catalog, operation.as_deref(), *abandon),
+        RecoveryCommand::Preview {
+            catalog, operation, ..
+        } => (false, *catalog, operation.as_deref(), false),
+    };
+    if catalog_scope {
+        return Ok(crate::catalog_recovery_cli::recover_catalog(
+            paths,
+            cli.repo.as_deref(),
+            apply,
+            operation,
+        ));
+    }
+    if let Some(operation) = operation
+        && let Some(envelope) = crate::catalog_recovery_cli::recover_known_operation(
+            paths,
+            cli.repo.as_deref(),
+            false,
+            operation,
+        )
+    {
+        if abandon {
+            return Err(PoolError::Selectors);
+        }
+        return Ok(if apply {
+            crate::catalog_recovery_cli::recover_known_operation(
+                paths,
+                cli.repo.as_deref(),
+                true,
+                operation,
+            )
+            .ok_or(PoolError::Unregistered)?
+        } else {
+            envelope
+        });
+    }
+    let (state, data) = recovery_resource(cli, paths, recovery)?;
+    let pending = matches!(recovery, RecoveryCommand::Apply { .. })
+        && data["operation"]["state"]
+            .as_str()
+            .is_some_and(|state| state != "completed");
+    Ok(Envelope {
+        schema_version: 1,
+        command: command.into(),
+        outcome: if pending { "pending" } else { "completed" },
+        reason_code: if pending {
+            "operation_pending"
+        } else {
+            "recovery_observed"
+        },
+        context: json!({"catalog_id":state.catalog_id,"catalog_path":EncodedPath::from_path(&paths.catalog),"repository_id":data["repository_id"],"worktree_id":data["worktree_id"],"assignment_handle":data["assignment_handle"],"operation_id":data["operation_id"]}),
+        data,
+        warnings: Vec::new(),
+    })
+}
+
+fn recovery_resource(
+    cli: &Cli,
+    paths: &Paths,
+    recovery: &RecoveryCommand,
+) -> Result<(crate::domain::CatalogProjection, Value), PoolError> {
+    Ok(match recovery {
+        RecoveryCommand::Preview {
+            worktree: Some(worktree),
+            ..
+        } => crate::recovery_workflow::recover_worktree(
+            paths,
+            cli.repo.as_deref(),
+            worktree,
+            false,
+            false,
+        )?,
+        RecoveryCommand::Apply {
+            worktree: Some(worktree),
+            abandon,
+            ..
+        } => crate::recovery_workflow::recover_worktree(
+            paths,
+            cli.repo.as_deref(),
+            worktree,
+            true,
+            *abandon,
+        )?,
+        RecoveryCommand::Preview {
+            assignment: None,
+            operation: None,
+            ..
+        } => crate::recovery_inspection::preview_candidates(paths, cli.repo.as_deref())?,
+        RecoveryCommand::Apply {
+            assignment: Some(assignment),
+            abandon: false,
+            ..
+        } => {
+            crate::recovery_workflow::reconcile_assignment(paths, cli.repo.as_deref(), assignment)?
+        }
+        RecoveryCommand::Preview {
+            assignment: Some(assignment),
+            ..
+        } => crate::recovery_workflow::preview_assignment(paths, cli.repo.as_deref(), assignment)?,
+        RecoveryCommand::Preview {
+            operation: Some(operation),
+            ..
+        } => crate::recovery_workflow::preview_recovery(paths, cli.repo.as_deref(), operation)?,
+        RecoveryCommand::Apply {
+            assignment: Some(assignment),
+            abandon: true,
+            ..
+        } => crate::recovery_workflow::abandon_assignment(paths, cli.repo.as_deref(), assignment)?,
+        RecoveryCommand::Apply {
+            operation: Some(operation),
+            ..
+        } => crate::recovery_workflow::resume_recovery(paths, cli.repo.as_deref(), operation)?,
+        _ => return Err(PoolError::Configuration),
+    })
 }

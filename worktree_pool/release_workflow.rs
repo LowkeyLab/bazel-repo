@@ -27,7 +27,15 @@ pub fn release(
     paths: &Paths,
     selector: Option<&OsStr>,
     handle: AssignmentHandle,
-) -> Result<(CatalogProjection, Assignment, ReleaseOperation, bool), PoolError> {
+) -> Result<
+    (
+        CatalogProjection,
+        Assignment,
+        Option<ReleaseOperation>,
+        bool,
+    ),
+    PoolError,
+> {
     release_observed(paths, selector, handle, |_| {})
 }
 /// # Errors
@@ -37,7 +45,15 @@ pub fn release_observed(
     selector: Option<&OsStr>,
     handle: AssignmentHandle,
     mut observe: impl FnMut(ReleaseCheckpoint),
-) -> Result<(CatalogProjection, Assignment, ReleaseOperation, bool), PoolError> {
+) -> Result<
+    (
+        CatalogProjection,
+        Assignment,
+        Option<ReleaseOperation>,
+        bool,
+    ),
+    PoolError,
+> {
     let _maintenance = workflows::maintenance(paths)?;
     let state = catalog::open(paths)?.projection;
     let assignment = state
@@ -64,7 +80,11 @@ pub fn release_observed(
     if assignment.state == AssignmentState::Released {
         return result(state, handle, true);
     }
-    if state.releases.iter().any(|o| o.assignment_handle == handle) {
+    if state
+        .releases
+        .iter()
+        .any(|o| o.assignment_handle == handle && o.state.is_pending())
+    {
         return result(state, handle, false);
     }
     if assignment.state != AssignmentState::Active || has_pending_work(&state, repository_id) {
@@ -138,7 +158,15 @@ fn result(
     state: CatalogProjection,
     handle: AssignmentHandle,
     already: bool,
-) -> Result<(CatalogProjection, Assignment, ReleaseOperation, bool), PoolError> {
+) -> Result<
+    (
+        CatalogProjection,
+        Assignment,
+        Option<ReleaseOperation>,
+        bool,
+    ),
+    PoolError,
+> {
     let a = state
         .assignments
         .iter()
@@ -148,9 +176,12 @@ fn result(
     let o = state
         .releases
         .iter()
+        .rev()
         .find(|o| o.assignment_handle == handle)
-        .cloned()
-        .ok_or(PoolError::Corrupt)?;
+        .cloned();
+    if o.is_none() && !already {
+        return Err(PoolError::Corrupt);
+    }
     Ok((state, a, o, already))
 }
 fn append(
@@ -211,13 +242,17 @@ fn begin_release(
 }
 
 fn has_pending_work(state: &CatalogProjection, repository_id: RepositoryId) -> bool {
-    state.operations.iter().any(|o| {
-        o.repository_id == repository_id && o.state != crate::management::RefreshState::Completed
-    }) || state.acquisitions.iter().any(|o| {
-        o.repository_id == repository_id
-            && o.state != crate::acquisition::AcquisitionState::Completed
-    }) || state
-        .releases
-        .iter()
-        .any(|o| o.repository_id == repository_id && o.state != ReleaseState::Completed)
+    state.has_pending_recovery(repository_id)
+        || state
+            .operations
+            .iter()
+            .any(|o| o.repository_id == repository_id && o.state.is_pending())
+        || state
+            .acquisitions
+            .iter()
+            .any(|o| o.repository_id == repository_id && o.state.is_pending())
+        || state
+            .releases
+            .iter()
+            .any(|o| o.repository_id == repository_id && o.state.is_pending())
 }

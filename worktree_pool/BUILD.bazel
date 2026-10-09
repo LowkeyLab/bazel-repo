@@ -45,6 +45,7 @@ rust_library(
         "acquisition_tests.rs",
         "acquisition_workflow.rs",
         "catalog.rs",
+        "catalog_recovery_cli.rs",
         "cli.rs",
         "coordination.rs",
         "creation.rs",
@@ -57,8 +58,12 @@ rust_library(
         "lib.rs",
         "management.rs",
         "paths.rs",
+        "recovery.rs",
+        "recovery_inspection.rs",
+        "recovery_workflow.rs",
         "release.rs",
         "release_workflow.rs",
+        "repository_recovery.rs",
         "store.rs",
         "store_tests.rs",
         "workflows.rs",
@@ -93,6 +98,7 @@ rust_test(
         "@crates//:redb",
         "@crates//:serde_json",
         "@crates//:tempfile",
+        "@crates//:uuid",
     ],
 )
 

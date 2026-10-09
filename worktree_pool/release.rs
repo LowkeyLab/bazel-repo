@@ -15,6 +15,13 @@ pub enum ReleaseState {
     Preserved,
     Completed,
     NeedsReconciliation,
+    Reconciled,
+}
+impl ReleaseState {
+    #[must_use]
+    pub const fn is_pending(self) -> bool {
+        !matches!(self, Self::Completed | Self::Reconciled)
+    }
 }
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -97,6 +104,9 @@ impl ReleaseEvent {
         cause: Option<&str>,
     ) -> Result<(), PoolError> {
         if let Self::Started(o) = self {
+            if state.has_pending_recovery(o.repository_id) {
+                return Err(PoolError::OperationPending);
+            }
             if o.state != ReleaseState::Intended
                 || !o.intent_event_id.is_empty()
                 || o.last_checkpoint != "release_intended"
@@ -117,8 +127,7 @@ impl ReleaseEvent {
                 })
                 || state.releases.iter().any(|r| {
                     r.operation_id == o.operation_id
-                        || (r.repository_id == o.repository_id
-                            && r.state != ReleaseState::Completed)
+                        || (r.repository_id == o.repository_id && r.state.is_pending())
                 })
             {
                 return Err(PoolError::Conflict);

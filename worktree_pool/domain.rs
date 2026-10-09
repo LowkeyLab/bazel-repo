@@ -85,6 +85,35 @@ pub struct CatalogProjection {
     pub creations: Vec<crate::creation::CreationOperation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub catalog_stream_revision: Option<u64>,
+    #[serde(default)]
+    pub recoveries: Vec<crate::recovery::RecoveryOperation>,
+    #[serde(default)]
+    pub repository_recoveries: Vec<crate::repository_recovery::RepositoryRecoveryOperation>,
+}
+
+impl CatalogProjection {
+    #[must_use]
+    pub fn operation_identity_used(&self, id: crate::management::OperationId) -> bool {
+        self.operations.iter().any(|o| o.operation_id == id)
+            || self
+                .repository_recoveries
+                .iter()
+                .any(|o| o.operation_id == id)
+            || self.recoveries.iter().any(|o| o.operation_id == id)
+            || self.acquisitions.iter().any(|o| o.operation_id == id)
+            || self.releases.iter().any(|o| o.operation_id == id)
+            || self.creations.iter().any(|o| o.operation_id == id)
+    }
+
+    #[must_use]
+    pub fn has_pending_recovery(&self, repository_id: crate::management::RepositoryId) -> bool {
+        self.recoveries.iter().any(|o| {
+            o.repository_id == repository_id && o.state != crate::recovery::RecoveryState::Completed
+        }) || self.repository_recoveries.iter().any(|o| {
+            o.repository_id == repository_id
+                && o.state != crate::repository_recovery::RepositoryRecoveryState::Completed
+        })
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -143,6 +172,11 @@ pub fn decode_event(value: &Value, catalog_id: CatalogId) -> Result<DomainEvent,
             value["type"].as_str(),
             Some(
                 INITIALIZED_TYPE
+                    | "io.lowkeylab.worktreepool.repository.recovery.started.v1"
+                    | "io.lowkeylab.worktreepool.repository.recovery.finished.v1"
+                    | "io.lowkeylab.worktreepool.recovery.started.v1"
+                    | "io.lowkeylab.worktreepool.recovery.preserved.v1"
+                    | "io.lowkeylab.worktreepool.recovery.finished.v1"
                     | "io.lowkeylab.worktreepool.worktree.creation.registered.v1"
                     | "io.lowkeylab.worktreepool.worktree.creation.path.prepared.v1"
                     | "io.lowkeylab.worktreepool.worktree.creation.finished.v1"
@@ -263,6 +297,8 @@ pub fn reduce(
             releases: Vec::new(),
             creations: Vec::new(),
             catalog_stream_revision: None,
+            recoveries: Vec::new(),
+            repository_recoveries: Vec::new(),
         }),
         DomainEvent::CatalogInitialized(_) => Err(PoolError::Conflict),
         DomainEvent::Management {

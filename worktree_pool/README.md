@@ -432,3 +432,114 @@ detached workflows, durable preservation failures, retained-file recency and
 collisions, live callers, stale handles, concurrent processes, crashes, and lost
 stdout. A real `redb` sync fault checks atomic release/ownership/recency reopening.
 These checks don't simulate whole-machine power loss or filesystem isolation.
+
+## Explicit recovery and lost results
+
+```text
+worktree-pool recover preview [--repo <id-or-path>]
+worktree-pool recover preview --operation <id>
+worktree-pool recover preview --assignment <handle>
+worktree-pool recover preview --worktree <id-or-registered-path>
+worktree-pool recover apply --operation <id>
+worktree-pool recover apply --assignment <handle> [--abandon]
+worktree-pool recover apply --worktree <id-or-registered-path> [--abandon]
+worktree-pool recover preview --catalog
+worktree-pool recover apply --catalog
+```
+
+Repository preview lists candidates without choosing one. Apply requires an exact
+recorded identity. Worktree paths preserve non-UTF-8 bytes and select only an
+explicit registration. Assignment handles remain historical identities after
+release. They never select a newer owner. Conflicting selectors reject. Known
+operation/assignment/worktree inspection resolves lost output. An unidentified
+result requires explicit inspection and selection rather than another acquisition.
+
+Preview and catalog/repository/worktree/assignment/operation/event inspection use
+read-only storage validation, including complete authoritative history, versions,
+revisions and projection replay. Recovery previews observe actual checkout binding,
+`HEAD`, branch, index, protected content, operation state and required preservation
+roots under maintenance and repository coordination. They never repair storage,
+fetch, checkout, create a worktree, update references or change ownership/history.
+An unclean `redb` file can refuse read-only inspection until explicit catalog recovery.
+
+Apply records its own durable intent and result. Detached work requires verified
+direct `refs/worktree-pool/<operation-id>` roots. A symbolic reference with the
+same resolved commit doesn't certify preservation. New writes use expected-empty
+references and reference `fsync`. Recovery observes existing roots before any retry.
+It never overwrites conflicting roots. Final validation repeats binding,
+content/index/operation, tip/branch and required-root checks before ownership can
+change. `--abandon` can't waive dirty or uncertain protection. Missing, moved,
+mismatched, or unproven partial creation remains countable and protected. A prepared
+empty directory after restart isn't proof a Git creation effect completed.
+
+A verified interrupted acquisition or linked creation can activate its existing
+preparing assignment. An unproven effect completes reconciliation with preparing
+ownership and withheld availability. Interrupted release observes or safely
+completes its recorded preservation before ending ownership. Explicit abandonment
+preserves the actual safe tip before releasing an active or preparing assignment.
+Without abandonment, an active assignment stays active. Safe unassigned
+reconciliation only removes withholding and reports `unverified` availability.
+Acquisition must still validate it. Recovery never repeats fetch, checkout or
+worktree creation, and never resets, stashes, deletes, prunes or stops callers.
+
+`outcome` and exit status describe the requested reconciliation independently of
+`ownership` and `availability`: `completed`/0 can retain active/preparing ownership
+or withheld availability. `pending`/3 retains a recorded unfinished operation.
+`unknown`/4 requires inspecting durable outcome evidence. `rejected`/2 doesn't
+certify a free worktree. Data includes the recovery operation, selected identities,
+observations, preservation evidence, revision, and next action. Historical released
+handles have nullable availability. A repeated stale release returns
+`already_released`. A release performed by recovery has nullable `operation` and
+its durable `recovery_operation` receipt.
+
+Interrupted original operations can become `reconciled`, distinct from their
+original successful `completed` result. Exact original IDs then return their
+recorded completed recovery without adding another workflow. To request a new
+observation after resolving protected state, explicitly select the worktree or
+assignment. Refresh reconciliation never infers successful fresh fetch from an
+existing local `origin/main` reference: it reports `fresh_fetch_proven: false` and
+requires a new explicit repository refresh or acquisition. A previously committed
+successful refresh remains an unchanged proven result.
+
+Worktree recovery facts use `recovery.started.v1`, `recovery.preserved.v1` and
+`recovery.finished.v1`. Repository refresh reconciliation uses
+`repository.recovery.started.v1` and `repository.recovery.finished.v1`, all under
+`io.lowkeylab.worktreepool`. They retain operation identities, causal checkpoint
+chains and repository stream revisions. A pending recovery blocks competing
+acquire/release/refresh for that repository after process death. Independent
+repositories retain progress. Database handles close before Git effects and
+catalog unlock, and lock descriptors aren't inherited by child processes.
+Indeterminate commit handling reopens and inspects the exact event ID and revision
+before any further effect. It never blindly retries a transaction or Git effect.
+
+Catalog initialization and storage-repair recovery precede repository authority.
+Their schema-versioned immutable `recovery_history`, exact operation IDs and
+intent/completed checkpoints live in the stable active-catalog locator, not
+repository CloudEvents. The current locator recovery fields are a projection of
+that history. The locator retains historical legacy checkpoint metadata explicitly without
+inventing missing intent facts. Catalog recovery IDs support public operation
+list/inspect and exact recover selectors even while repository storage is pending.
+A partial operation list explicitly reports unavailable repository operations.
+Later lifecycle changes must preserve prior locator history and known results.
+
+Ordinary initialization never repairs or replaces existing authority. Explicit
+catalog apply resumes recognized initialization checkpoints or records a repair
+intent before writable reopening of a genuinely unclean database. It validates the
+expected catalog `UUID` and complete history before publishing completion. It never
+resets or creates over present conflicting, corrupt, or unsupported authority.
+`redb` may repair allocator/header metadata before `UUID` validation on an unclean
+substituted foreign file. That explicit-apply rejection preserves authoritative
+events/history but doesn't promise physical-byte preservation or filesystem
+isolation. Healthy rejected conflicts and all read-only paths preserve bytes.
+
+`recovery.rs` owns pure worktree decisions and causal replay.
+`recovery_workflow.rs` owns concrete preservation and ownership orchestration.
+`recovery_inspection.rs` owns exact registered selection and read-only observations.
+`repository_recovery.rs` owns the distinct refresh lifecycle, while `catalog.rs`
+owns locator/bootstrap/storage authority and `catalog_recovery_cli.rs` composes its
+public receipts. These modules keep real Git, filesystem, kernel locks and `redb`
+effects. Checkpoint observers provide deterministic interruption boundaries without
+replacing those dependencies. Private real fixtures verify SIGKILL/restart,
+preview preservation, known/unidentified results, competing processes and actual
+`redb` sync-failure atomicity. They don't establish whole-machine power-loss safety
+or a benchmark speedup.
