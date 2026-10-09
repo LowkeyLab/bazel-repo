@@ -283,7 +283,7 @@ git_override(
 bazel_dep(name = "gazelle")
 git_override(
     module_name = "gazelle",
-    commit = "160271019d4cd87d4fe8c1709f7a7c1cbef6a0f5",
+    commit = "e9ba9bee1de4408da6409be18643d73d70e60590",
     remote = "https://github.com/bazel-contrib/bazel-gazelle.git",
 )
 
