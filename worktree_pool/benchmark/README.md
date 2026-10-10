@@ -27,8 +27,9 @@ Use Linux x86_64, the pinned Nix shell, and `//nicknamer/server/lib:lib`.
 Set `RUN_ROOT` to a new private directory, `SOURCE` to a read-only checkout,
 `POOL_BINARY` to the selected retained executable, and `TOOL_COMMIT` to its
 source commit. Record the executable digest. Both arms refresh a private local
-origin with fixed `main` on every acquisition. Local transport excludes GitHub
-latency. Each pair must resolve matching commits.
+origin with fixed `main` on every acquisition. The pooled arm requests
+`repo refresh` before acquiring its explicit revision. Local transport excludes
+GitHub latency. Each pair must resolve matching commits.
 
 Use the same tracked Bazel configuration, BuildBuddy remote cache, archive
 cache, and native Nix/Aspect commands. Both arms turn off the fetched-directory

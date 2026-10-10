@@ -85,14 +85,30 @@ pub fn checkout(path: &Path) -> Result<Checkout, PoolError> {
 /// # Errors
 /// Refuses substituted/missing contexts and failed Git effects without stale fallback.
 pub fn refresh_origin_main(common_directory: &Path) -> Result<String, PoolError> {
-    if observe_path(common_directory, "--git-common-dir")? != common_directory {
-        return Err(PoolError::Git);
-    }
+    ensure_common_directory(common_directory)?;
     if !fetch(common_directory)?.status.success() {
         return Err(PoolError::Git);
     }
     origin_main(common_directory)
 }
+/// Resolves a local reference only within the recorded canonical repository.
+/// # Errors
+/// Refuses substituted common directories and missing references without Git effects.
+pub(crate) fn resolve_repository_commit(
+    common_directory: &Path,
+    reference: &OsStr,
+) -> Result<String, PoolError> {
+    ensure_common_directory(common_directory)?;
+    resolve_commit(common_directory, reference)
+}
+
+fn ensure_common_directory(common_directory: &Path) -> Result<(), PoolError> {
+    if observe_path(common_directory, "--git-common-dir")? != common_directory {
+        return Err(PoolError::Git);
+    }
+    Ok(())
+}
+
 /// # Errors
 /// Rejects failures without treating a stale remote-tracking ref as fresh.
 fn fetch(path: &Path) -> Result<Output, PoolError> {
