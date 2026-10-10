@@ -6,7 +6,7 @@ version = 4
 name = "a"
 version = "0.1.0"
 dependencies = [
- "strum",
+ "strum 0.24.1",
 ]
 
 [[package]]
@@ -14,7 +14,7 @@ name = "b"
 version = "0.1.0"
 dependencies = [
  "a",
- "strum",
+ "strum 0.28.0",
 ]
 
 [[package]]
@@ -24,6 +24,12 @@ dependencies = [
  "a",
  "b",
 ]
+
+[[package]]
+name = "strum"
+version = "0.24.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 
 [[package]]
 name = "strum"

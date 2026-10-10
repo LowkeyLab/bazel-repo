@@ -36,6 +36,12 @@
         "fileFilters": ["go.mod", "go.sum", "MODULE.bazel.lock"],
         "executionMode": "branch"
       }
+    },
+    {
+      "description": "Preserve pinned dependency versions in Gazelle generation test fixtures",
+      "matchManagers": ["cargo"],
+      "matchFileNames": ["3rdparty/gazelle_rust/upstream/generation_tests/**"],
+      "enabled": false
     }
   ]
 }
