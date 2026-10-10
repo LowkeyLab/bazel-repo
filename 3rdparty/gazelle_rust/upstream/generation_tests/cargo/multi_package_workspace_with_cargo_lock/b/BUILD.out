@@ -8,6 +8,6 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//a:a_lib",
-        "@crates//:strum-0.27.2",
+        "@crates//:strum-0.28.0",
     ],
 )
