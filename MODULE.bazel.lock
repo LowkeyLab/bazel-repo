@@ -1631,8 +1631,8 @@
         },
         {
           "importpath": "golang.org/x/crypto",
-          "sha256": "93438fc90cca15b1b253be9df648ca54fb80838400239cc294f794ca2f242575",
-          "version": "v0.57.0"
+          "sha256": "938883ec4a74e7fc05c46269e924dda334c2b7ca7ca219e4d27ca56d1891ccd3",
+          "version": "v0.58.0"
         },
         {
           "importpath": "golang.org/x/mod",
@@ -2058,6 +2058,11 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "golang.org/x/crypto",
+          "sha256": "93438fc90cca15b1b253be9df648ca54fb80838400239cc294f794ca2f242575",
+          "version": "v0.57.0"
         },
         {
           "importpath": "github.com/bazelbuild/rules_go",
