@@ -48,6 +48,9 @@ catalogs:
     '@eslint/js':
       specifier: ^10.0.0
       version: 10.0.1
+    '@graphql-codegen/cli':
+      specifier: ^7.0.0
+      version: 7.4.5
     '@graphql-codegen/typescript':
       specifier: ^6.0.0
       version: 6.1.1
@@ -108,9 +111,6 @@ catalogs:
     apollo-angular:
       specifier: ^14.0.0
       version: 14.2.0
-    astro:
-      specifier: ^7.0.0
-      version: 7.3.6
     canvas-confetti:
       specifier: ^1.9.4
       version: 1.9.4
@@ -216,7 +216,7 @@ importers:
         version: 4.5.0
       astro:
         specifier: 'catalog:'
-        version: 7.3.6(@types/node@24.19.1)(jiti@2.7.0)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1)
+        version: 7.3.7(@types/node@24.19.1)(jiti@2.7.0)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1)
       sharp:
         specifier: 'catalog:'
         version: 0.35.5(@types/node@24.19.1)
@@ -424,7 +424,7 @@ importers:
         version: 22.2.2(@types/node@24.19.1)(chokidar@5.0.0)
       astro:
         specifier: 'catalog:'
-        version: 7.3.6(@types/node@24.19.1)(jiti@2.7.0)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1)
+        version: 7.3.7(@types/node@24.19.1)(jiti@2.7.0)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1)
 
 packages:
 
@@ -3142,8 +3142,8 @@ packages:
     resolution: {integrity: sha512-WavQUarfgwSbpCq4xsdcIBdX5KArfI2d6DD8EIloJIMthnB1508iNpx4C77EhUyMd03LpEt8HAPzwF/cG0V39g==}
     engines: {node: ^22.22.3 || ^24.16.0 || >=26.3.0}
 
-  astro@7.3.6:
-    resolution: {integrity: sha512-3q0MKxfE4cpr5IoQ9EWrN0gwxeT5tkCaSVe3SrGlLR5fnTIywHqjVqFokQkQiZexfwpNtB9dtBdUcXV9FuD+4w==}
+  astro@7.3.7:
+    resolution: {integrity: sha512-MyxnNzy+HHkLa8iNVcGTXbmSTlkjqkXJyRcMU3EwprbsF7gh3M03DKLAGVcVTmATF8jV1Fen0rkala1JiEyMSg==}
     engines: {node: '>=22.12.0', npm: '>=9.6.5', pnpm: '>=7.1.0'}
     hasBin: true
     peerDependencies:
@@ -8358,7 +8358,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  astro@7.3.6(@types/node@24.19.1)(jiti@2.7.0)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1):
+  astro@7.3.7(@types/node@24.19.1)(jiti@2.7.0)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1):
     dependencies:
       '@astrojs/compiler-rs': 0.5.1
       '@astrojs/internal-helpers': 0.12.0
