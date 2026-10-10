@@ -1631,8 +1631,8 @@
         },
         {
           "importpath": "golang.org/x/crypto",
-          "sha256": "93438fc90cca15b1b253be9df648ca54fb80838400239cc294f794ca2f242575",
-          "version": "v0.57.0"
+          "sha256": "938883ec4a74e7fc05c46269e924dda334c2b7ca7ca219e4d27ca56d1891ccd3",
+          "version": "v0.58.0"
         },
         {
           "importpath": "golang.org/x/mod",
@@ -1642,37 +1642,37 @@
         {
           "importpath": "golang.org/x/net",
           "sha256": "f7034587fa012c43de66d8c276ddab161032931abf116a629daa8d66f1c80023",
-          "version": "v0.59.0"
+          "version": "v0.60.0"
         },
         {
           "importpath": "golang.org/x/sync",
           "sha256": "febf4fed5dc12c0de24528f7065bf071cc74a2424070194aaf24617b91066cda",
-          "version": "v0.23.0"
+          "version": "v0.24.0"
         },
         {
           "importpath": "golang.org/x/sys",
           "sha256": "9522f4c9806d1c26586ea80fa56292929bd295865e71981927f52996c6b1c831",
-          "version": "v0.48.0"
+          "version": "v0.49.0"
         },
         {
           "importpath": "golang.org/x/telemetry",
           "sha256": "b3db3a6093c95190ba4c799a41b18ed8cab5f9d5329e6d327eecd8bb54d7ff76",
-          "version": "v0.0.0-20260908163034-4bcc4b2ee518"
+          "version": "v0.0.0-20260924152758-ed294f943157"
         },
         {
           "importpath": "golang.org/x/term",
-          "sha256": "f94c7bd036a7d189950b7759a3f105e7bcc7164dc89d80d186c7e8a903d6c332",
-          "version": "v0.46.0"
+          "sha256": "cfc437810b8822bf57ca3ea4e39ebd418dd5671d72f2b110ce5a3164fa541b0b",
+          "version": "v0.47.0"
         },
         {
           "importpath": "golang.org/x/text",
-          "sha256": "4756c4b8eeeae2a20cb43c198c10701d20c53493bd90b91c6632153c9cbac240",
-          "version": "v0.42.0"
+          "sha256": "63270b8ca6290a720212e1d6e58b8d12a8aa315a1cb960411d7ec2998c0aab59",
+          "version": "v0.43.0"
         },
         {
           "importpath": "golang.org/x/tools",
-          "sha256": "3af7ad5226f7a05b4b340e29692c9262fdd4852337ce94ca4a9c8e5de32f1cb1",
-          "version": "v0.50.0"
+          "sha256": "9b1d543349c9346f85900c656a566d1780d59ff479cf0d888b9516d21ec7df7b",
+          "version": "v0.51.0"
         },
         {
           "importpath": "golang.org/x/vuln",
@@ -2058,6 +2058,46 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "golang.org/x/net",
+          "sha256": "f7034587fa012c43de66d8c276ddab161032931abf116a629daa8d66f1c80023",
+          "version": "v0.59.0"
+        },
+        {
+          "importpath": "golang.org/x/sync",
+          "sha256": "febf4fed5dc12c0de24528f7065bf071cc74a2424070194aaf24617b91066cda",
+          "version": "v0.23.0"
+        },
+        {
+          "importpath": "golang.org/x/sys",
+          "sha256": "9522f4c9806d1c26586ea80fa56292929bd295865e71981927f52996c6b1c831",
+          "version": "v0.48.0"
+        },
+        {
+          "importpath": "golang.org/x/telemetry",
+          "sha256": "b3db3a6093c95190ba4c799a41b18ed8cab5f9d5329e6d327eecd8bb54d7ff76",
+          "version": "v0.0.0-20260908163034-4bcc4b2ee518"
+        },
+        {
+          "importpath": "golang.org/x/term",
+          "sha256": "f94c7bd036a7d189950b7759a3f105e7bcc7164dc89d80d186c7e8a903d6c332",
+          "version": "v0.46.0"
+        },
+        {
+          "importpath": "golang.org/x/text",
+          "sha256": "4756c4b8eeeae2a20cb43c198c10701d20c53493bd90b91c6632153c9cbac240",
+          "version": "v0.42.0"
+        },
+        {
+          "importpath": "golang.org/x/tools",
+          "sha256": "3af7ad5226f7a05b4b340e29692c9262fdd4852337ce94ca4a9c8e5de32f1cb1",
+          "version": "v0.50.0"
+        },
+        {
+          "importpath": "golang.org/x/crypto",
+          "sha256": "93438fc90cca15b1b253be9df648ca54fb80838400239cc294f794ca2f242575",
+          "version": "v0.57.0"
         },
         {
           "importpath": "github.com/bazelbuild/rules_go",

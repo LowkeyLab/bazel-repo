@@ -30,7 +30,7 @@
       "skipArtifactsUpdate": true,
       "postUpgradeTasks": {
         "commands": [
-          "bazel run @rules_go//go --config=ci-remote -- mod download all",
+          "bazel run //tools:go_mod_download --config=ci-remote",
           "bazel mod deps --lockfile_mode=update --config=ci-remote"
         ],
         "fileFilters": ["go.mod", "go.sum", "MODULE.bazel.lock"],
