@@ -178,7 +178,7 @@ require (
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	go.starlark.net v0.0.0-20231101134539-556fd59b42f6 // indirect
 	golang.org/x/arch v0.29.0 // indirect
-	golang.org/x/crypto v0.57.0
+	golang.org/x/crypto v0.58.0
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.59.0
 	golang.org/x/sync v0.23.0 // indirect
