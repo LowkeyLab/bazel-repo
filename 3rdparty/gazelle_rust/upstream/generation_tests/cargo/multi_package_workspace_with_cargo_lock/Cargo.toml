@@ -7,4 +7,4 @@ members = [
 ]
 
 [workspace.dependencies]
-strum = "0.27"
+strum = "0.28"
