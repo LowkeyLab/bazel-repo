@@ -81,7 +81,7 @@ jobs:
           docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Verify real packages and installed CLI
         run: |
-          nix develop --command env \
+          env \
             RULES_PYTHON_PYCACHE_DIR="$RUNNER_TEMP/rules-python-pycache" \
             bazel run //tools/cargo_publish:ci -- \
             --workspace "$PWD" \
