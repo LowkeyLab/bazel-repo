@@ -95,7 +95,7 @@ class PublishingFilesTest(unittest.TestCase):
         manifest = tomllib.loads((files / "Cargo.toml").read_text())
         dependency = manifest["dependencies"]["renamed_json"]
         self.assertEqual(dependency["package"], "serde_json")
-        self.assertEqual(dependency["version"], "=1.0.152")
+        self.assertEqual(dependency["version"], "=1.0.153")
         self.assertTrue(dependency["default-features"])
         self.assertIn("raw_value", dependency["features"])
         self.assertIn("unbounded_depth", dependency["features"])
