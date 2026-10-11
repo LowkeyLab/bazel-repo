@@ -179,19 +179,9 @@ class Runner:
         for name, label, path in fixtures:
             root = binary_root / path
             before = set(root.iterdir()) if root.exists() else set()
-            argv = [self.args.bazel, "run", label, "--remote_download_outputs=all"]
-            if name == "library":
-                argv += [
-                    "--",
-                    "--offline",
-                    "--registry-cache",
-                    str(
-                        binary_root
-                        / "tools/cargo_publish/ci-empty-probe-cache"
-                        / str(uuid.uuid4())
-                    ),
-                ]
-            code = self.command(name, argv)
+            code = self.command(
+                name, [self.args.bazel, "run", label, "--remote_download_outputs=all"]
+            )
             try:
                 self.collect_generic(root, before, name)
             except OSError as error:
