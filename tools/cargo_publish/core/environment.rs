@@ -1,4 +1,4 @@
-//! Common process isolation for pinned Cargo validation and installation.
+//! Process isolation for pinned Cargo validation.
 
 use std::{
     collections::BTreeMap,

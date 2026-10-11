@@ -27,7 +27,7 @@ nix develop --command aspect lint
 Run Gazelle immediately after each source edit and before formatting or manual
 `BUILD.bazel` changes. The command-line integration target requires the development
 shell's real Git on PATH. Fixtures own private catalogs, repositories, and remotes.
-Use the installation acceptance target below to verify the standalone package.
+CLI behavior is covered by the normal Rust test target using the Bazel-built binary.
 Cargo commands in the README are installation instructions. Repository development
 uses Bazel.
 
@@ -181,7 +181,7 @@ human-identity tests failed before implementation. Stable public results support
 refactoring resistance, but no refactor-survival experiment accompanies this
 slice. Fault tests establish commit/error semantics and don't claim simulated
 power-loss durability. Normal processes establish kernel-lock behavior. Later
-checks verify recovery and standalone installation. Creation checks cover
+checks verify recovery. Creation checks cover
 private paths, capacity, real Git failures, process interruption, independent
 callers, protected destinations and lost results. Atomic batch faults verify
 registration and ownership reopen together.
@@ -397,14 +397,14 @@ storage errors aren't classified as failed commits. Reopen checks complete old o
 complete new history and projection before any retry. These checks don't establish
 whole-machine power-loss behavior or a performance benefit.
 
-## Source-package preparation and installed acceptance
+## Source-package preparation
 
 Ordinary Bazel compilation doesn't need a publishing run, generated consumer
 Cargo files, or registry access solely for publishing. Normal Bazel dependency
 acquisition still applies. Keep the repository-root `Cargo.toml` and `Cargo.lock`:
 `crate.from_cargo` uses them for Bazel dependencies.
 
-First generate the declared source package without invoking Cargo or accessing a
+Generate the declared source package without invoking Cargo or accessing a
 registry for publishing:
 
 ```sh
@@ -417,7 +417,8 @@ aliases, dependency kinds, default-feature settings, and explicit features from
 the configured Bazel graph. It isn't a second handwritten dependency authority.
 See [dependency evidence](DEPENDENCIES.md) for requested and resolved features.
 
-Then run explicit validation with Bazel's pinned Rust/Cargo 1.96.0 toolchain:
+For release preparation, run explicit package validation with Bazel's pinned
+Rust/Cargo 1.96.0 toolchain:
 
 ```sh
 nix develop --command bazel run //worktree_pool:publish
@@ -427,7 +428,7 @@ Validation uses a private Cargo home and target directory, with registry access
 online by default. To use a deliberately managed populated Cargo cache, pass
 `-- --registry-cache /absolute/cache`. Adding `--offline` requires that cache
 to contain the complete resolution. An empty cache fails offline. Failed runs
-retain their incomplete report and command logs. They aren't installable handoffs.
+retain their report and command logs.
 
 A successful command prints JSON with the exact `archive` and `report` paths and
 run identity. All twelve mandatory checks must pass: input fidelity, toolchain,
@@ -435,80 +436,45 @@ configuration, generated manifest, Cargo package verification, archive policy an
 fidelity, original and normalized manifests, locked metadata, direct dependencies,
 and locked builds of the library and every selected binary. These checks include
 source and asset hashes and the packaged lockfile. Retain the archive/report pair.
-Acceptance validates their identity, hashes, and complete evidence before extraction.
-It doesn't discover the newest run or package the source checkout again.
-
-Pass those printed paths to installed acceptance:
-
-```sh
-nix develop --command bazel run //worktree_pool/install:acceptance -- \
-  --archive /absolute/validated/worktree-pool-0.1.0.crate \
-  --report /absolute/validated/report.json \
-  --output /absolute/new/private-verification-directory
-```
-
-The output directory must not exist. Acceptance uses a fresh private Cargo home
-with registry access and performs locked installation from that exact verified
-archive. It builds checksum-pinned official Git 2.36.0 and static `zlib` 1.3.1
-privately, then runs the full real command-line suite against the installed
-executable from an unrelated working directory. Runtime `PATH` contains only
-that Git and the shell/sleep utilities needed by fixtures, excluding Cargo, rustc,
-and Bazel. Retained `artifact.json`, `validation-report.json`, `runtime.json`, and
-`installed-cli.log` identify the archive/run, compiler/Git versions, installed
-version, native executable dependencies, and raw test results.
+The archive SHA256 binds the report to the validated package bytes.
 
 Package version comes from `WORKTREE_POOL_VERSION` in `package_metadata.bzl`.
 For a release version change, update that declaration, regenerate the package, and
-validate it. Then verify both the Bazel and installed `worktree-pool --version`
-results. The library, command-line tool, and publishing macro share the declaration.
-All use version 0.1.0 for this release. Dependency updates belong in the root Cargo inputs and Bazel graph, then
-require regenerated dependency evidence. Source equivalence never promises
-byte-identical Cargo/Bazel executables or equal transitive feature activation.
+validate it. Verify `worktree-pool --version` through the Bazel CLI test target.
+The library, command-line tool, and publishing macro share the declaration.
+All use version 0.1.0 for this release. Dependency updates belong in the root Cargo
+inputs and Bazel graph, then require regenerated dependency evidence. Cargo owns
+transitive resolution and feature activation. Authenticated registry upload is a
+separate maintainer action.
 
-The suite's injected crash/commit-fault children use the Bazel test-support
-library to establish interruption/storage boundaries. Their public observation
-and recovery commands use the installed artifact. Helper execution isn't
-independent proof that the installed command-line tool can inject those faults.
-Tests own private Git/filesystem/redb fixtures and use no mock framework. Cargo
-registry access and shared repository caches remain external dependencies.
-Runtime verification establishes `PATH` independence. Toolchains can remain
-elsewhere on the host filesystem. Certification covers Linux x86-64 target
-`x86_64-unknown-linux-gnu` with pinned Rust/Cargo 1.96.0. The minimum Git build tests local transport only, with
-optional HTTP, transport layer security, and scripting features turned off.
-Source installation uses the Nix-managed Linux host and depends on its C runtime
-closure. It isn't a universal prebuilt Linux distribution. This flow doesn't
-certify authenticated registry upload or other production crates.
+## Required test gates
 
-## Required publishing gates
+Pull requests run the required `test` and `lint` checks, plus formatting and
+coverage. The ordinary Bazel suite covers publishing generation, dependency
+classification, archive/report validation, unsupported-input rejection, and a
+public query of the library, binary, and both test dependency graphs. The query
+rejects publishing-only tools, generated package targets, and consumer Cargo
+inputs from ordinary compilation. The root Cargo dependency catalog remains
+supported.
 
-Pull requests run the required `test`, `lint`, and `cargo-publish` checks.
-The ordinary Bazel suite covers offline publishing contracts and a public query
-of the library, binary, and both test dependency graphs. The query rejects
-publishing-only tools, generated package targets, and consumer Cargo inputs from
-ordinary compilation. The root Cargo dependency catalog remains supported.
+CLI behavior uses normal Rust tests against the Bazel-built executable.
+The CLI suite owns private Git/filesystem/redb fixtures and uses the development
+shell's Git. Test-support children establish interruption and storage boundaries.
+CI doesn't install a Cargo package or rerun CLI tests against an installed binary.
 
-The Linux x86-64 `cargo-publish` job runs real library-only, binary-only,
-combined, and worktree_pool package validation with pinned Cargo/rustc 1.96.0 and
-registry access. It passes that exact consumer archive/report pair to locked
-installation and the full installed public command-line suite. Consumer Cargo files stay
-absent. Registry upload credentials aren't needed.
-
-Reproduce the serial job from the repository root:
+Run the relevant programmatic tests from the repository root:
 
 ```sh
-nix develop --command env RULES_PYTHON_PYCACHE_DIR=/absolute/stable/python-cache \
-  bazel run //tools/cargo_publish:ci -- \
-  --workspace "$PWD" --output /absolute/new/publishing-evidence
+nix develop --command aspect test //tools/cargo_publish/... \
+  //worktree_pool:publishing_test \
+  //worktree_pool:worktree_pool_lib_test //worktree_pool:cli_test
 ```
 
-The evidence directory must not exist. Each command retains its status and logs.
-Generic package reports are separate from installed command-line evidence. A failure stops
-the job with the failing command's status and retains available incomplete reports.
-CI uploads selected reports, logs, and exact archives even on failure, excluding
-Cargo homes, configuration, caches, and build trees. The installation helper scope
-and preceding runtime limits still apply. After changes, also run Gazelle,
-full formatting, relevant tests (`--nocache_test_results`), the full repository
-build, and lint.
+These tests run through Bazel and use `googletest` for Rust assertions and
+`rules_testing` for analysis checks. Publishing-command tests use controlled
+external tools and archive fixtures. Registry-backed Cargo validation is an
+explicit release-preparation command. After changes, run Gazelle, full formatting,
+relevant tests (`--nocache_test_results`), the full repository build, and lint.
 
 ## Accepted benchmark and resource costs
 
@@ -550,8 +516,8 @@ Registered capacity is a count limit, not a disk/RAM budget. Retained worktrees,
 build output bases, caches, and server state can cost much more than the catalog.
 Retirement never deletes those resources. Inspect known and unknown usage and
 plan explicit human retention decisions. Benchmark acceptance supports this
-measured adoption scope. Minimum-toolchain installation and public behavior are
-separate correctness evidence and never establish a new performance benefit.
+measured adoption scope. Programmatic CLI tests establish correctness independently
+of the benchmark and never establish a new performance benefit.
 
 ## Git observations and coordination
 
@@ -603,7 +569,7 @@ cargo install --locked --version 0.1.0 worktree-pool
 Before publication, install from an extracted verified `worktree-pool-0.1.0.crate`
 using `cargo install --locked --path /path/to/worktree-pool-0.1.0`. The retained
 archive includes its generated manifest, packaged lockfile, source, `AGPL-3.0-only` license,
-and public docs. It excludes Bazel `BUILD` files, benchmark/installation adapters
+and public docs. It excludes Bazel `BUILD` files, benchmark adapters
 and external workspace dependencies. Run `worktree-pool --version`, then initialize
 one catalog, explicitly register the repository, and acquire with `--repo` from
 any working directory. Retain the returned assignment handle and follow the

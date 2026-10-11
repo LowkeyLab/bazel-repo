@@ -26,16 +26,9 @@ impl Fixture {
         }
     }
     fn command(&self) -> Command {
-        // Installation acceptance supplies the real Cargo-installed artifact.
-        // Ordinary Bazel tests retain their existing binary and real adapters.
-        let binary = env::var_os("POOL_INSTALLED_BINARY").map_or_else(
-            || {
-                PathBuf::from(env::var_os("TEST_SRCDIR").unwrap())
-                    .join(env::var_os("TEST_WORKSPACE").unwrap())
-                    .join(env!("POOL_BINARY"))
-            },
-            PathBuf::from,
-        );
+        let binary = PathBuf::from(env::var_os("TEST_SRCDIR").unwrap())
+            .join(env::var_os("TEST_WORKSPACE").unwrap())
+            .join(env!("POOL_BINARY"));
         let mut command = Command::new(binary);
         command
             .env_clear()

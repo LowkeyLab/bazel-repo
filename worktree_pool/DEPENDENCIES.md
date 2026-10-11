@@ -14,16 +14,15 @@ registry provenance. A dependency used by production and selected tests can appe
 in both tables. Aliases such as `cloudevents` and `tracing_subscriber` preserve
 Rust import names while identifying their registry packages.
 
-Run [explicit package validation](CONTRIBUTING.md#source-package-preparation-and-installed-acceptance)
+Run [explicit package validation](CONTRIBUTING.md#source-package-preparation)
 and inspect the printed report path. `dependencies.requested` preserves the
 selected direct declarations. `dependencies.observed` records Cargo's resolved
 transitive graph, versions, and feature activation. `dependencies.metadata_path`
 points to retained locked Cargo metadata. The packaged `Cargo.lock` records that
 standalone resolution. Validation checks declarations, archived files, and locked
 builds. It also checks hashes for each source and asset. It doesn't assume Cargo's
-transitive feature activation matches Bazel's shared feature union. The installer retains the exact
-validated report as `validation-report.json` beside its artifact and runtime
-evidence. A failed or incomplete report isn't a supported installation handoff.
+transitive feature activation matches Bazel's shared feature union. Retain the
+validated archive and its hash-bound report as package evidence.
 
 The dependency roles remain useful without maintaining a second version table:
 
@@ -38,8 +37,5 @@ The dependency roles remain useful without maintaining a second version table:
 
 App execution needs Git and ordinary native C runtime libraries. Rust,
 Cargo, Bazel, Python and Nix are build/verification tools, not app
-runtime dependencies. The minimum-Git acceptance build disables optional
-HTTP, transport layer security, Perl, Python, Tcl/Tk, `gettext` and `iconv` support,
-and links pinned `zlib` 1.3.1 statically. It proves ordinary local Git transport.
-It doesn't certify HTTPS/SSH or that custom Git build as a general replacement
-for system Git.
+runtime dependencies. Normal Rust CLI tests run through Bazel using the
+development shell's Git and the Bazel-built executable.

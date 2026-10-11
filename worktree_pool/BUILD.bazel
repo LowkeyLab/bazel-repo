@@ -19,7 +19,7 @@ rust_binary(
 
 rust_test(
     name = "cli_test",
-    size = "small",
+    size = "medium",  # keep: real Git/filesystem CLI suite needs more than 60 seconds
     srcs = [
         "cli_test.rs",
         "relocation_cli_tests.rs",
@@ -37,7 +37,6 @@ rust_test(
         "INSTA_WORKSPACE_ROOT": ".",
     },
     tags = ["local"],  # keep: machine-local Git and filesystem integration
-    visibility = ["//worktree_pool/install:__pkg__"],  # keep: actual installed CLI acceptance
     deps = [
         "@crates//:googletest",
         "@crates//:insta",
@@ -164,7 +163,7 @@ cargo_publish(
 # Public query protects ordinary compilation/test graphs from publishing inputs.
 genquery(
     name = "forbidden_compilation_dependencies",
-    expression = "filter('(^//tools/cargo_publish[/:]|^//worktree_pool/install[/:]|^//worktree_pool/publishing_guard[/:]|^//worktree_pool:publish([_./]|$)|^//worktree_pool:Cargo[.](toml|lock)$)', deps(set(//worktree_pool:worktree_pool_lib //worktree_pool:worktree_pool //worktree_pool:worktree_pool_lib_test //worktree_pool:cli_test)))",
+    expression = "filter('(^//tools/cargo_publish[/:]|^//worktree_pool/publishing_guard[/:]|^//worktree_pool:publish([_./]|$)|^//worktree_pool:Cargo[.](toml|lock)$)', deps(set(//worktree_pool:worktree_pool_lib //worktree_pool:worktree_pool //worktree_pool:worktree_pool_lib_test //worktree_pool:cli_test)))",
     scope = [
         ":worktree_pool_lib",
         ":worktree_pool",

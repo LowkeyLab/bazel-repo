@@ -130,7 +130,7 @@ extracted package. Consumers support relocation. The archive SHA256 binds the re
 while original output paths remain diagnostic.
 
 The offline public command/archive tests exercise failure contracts with
-controlled external tools. Real public macro runs separately certify
+controlled external tools. Explicit publishing commands support
 library-only, binary-only, and combined archives, including aliases, normal/dev
 and shared dependencies, mixed target editions, nested sources, mapped assets,
 and upstream build-script/proc-macro behavior. Identical declared inputs must
@@ -138,30 +138,26 @@ produce identical generated trees/contracts. Archives, executables, and fresh
 transitive resolution aren't required to be byte-identical.
 
 Generic verification proves supported package generation, declared-input and
-direct-dependency fidelity, and pinned package/archive builds. Installed
-app behavior requires its own consumer test. Authenticated registry
-upload is a separate operation.
+direct-dependency fidelity, and pinned package/archive builds. App behavior is
+covered by normal Bazel Rust tests. Authenticated registry upload is a separate
+operation.
 
-## Publishing CI
+## Programmatic publishing tests
 
-The stable `cargo-publish` job runs on every main pull request. Its serial
-`//tools/cargo_publish:ci` command invokes the real library, binary, combined,
-and worktree_pool publishing targets, then passes the current consumer archive
-and report to `//worktree_pool/install:acceptance`. Validation requires registry access.
-Authenticated upload is separate.
-
-Run it from the repository root with a new evidence directory:
+Publishing tests run in the ordinary Bazel suite:
 
 ```sh
-nix develop --command env RULES_PYTHON_PYCACHE_DIR=/absolute/stable/python-cache \
-  bazel run //tools/cargo_publish:ci -- \
-  --workspace "$PWD" --output /absolute/new/publishing-evidence
+nix develop --command aspect test //tools/cargo_publish/... \
+  //worktree_pool:publishing_test
 ```
 
-`summary.json` records individual generic and installed command statuses.
-Failed commands preserve their exit status and selected incomplete reports/logs.
-CI retains evidence on failure without uploading Cargo homes, configuration,
-credentials, caches, or build trees. Only newly created runs belong to the current
-invocation. Successful handoffs supply explicit paths.
-Ordinary Bazel tests exercise these status/collection contracts with controlled
-external commands. Those tests don't certify actual Cargo packaging.
+`rules_testing` checks configured targets and unsupported analysis inputs.
+Rust tests using `googletest` cover generated manifests, declared source/asset
+bytes, dependency classification, archive/report contracts, and command failures.
+Controlled external tools and archive fixtures exercise verification behavior
+without registry-backed package installation.
+
+CLI behavior is covered by `//worktree_pool:cli_test`, a normal Rust test target
+using the Bazel-built executable. CI runs the programmatic tests with formatting,
+lint, and coverage. Explicit publishing commands remain available for release
+preparation and retain their per-run reports and diagnostics.
