@@ -706,6 +706,19 @@ else:sys.exit("unexpected Cargo command")
                                 "name": "fixture",
                                 "version": "0.1.0",
                                 "source": None,
+                                "dependencies": [
+                                    {
+                                        "name": "anyhow",
+                                        "source": "registry+https://github.com/rust-lang/crates.io-index",
+                                        "req": "=1.0.0",
+                                        "kind": None,
+                                        "rename": "renamed_dep",
+                                        "optional": False,
+                                        "uses_default_features": False,
+                                        "features": [],
+                                        "target": None,
+                                    }
+                                ],
                                 "targets": [
                                     {
                                         "name": "fixture_library",

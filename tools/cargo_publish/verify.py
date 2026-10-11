@@ -284,8 +284,7 @@ class ValidationRun:
         self.phase = "generated_manifest"
         if contract.get("schema_version") != 1 or contract.get("target") != TARGET:
             raise ValueError("unsupported generation contract schema_version or target")
-        if not contract.get("library") or contract.get("binaries"):
-            raise ValueError("this validator slice requires a library-only package")
+        selected_targets(contract)
         compare_manifest(staged / "Cargo.toml", contract)
         self.report["manifests"] = {
             "generated": {
@@ -405,14 +404,25 @@ class ValidationRun:
             },
         )
         self.phase = "locked_builds"
-        _, build_id = self.cargo(
-            "build", extracted / "Cargo.toml", "--locked", "--target", TARGET, "--lib"
-        )
+        build_ids = []
+        for selected in selected_targets(contract):
+            selector = (
+                ["--lib"] if selected.startswith("lib:") else ["--bin", selected[4:]]
+            )
+            _, build_id = self.cargo(
+                "build",
+                extracted / "Cargo.toml",
+                "--locked",
+                "--target",
+                TARGET,
+                *selector,
+            )
+            build_ids.append(build_id)
         if digest(extracted / "Cargo.lock") != self.report["lockfile"]["sha256"]:
             raise ValueError("packaged Cargo.lock changed during locked validation")
         self.check(
             "locked_builds",
-            {"command_ids": [build_id], "targets": selected_targets(contract)},
+            {"command_ids": build_ids, "targets": selected_targets(contract)},
         )
         self.report.update(status="success", completed=True, completed_at=timestamp())
         validate_report(self.report)
@@ -473,24 +483,42 @@ def compare_manifest(path, contract):
             raise ValueError(f"{path.name}: unsupported {key} requirement")
     if manifest["package"].get("build", False) is not False:
         raise ValueError(f"{path.name}: publisher build script is unsupported")
-    library = contract["library"]
+    library = contract.get("library")
     actual = manifest.get("lib", {})
+    if library:
+        if (
+            actual.get("name") != library["crate_name"]
+            or actual.get("path") != library["path"]
+            or actual.get("edition", manifest["package"]["edition"])
+            != library["edition"]
+        ):
+            raise ValueError(
+                f"{path.name}: selected library name/path/edition differs: {library['label']}"
+            )
+        if actual.get("crate-type", ["lib"]) not in (["lib"], ["rlib"]):
+            raise ValueError(f"{path.name}: unsupported library crate-type")
+    elif actual:
+        raise ValueError(f"{path.name}: undeclared package library")
+    expected_binaries = {
+        (binary["name"], binary["path"], binary["edition"])
+        for binary in contract.get("binaries", [])
+    }
+    actual_binaries = {
+        (
+            binary.get("name"),
+            binary.get("path"),
+            binary.get("edition", manifest["package"]["edition"]),
+        )
+        for binary in manifest.get("bin", [])
+    }
     if (
-        actual.get("name") != library["crate_name"]
-        or actual.get("path") != library["path"]
-        or actual.get("edition", manifest["package"]["edition"]) != library["edition"]
+        len(actual_binaries) != len(manifest.get("bin", []))
+        or actual_binaries != expected_binaries
     ):
         raise ValueError(
-            f"{path.name}: selected library name/path/edition differs: {library['label']}"
+            f"{path.name}: selected binary name/path/edition differs: expected {expected_binaries}; actual {actual_binaries}"
         )
-    if actual.get("crate-type", ["lib"]) not in (["lib"], ["rlib"]):
-        raise ValueError(f"{path.name}: unsupported library crate-type")
-    if (
-        manifest.get("bin")
-        or manifest.get("test")
-        or manifest.get("example")
-        or manifest.get("bench")
-    ):
+    if manifest.get("test") or manifest.get("example") or manifest.get("bench"):
         raise ValueError(f"{path.name}: undeclared package target")
     for kind, group in (("normal", "dependencies"), ("dev", "dev-dependencies")):
         expected = {
@@ -524,14 +552,51 @@ def compare_resolution(metadata, contract, extracted):
         or root["version"] != contract["package"]["version"]
     ):
         raise ValueError("Cargo metadata root package identity/version differs")
-    expected_targets = {
-        (
-            "lib",
-            contract["library"]["crate_name"],
-            contract["library"]["path"],
-            contract["library"]["edition"],
-        )
+    expected_declarations = {
+        (item["alias"], item["kind"]): {
+            "package": item["package"],
+            "version": "=" + item["version"],
+            "default_features": item["default_features"],
+            "features": sorted(
+                feature for feature in item["features"] if feature != "default"
+            ),
+        }
+        for item in contract["dependencies"]
     }
+    actual_declarations = {}
+    for dependency in root["dependencies"]:
+        alias = dependency.get("rename") or dependency["name"]
+        key = (alias, dependency.get("kind") or "normal")
+        if (
+            key in actual_declarations
+            or dependency.get("optional")
+            or dependency.get("target") is not None
+            or dependency.get("source")
+            != "registry+https://github.com/rust-lang/crates.io-index"
+        ):
+            raise ValueError(
+                f"unsupported or conflicting direct metadata declaration: {alias}: {dependency}"
+            )
+        actual_declarations[key] = {
+            "package": dependency["name"],
+            "version": dependency["req"],
+            "default_features": dependency["uses_default_features"],
+            "features": sorted(dependency["features"]),
+        }
+    if actual_declarations != expected_declarations:
+        raise ValueError(
+            f"Cargo metadata direct identity/alias/kind/requirement/defaults/features differ: expected {expected_declarations}; actual {actual_declarations}"
+        )
+    expected_targets = set()
+    library = contract.get("library")
+    if library:
+        expected_targets.add(
+            ("lib", library["crate_name"], library["path"], library["edition"])
+        )
+    expected_targets.update(
+        ("bin", binary["name"], binary["path"], binary["edition"])
+        for binary in contract.get("binaries", [])
+    )
     actual_targets = set()
     for target in root["targets"]:
         kind = "lib" if target["kind"] in (["lib"], ["rlib"]) else target["kind"][0]
@@ -543,7 +608,10 @@ def compare_resolution(metadata, contract, extracted):
                 target["edition"],
             )
         )
-    if actual_targets != expected_targets:
+    if (
+        len(actual_targets) != len(root.get("targets", []))
+        or actual_targets != expected_targets
+    ):
         raise ValueError(f"Cargo metadata selected targets differ: {actual_targets}")
     nodes = metadata["resolve"]["nodes"]
     root_node = next(node for node in nodes if node["id"] == root_id)

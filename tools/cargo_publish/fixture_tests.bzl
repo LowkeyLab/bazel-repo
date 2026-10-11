@@ -50,7 +50,9 @@ def _publish(name, library = ":library", **kwargs):
 
 def _reject(name, message, library = ":library", **kwargs):
     _publish(name, library, **kwargs)
-    _rejection_test(name = name + "_test", size = "small", tags = ["no-lint"], target_under_test = ":" + name + "_files", message = message)
+
+    # Coverage would compile intentionally invalid targets selected by the analysis test.
+    _rejection_test(name = name + "_test", size = "small", tags = ["no-lint", "no-coverage"], target_under_test = ":" + name + "_files", message = message)
 
 def publishing_rejection_tests():
     """Declare supported-boundary fixtures without building rejected inputs."""
@@ -103,7 +105,8 @@ def publishing_rejection_tests():
     )
     _reject("unsupported_type", "unsupported library crate type proc-macro", library = ":unsupported_library")
 
-    # Lint aspects cannot register actions on analysis_test=true rules.
+    # Lint aspects cannot register actions on analysis_test=true rules, and
+    # coverage must not compile intentionally rejected compiler configurations.
     for name, test in [
         ("global_flags", _extra_flags_test),
         ("global_singular_flag", _singular_flag_test),
@@ -113,7 +116,7 @@ def publishing_rejection_tests():
         ("exec_singular_flag", _exec_singular_test),
         ("exec_environment", _exec_env_test),
     ]:
-        test(name = name + "_test", size = "small", tags = ["no-lint"], target_under_test = ":publish_files", message = "unsupported compiler settings")
+        test(name = name + "_test", size = "small", tags = ["no-lint", "no-coverage"], target_under_test = ":publish_files", message = "unsupported compiler settings")
 
     for name, setting, value in [
         ("binary_dylib", "link_std_dylib", True),
