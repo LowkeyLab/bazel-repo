@@ -1,3 +1,5 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 
 package(default_visibility = ["//tools/cargo_publish:__pkg__"])
@@ -28,14 +30,42 @@ rust_test(
     size = "small",
     srcs = ["command_test.rs"],
     crate_root = "command_test.rs",
-    data = ["//tools/cargo_publish:generate"],
+    data = [":generate"],
     edition = "2024",
-    rustc_env = {"GENERATOR": "$(rootpath //tools/cargo_publish:generate)"},
+    rustc_env = {"GENERATOR": "$(rootpath :generate)"},
     deps = [
         "@crates//:googletest",
         "@crates//:serde_json",
         "@crates//:sha2",
         "@crates//:tempfile",
+        "@crates//:toml-1.1.6+spec-1.1.0",
+    ],
+)
+
+rust_binary(
+    name = "generate",
+    srcs = ["main.rs"],
+    crate_root = "main.rs",
+    edition = "2024",
+    deps = [
+        ":lib",
+        "@crates//:anyhow",
+        "@crates//:clap",
+    ],
+)
+
+rust_library(
+    name = "lib",
+    srcs = ["lib.rs"],
+    crate_name = "cargo_publish_generate",
+    crate_root = "lib.rs",
+    edition = "2024",
+    deps = [
+        "//tools/cargo_publish/core",
+        "@crates//:semver-1.0.28",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:thiserror",
         "@crates//:toml-1.1.6+spec-1.1.0",
     ],
 )
