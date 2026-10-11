@@ -12,9 +12,15 @@ bzl_library(
 )
 
 py_binary(
-    name = "generate",
+    name = "generate_python_baseline",
     srcs = ["generate.py"],
     main = "generate.py",
+)
+
+# Preserve the public command while Rust migration packages share this directory.
+alias(
+    name = "generate",
+    actual = ":generate_python_baseline",
     visibility = ["//visibility:public"],
 )
 
@@ -53,11 +59,17 @@ filegroup(
 )
 
 py_binary(
-    name = "verify",
+    name = "verify_python_baseline",
     srcs = ["verify.py"],
     main = "verify.py",
-    visibility = ["//visibility:public"],
     deps = [":report"],
+)
+
+# Preserve the public command while Rust migration packages share this directory.
+alias(
+    name = "verify",
+    actual = ":verify_python_baseline",
+    visibility = ["//visibility:public"],
 )
 
 py_test(
@@ -98,9 +110,15 @@ py_test(
 )
 
 py_binary(
-    name = "ci",
+    name = "ci_python_baseline",
     srcs = ["ci.py"],
     main = "ci.py",
+)
+
+# Preserve the public command while Rust migration packages share this directory.
+alias(
+    name = "ci",
+    actual = ":ci_python_baseline",
 )
 
 py_test(
