@@ -1,0 +1,58 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("//tools/cargo_publish:defs.bzl", "cargo_publish")
+load("//tools/cargo_publish:fixture_tests.bzl", "publishing_rejection_tests")
+
+# gazelle:ignore
+
+package(default_visibility = ["//tools/cargo_publish:__pkg__"])
+
+rust_library(
+    name = "library",
+    srcs = [
+        "src/lib.rs",
+        "src/nested/value.rs",
+    ],
+    aliases = {"@crates//:serde_json": "renamed_json"},
+    crate_name = "fixture_library",
+    crate_root = "src/lib.rs",
+    edition = "2024",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+cargo_publish(
+    name = "publish",
+    package_name = "publishing-fixture",
+    description = "A declared library publishing fixture",
+    library = ":library",
+    license = "MIT",
+    package_files = {
+        "README.md": "README.md",
+        "LICENSE.txt": "assets/license.txt",
+    },
+    readme = "README.md",
+    repository = "https://github.com/LowkeyLab/bazel-repo",
+    rust_version = "1.96",
+    version = "0.1.0",
+)
+
+cargo_publish(
+    name = "repeat",
+    package_name = "publishing-fixture",
+    description = "A declared library publishing fixture",
+    library = ":library",
+    license = "MIT",
+    package_files = {
+        "README.md": "README.md",
+        "LICENSE.txt": "assets/license.txt",
+    },
+    readme = "README.md",
+    repository = "https://github.com/LowkeyLab/bazel-repo",
+    rust_version = "1.96",
+    version = "0.1.0",
+)
+
+publishing_rejection_tests()

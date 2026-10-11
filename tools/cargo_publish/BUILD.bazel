@@ -1,0 +1,46 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "generate",
+    srcs = ["generate.py"],
+    main = "generate.py",
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "generation_test",
+    size = "small",
+    srcs = ["generation_test.py"],
+    data = [
+        "//tools/cargo_publish/fixtures:publish_files",
+        "//tools/cargo_publish/fixtures:repeat_files",
+    ],
+)
+
+py_test(
+    name = "command_test",
+    size = "small",
+    srcs = ["command_test.py"],
+    data = [":generate"],
+    env = {"GENERATOR": "$(rootpath :generate)"},
+)
+
+bzl_library(
+    name = "fixture_tests",
+    srcs = ["fixture_tests.bzl"],
+    visibility = ["//tools/cargo_publish/fixtures:__pkg__"],
+    deps = [":defs"],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = ["README.md"],
+    tags = ["markdown"],
+)
