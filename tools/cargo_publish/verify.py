@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Validate declared Cargo publishing inputs with isolated pinned Cargo/rustc."""
 
 import argparse
@@ -10,10 +11,9 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tomllib
 import uuid
 from pathlib import Path
-
-import tomllib
 
 from tools.cargo_publish.report import (
     REPORT_KIND,
@@ -96,8 +96,7 @@ class ValidationRun:
                 argv,
                 cwd=cwd or self.output,
                 env=self.env,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 check=False,
             )
             log.write_bytes(result.stdout + b"\n--- stderr ---\n" + result.stderr)

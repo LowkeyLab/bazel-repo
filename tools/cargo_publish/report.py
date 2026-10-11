@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Public archive policy and versioned verified-artifact handoff contract."""
 
 import hashlib
@@ -310,7 +311,7 @@ def _validate_report(report, expected_package=None):
 def validate_report(report, expected_package=None):
     """Validate caller-supplied evidence with actionable errors for malformed JSON."""
     if not isinstance(report, dict):
-        raise ValueError("validation report must be a JSON object")
+        raise ValueError("validation report must be a JSON object")  # noqa: TRY004 - malformed JSON uses the public ValueError contract
     try:
         return _validate_report(report, expected_package)
     except (KeyError, TypeError, AttributeError, IndexError) as error:

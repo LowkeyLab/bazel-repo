@@ -1,4 +1,6 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load("//tools/cargo_publish:defs.bzl", "cargo_publish")
 load("//tools/cargo_publish:fixture_tests.bzl", "publishing_rejection_tests")
 
@@ -56,3 +58,121 @@ cargo_publish(
 )
 
 publishing_rejection_tests()
+
+rust_binary(
+    name = "binary",
+    srcs = ["src/bin/main.rs"],
+    crate_name = "bazel_binary",
+    crate_root = "src/bin/main.rs",
+    edition = "2024",
+    deps = ["@crates//:anyhow"],
+)
+
+cargo_publish(
+    name = "binary_publish",
+    package_name = "binary-fixture",
+    binaries = {":binary": "fixture-cli"},
+    description = "A declared binary publishing fixture",
+    license = "MIT",
+    package_files = {"README.md": "README.md"},
+    readme = "README.md",
+    repository = "https://github.com/LowkeyLab/bazel-repo",
+    rust_version = "1.96",
+    version = "0.1.0",
+)
+
+rust_binary(
+    name = "combined_binary",
+    srcs = ["src/bin/main.rs"],
+    crate_root = "src/bin/main.rs",
+    edition = "2024",
+    deps = select({"//conditions:default": [
+        ":library",
+        "@crates//:anyhow",
+        "@crates//:clap",
+    ]}),
+)
+
+rust_binary(
+    name = "second_binary",
+    srcs = ["src/bin/other.rs"],
+    crate_root = "src/bin/other.rs",
+    edition = "2021",
+    deps = [":library"],
+)
+
+rust_binary(
+    name = "runtime_helper",
+    srcs = ["src/tests/helper.rs"],
+    crate_root = "src/tests/helper.rs",
+    edition = "2024",
+)
+
+rust_test(
+    name = "unit_test",
+    size = "small",
+    crate = ":library",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "cli_test",
+    size = "small",
+    srcs = ["src/tests/cli.rs"],
+    aliases = {"@crates//:serde_json": "renamed_json"},
+    crate_root = "src/tests/cli.rs",
+    data = [":runtime_helper"],
+    edition = "2024",
+    env_inherit = ["PATH"],
+    rustc_env = {"HELPER": "$(rootpath :runtime_helper)"},
+    deps = [
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+    ],
+)
+
+cargo_publish(
+    name = "combined_publish",
+    package_name = "combined-fixture",
+    binaries = {
+        ":combined_binary": "fixture-cli",
+        ":second_binary": "fixture-other",
+    },
+    description = "A declared combined publishing fixture",
+    library = ":library",
+    license = "MIT",
+    package_files = {"README.md": "README.md"},
+    readme = "README.md",
+    repository = "https://github.com/LowkeyLab/bazel-repo",
+    rust_version = "1.96",
+    tests = [
+        ":cli_test",
+        ":unit_test",
+    ],
+    version = "0.1.0",
+)
+
+cargo_publish(
+    name = "combined_repeat",
+    package_name = "combined-fixture",
+    binaries = {
+        ":combined_binary": "fixture-cli",
+        ":second_binary": "fixture-other",
+    },
+    description = "A declared combined publishing fixture",
+    library = ":library",
+    license = "MIT",
+    package_files = {"README.md": "README.md"},
+    readme = "README.md",
+    repository = "https://github.com/LowkeyLab/bazel-repo",
+    rust_version = "1.96",
+    tests = [
+        ":cli_test",
+        ":unit_test",
+    ],
+    version = "0.1.0",
+)

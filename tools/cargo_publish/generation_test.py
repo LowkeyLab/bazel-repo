@@ -11,6 +11,68 @@ import tomllib
 
 
 class PublishingFilesTest(unittest.TestCase):
+    def test_binary_selection_preserves_mapped_name_and_configured_dependency(self):
+        root = Path(os.environ["TEST_SRCDIR"]) / "_main/tools/cargo_publish/fixtures"
+        files = root / "binary_publish_files.package"
+        manifest = tomllib.loads((files / "Cargo.toml").read_text())
+        self.assertNotIn("lib", manifest)
+        self.assertEqual(
+            manifest["bin"],
+            [{"name": "fixture-cli", "path": "src/bin/main.rs", "edition": "2024"}],
+        )
+        self.assertEqual(manifest["dependencies"]["anyhow"]["version"], "=1.0.104")
+        contract = json.loads((root / "binary_publish_files.json").read_text())
+        self.assertIsNone(contract["library"])
+        self.assertEqual(contract["binaries"][0]["crate_name"], "bazel_binary")
+
+    def test_combined_selection_preserves_test_dependency_kinds_and_ignores_runtime_wiring(
+        self,
+    ):
+        root = Path(os.environ["TEST_SRCDIR"]) / "_main/tools/cargo_publish/fixtures"
+        files = root / "combined_publish_files.package"
+        manifest = tomllib.loads((files / "Cargo.toml").read_text())
+        self.assertEqual(
+            manifest["lib"], {"name": "fixture_library", "path": "src/lib.rs"}
+        )
+        self.assertEqual(
+            [(b["name"], b["edition"]) for b in manifest["bin"]],
+            [("fixture-cli", "2024"), ("fixture-other", "2021")],
+        )
+        self.assertEqual(
+            set(manifest["dependencies"]), {"anyhow", "clap", "renamed_json", "sha2"}
+        )
+        self.assertEqual(
+            set(manifest["dev-dependencies"]),
+            {"anyhow", "googletest", "renamed_json", "tempfile"},
+        )
+        self.assertEqual(
+            manifest["dependencies"]["anyhow"], manifest["dev-dependencies"]["anyhow"]
+        )
+        self.assertTrue(manifest["dependencies"]["renamed_json"]["default-features"])
+        self.assertIn("derive", manifest["dependencies"]["clap"]["features"])
+        self.assertIn("getrandom", manifest["dev-dependencies"]["tempfile"]["features"])
+        self.assertTrue(manifest["dev-dependencies"]["googletest"]["default-features"])
+        self.assertFalse((files / "src/tests/helper.rs").exists())
+        self.assertFalse((files / "src/tests/cli.rs").exists())
+        self.assertNotIn("test", manifest)
+        contract = json.loads((root / "combined_publish_files.json").read_text())
+        self.assertEqual(
+            {d["kind"] for d in contract["dependencies"]}, {"normal", "dev"}
+        )
+        self.assertEqual(len(contract["tests"]), 2)
+        self.assertEqual(
+            (root / "combined_repeat_files.json").read_bytes(),
+            (root / "combined_publish_files.json").read_bytes(),
+        )
+        for path in files.rglob("*"):
+            if path.is_file():
+                self.assertEqual(
+                    path.read_bytes(),
+                    (
+                        root / "combined_repeat_files.package" / path.relative_to(files)
+                    ).read_bytes(),
+                )
+
     def test_library_has_standalone_exact_dependencies(self):
         files = (
             Path(os.environ["TEST_SRCDIR"])
@@ -33,7 +95,7 @@ class PublishingFilesTest(unittest.TestCase):
         manifest = tomllib.loads((files / "Cargo.toml").read_text())
         dependency = manifest["dependencies"]["renamed_json"]
         self.assertEqual(dependency["package"], "serde_json")
-        self.assertEqual(dependency["version"], "=1.0.152")
+        self.assertEqual(dependency["version"], "=1.0.153")
         self.assertTrue(dependency["default-features"])
         self.assertIn("raw_value", dependency["features"])
         self.assertIn("unbounded_depth", dependency["features"])

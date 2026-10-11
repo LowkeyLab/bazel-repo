@@ -1,13 +1,14 @@
+#!/usr/bin/env python3
 """Publishing runtime behavior through the public command and report interfaces."""
 
 import copy
 import hashlib
-import json
 import io
-import tarfile
+import json
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 from pathlib import Path

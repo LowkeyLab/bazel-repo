@@ -1,8 +1,10 @@
 """Offline analysis rejection fixtures through the public cargo_publish macro."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_proc_macro.bzl", "rust_proc_macro")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load(":defs.bzl", "cargo_publish")
 
 def _rejection_impl(ctx):
@@ -62,6 +64,7 @@ def publishing_rejection_tests():
         ("publisher_environment", "rustc_env", {"CUSTOM": "value"}),
         ("publisher_features", "crate_features", ["custom"]),
         ("publisher_compile_data", "compile_data", ["README.md"]),
+        ("publisher_alwayslink", "alwayslink", True),
     ]:
         rust_library(
             name = name + "_library",
@@ -111,3 +114,23 @@ def publishing_rejection_tests():
         ("exec_environment", _exec_env_test),
     ]:
         test(name = name + "_test", size = "small", tags = ["no-lint"], target_under_test = ":publish_files", message = "unsupported compiler settings")
+
+    for name, setting, value in [
+        ("binary_dylib", "link_std_dylib", True),
+        ("binary_linker_script", "linker_script", "README.md"),
+        ("binary_stamping", "stamp", 1),
+        ("conditional_binary_flags", "rustc_flags", select({"//conditions:default": ["--cfg=custom"]})),
+        ("binary_environment_file", "rustc_env_files", ["README.md"]),
+    ]:
+        rust_binary(name = name + "_target", srcs = ["src/bin/main.rs"], edition = "2024", tags = ["manual"], **{setting: value})
+        diagnostic = "unsupported publisher " + setting
+        if setting == "rustc_env_files":
+            diagnostic = "unsupported publisher rustc_env/rustc_env_files"
+        _reject(name, diagnostic, library = None, binaries = {":" + name + "_target": "fixture-cli"})
+    cargo_build_script(name = "publisher_script", srcs = ["src/bin/main.rs"], edition = "2024", tags = ["manual"])
+    rust_library(name = "script_library", srcs = ["src/lib.rs", "src/nested/value.rs"], crate_root = "src/lib.rs", edition = "2024", deps = [":publisher_script"], tags = ["manual"])
+    _reject("publisher_build_script", "unsupported dependency", library = ":script_library")
+    _reject("generated_binary", "unsupported generated/escaping source", library = None, binaries = {":generated_binary_target": "fixture-cli"})
+    rust_binary(name = "generated_binary_target", srcs = [":generated_source"], edition = "2024", tags = ["manual"])
+    _reject("selected_test_as_binary", "unsupported binary crate type", library = None, binaries = {":unit_test": "fixture-cli"}, testonly = True)
+    _reject("selected_binary_as_test", "selected test must be a local Rust test target", tests = [":binary"])
