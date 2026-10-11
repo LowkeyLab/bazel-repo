@@ -1,0 +1,19 @@
+# gazelle:resolve rust toml @crates//:toml-1.1.6+spec-1.1.0
+# gazelle:resolve rust cargo_publish_core //tools/cargo_publish/core:core
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_test(
+    name = "publishing_test",
+    size = "small",
+    srcs = ["publishing_test.rs"],
+    crate_root = "publishing_test.rs",
+    data = ["//worktree_pool:publishing_guard_inputs"],
+    edition = "2024",
+    visibility = ["//worktree_pool:__pkg__"],
+    deps = [
+        "//tools/cargo_publish/core",
+        "@crates//:googletest",
+        "@crates//:serde",
+        "@crates//:toml-1.1.6+spec-1.1.0",  # keep
+    ],
+)
