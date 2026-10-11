@@ -1,14 +1,18 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
 # gazelle:resolve rust cloudevents @crates//:cloudevents-sdk
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load(":package_metadata.bzl", "WORKTREE_POOL_VERSION")
 
 rust_binary(
     name = "worktree_pool",
     srcs = ["main.rs"],
-    compile_data = ["Cargo.toml"],
+    compile_data = [],  # keep: ordinary compilation does not consume publishing manifests
     crate_root = "main.rs",
     edition = "2024",
+    version = WORKTREE_POOL_VERSION,  # keep: shared package version for Clap and publishing
     visibility = ["//worktree_pool/benchmark:__pkg__"],  # keep: real CLI data for private adapter tests
     deps = [":worktree_pool_lib"],
 )
@@ -20,7 +24,7 @@ rust_test(
         "cli_test.rs",
         "relocation_cli_tests.rs",
     ],
-    compile_data = ["Cargo.toml"],
+    compile_data = [],  # keep: ordinary compilation does not consume publishing manifests
     crate_root = "cli_test.rs",
     data = [
         ":worktree_pool",
@@ -82,10 +86,11 @@ rust_library(
         "store_tests.rs",
         "workflows.rs",
     ],
-    compile_data = ["Cargo.toml"],
+    compile_data = [],  # keep: ordinary compilation does not consume publishing manifests
     crate_name = "worktree_pool",
     crate_root = "lib.rs",
     edition = "2024",
+    version = WORKTREE_POOL_VERSION,  # keep: shared package version for Clap and publishing
     visibility = ["//visibility:public"],
     deps = [
         "@crates//:chrono",
@@ -146,3 +151,9 @@ filegroup(
 )
 
 exports_files(["Cargo.toml"])
+
+bzl_library(
+    name = "package_metadata",
+    srcs = ["package_metadata.bzl"],
+    visibility = ["//visibility:public"],
+)
