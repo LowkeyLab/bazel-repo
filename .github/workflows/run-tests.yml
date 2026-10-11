@@ -61,3 +61,36 @@ jobs:
           ASPECT_API_TOKEN: ${{ secrets.ASPECT_API_TOKEN }}
         run: |
           aspect test //...
+  cargo-publish:
+    name: cargo-publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: Prepare publishing evidence
+        run: |
+          mkdir -p "$RUNNER_TEMP/cargo-publish-artifacts"
+          printf 'Publishing setup started\n' > "$RUNNER_TEMP/cargo-publish-artifacts/job-status.log"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-bazel-ci
+        with:
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
+          docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Verify real packages and installed CLI
+        run: |
+          nix develop --command env \
+            RULES_PYTHON_PYCACHE_DIR="$RUNNER_TEMP/rules-python-pycache" \
+            bazel run //tools/cargo_publish:ci -- \
+            --workspace "$PWD" \
+            --output "$RUNNER_TEMP/cargo-publish-artifacts/evidence"
+      - name: Retain publishing reports and diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: cargo-publish-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/cargo-publish-artifacts
+          if-no-files-found: error
+          retention-days: 7

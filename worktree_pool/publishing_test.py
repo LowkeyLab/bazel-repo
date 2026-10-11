@@ -204,6 +204,17 @@ class WorktreePoolPublishingTest(unittest.TestCase):
             | {("dev", alias) for alias in development},
         )
 
+    def test_ordinary_compilation_has_no_publishing_dependencies(self):
+        query = (
+            Path(os.environ["TEST_SRCDIR"])
+            / "_main/worktree_pool/forbidden_compilation_dependencies"
+        )
+        self.assertEqual(
+            query.read_text().strip(),
+            "",
+            "ordinary compilation acquired publishing-only dependencies",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

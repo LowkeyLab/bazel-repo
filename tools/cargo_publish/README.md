@@ -136,3 +136,27 @@ Generic verification proves supported package generation, declared-input and
 direct-dependency fidelity, and pinned package/archive builds. Installed
 app behavior requires its own consumer test. Authenticated registry
 upload is a separate operation.
+
+## Publishing CI
+
+The stable `cargo-publish` job runs on every main pull request. Its serial
+`//tools/cargo_publish:ci` command invokes the real library, binary, combined,
+and worktree_pool publishing targets, then passes the current consumer archive
+and report to `//worktree_pool/install:acceptance`. Validation requires registry access.
+Authenticated upload is separate.
+
+Run it from the repository root with a new evidence directory:
+
+```sh
+nix develop --command env RULES_PYTHON_PYCACHE_DIR=/absolute/stable/python-cache \
+  bazel run //tools/cargo_publish:ci -- \
+  --workspace "$PWD" --output /absolute/new/publishing-evidence
+```
+
+`summary.json` records individual generic and installed command statuses.
+Failed commands preserve their exit status and selected incomplete reports/logs.
+CI retains evidence on failure without uploading Cargo homes, configuration,
+credentials, caches, or build trees. Only newly created runs belong to the current
+invocation. Successful handoffs supply explicit paths.
+Ordinary Bazel tests exercise these status/collection contracts with controlled
+external commands. Those tests don't certify actual Cargo packaging.

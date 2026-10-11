@@ -96,3 +96,17 @@ py_test(
     env = {"VERIFIER": "$(rootpath :verify)"},
     deps = [":report"],
 )
+
+py_binary(
+    name = "ci",
+    srcs = ["ci.py"],
+    main = "ci.py",
+)
+
+py_test(
+    name = "ci_test",
+    size = "small",
+    srcs = ["ci_test.py"],
+    data = [":ci"],
+    env = {"CI_RUNNER": "$(rootpath :ci)"},
+)

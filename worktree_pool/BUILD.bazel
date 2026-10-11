@@ -143,6 +143,7 @@ py_test(
         "LICENSE",
         "README.md",
         "WIRE_SCHEMA.md",
+        ":forbidden_compilation_dependencies",
         ":publish_files",
         ":worktree_pool",
         "//:Cargo.lock",
@@ -171,6 +172,18 @@ cargo_publish(
         ":worktree_pool_lib_test",
     ],
     version = WORKTREE_POOL_VERSION,
+)
+
+# Public query protects ordinary compilation/test graphs from publishing inputs.
+genquery(
+    name = "forbidden_compilation_dependencies",
+    expression = "filter('(^//tools/cargo_publish[/:]|^//worktree_pool/install[/:]|^//worktree_pool:publish([_./]|$)|^//worktree_pool:Cargo[.](toml|lock)$)', deps(set(//worktree_pool:worktree_pool_lib //worktree_pool:worktree_pool //worktree_pool:worktree_pool_lib_test //worktree_pool:cli_test)))",
+    scope = [
+        ":worktree_pool_lib",
+        ":worktree_pool",
+        ":worktree_pool_lib_test",
+        ":cli_test",
+    ],
 )
 
 bzl_library(

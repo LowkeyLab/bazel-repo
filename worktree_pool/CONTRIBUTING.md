@@ -479,6 +479,37 @@ Source installation uses the Nix-managed Linux host and depends on its C runtime
 closure. It isn't a universal prebuilt Linux distribution. This flow doesn't
 certify authenticated registry upload or other production crates.
 
+## Required publishing gates
+
+Pull requests run the required `test`, `lint`, and `cargo-publish` checks.
+The ordinary Bazel suite covers offline publishing contracts and a public query
+of the library, binary, and both test dependency graphs. The query rejects
+publishing-only tools, generated package targets, and consumer Cargo inputs from
+ordinary compilation. The root Cargo dependency catalog remains supported.
+
+The Linux x86-64 `cargo-publish` job runs real library-only, binary-only,
+combined, and worktree_pool package validation with pinned Cargo/rustc 1.96.0 and
+registry access. It passes that exact consumer archive/report pair to locked
+installation and the full installed public command-line suite. Consumer Cargo files stay
+absent. Registry upload credentials aren't needed.
+
+Reproduce the serial job from the repository root:
+
+```sh
+nix develop --command env RULES_PYTHON_PYCACHE_DIR=/absolute/stable/python-cache \
+  bazel run //tools/cargo_publish:ci -- \
+  --workspace "$PWD" --output /absolute/new/publishing-evidence
+```
+
+The evidence directory must not exist. Each command retains its status and logs.
+Generic package reports are separate from installed command-line evidence. A failure stops
+the job with the failing command's status and retains available incomplete reports.
+CI uploads selected reports, logs, and exact archives even on failure, excluding
+Cargo homes, configuration, caches, and build trees. The installation helper scope
+and preceding runtime limits still apply. After changes, also run Gazelle,
+full formatting, relevant tests (`--nocache_test_results`), the full repository
+build, and lint.
+
 ## Accepted benchmark and resource costs
 
 The [README summary](README.md#why-pooled-worktrees) explains the results for users.
