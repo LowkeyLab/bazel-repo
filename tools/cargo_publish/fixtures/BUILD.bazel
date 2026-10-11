@@ -39,6 +39,7 @@ cargo_publish(
     repository = "https://github.com/LowkeyLab/bazel-repo",
     rust_version = "1.96",
     version = "0.1.0",
+    visibility = ["//tools/cargo_publish:__subpackages__"],
 )
 
 cargo_publish(
@@ -55,6 +56,7 @@ cargo_publish(
     repository = "https://github.com/LowkeyLab/bazel-repo",
     rust_version = "1.96",
     version = "0.1.0",
+    visibility = ["//tools/cargo_publish:__subpackages__"],
 )
 
 publishing_rejection_tests()
@@ -79,6 +81,7 @@ cargo_publish(
     repository = "https://github.com/LowkeyLab/bazel-repo",
     rust_version = "1.96",
     version = "0.1.0",
+    visibility = ["//tools/cargo_publish:__subpackages__"],
 )
 
 rust_binary(
@@ -154,6 +157,7 @@ cargo_publish(
         ":unit_test",
     ],
     version = "0.1.0",
+    visibility = ["//tools/cargo_publish:__subpackages__"],
 )
 
 cargo_publish(
@@ -175,4 +179,5 @@ cargo_publish(
         ":unit_test",
     ],
     version = "0.1.0",
+    visibility = ["//tools/cargo_publish:__subpackages__"],
 )
