@@ -11,7 +11,6 @@ def _verify_impl(ctx):
     arguments = " ".join(['"$runfiles/%s"' % f.short_path for f in paths])
     ctx.actions.write(script, """#!/usr/bin/env bash
 set -euo pipefail
-unset PYTHONOPTIMIZE PYTHONPATH PYTHONHOME
 runfiles=$(cd -P "${{BASH_SOURCE[0]}}.runfiles/_main" && pwd)
 exec {arguments} "$@" --expected-version {version} --sysroot "$runfiles/{sysroot}" --runfiles-root "$runfiles/.." --workspace _main
 """.format(arguments = arguments, version = WORKTREE_POOL_VERSION, sysroot = tc.sysroot_short_path), is_executable = True)
