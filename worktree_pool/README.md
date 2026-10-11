@@ -48,7 +48,8 @@ for the measurements and test conditions.
 
 ## Installation
 
-Supports Linux x86-64 with Git 2.36+. Install from an extracted source package
+Supports Linux x86-64 with Git 2.36+. Install from the exact extracted archive
+produced by [package validation](CONTRIBUTING.md#source-package-preparation-and-installed-acceptance),
 using Rust/Cargo 1.96+ and a native linker/C toolchain:
 
 ```sh

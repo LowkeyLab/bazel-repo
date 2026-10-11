@@ -11,7 +11,6 @@ load(":package_metadata.bzl", "WORKTREE_POOL_VERSION")
 rust_binary(
     name = "worktree_pool",
     srcs = ["main.rs"],
-    compile_data = [],  # keep: ordinary compilation does not consume publishing manifests
     crate_root = "main.rs",
     edition = "2024",
     version = WORKTREE_POOL_VERSION,  # keep: shared package version for Clap and publishing
@@ -26,7 +25,6 @@ rust_test(
         "cli_test.rs",
         "relocation_cli_tests.rs",
     ],
-    compile_data = [],  # keep: ordinary compilation does not consume publishing manifests
     crate_root = "cli_test.rs",
     data = [
         ":worktree_pool",
@@ -88,7 +86,6 @@ rust_library(
         "store_tests.rs",
         "workflows.rs",
     ],
-    compile_data = [],  # keep: ordinary compilation does not consume publishing manifests
     crate_name = "worktree_pool",
     crate_root = "lib.rs",
     edition = "2024",
@@ -135,24 +132,6 @@ filegroup(
     ],
     tags = ["markdown"],
 )
-
-# Package inputs include BUILD so the archive policy proves Cargo excludes it.
-filegroup(
-    name = "source_package",
-    srcs = glob(
-        [
-            "*.rs",
-            "*.md",
-            "Cargo*",
-            "LICENSE",
-            "BUILD.bazel",
-        ],
-        allow_empty = True,
-    ),
-    visibility = ["//worktree_pool/install:__pkg__"],
-)
-
-exports_files(["Cargo.toml"])
 
 py_test(
     name = "publishing_test",
