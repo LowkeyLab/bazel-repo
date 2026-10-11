@@ -34,8 +34,8 @@ uses Bazel.
 Implementation reference docs include [command schemas](WIRE_SCHEMA.md) and
 [dependency features](DEPENDENCIES.md). Root Cargo.lock is the Bazel dependency
 authority. Publishing derives its exact direct dependencies from the selected Bazel
-targets and generates a consumer manifest; Cargo creates the packaged lockfile.
-No consumer Cargo files are maintained in this source directory.
+targets and generates a consumer manifest. Cargo creates the packaged lockfile.
+Contributors maintain no consumer Cargo files in this source directory.
 
 ## Distribution and adoption scope
 
@@ -424,18 +424,18 @@ nix develop --command bazel run //worktree_pool:publish
 ```
 
 Validation uses a private Cargo home and target directory, with registry access
-online by default. A deliberately managed populated Cargo cache can be supplied
-with `-- --registry-cache /absolute/cache`; adding `--offline` requires that cache
+online by default. To use a deliberately managed populated Cargo cache, pass
+`-- --registry-cache /absolute/cache`. Adding `--offline` requires that cache
 to contain the complete resolution. An empty cache fails offline. Failed runs
-retain their incomplete report and command logs; they aren't installable handoffs.
+retain their incomplete report and command logs. They aren't installable handoffs.
 
 A successful command prints JSON with the exact `archive` and `report` paths and
 run identity. All twelve mandatory checks must pass: input fidelity, toolchain,
 configuration, generated manifest, Cargo package verification, archive policy and
 fidelity, original and normalized manifests, locked metadata, direct dependencies,
 and locked builds of the library and every selected binary. These checks include
-source and asset hashes and the packaged lockfile. Retain the archive/report pair;
-acceptance validates their identity, hashes, and complete evidence before extraction.
+source and asset hashes and the packaged lockfile. Retain the archive/report pair.
+Acceptance validates their identity, hashes, and complete evidence before extraction.
 It doesn't discover the newest run or package the source checkout again.
 
 Pass those printed paths to installed acceptance:
@@ -458,10 +458,10 @@ and Bazel. Retained `artifact.json`, `validation-report.json`, `runtime.json`, a
 version, native executable dependencies, and raw test results.
 
 Package version comes from `WORKTREE_POOL_VERSION` in `package_metadata.bzl`.
-For a release version change, update that declaration, regenerate and validate the
-package, and check both the Bazel and installed `worktree-pool --version` results.
-The library, CLI, and publishing macro share it; all report version 0.1.0 for this
-release. Dependency updates belong in the root Cargo inputs and Bazel graph, then
+For a release version change, update that declaration, regenerate the package, and
+validate it. Then verify both the Bazel and installed `worktree-pool --version`
+results. The library, command-line tool, and publishing macro share the declaration.
+All use version 0.1.0 for this release. Dependency updates belong in the root Cargo inputs and Bazel graph, then
 require regenerated dependency evidence. Source equivalence never promises
 byte-identical Cargo/Bazel executables or equal transitive feature activation.
 
@@ -471,12 +471,12 @@ and recovery commands use the installed artifact. Helper execution isn't
 independent proof that the installed command-line tool can inject those faults.
 Tests own private Git/filesystem/redb fixtures and use no mock framework. Cargo
 registry access and shared repository caches remain external dependencies.
-Runtime verification establishes `PATH` independence; toolchains can remain
-elsewhere on the host filesystem. Certification covers Linux x86-64 GNU with
-pinned Rust/Cargo 1.96.0. The minimum Git build tests local transport only, with
+Runtime verification establishes `PATH` independence. Toolchains can remain
+elsewhere on the host filesystem. Certification covers Linux x86-64 target
+`x86_64-unknown-linux-gnu` with pinned Rust/Cargo 1.96.0. The minimum Git build tests local transport only, with
 optional HTTP, transport layer security, and scripting features turned off.
 Source installation uses the Nix-managed Linux host and depends on its C runtime
-closure; it isn't a universal prebuilt Linux distribution. This flow doesn't
+closure. It isn't a universal prebuilt Linux distribution. This flow doesn't
 certify authenticated registry upload or other production crates.
 
 ## Accepted benchmark and resource costs
