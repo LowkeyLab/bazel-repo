@@ -474,3 +474,58 @@ fn cargo_native_and_inactive_annotations_remain_supported() {
         f.success(&f.spec,&format!("supported{index}"));
     }
 }
+
+#[gtest]
+fn module_comments_strings_and_literal_precedence_preserve_supported_packages() {
+    for (index, module) in [
+        "crate.annotation(crate=\"unrelated\",patches={1:\"unused\"},patch_strip=-1)\n",
+        "crate.annotation(crate=r\"anyhow\",gen_build_script=\"on\",crate_features=[\"std\"])\n",
+        "# crate.annotation(crate=\"anyhow\",patches=[\"bad\"])\ntext = '''crate.override(crate=\"anyhow\",path=\"bad\")'''\n",
+        "crate.annotation(crate=\"anyhow\",patches=[\"bad\"])\ncrate.annotation(crate=\"anyhow\",version=\"1.0.104\",crate_features=[\"std\"])\n",
+        "crate.annotation_select(crate=\"anyhow\",triples=[\"x86_64-unknown-linux-gnu\"],crate_features=[\"std\"])\ncrate.annotation(crate=\"anyhow\",version=\"1.0.104\",gen_build_script=\"auto\")\n",
+    ].iter().enumerate() {
+        let mut f = Fixture::new();
+        let metadata = f.upstream("anyhow", "friendly", "1.0.104");
+        f.write("Cargo.toml", "[dependencies]\nanyhow=\"1.0.100\"\n");
+        f.write("Cargo.lock", &Fixture::locked("anyhow", "1.0.104"));
+        f.write("MODULE.bazel", module);
+        f.spec["library"]["dependencies"] = json!([metadata]);
+        f.spec["dependency_closure"] = json!([metadata]);
+        f.success(&f.spec, &format!("literal{index}"));
+    }
+}
+
+#[gtest]
+fn nonliteral_module_configuration_and_composed_source_mutations_fail_before_staging() {
+    for (index, module, diagnostic) in [
+        (
+            0,
+            "crate.annotation(crate=choose_crate(),patches=[])",
+            "ambiguous crate annotation/override configuration",
+        ),
+        (
+            1,
+            "crate.annotation(crate=\"anyhow\",**settings)",
+            "ambiguous crate annotation/override identity",
+        ),
+        (
+            2,
+            "crate.annotation_select(crate=\"anyhow\",triples=[\"x86_64-unknown-linux-gnu\"],patches=[\"wildcard\"])\ncrate.annotation_select(crate=\"anyhow\",version=\"1.0.104\",triples=[\"x86_64-unknown-linux-gnu\"],crate_features=[\"std\"])\n",
+            "annotation/override",
+        ),
+        (
+            3,
+            "crate.annotation_select(crate=\"anyhow\",triples=[\"x86_64-unknown-linux-gnu\"],crate_features=[\"std\"])\ncrate.annotation_select(crate=\"anyhow\",version=\"1.0.104\",triples=[\"x86_64-unknown-linux-gnu\"],rustc_flags=[\"--cfg=custom\"])\n",
+            "annotation/override",
+        ),
+    ] {
+        let mut f = Fixture::new();
+        let metadata = f.upstream("anyhow", "friendly", "1.0.104");
+        f.write("Cargo.toml", "[dependencies]\nanyhow=\"1.0.100\"\n");
+        f.write("Cargo.lock", &Fixture::locked("anyhow", "1.0.104"));
+        f.write("MODULE.bazel", module);
+        f.spec["library"]["dependencies"] = json!([metadata]);
+        f.spec["dependency_closure"] = json!([metadata]);
+        f.failure(&f.spec, &format!("nonliteral{index}"), diagnostic);
+    }
+}
