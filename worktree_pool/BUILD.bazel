@@ -1,9 +1,11 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_python//python:defs.bzl", "py_test")
 
 # gazelle:resolve rust cloudevents @crates//:cloudevents-sdk
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/cargo_publish:defs.bzl", "cargo_publish")
 load(":package_metadata.bzl", "WORKTREE_POOL_VERSION")
 
 rust_binary(
@@ -151,6 +153,46 @@ filegroup(
 )
 
 exports_files(["Cargo.toml"])
+
+py_test(
+    name = "publishing_test",
+    size = "small",
+    srcs = ["publishing_test.py"],
+    data = [
+        "CONTRIBUTING.md",
+        "DEPENDENCIES.md",
+        "LICENSE",
+        "README.md",
+        "WIRE_SCHEMA.md",
+        ":publish_files",
+        ":worktree_pool",
+        "//:Cargo.lock",
+    ],
+)
+
+cargo_publish(
+    name = "publish",
+    package_name = "worktree-pool",
+    binaries = {":worktree_pool": "worktree-pool"},
+    description = "Explicit ownership for persistent local Git worktrees",
+    library = ":worktree_pool_lib",
+    license = "AGPL-3.0-only",
+    package_files = {
+        "CONTRIBUTING.md": "CONTRIBUTING.md",
+        "DEPENDENCIES.md": "DEPENDENCIES.md",
+        "LICENSE": "LICENSE",
+        "README.md": "README.md",
+        "WIRE_SCHEMA.md": "WIRE_SCHEMA.md",
+    },
+    readme = "README.md",
+    repository = "https://github.com/LowkeyLab/bazel-repo",
+    rust_version = "1.96",
+    tests = [
+        ":cli_test",
+        ":worktree_pool_lib_test",
+    ],
+    version = WORKTREE_POOL_VERSION,
+)
 
 bzl_library(
     name = "package_metadata",
