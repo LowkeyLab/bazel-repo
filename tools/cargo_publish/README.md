@@ -117,11 +117,16 @@ working directory, and ambient environment. In this repository, set the stable
 Python cache environment inside Nix for Bazel/Aspect commands:
 `nix develop --command env RULES_PYTHON_PYCACHE_DIR=/absolute/stable/python-cache bazel run //path/to/package:publish`.
 
-Consumers load `validate_verified_archive` from `//tools/cargo_publish:report`
-and pass explicit report/archive paths plus a new private destination. The
-consumer checks complete target evidence, copies, and hashes the exact archive,
-then validates its inventory and declared bytes before returning the extracted
-package. Consumers support relocation. The archive SHA256 binds the report to bytes,
+Consumers depend on the public Rust library `//tools/cargo_publish:report`
+(crate `cargo_publish_core`). Call
+`validate_verified_archive(report_path, archive_path, destination, expected)`
+with explicit paths, a new private destination, and an optional
+`ExpectedPackage { name, version }`. It returns a `VerifiedArchive` containing
+the validated report, private archive copy, and extracted package root.
+`validate_report(&report, expected)` separately checks typed report evidence.
+The consumer checks complete target evidence, copies, and hashes the exact
+archive, then validates its inventory and declared bytes before returning the
+extracted package. Consumers support relocation. The archive SHA256 binds the report to bytes,
 while original output paths remain diagnostic.
 
 The offline public command/archive tests exercise failure contracts with

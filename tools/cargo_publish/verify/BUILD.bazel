@@ -39,6 +39,7 @@ rust_test(
         "VERIFIER": "$(rootpath :verify)",
         "FAKE_TOOL": "$(rootpath :fake_tool)",
     },
+    visibility = ["//tools/cargo_publish:__pkg__"],
     deps = [
         "//tools/cargo_publish/core",
         "@crates//:googletest",

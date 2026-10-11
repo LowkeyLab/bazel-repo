@@ -1,5 +1,4 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 
 bzl_library(
     name = "defs",
@@ -11,38 +10,20 @@ bzl_library(
     ],
 )
 
-py_binary(
-    name = "generate_python_baseline",
-    srcs = ["generate.py"],
-    main = "generate.py",
-)
-
-# Preserve the public command while Rust migration packages share this directory.
 alias(
     name = "generate",
-    actual = ":generate_python_baseline",
+    actual = "//tools/cargo_publish/generate:generate",
     visibility = ["//visibility:public"],
 )
 
-py_test(
+test_suite(
     name = "generation_test",
-    size = "small",
-    srcs = ["generation_test.py"],
-    data = [
-        "//tools/cargo_publish/fixtures:binary_publish_files",
-        "//tools/cargo_publish/fixtures:combined_publish_files",
-        "//tools/cargo_publish/fixtures:combined_repeat_files",
-        "//tools/cargo_publish/fixtures:publish_files",
-        "//tools/cargo_publish/fixtures:repeat_files",
-    ],
+    tests = ["//tools/cargo_publish/generate:generation_test"],
 )
 
-py_test(
+test_suite(
     name = "command_test",
-    size = "small",
-    srcs = ["command_test.py"],
-    data = [":generate"],
-    env = {"GENERATOR": "$(rootpath :generate)"},
+    tests = ["//tools/cargo_publish/generate:command_test"],
 )
 
 bzl_library(
@@ -58,27 +39,18 @@ filegroup(
     tags = ["markdown"],
 )
 
-py_binary(
-    name = "verify_python_baseline",
-    srcs = ["verify.py"],
-    main = "verify.py",
-    deps = [":report"],
-)
-
-# Preserve the public command while Rust migration packages share this directory.
 alias(
     name = "verify",
-    actual = ":verify_python_baseline",
+    actual = "//tools/cargo_publish/verify:verify",
     visibility = ["//visibility:public"],
 )
 
-py_test(
+test_suite(
     name = "runtime_test",
-    size = "small",
-    srcs = ["runtime_test.py"],
-    data = [":verify"],
-    env = {"VERIFIER": "$(rootpath :verify)"},
-    deps = [":report"],
+    tests = [
+        "//tools/cargo_publish/core:core_test",
+        "//tools/cargo_publish/verify:command_test",
+    ],
 )
 
 bzl_library(
@@ -94,37 +66,23 @@ bzl_library(
     deps = [":providers"],
 )
 
-py_library(
+alias(
     name = "report",
-    srcs = ["report.py"],
+    actual = "//tools/cargo_publish/core:core",
     visibility = ["//visibility:public"],
 )
 
-py_test(
+test_suite(
     name = "matrix_test",
-    size = "small",
-    srcs = ["matrix_test.py"],
-    data = [":verify"],
-    env = {"VERIFIER": "$(rootpath :verify)"},
-    deps = [":report"],
+    tests = ["//tools/cargo_publish/verify:command_test"],
 )
 
-py_binary(
-    name = "ci_python_baseline",
-    srcs = ["ci.py"],
-    main = "ci.py",
-)
-
-# Preserve the public command while Rust migration packages share this directory.
 alias(
     name = "ci",
-    actual = ":ci_python_baseline",
+    actual = "//tools/cargo_publish/ci:ci",
 )
 
-py_test(
+test_suite(
     name = "ci_test",
-    size = "small",
-    srcs = ["ci_test.py"],
-    data = [":ci"],
-    env = {"CI_RUNNER": "$(rootpath :ci)"},
+    tests = ["//tools/cargo_publish/ci:ci_test"],
 )

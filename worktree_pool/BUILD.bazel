@@ -1,5 +1,4 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@rules_python//python:defs.bzl", "py_test")
 
 # gazelle:resolve rust cloudevents @crates//:cloudevents-sdk
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
@@ -133,21 +132,9 @@ filegroup(
     tags = ["markdown"],
 )
 
-py_test(
+test_suite(
     name = "publishing_test",
-    size = "small",
-    srcs = ["publishing_test.py"],
-    data = [
-        "CONTRIBUTING.md",
-        "DEPENDENCIES.md",
-        "LICENSE",
-        "README.md",
-        "WIRE_SCHEMA.md",
-        ":forbidden_compilation_dependencies",
-        ":publish_files",
-        ":worktree_pool",
-        "//:Cargo.lock",
-    ],
+    tests = ["//worktree_pool/publishing_guard:publishing_test"],
 )
 
 cargo_publish(
