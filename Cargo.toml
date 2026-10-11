@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+tar = { version = "=0.4.46", default-features = false }
 # Gazelle Rust uses the same lockfile parser API as the former nested module.
 cargo-bazel = "=0.18.0"
 cargo-lock = "11.0.0"

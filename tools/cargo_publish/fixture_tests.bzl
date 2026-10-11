@@ -1,36 +1,26 @@
 """Offline analysis rejection fixtures through the public cargo_publish macro."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_proc_macro.bzl", "rust_proc_macro")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_testing//lib:analysis_test.bzl", "analysis_test")
+load("@rules_testing//lib:truth.bzl", "matching")
 load(":defs.bzl", "cargo_publish")
 
-def _rejection_impl(ctx):
-    env = analysistest.begin(ctx)
-    asserts.expect_failure(env, ctx.attr.message)
-    return analysistest.end(env)
+def _rejection_impl(env, target):
+    env.expect.that_target(target).failures().contains_predicate(matching.contains(env.ctx.attr.message))
 
-_rejection_test = analysistest.make(
-    _rejection_impl,
-    expect_failure = True,
-    attrs = {"message": attr.string()},
-)
-
-_extra_flags_test = analysistest.make(_rejection_impl, expect_failure = True, attrs = {"message": attr.string()}, config_settings = {str(Label("@rules_rust//rust/settings:extra_rustc_flags")): ["--cfg=custom"]})
-
-_singular_flag_test = analysistest.make(_rejection_impl, expect_failure = True, attrs = {"message": attr.string()}, config_settings = {str(Label("@rules_rust//rust/settings:extra_rustc_flag")): ["--cfg=custom"]})
-
-_extra_env_test = analysistest.make(_rejection_impl, expect_failure = True, attrs = {"message": attr.string()}, config_settings = {str(Label("@rules_rust//rust/settings:extra_rustc_env")): ["CUSTOM=value"]})
-
-_per_crate_test = analysistest.make(_rejection_impl, expect_failure = True, attrs = {"message": attr.string()}, config_settings = {str(Label("@rules_rust//rust/settings:per_crate_rustc_flag")): ["//tools/cargo_publish/fixtures@--cfg=custom"]})
-
-_exec_flags_test = analysistest.make(_rejection_impl, expect_failure = True, attrs = {"message": attr.string()}, config_settings = {str(Label("@rules_rust//rust/settings:extra_exec_rustc_flags")): ["--cfg=custom"]})
-
-_exec_singular_test = analysistest.make(_rejection_impl, expect_failure = True, attrs = {"message": attr.string()}, config_settings = {str(Label("@rules_rust//rust/settings:extra_exec_rustc_flag")): ["--cfg=custom"]})
-
-_exec_env_test = analysistest.make(_rejection_impl, expect_failure = True, attrs = {"message": attr.string()}, config_settings = {str(Label("@rules_rust//rust/settings:extra_exec_rustc_env")): ["CUSTOM=value"]})
+def _rejection_test(name, target_under_test, message, size, tags, config_settings = {}):
+    analysis_test(
+        name = name,
+        target = target_under_test,
+        impl = _rejection_impl,
+        expect_failure = True,
+        attrs = {"message": attr.string()},
+        attr_values = {"message": message, "size": size, "tags": tags},
+        config_settings = config_settings,
+    )
 
 def _publish(name, library = ":library", **kwargs):
     options = dict(
@@ -107,16 +97,23 @@ def publishing_rejection_tests():
 
     # Lint aspects cannot register actions on analysis_test=true rules, and
     # coverage must not compile intentionally rejected compiler configurations.
-    for name, test in [
-        ("global_flags", _extra_flags_test),
-        ("global_singular_flag", _singular_flag_test),
-        ("global_environment", _extra_env_test),
-        ("per_crate_setting", _per_crate_test),
-        ("exec_flags", _exec_flags_test),
-        ("exec_singular_flag", _exec_singular_test),
-        ("exec_environment", _exec_env_test),
+    for name, setting, value in [
+        ("global_flags", "extra_rustc_flags", ["--cfg=custom"]),
+        ("global_singular_flag", "extra_rustc_flag", ["--cfg=custom"]),
+        ("global_environment", "extra_rustc_env", ["CUSTOM=value"]),
+        ("per_crate_setting", "per_crate_rustc_flag", ["//tools/cargo_publish/fixtures@--cfg=custom"]),
+        ("exec_flags", "extra_exec_rustc_flags", ["--cfg=custom"]),
+        ("exec_singular_flag", "extra_exec_rustc_flag", ["--cfg=custom"]),
+        ("exec_environment", "extra_exec_rustc_env", ["CUSTOM=value"]),
     ]:
-        test(name = name + "_test", size = "small", tags = ["no-lint", "no-coverage"], target_under_test = ":publish_files", message = "unsupported compiler settings")
+        _rejection_test(
+            name = name + "_test",
+            size = "small",
+            tags = ["no-lint", "no-coverage"],
+            target_under_test = ":publish_files",
+            message = "unsupported compiler settings",
+            config_settings = {str(Label("@rules_rust//rust/settings:" + setting)): value},
+        )
 
     for name, setting, value in [
         ("binary_dylib", "link_std_dylib", True),
