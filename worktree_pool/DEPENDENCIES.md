@@ -2,8 +2,8 @@
 
 The repository-root `Cargo.toml` and `Cargo.lock` remain the Bazel dependency
 inputs. `//worktree_pool:publish_files` derives a consumer manifest from the
-selected configured Bazel library, binary, and test targets. No consumer manifest
-or lockfile is maintained in `worktree_pool`.
+selected configured Bazel library, binary, and test targets. `worktree_pool`
+maintains no consumer manifest or lockfile.
 
 After generation, inspect
 `bazel-bin/worktree_pool/publish_files.package/Cargo.toml`. Its `[dependencies]`
@@ -16,19 +16,19 @@ Rust import names while identifying their registry packages.
 
 Run [explicit package validation](CONTRIBUTING.md#source-package-preparation-and-installed-acceptance)
 and inspect the printed report path. `dependencies.requested` preserves the
-selected direct declarations; `dependencies.observed` records Cargo's resolved
+selected direct declarations. `dependencies.observed` records Cargo's resolved
 transitive graph, versions, and feature activation. `dependencies.metadata_path`
 points to retained locked Cargo metadata. The packaged `Cargo.lock` records that
-standalone resolution. Validation compares declarations, source and asset hashes,
-archive contents, and locked builds; it doesn't assume Cargo's transitive feature
-activation matches Bazel's shared feature union. The installer retains the exact
+standalone resolution. Validation checks declarations, archived files, and locked
+builds. It also checks hashes for each source and asset. It doesn't assume Cargo's
+transitive feature activation matches Bazel's shared feature union. The installer retains the exact
 validated report as `validation-report.json` beside its artifact and runtime
 evidence. A failed or incomplete report isn't a supported installation handoff.
 
 The dependency roles remain useful without maintaining a second version table:
 
-- `clap` defines the CLI; `serde`, `serde_json`, and `config` handle structured
-  data and configuration.
+- `clap` defines the command-line tool. `serde`, `serde_json`, and `config` handle
+  structured data and configuration.
 - `redb` stores durable catalog events and projections; `cloudevents-sdk` provides
   the event envelope.
 - `chrono`, `uuid`, and `sha2` supply timestamps, identities, and content hashes.
