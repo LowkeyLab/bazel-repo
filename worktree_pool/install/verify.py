@@ -10,13 +10,15 @@ import hashlib
 import json
 import os
 import platform
+import shlex
 import shutil
 import subprocess
 import sys
 import tarfile
+import tomllib
 from pathlib import Path
 
-import tomllib
+from tools.cargo_publish.report import selected_targets, validate_verified_archive
 
 
 def run(argv, *, cwd, env, log):
@@ -49,7 +51,6 @@ def main():
     for name in (
         "cargo",
         "rustc",
-        "manifest",
         "git_source",
         "zlib_source",
         "cli_tests",
@@ -59,31 +60,132 @@ def main():
     parser.add_argument("--runfiles-root", type=Path, required=True)
     parser.add_argument("--workspace", required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--phase", choices=("package", "all"), default="all")
+    parser.add_argument("--archive", type=Path, required=True)
+    parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--expected-version", required=True)
     args = parser.parse_args()
     output = args.output.resolve()
     output.mkdir(mode=0o700)  # Refuse accidental reuse or cleanup of caller data.
     log = output / "commands.log"
-    package = output / "source"
-    package.mkdir()
-    for path in args.manifest.parent.iterdir():
-        if path.is_file() and (
-            path.suffix in (".rs", ".md")
-            or path.name.startswith("Cargo")
-            or path.name in ("LICENSE", "BUILD.bazel")
+    try:
+        report_path = output / "validation-report.json"
+        shutil.copyfile(args.report, report_path)
+        unpacked = validate_verified_archive(
+            report_path,
+            args.archive,
+            output / "verified-handoff",
+            expected_package={
+                "name": "worktree-pool",
+                "version": args.expected_version,
+            },
+        )
+        report = json.loads(report_path.read_text())
+        if selected_targets(report["selection"]) != [
+            "bin:worktree-pool",
+            "lib:worktree_pool",
+        ]:
+            raise ValueError(
+                "verified selection must cover worktree_pool library and worktree-pool binary"
+            )
+        required = {
+            "LICENSE",
+            "README.md",
+            "CONTRIBUTING.md",
+            "WIRE_SCHEMA.md",
+            "DEPENDENCIES.md",
+            "lib.rs",
+            "main.rs",
+        }
+        missing = required - {item["path"] for item in report["inputs"]}
+        if missing:
+            raise ValueError(f"missing worktree-pool package inputs: {sorted(missing)}")
+        normalized = tomllib.loads((unpacked / "Cargo.toml").read_text())
+        if (
+            normalized["lib"].get("name") != "worktree_pool"
+            or normalized["lib"].get("path") != "lib.rs"
         ):
-            shutil.copyfile(path, package / path.name)
-    env = {
-        key: value
-        for key, value in os.environ.items()
-        if not key.startswith(("CARGO_", "RUST", "PYTHON"))
-    }
+            raise ValueError("worktree-pool library name/path differs")
+        if [
+            (binary["name"], binary["path"]) for binary in normalized.get("bin", [])
+        ] != [("worktree-pool", "main.rs")]:
+            raise ValueError("worktree-pool binary name/path differs")
+        (output / "artifact.json").write_text(
+            json.dumps(
+                {
+                    "generic_run_id": report["run_id"],
+                    "archive_sha256": report["archive"]["sha256"],
+                    "verified_archive": str(output / "verified-handoff/verified.crate"),
+                    "validation_report": str(report_path),
+                    "extracted_package": str(unpacked),
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        raise ValueError(
+            f"artifact_validation: archive {args.archive}, report {args.report}: {error}"
+        ) from error
+    for parent in (output, *output.parents):
+        for name in ("config", "config.toml"):
+            config = parent / ".cargo" / name
+            if config.exists():
+                raise ValueError(
+                    f"installation_configuration: ambient Cargo configuration: {config}; choose an isolated output directory"
+                )
+    allowed = (
+        "PATH",
+        "NIX_LD",
+        "NIX_LD_LIBRARY_PATH",
+        "SSL_CERT_FILE",
+        "SSL_CERT_DIR",
+        "NIX_SSL_CERT_FILE",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "NO_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "no_proxy",
+    )
+    env = {key: value for key, value in os.environ.items() if key in allowed}
+    for name in ("home", "cargo-home", "tmp"):
+        (output / name).mkdir(mode=0o700)
+    wrapper = output / "rustc-pinned.sh"
+    wrapper.write_text(
+        "#!/usr/bin/env bash\nexec "
+        + shlex.quote(str(args.rustc))
+        + " --sysroot "
+        + shlex.quote(str(args.sysroot))
+        + ' "$@"\n'
+    )
+    wrapper.chmod(0o700)
     env.update(
-        RUSTC=str(args.rustc),
+        HOME=str(output / "home"),
+        TMPDIR=str(output / "tmp"),
+        RUSTC=str(wrapper),
         CARGO_HOME=str(output / "cargo-home"),
         CARGO_TARGET_DIR=str(output / "cargo-target"),
         CARGO_BUILD_JOBS="2",
-        RUSTFLAGS=f"--sysroot={args.sysroot}",
+        LANG="C.UTF-8",
+        LC_ALL="C.UTF-8",
+    )
+    config = output / "cargo-home/config.toml"
+    config.write_text('[registries.crates-io]\nprotocol = "sparse"\n')
+    (output / "installation-configuration.json").write_text(
+        json.dumps(
+            {
+                "environment": env,
+                "cwd": str(output),
+                "cargo_config": str(config),
+                "cargo_config_sha256": digest(config),
+                "rustc_wrapper": str(wrapper),
+                "rustc_wrapper_sha256": digest(wrapper),
+            },
+            indent=2,
+        )
+        + "\n"
     )
     rust = subprocess.check_output([args.rustc, "-Vv"], env=env, text=True)
     cargo = subprocess.check_output([args.cargo, "-V"], env=env, text=True)
@@ -92,118 +194,6 @@ def main():
     assert "host: x86_64-unknown-linux-gnu\n" in rust, rust
     assert platform.system() == "Linux" and platform.machine() == "x86_64"
     (output / "toolchain.txt").write_text(rust + cargo)
-    if not (package / "Cargo.lock").exists():
-        run([args.cargo, "generate-lockfile"], cwd=package, env=env, log=log)
-    run(
-        [args.cargo, "package", "--locked", "--allow-dirty"],
-        cwd=package,
-        env=env,
-        log=log,
-    )
-    archive = next((output / "cargo-target/package").glob("*.crate"))
-    unpacked = extract(archive, output / "extracted")
-    contents = sorted(
-        p.relative_to(unpacked).as_posix() for p in unpacked.rglob("*") if p.is_file()
-    )
-    (output / "archive-contents.json").write_text(json.dumps(contents, indent=2) + "\n")
-    # This policy is the distribution contract, independent of Cargo include logic.
-    required = {
-        "Cargo.lock",
-        "Cargo.toml",
-        "Cargo.toml.orig",
-        "LICENSE",
-        "README.md",
-        "CONTRIBUTING.md",
-        "WIRE_SCHEMA.md",
-        "DEPENDENCIES.md",
-        "lib.rs",
-        "main.rs",
-    }
-    assert required <= set(contents), required - set(contents)
-    assert all(
-        name.endswith(".rs") or name in required or name == ".cargo_vcs_info.json"
-        for name in contents
-    ), contents
-    normalized = tomllib.loads((unpacked / "Cargo.toml").read_text())
-    assert normalized["package"]["name"] == "worktree-pool"
-    assert normalized["bin"][0]["name"] == "worktree-pool"
-    for group in ("dependencies", "dev-dependencies"):
-        assert all(
-            "path" not in dep and "workspace" not in dep
-            for dep in normalized[group].values()
-        )
-    assert digest(unpacked / "Cargo.toml.orig") == digest(package / "Cargo.toml")
-    hashes = {name: digest(unpacked / name) for name in contents}
-    for name in contents:
-        if (package / name).is_file() and name != "Cargo.toml":
-            assert digest(package / name) == hashes[name], name
-    (output / "artifact.json").write_text(
-        json.dumps({"archive_sha256": digest(archive), "files": hashes}, indent=2)
-        + "\n"
-    )
-    metadata_bytes = subprocess.check_output(
-        [
-            args.cargo,
-            "metadata",
-            "--locked",
-            "--filter-platform",
-            "x86_64-unknown-linux-gnu",
-            "--format-version",
-            "1",
-        ],
-        cwd=unpacked,
-        env=env,
-    )
-    metadata = json.loads(metadata_bytes)
-    (output / "metadata.json").write_bytes(metadata_bytes)
-    by_id = {p["id"]: p for p in metadata["packages"]}
-    resolved = [
-        {
-            "name": by_id[node["id"]]["name"],
-            "version": by_id[node["id"]]["version"],
-            "features": node["features"],
-        }
-        for node in metadata["resolve"]["nodes"]
-    ]
-    (output / "resolved-dependencies.json").write_text(
-        json.dumps(sorted(resolved, key=lambda p: (p["name"], p["version"])), indent=2)
-        + "\n"
-    )
-    original = tomllib.loads((package / "Cargo.toml").read_text())
-    for group in ("dependencies", "dev-dependencies"):
-        for name, dependency in original[group].items():
-            version = (
-                dependency if isinstance(dependency, str) else dependency["version"]
-            )
-            assert version.startswith("="), (name, version)
-            assert normalized[group][name]["version"] == version, name
-            requested = {} if isinstance(dependency, str) else dependency
-            actual = normalized[group][name]
-            assert actual.get("default-features", True) == requested.get(
-                "default-features", True
-            ), name
-            assert sorted(actual.get("features", [])) == sorted(
-                requested.get("features", [])
-            ), name
-    run(
-        [
-            args.cargo,
-            "tree",
-            "--locked",
-            "--target",
-            "x86_64-unknown-linux-gnu",
-            "--edges",
-            "normal,build,features",
-        ],
-        cwd=unpacked,
-        env=env,
-        log=output / "production-features.log",
-    )
-    shutil.copyfile(unpacked / "Cargo.lock", output / "Cargo.lock")
-    shutil.copyfile(unpacked / "Cargo.toml", output / "Cargo.toml.normalized")
-    if args.phase == "package":
-        print(f"Verified standalone archive: {archive}")
-        return
     run(
         [
             args.cargo,
@@ -277,7 +267,9 @@ def main():
     installed_version = subprocess.check_output(
         [binary, "--version"], cwd=unrelated, env=runtime, text=True
     ).strip()
-    assert installed_version == "worktree-pool 0.1.0", installed_version
+    assert installed_version == "worktree-pool " + args.expected_version, (
+        installed_version
+    )
     (output / "installed-version.log").write_text(installed_version + "\n")
     run(
         [args.cli_tests, "--test-threads=1"],
@@ -302,4 +294,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f"acceptance failed: {error}", file=sys.stderr)
+        sys.exit(1)
