@@ -355,7 +355,8 @@ enum Literal {
     Number(i64),
     None,
     List(Vec<Literal>),
-    Dict(BTreeMap<String, Literal>),
+    Tuple(Vec<Literal>),
+    Dict(Vec<(Literal, Literal)>),
 }
 impl Literal {
     fn string(&self) -> Option<&str> {
@@ -371,15 +372,22 @@ impl Literal {
             Self::Bool(v) => *v,
             Self::Number(v) => *v != 0,
             Self::None => false,
-            Self::List(v) => !v.is_empty(),
+            Self::List(v) | Self::Tuple(v) => !v.is_empty(),
             Self::Dict(v) => !v.is_empty(),
+        }
+    }
+    fn hashable(&self) -> bool {
+        match self {
+            Self::String(_) | Self::Bool(_) | Self::Number(_) | Self::None => true,
+            Self::Tuple(values) => values.iter().all(Self::hashable),
+            Self::List(_) | Self::Dict(_) => false,
         }
     }
     fn contains(&self, needle: &str) -> bool {
         match self {
-            Self::List(v) => v.iter().any(|v| v.string() == Some(needle)),
+            Self::List(v) | Self::Tuple(v) => v.iter().any(|v| v.string() == Some(needle)),
             Self::String(v) => v.contains(needle),
-            Self::Dict(v) => v.contains_key(needle),
+            Self::Dict(v) => v.iter().any(|(key, _)| key.string() == Some(needle)),
             _ => false,
         }
     }
@@ -396,6 +404,26 @@ fn literal(tokens: &[Token], i: &mut usize) -> Result<Literal> {
         Token::Word(v) if v == "None" => Ok(Literal::None),
         Token::Word(v) if v.parse::<i64>().is_ok() => {
             Ok(Literal::Number(v.parse().unwrap_or_default()))
+        }
+        Token::Punct('+' | '-') => {
+            let Some(Token::Word(digits)) = tokens.get(*i) else {
+                return reject("MODULE.bazel: ambiguous crate annotation/override configuration");
+            };
+            if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+                return reject("MODULE.bazel: ambiguous crate annotation/override configuration");
+            }
+            let sign = if *token == Token::Punct('-') {
+                "-"
+            } else {
+                "+"
+            };
+            let value = format!("{sign}{digits}").parse::<i64>().map_err(|_| {
+                GenerationError::Policy(
+                    "MODULE.bazel: ambiguous crate annotation/override configuration".into(),
+                )
+            })?;
+            *i += 1;
+            Ok(Literal::Number(value))
         }
         Token::Punct('[' | '(') => {
             let close = if *token == Token::Punct('[') {
@@ -415,24 +443,28 @@ fn literal(tokens: &[Token], i: &mut usize) -> Result<Literal> {
                 }
             }
             *i += 1;
-            Ok(Literal::List(values))
+            Ok(if close == ']' {
+                Literal::List(values)
+            } else {
+                Literal::Tuple(values)
+            })
         }
         Token::Punct('{') => {
-            let mut values = BTreeMap::new();
+            let mut values = Vec::new();
             while tokens.get(*i) != Some(&Token::Punct('}')) {
                 let key = literal(tokens, i)?;
-                let Some(key) = key.string() else {
+                if !key.hashable() {
                     return reject(
                         "MODULE.bazel: ambiguous crate annotation/override configuration",
                     );
-                };
+                }
                 if tokens.get(*i) != Some(&Token::Punct(':')) {
                     return reject(
                         "MODULE.bazel: ambiguous crate annotation/override configuration",
                     );
                 }
                 *i += 1;
-                values.insert(key.into(), literal(tokens, i)?);
+                values.push((key, literal(tokens, i)?));
                 if tokens.get(*i) == Some(&Token::Punct(',')) {
                     *i += 1;
                 } else if tokens.get(*i) != Some(&Token::Punct('}')) {

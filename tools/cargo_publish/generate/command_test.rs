@@ -478,6 +478,7 @@ fn cargo_native_and_inactive_annotations_remain_supported() {
 #[gtest]
 fn module_comments_strings_and_literal_precedence_preserve_supported_packages() {
     for (index, module) in [
+        "crate.annotation(crate=\"unrelated\",patches={1:\"unused\"},patch_strip=-1)\n",
         "crate.annotation(crate=r\"anyhow\",gen_build_script=\"on\",crate_features=[\"std\"])\n",
         "# crate.annotation(crate=\"anyhow\",patches=[\"bad\"])\ntext = '''crate.override(crate=\"anyhow\",path=\"bad\")'''\n",
         "crate.annotation(crate=\"anyhow\",patches=[\"bad\"])\ncrate.annotation(crate=\"anyhow\",version=\"1.0.104\",crate_features=[\"std\"])\n",
