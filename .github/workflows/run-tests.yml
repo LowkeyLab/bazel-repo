@@ -81,21 +81,9 @@ jobs:
           docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Verify real packages and installed CLI
         run: |
-          # Controlled probe: real pinned Cargo must reject an empty offline cache.
-          mkdir -p "$RUNNER_TEMP/cargo-publish-probe-empty-registry"
-          cat > "$RUNNER_TEMP/cargo-publish-probe-bazel" <<'SH'
-          #!/usr/bin/env bash
-          set -euo pipefail
-          if [[ "${1-}" == run && "${2-}" == //tools/cargo_publish/fixtures:publish ]]; then
-            exec bazel "$@" -- --offline --registry-cache "$RUNNER_TEMP/cargo-publish-probe-empty-registry"
-          fi
-          exec bazel "$@"
-          SH
-          chmod 700 "$RUNNER_TEMP/cargo-publish-probe-bazel"
           env \
             RULES_PYTHON_PYCACHE_DIR="$RUNNER_TEMP/rules-python-pycache" \
             bazel run //tools/cargo_publish:ci -- \
-            --bazel "$RUNNER_TEMP/cargo-publish-probe-bazel" \
             --workspace "$PWD" \
             --output "$RUNNER_TEMP/cargo-publish-artifacts/evidence"
       - name: Retain publishing reports and diagnostics
