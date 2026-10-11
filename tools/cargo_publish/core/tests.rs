@@ -1,4 +1,7 @@
-use googletest::prelude::*;
+use googletest::{
+    assert_that, gtest,
+    matchers::{anything, contains_substring, elements_are, eq, err, is_true, ok},
+};
 
 use crate::PackagePath;
 
@@ -136,4 +139,50 @@ fn contract_rejects_reserved_duplicate_and_file_directory_input_conflicts() {
         .crate_name
         .clear();
     assert_that!(missing_identity.validate(), err(anything()));
+}
+
+#[gtest]
+fn genuine_completed_report_certifies_and_preserves_public_json() {
+    use crate::{ValidationReport, validate_report};
+    let source = include_str!("testdata/library-report.json");
+    let expected: serde_json::Value = serde_json::from_str(source).unwrap();
+    let report: ValidationReport = serde_json::from_str(source).unwrap();
+    assert_that!(validate_report(&report, None), ok(anything()));
+    assert_that!(serde_json::to_value(&report).unwrap(), eq(&expected));
+    let mut incomplete = report.clone();
+    incomplete.completed = false;
+    assert_that!(validate_report(&incomplete, None), err(anything()));
+}
+
+#[gtest]
+fn relocated_archive_handoff_checks_the_private_copy_and_exact_inventory() {
+    use crate::{ExpectedPackage, ValidationReport, validate_verified_archive, write_json};
+    let scratch = tempfile::tempdir().unwrap();
+    let report: ValidationReport =
+        serde_json::from_str(include_str!("testdata/library-report.json")).unwrap();
+    let report_path = scratch.path().join("report.json");
+    write_json(&report_path, &report).unwrap();
+    let archive = scratch.path().join("relocated.crate");
+    std::fs::write(&archive, include_bytes!("testdata/library.crate")).unwrap();
+    let expected = ExpectedPackage {
+        name: "publishing-fixture".into(),
+        version: "0.1.0".into(),
+    };
+    let verified = validate_verified_archive(
+        &report_path,
+        &archive,
+        scratch.path().join("verified"),
+        Some(&expected),
+    )
+    .unwrap();
+    std::fs::write(&archive, b"replaced caller archive").unwrap();
+    assert_that!(
+        std::fs::read(&verified.copied_archive).unwrap(),
+        eq(&include_bytes!("testdata/library.crate").to_vec())
+    );
+    assert_that!(verified.report, eq(&report));
+    assert_that!(
+        std::fs::read(verified.extracted_root.join("src/nested/value.rs")).unwrap(),
+        eq(&b"pub const ANSWER: u32 = 42;\n".to_vec())
+    );
 }

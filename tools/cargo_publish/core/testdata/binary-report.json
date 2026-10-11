@@ -1,0 +1,554 @@
+{
+  "archive": {
+    "extracted_root": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0",
+    "fidelity": "passed",
+    "inventory": [
+      {
+        "path": "Cargo.lock",
+        "sha256": "893c330dd433cae3d24ef7d65d8ad860ccb39b7cd7a4bd00990552760d123487",
+        "size": 380,
+        "type": "file"
+      },
+      {
+        "path": "Cargo.toml",
+        "sha256": "54ee1249753b29bf382cbcea2e9511b3b7eea3fdbab164940db141b09025ca5c",
+        "size": 1059,
+        "type": "file"
+      },
+      {
+        "path": "Cargo.toml.orig",
+        "sha256": "8c7ffc5fb1eff49e52d05847fa9c1dcbcd5f8ffd72b3e5cd140cb3cd133b74a1",
+        "size": 588,
+        "type": "file"
+      },
+      {
+        "path": "README.md",
+        "sha256": "b1b61351ee61007abc12bedf60022c024d828ed00ade4c34f6859dd295fbbf04",
+        "size": 70,
+        "type": "file"
+      },
+      {
+        "path": "src/bin/main.rs",
+        "sha256": "e6dd759a5a0fd36f7d6824c4b7e36c368a69a34b82093076eeb47f18a91e0385",
+        "size": 141,
+        "type": "file"
+      }
+    ],
+    "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/target/package/binary-fixture-0.1.0.crate",
+    "sha256": "1cf1fe8d76e39ea66b18a030a4de79916af70ce529d08227b9ef84e2241a8114",
+    "size": 1178
+  },
+  "checks": {
+    "archive_fidelity": {
+      "completed": true,
+      "evidence": {
+        "inputs": [
+          {
+            "path": "README.md",
+            "sha256": "b1b61351ee61007abc12bedf60022c024d828ed00ade4c34f6859dd295fbbf04",
+            "size": 70
+          },
+          {
+            "path": "src/bin/main.rs",
+            "sha256": "e6dd759a5a0fd36f7d6824c4b7e36c368a69a34b82093076eeb47f18a91e0385",
+            "size": 141
+          }
+        ],
+        "verified": true
+      },
+      "status": "passed"
+    },
+    "archive_policy": {
+      "completed": true,
+      "evidence": {
+        "inventory": [
+          {
+            "path": "Cargo.lock",
+            "sha256": "893c330dd433cae3d24ef7d65d8ad860ccb39b7cd7a4bd00990552760d123487",
+            "size": 380,
+            "type": "file"
+          },
+          {
+            "path": "Cargo.toml",
+            "sha256": "54ee1249753b29bf382cbcea2e9511b3b7eea3fdbab164940db141b09025ca5c",
+            "size": 1059,
+            "type": "file"
+          },
+          {
+            "path": "Cargo.toml.orig",
+            "sha256": "8c7ffc5fb1eff49e52d05847fa9c1dcbcd5f8ffd72b3e5cd140cb3cd133b74a1",
+            "size": 588,
+            "type": "file"
+          },
+          {
+            "path": "README.md",
+            "sha256": "b1b61351ee61007abc12bedf60022c024d828ed00ade4c34f6859dd295fbbf04",
+            "size": 70,
+            "type": "file"
+          },
+          {
+            "path": "src/bin/main.rs",
+            "sha256": "e6dd759a5a0fd36f7d6824c4b7e36c368a69a34b82093076eeb47f18a91e0385",
+            "size": 141,
+            "type": "file"
+          }
+        ],
+        "root": "binary-fixture-0.1.0"
+      },
+      "status": "passed"
+    },
+    "cargo_package": {
+      "completed": true,
+      "evidence": {
+        "archive": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/target/package/binary-fixture-0.1.0.crate",
+        "command_ids": ["3"],
+        "verification_enabled": true
+      },
+      "status": "passed"
+    },
+    "configuration": {
+      "completed": true,
+      "evidence": {
+        "cargo_home": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/cargo-home",
+        "config_path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/cargo-home/config.toml",
+        "config_sha256": "5bc04ab8c032c7f121086560c08638df0887a4a3e75fbfb49182b663c92de0b8",
+        "cwd": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7",
+        "environment": {
+          "CARGO_BUILD_JOBS": "2",
+          "CARGO_HOME": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/cargo-home",
+          "CARGO_TARGET_DIR": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/target",
+          "HOME": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/home",
+          "LANG": "C.UTF-8",
+          "LC_ALL": "C.UTF-8",
+          "NIX_LD": "/nix/store/lm3pknxi0ipypy3lxh1wmm8wvvavdwrn-glibc-2.42-84/lib/ld-linux-x86-64.so.2",
+          "NIX_LD_LIBRARY_PATH": "/nix/store/604gsr59rj7dzd0nrhp143rpvf7gyiaz-gcc-15.3.0-lib/lib:/nix/store/lw86vj9kfwgvlivg3p8qg2nibpmhmsl9-zlib-1.3.2/lib",
+          "PATH": "/home/tacascer/.cache/bazelisk/downloads/sha256/d302d22ed77ee5658b87857249baa579db84300ecebe0a1e9a357b5b20f80eb8/bin:/run/wrappers/bin:/usr/bin:/usr/sbin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/wf7b8ymrdwgwd9xb8jrqc63f9022a0h6-bazelisk-1.29.0/bin:/nix/store/x8alz8ygk4y6r0l37r735f4iy68lphfn-bazel/bin:/nix/store/krxbkfp66naraba49vq30jaczi5i0x21-bazel-watcher-0.33.0/bin:/nix/store/j9pnscwl7ycz2v0g2j3skjk3y3n82hx2-bazel-buildtools-10.0.1/bin:/nix/store/i02577ygphwzbkb3ab6jsn70rw675jxs-buf-1.73.0/bin:/nix/store/lr4iyww2lzpq2rfxyn4dqgsmhi9m4ama-coverage/bin:/nix/store/vwc1vqihdnlpz7djkbjq0rq5y4f8j078-starpls-0.1.22/bin:/nix/store/lc479s2c4bbwaryyn8mfr8xb0w0nzs6z-prettier-3.9.6/bin:/nix/store/4l04h8656as4i291mpcg38wz9m4k8acp-go-1.26.7/bin:/nix/store/ggg53gq25nf1p6vlzyzkwj26csc5jfak-pnpm-12.3.4/bin:/nix/store/frp5pgbr3pkf3jn6iq6f197970y5zs84-openjdk-headless-25.0.4.1+1/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/z5y0q3py79h3bwr2596s8j858rcrfphx-pre-commit-4.6.2/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/b5igsqnk7ynrdl7bgmd2abcvifpi1fdb-python3.14-identify-2.6.19/bin:/nix/store/65849i80qxx5i4xm1pbx6z8r84al7066-python3.14-cffi-2.1.0/bin:/nix/store/fwqp3f54vqakq82lfrpiw908xi1iln0w-python3.14-pytest-9.1.1/bin:/nix/store/2qxacrkmmyfhhrj4wk1fajy32r754l5z-python3.14-pygments-2.20.0/bin:/nix/store/9bcd1bhaxpib3agvn39vvalrwq12xdy9-python3.14-nodeenv-1.10.0/bin:/nix/store/9imkalicqfa7l2r27xk0s98580p2mcyq-python3.14-virtualenv-21.6.1/bin:/nix/store/2j9h9spd95fdqb9g4r9qp9hh1wca3jnf-agent-browser-0.38.1/bin:/nix/store/v6wsd9nyglmwh32yn7w8z11dq9cksg4m-nodejs-24.20.0/bin:/nix/store/w20n3pmhhd1av9llykxa3gd21c9jsm8l-cargo-1.98.1/bin:/nix/store/41y4rj7zk2wkdiviy3asyq56nf709kd0-lcov-2.4/bin:/nix/store/v9cg9l1ich452n2zxn2877qcn4accafw-railway-5.30.4/bin:/nix/store/vrixkxih58ksvrv3a56clslhg1a26k6c-aspect-unstable-865653a/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/41l3h8s1lr518n03bsrzv5vsf37bhnb9-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/c011mk580m964s1zxjccvdax3fcmppnl-gnumake-4.4.1/bin:/nix/store/svx59425zxp552p2b8gm11qj5r09b56i-bash-5.3p15/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/home/tacascer/.codex/tmp/arg0/codex-arg0373GM9:/home/tacascer/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override:/nix/store/y0ra9qr3rz81d9wl7dfrldv3j25dc98q-bubblewrap-0.12.0/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/3ba67bl61l0dxp1x4m9waqnvm5n5bkcs-git-minimal-2.55.0/bin:/nix/store/76nlfdjwr0n1bh2hmwqjbbg4l3azp2hl-xdg-utils-1.2.1/bin:/run/wrappers/bin:/home/tacascer/.nix-profile/bin:/nix/profile/bin:/home/tacascer/.local/state/nix/profile/bin:/etc/profiles/per-user/tacascer/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/home/tacascer/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback:/nix/store/13l8ki4vnig8crjdy6zhar862ry9snh2-chatgpt-unwrapped-26.1002.52244/lib/chatgpt/resources",
+          "RUSTC": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/rustc-pinned.sh",
+          "TMPDIR": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/tmp"
+        },
+        "network_mode": "online",
+        "registry_cache": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/registry-cache",
+        "rustc_wrapper": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/rustc-pinned.sh",
+        "rustc_wrapper_sha256": "e820c6eeae1dadaeb279cdc5df22585317416e522eaa3c9f401c214b3d83c521",
+        "target": "x86_64-unknown-linux-gnu",
+        "target_directory": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/target"
+      },
+      "status": "passed"
+    },
+    "direct_dependencies": {
+      "completed": true,
+      "evidence": {
+        "compared": true,
+        "requested": [
+          {
+            "alias": "anyhow",
+            "checksum": "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470",
+            "default_features": true,
+            "features": ["default", "std"],
+            "kind": "normal",
+            "package": "anyhow",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "target": "@@rules_rs++crate+crates__anyhow-1.0.104//:anyhow",
+            "version": "1.0.104"
+          }
+        ],
+        "resolved_graph": [
+          {
+            "deps": [],
+            "features": ["default", "std"],
+            "id": "registry+https://github.com/rust-lang/crates.io-index#anyhow@1.0.104",
+            "name": "anyhow",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "version": "1.0.104"
+          },
+          {
+            "deps": [
+              {
+                "dep_kinds": [
+                  {
+                    "kind": null,
+                    "target": null
+                  }
+                ],
+                "name": "anyhow",
+                "pkg": "registry+https://github.com/rust-lang/crates.io-index#anyhow@1.0.104"
+              }
+            ],
+            "features": [],
+            "id": "path+file:///home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0#binary-fixture@0.1.0",
+            "name": "binary-fixture",
+            "source": null,
+            "version": "0.1.0"
+          }
+        ]
+      },
+      "status": "passed"
+    },
+    "generated_manifest": {
+      "completed": true,
+      "evidence": {
+        "dependencies": [
+          {
+            "alias": "anyhow",
+            "checksum": "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470",
+            "default_features": true,
+            "features": ["default", "std"],
+            "kind": "normal",
+            "package": "anyhow",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "target": "@@rules_rs++crate+crates__anyhow-1.0.104//:anyhow",
+            "version": "1.0.104"
+          }
+        ],
+        "package": {
+          "description": "A declared binary publishing fixture",
+          "edition": "2024",
+          "license": "MIT",
+          "name": "binary-fixture",
+          "readme": "README.md",
+          "repository": "https://github.com/LowkeyLab/bazel-repo",
+          "rust-version": "1.96",
+          "version": "0.1.0"
+        },
+        "targets": ["bin:fixture-cli"]
+      },
+      "status": "passed"
+    },
+    "input_fidelity": {
+      "completed": true,
+      "evidence": {
+        "inputs": [
+          {
+            "path": "README.md",
+            "sha256": "b1b61351ee61007abc12bedf60022c024d828ed00ade4c34f6859dd295fbbf04",
+            "size": 70
+          },
+          {
+            "path": "src/bin/main.rs",
+            "sha256": "e6dd759a5a0fd36f7d6824c4b7e36c368a69a34b82093076eeb47f18a91e0385",
+            "size": 141
+          }
+        ],
+        "manifest_sha256": "8c7ffc5fb1eff49e52d05847fa9c1dcbcd5f8ffd72b3e5cd140cb3cd133b74a1"
+      },
+      "status": "passed"
+    },
+    "locked_builds": {
+      "completed": true,
+      "evidence": {
+        "command_ids": ["5"],
+        "targets": ["bin:fixture-cli"]
+      },
+      "status": "passed"
+    },
+    "locked_metadata": {
+      "completed": true,
+      "evidence": {
+        "command_ids": ["4"],
+        "lockfile_sha256": "893c330dd433cae3d24ef7d65d8ad860ccb39b7cd7a4bd00990552760d123487",
+        "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/metadata.json",
+        "sha256": "8d535577e6328fa9aa20f7c2ad864027a99c188b6a6b389d8927ffafa0f903bd"
+      },
+      "status": "passed"
+    },
+    "normalized_manifest": {
+      "completed": true,
+      "evidence": {
+        "dependencies": [
+          {
+            "alias": "anyhow",
+            "checksum": "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470",
+            "default_features": true,
+            "features": ["default", "std"],
+            "kind": "normal",
+            "package": "anyhow",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "target": "@@rules_rs++crate+crates__anyhow-1.0.104//:anyhow",
+            "version": "1.0.104"
+          }
+        ],
+        "manifest": {
+          "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0/Cargo.toml",
+          "sha256": "54ee1249753b29bf382cbcea2e9511b3b7eea3fdbab164940db141b09025ca5c"
+        },
+        "package": {
+          "description": "A declared binary publishing fixture",
+          "edition": "2024",
+          "license": "MIT",
+          "name": "binary-fixture",
+          "readme": "README.md",
+          "repository": "https://github.com/LowkeyLab/bazel-repo",
+          "rust-version": "1.96",
+          "version": "0.1.0"
+        }
+      },
+      "status": "passed"
+    },
+    "original_manifest": {
+      "completed": true,
+      "evidence": {
+        "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0/Cargo.toml.orig",
+        "sha256": "8c7ffc5fb1eff49e52d05847fa9c1dcbcd5f8ffd72b3e5cd140cb3cd133b74a1"
+      },
+      "status": "passed"
+    },
+    "toolchain": {
+      "completed": true,
+      "evidence": {
+        "command_ids": ["1", "2"],
+        "versions": {
+          "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)\n",
+          "cargo_path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/cargo",
+          "host": "x86_64-unknown-linux-gnu",
+          "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)\nbinary: rustc\ncommit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96\ncommit-date: 2026-05-25\nhost: x86_64-unknown-linux-gnu\nrelease: 1.96.0\nLLVM version: 22.1.2\n",
+          "rustc_path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/rustc",
+          "sysroot": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain",
+          "target": "x86_64-unknown-linux-gnu"
+        }
+      },
+      "status": "passed"
+    }
+  },
+  "commands": [
+    {
+      "argv": [
+        "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/rustc",
+        "-Vv"
+      ],
+      "completed": true,
+      "completed_at": "2026-10-11T19:07:51.628925+00:00",
+      "cwd": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7",
+      "id": "1",
+      "log": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/1-toolchain.log",
+      "phase": "toolchain",
+      "returncode": 0,
+      "started_at": "2026-10-11T19:07:51.619940+00:00"
+    },
+    {
+      "argv": [
+        "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/cargo",
+        "-V"
+      ],
+      "completed": true,
+      "completed_at": "2026-10-11T19:07:51.632984+00:00",
+      "cwd": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7",
+      "id": "2",
+      "log": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/2-toolchain.log",
+      "phase": "toolchain",
+      "returncode": 0,
+      "started_at": "2026-10-11T19:07:51.629048+00:00"
+    },
+    {
+      "argv": [
+        "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/cargo",
+        "package",
+        "--manifest-path",
+        "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/staged/Cargo.toml",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--allow-dirty"
+      ],
+      "completed": true,
+      "completed_at": "2026-10-11T19:07:52.379051+00:00",
+      "cwd": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7",
+      "id": "3",
+      "log": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/3-cargo_package.log",
+      "phase": "cargo_package",
+      "returncode": 0,
+      "started_at": "2026-10-11T19:07:51.634689+00:00"
+    },
+    {
+      "argv": [
+        "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/cargo",
+        "metadata",
+        "--manifest-path",
+        "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0/Cargo.toml",
+        "--locked",
+        "--filter-platform",
+        "x86_64-unknown-linux-gnu",
+        "--format-version",
+        "1"
+      ],
+      "completed": true,
+      "completed_at": "2026-10-11T19:07:52.398987+00:00",
+      "cwd": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7",
+      "id": "4",
+      "log": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/4-locked_metadata.log",
+      "phase": "locked_metadata",
+      "returncode": 0,
+      "started_at": "2026-10-11T19:07:52.384282+00:00"
+    },
+    {
+      "argv": [
+        "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/cargo",
+        "build",
+        "--manifest-path",
+        "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0/Cargo.toml",
+        "--locked",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "--bin",
+        "fixture-cli"
+      ],
+      "completed": true,
+      "completed_at": "2026-10-11T19:07:52.415535+00:00",
+      "cwd": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7",
+      "id": "5",
+      "log": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/5-locked_builds.log",
+      "phase": "locked_builds",
+      "returncode": 0,
+      "started_at": "2026-10-11T19:07:52.400030+00:00"
+    }
+  ],
+  "completed": true,
+  "completed_at": "2026-10-11T19:07:52.416057+00:00",
+  "configuration": {
+    "cargo_home": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/cargo-home",
+    "config_path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/cargo-home/config.toml",
+    "config_sha256": "5bc04ab8c032c7f121086560c08638df0887a4a3e75fbfb49182b663c92de0b8",
+    "cwd": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7",
+    "environment": {
+      "CARGO_BUILD_JOBS": "2",
+      "CARGO_HOME": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/cargo-home",
+      "CARGO_TARGET_DIR": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/target",
+      "HOME": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/home",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "NIX_LD": "/nix/store/lm3pknxi0ipypy3lxh1wmm8wvvavdwrn-glibc-2.42-84/lib/ld-linux-x86-64.so.2",
+      "NIX_LD_LIBRARY_PATH": "/nix/store/604gsr59rj7dzd0nrhp143rpvf7gyiaz-gcc-15.3.0-lib/lib:/nix/store/lw86vj9kfwgvlivg3p8qg2nibpmhmsl9-zlib-1.3.2/lib",
+      "PATH": "/home/tacascer/.cache/bazelisk/downloads/sha256/d302d22ed77ee5658b87857249baa579db84300ecebe0a1e9a357b5b20f80eb8/bin:/run/wrappers/bin:/usr/bin:/usr/sbin:/nix/store/2ndah67h0z5m31v2wkdmg2md4380ggr5-bash-interactive-5.3p15/bin:/nix/store/wf7b8ymrdwgwd9xb8jrqc63f9022a0h6-bazelisk-1.29.0/bin:/nix/store/x8alz8ygk4y6r0l37r735f4iy68lphfn-bazel/bin:/nix/store/krxbkfp66naraba49vq30jaczi5i0x21-bazel-watcher-0.33.0/bin:/nix/store/j9pnscwl7ycz2v0g2j3skjk3y3n82hx2-bazel-buildtools-10.0.1/bin:/nix/store/i02577ygphwzbkb3ab6jsn70rw675jxs-buf-1.73.0/bin:/nix/store/lr4iyww2lzpq2rfxyn4dqgsmhi9m4ama-coverage/bin:/nix/store/vwc1vqihdnlpz7djkbjq0rq5y4f8j078-starpls-0.1.22/bin:/nix/store/lc479s2c4bbwaryyn8mfr8xb0w0nzs6z-prettier-3.9.6/bin:/nix/store/4l04h8656as4i291mpcg38wz9m4k8acp-go-1.26.7/bin:/nix/store/ggg53gq25nf1p6vlzyzkwj26csc5jfak-pnpm-12.3.4/bin:/nix/store/frp5pgbr3pkf3jn6iq6f197970y5zs84-openjdk-headless-25.0.4.1+1/bin:/nix/store/z4c6k0mrlkwl3s4w9ysxc8vq1wylm3ms-gcc-wrapper-15.3.0/bin:/nix/store/8sjgd7q3mdks1rb7rbcv0sallhvrhai5-gcc-15.3.0/bin:/nix/store/fdpy1l72q9gvq8d9snrdq67gm0j5s1dg-glibc-2.42-84-bin/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/0fdc105g1896ganr8916rsjxhvr9qv5b-binutils-wrapper-2.46/bin:/nix/store/31gnwsgag5qa14hfblqi5hyn71pyx7py-binutils-2.46/bin:/nix/store/z5y0q3py79h3bwr2596s8j858rcrfphx-pre-commit-4.6.2/bin:/nix/store/d64q19q1xjdwfhqx6czvrjgrhq0n3lcc-python3-3.14.7/bin:/nix/store/b5igsqnk7ynrdl7bgmd2abcvifpi1fdb-python3.14-identify-2.6.19/bin:/nix/store/65849i80qxx5i4xm1pbx6z8r84al7066-python3.14-cffi-2.1.0/bin:/nix/store/fwqp3f54vqakq82lfrpiw908xi1iln0w-python3.14-pytest-9.1.1/bin:/nix/store/2qxacrkmmyfhhrj4wk1fajy32r754l5z-python3.14-pygments-2.20.0/bin:/nix/store/9bcd1bhaxpib3agvn39vvalrwq12xdy9-python3.14-nodeenv-1.10.0/bin:/nix/store/9imkalicqfa7l2r27xk0s98580p2mcyq-python3.14-virtualenv-21.6.1/bin:/nix/store/2j9h9spd95fdqb9g4r9qp9hh1wca3jnf-agent-browser-0.38.1/bin:/nix/store/v6wsd9nyglmwh32yn7w8z11dq9cksg4m-nodejs-24.20.0/bin:/nix/store/w20n3pmhhd1av9llykxa3gd21c9jsm8l-cargo-1.98.1/bin:/nix/store/41y4rj7zk2wkdiviy3asyq56nf709kd0-lcov-2.4/bin:/nix/store/v9cg9l1ich452n2zxn2877qcn4accafw-railway-5.30.4/bin:/nix/store/vrixkxih58ksvrv3a56clslhg1a26k6c-aspect-unstable-865653a/bin:/nix/store/h9wq5kdv1jc9hxmwgn9vh9bwsigmnsj6-patchelf-0.15.2/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/i9wgqa0l88aprvpwfaq5hkfa6pklhlv0-findutils-4.11.0/bin:/nix/store/b8xvzgd52jby5dfpi0pf46nisy6wma5d-diffutils-3.12/bin:/nix/store/qf2wzyq4irhgyhnq3s2hz0ldjq3w8a3x-gnused-4.10/bin:/nix/store/xmvbzzxm5snla5a2cyfhm7hjy9bifx7n-gnugrep-3.12/bin:/nix/store/9zib1q94gka8i5q530364cvy25504qz5-gawk-5.4.1/bin:/nix/store/41l3h8s1lr518n03bsrzv5vsf37bhnb9-gnutar-1.35/bin:/nix/store/l5sll8nxk70p73l5yqbsjy4mh0c3g0v5-gzip-1.14/bin:/nix/store/j3yz0ag9j442229n8harpmp9aa5qyvhn-bzip2-1.0.8-bin/bin:/nix/store/c011mk580m964s1zxjccvdax3fcmppnl-gnumake-4.4.1/bin:/nix/store/svx59425zxp552p2b8gm11qj5r09b56i-bash-5.3p15/bin:/nix/store/81zqbas7qc02yfdj7142fdcqhxgd3cgz-patch-2.8/bin:/nix/store/518dig8gpvqyac6pkksyjjfzvi9zn8vq-xz-5.8.3-bin/bin:/nix/store/fv9yl55hkskpc2cj9c0sdyq91car9kgl-file-5.48/bin:/home/tacascer/.codex/tmp/arg0/codex-arg0373GM9:/home/tacascer/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/override:/nix/store/y0ra9qr3rz81d9wl7dfrldv3j25dc98q-bubblewrap-0.12.0/bin:/nix/store/xjl7p8dvyk2j53kqf7f43kdj4ypbxz7g-coreutils-9.11/bin:/nix/store/3ba67bl61l0dxp1x4m9waqnvm5n5bkcs-git-minimal-2.55.0/bin:/nix/store/76nlfdjwr0n1bh2hmwqjbbg4l3azp2hl-xdg-utils-1.2.1/bin:/run/wrappers/bin:/home/tacascer/.nix-profile/bin:/nix/profile/bin:/home/tacascer/.local/state/nix/profile/bin:/etc/profiles/per-user/tacascer/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/home/tacascer/.cache/codex-runtimes/codex-primary-runtime/dependencies/bin/fallback:/nix/store/13l8ki4vnig8crjdy6zhar862ry9snh2-chatgpt-unwrapped-26.1002.52244/lib/chatgpt/resources",
+      "RUSTC": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/rustc-pinned.sh",
+      "TMPDIR": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/tmp"
+    },
+    "network_mode": "online",
+    "registry_cache": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/registry-cache",
+    "rustc_wrapper": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/rustc-pinned.sh",
+    "rustc_wrapper_sha256": "e820c6eeae1dadaeb279cdc5df22585317416e522eaa3c9f401c214b3d83c521",
+    "target": "x86_64-unknown-linux-gnu",
+    "target_directory": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/target"
+  },
+  "dependencies": {
+    "metadata_path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/metadata.json",
+    "metadata_sha256": "8d535577e6328fa9aa20f7c2ad864027a99c188b6a6b389d8927ffafa0f903bd",
+    "observed": [
+      {
+        "deps": [],
+        "features": ["default", "std"],
+        "id": "registry+https://github.com/rust-lang/crates.io-index#anyhow@1.0.104",
+        "name": "anyhow",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "version": "1.0.104"
+      },
+      {
+        "deps": [
+          {
+            "dep_kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ],
+            "name": "anyhow",
+            "pkg": "registry+https://github.com/rust-lang/crates.io-index#anyhow@1.0.104"
+          }
+        ],
+        "features": [],
+        "id": "path+file:///home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0#binary-fixture@0.1.0",
+        "name": "binary-fixture",
+        "source": null,
+        "version": "0.1.0"
+      }
+    ],
+    "requested": [
+      {
+        "alias": "anyhow",
+        "checksum": "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470",
+        "default_features": true,
+        "features": ["default", "std"],
+        "kind": "normal",
+        "package": "anyhow",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "target": "@@rules_rs++crate+crates__anyhow-1.0.104//:anyhow",
+        "version": "1.0.104"
+      }
+    ]
+  },
+  "diagnostics": null,
+  "generation_contract": {
+    "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/tools/cargo_publish/fixtures/binary_publish_files.json",
+    "sha256": "088dc6879a8fc1caadca726b38e6f5939840349eb9975ed98db4237278c8b044"
+  },
+  "inputs": [
+    {
+      "path": "README.md",
+      "sha256": "b1b61351ee61007abc12bedf60022c024d828ed00ade4c34f6859dd295fbbf04",
+      "size": 70
+    },
+    {
+      "path": "src/bin/main.rs",
+      "sha256": "e6dd759a5a0fd36f7d6824c4b7e36c368a69a34b82093076eeb47f18a91e0385",
+      "size": 141
+    }
+  ],
+  "lockfile": {
+    "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0/Cargo.lock",
+    "sha256": "893c330dd433cae3d24ef7d65d8ad860ccb39b7cd7a4bd00990552760d123487"
+  },
+  "manifests": {
+    "generated": {
+      "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/staged/Cargo.toml",
+      "sha256": "8c7ffc5fb1eff49e52d05847fa9c1dcbcd5f8ffd72b3e5cd140cb3cd133b74a1"
+    },
+    "normalized": {
+      "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0/Cargo.toml",
+      "sha256": "54ee1249753b29bf382cbcea2e9511b3b7eea3fdbab164940db141b09025ca5c"
+    },
+    "original": {
+      "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.runs/014b0470-e299-4ac9-b805-0bbe7a7618e7/extracted/binary-fixture-0.1.0/Cargo.toml.orig",
+      "sha256": "8c7ffc5fb1eff49e52d05847fa9c1dcbcd5f8ffd72b3e5cd140cb3cd133b74a1"
+    }
+  },
+  "package": {
+    "description": "A declared binary publishing fixture",
+    "edition": "2024",
+    "license": "MIT",
+    "name": "binary-fixture",
+    "readme": "README.md",
+    "repository": "https://github.com/LowkeyLab/bazel-repo",
+    "rust-version": "1.96",
+    "version": "0.1.0"
+  },
+  "provenance": {
+    "module_sha256": "affb6c46d2194661e34de053e44205fce8b3d8071a7144df2df8e72d00ab8081",
+    "root_lockfile_sha256": "ff396a80bc2b8e2718eb4b99dbf3dc5e1f4b4f643845dd96d25ac1720ac3f933",
+    "root_manifest_sha256": "73bda75385a7e7c4861790323deba23abac14c373f59f746bc08aa75db6ae92c"
+  },
+  "report_kind": "cargo_publish_validation",
+  "run_id": "014b0470-e299-4ac9-b805-0bbe7a7618e7",
+  "schema_version": 1,
+  "selection": {
+    "binaries": [
+      {
+        "crate_name": "bazel_binary",
+        "crate_type": "bin",
+        "edition": "2024",
+        "label": "@@//tools/cargo_publish/fixtures:binary",
+        "name": "fixture-cli",
+        "path": "src/bin/main.rs"
+      }
+    ],
+    "library": null,
+    "tests": []
+  },
+  "started_at": "2026-10-11T19:07:51.619184+00:00",
+  "status": "success",
+  "toolchain": {
+    "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)\n",
+    "cargo_path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/cargo",
+    "host": "x86_64-unknown-linux-gnu",
+    "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)\nbinary: rustc\ncommit-hash: ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96\ncommit-date: 2026-05-25\nhost: x86_64-unknown-linux-gnu\nrelease: 1.96.0\nLLVM version: 22.1.2\n",
+    "rustc_path": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain/bin/rustc",
+    "sysroot": "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/tools/cargo_publish/fixtures/binary_publish.sh.runfiles/_main/../rules_rs++toolchains+default_rust_toolchains/rustc/default_linux_x86_64_1_96_0_rust_toolchain",
+    "target": "x86_64-unknown-linux-gnu"
+  }
+}
