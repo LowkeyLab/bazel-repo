@@ -1,0 +1,61 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_binary(
+    name = "verify",
+    srcs = [
+        "main.rs",
+        "manifest.rs",
+        "resolution.rs",
+        "run.rs",
+    ],
+    crate_root = "main.rs",
+    edition = "2024",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tools/cargo_publish/core",
+        "@crates//:anyhow",
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:toml-1.1.6+spec-1.1.0",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "command_test",
+    size = "small",
+    srcs = ["command_test.rs"],
+    compile_data = ["testdata/toolchain-version.txt"],
+    crate_root = "command_test.rs",
+    data = [
+        ":fake_tool",
+        ":verify",
+    ],
+    edition = "2024",
+    rustc_env = {
+        "VERIFIER": "$(rootpath :verify)",
+        "FAKE_TOOL": "$(rootpath :fake_tool)",
+    },
+    deps = [
+        "//tools/cargo_publish/core",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+    ],
+)
+
+rust_binary(
+    name = "fake_tool",
+    testonly = True,
+    srcs = ["fake_tool.rs"],
+    crate_root = "fake_tool.rs",
+    edition = "2024",
+    deps = [
+        "@crates//:flate2-1.1.10",
+        "@crates//:serde_json",
+        "@crates//:tar",
+    ],
+)
