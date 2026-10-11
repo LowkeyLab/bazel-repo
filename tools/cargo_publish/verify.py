@@ -11,10 +11,10 @@ import shutil
 import subprocess
 import sys
 import tarfile
-import tomllib
 import uuid
 from pathlib import Path
 
+import tomllib
 from tools.cargo_publish.report import (
     REPORT_KIND,
     REQUIRED_CHECKS,
