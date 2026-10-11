@@ -106,6 +106,18 @@ fn output(mut command: Command) -> Output {
 }
 
 #[googletest::test]
+fn cli_reports_the_published_package_version() {
+    let fixture = Fixture::new();
+    let result = fixture.run(&["--version"]);
+    assert_that!(result.status.code(), eq(Some(0)));
+    assert_that!(
+        result.stdout.as_slice(),
+        eq(b"worktree-pool 0.1.0\n".as_slice())
+    );
+    assert_that!(result.stderr.is_empty(), eq(true));
+}
+
+#[googletest::test]
 fn catalog_is_explicit_and_reopens_with_the_same_identity() {
     let fixture = Fixture::new();
     assert_that!(fixture.run(&["catalog", "info"]).status.code(), eq(Some(2)));
