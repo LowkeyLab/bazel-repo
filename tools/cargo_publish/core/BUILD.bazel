@@ -9,6 +9,7 @@ rust_library(
         "analysis.rs",
         "archive.rs",
         "certification_tests.rs",
+        "environment.rs",
         "error.rs",
         "hash.rs",
         "json.rs",

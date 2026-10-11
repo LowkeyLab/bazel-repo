@@ -34,6 +34,11 @@ cargo_publish(
     package_files = {
         "README.md": "README.md",
         "LICENSE.txt": "assets/license.txt",
+        ":literal_bracket_asset": "assets/[draft].txt",
+        ":literal_brace_asset": "assets/{draft,final}.txt",
+        ":literal_bang_asset": "!literal.txt",
+        ":literal_hash_asset": "#literal.txt",
+        ":literal_space_asset": "assets/trailing ",
     },
     readme = "README.md",
     repository = "https://github.com/LowkeyLab/bazel-repo",
@@ -51,6 +56,11 @@ cargo_publish(
     package_files = {
         "README.md": "README.md",
         "LICENSE.txt": "assets/license.txt",
+        ":literal_bracket_asset": "assets/[draft].txt",
+        ":literal_brace_asset": "assets/{draft,final}.txt",
+        ":literal_bang_asset": "!literal.txt",
+        ":literal_hash_asset": "#literal.txt",
+        ":literal_space_asset": "assets/trailing ",
     },
     readme = "README.md",
     repository = "https://github.com/LowkeyLab/bazel-repo",
@@ -180,4 +190,52 @@ cargo_publish(
     ],
     version = "0.1.0",
     visibility = ["//tools/cargo_publish:__subpackages__"],
+)
+
+# Each label declares one source asset; destinations remain literal package paths.
+filegroup(
+    name = "literal_bracket_asset",
+    srcs = ["LICENSE.txt"],
+)
+
+filegroup(
+    name = "literal_bang_asset",
+    srcs = ["LICENSE.txt"],
+)
+
+filegroup(
+    name = "literal_hash_asset",
+    srcs = ["LICENSE.txt"],
+)
+
+filegroup(
+    name = "literal_space_asset",
+    srcs = ["LICENSE.txt"],
+)
+
+cargo_publish(
+    name = "literal_paths_publish",
+    package_name = "literal-paths-fixture",
+    binaries = {":runtime_helper": "literal-cli"},
+    description = "Literal declared assets in a verified Cargo archive",
+    license = "MIT",
+    package_files = {
+        "README.md": "README.md",
+        ":literal_bracket_asset": "assets/[draft].txt",
+        ":literal_brace_asset": "assets/{draft,final}.txt",
+        ":literal_bang_asset": "!literal.txt",
+        ":literal_hash_asset": "#literal.txt",
+        ":literal_space_asset": "assets/trailing ",
+    },
+    readme = "README.md",
+    repository = "https://github.com/LowkeyLab/bazel-repo",
+    rust_version = "1.96",
+    tags = ["manual"],
+    version = "0.1.0",
+    visibility = ["//tools/cargo_publish:__subpackages__"],
+)
+
+filegroup(
+    name = "literal_brace_asset",
+    srcs = ["LICENSE.txt"],
 )

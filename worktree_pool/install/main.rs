@@ -13,8 +13,8 @@ use std::{
 
 use anyhow::{Context, Result, ensure};
 use cargo_publish_core::{
-    ExpectedPackage, PackageMetadata, Sha256, VerifiedArchive, digest_file, read_json,
-    validate_verified_archive, write_json,
+    ExpectedPackage, PackageMetadata, Sha256, VerifiedArchive, digest_file,
+    prepare_cargo_environment, read_json, validate_verified_archive, write_json,
 };
 use clap::Parser;
 use installer_native::{GIT_SHA256, ZLIB_SHA256, extract_pinned_source};
@@ -110,9 +110,6 @@ fn text(path: &Path) -> Result<String> {
     path.to_str()
         .map(str::to_owned)
         .with_context(|| format!("non-UTF-8 tool/evidence path {}", path.display()))
-}
-fn shell_quote(path: &Path) -> Result<String> {
-    Ok(format!("'{}'", text(path)?.replace('\'', "'\\''")))
 }
 fn strings(items: &[&str]) -> Vec<OsString> {
     items.iter().map(OsString::from).collect()
@@ -280,57 +277,16 @@ fn isolated_environment(args: &Args, output: &Path) -> Result<BTreeMap<String, S
             );
         }
     }
-    let mut environment = BTreeMap::new();
-    for key in [
-        "PATH",
-        "NIX_LD",
-        "NIX_LD_LIBRARY_PATH",
-        "SSL_CERT_FILE",
-        "SSL_CERT_DIR",
-        "NIX_SSL_CERT_FILE",
-        "HTTP_PROXY",
-        "HTTPS_PROXY",
-        "ALL_PROXY",
-        "NO_PROXY",
-        "http_proxy",
-        "https_proxy",
-        "all_proxy",
-        "no_proxy",
-    ] {
-        if let Ok(value) = env::var(key) {
-            environment.insert(key.into(), value);
-        }
-    }
-    for name in ["home", "cargo-home", "tmp"] {
-        private_directory(&output.join(name))?;
-    }
-    let wrapper = output.join("rustc-pinned.sh");
-    fs::write(
-        &wrapper,
-        format!(
-            "#!/usr/bin/env bash\nexec {} --sysroot {} \"$@\"\n",
-            shell_quote(&args.rustc)?,
-            shell_quote(&args.sysroot)?
-        ),
-    )?;
-    fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700))?;
-    for (key, path) in [
-        ("HOME", output.join("home")),
-        ("TMPDIR", output.join("tmp")),
-        ("RUSTC", wrapper.clone()),
-        ("CARGO_HOME", output.join("cargo-home")),
-        ("CARGO_TARGET_DIR", output.join("cargo-target")),
-    ] {
-        environment.insert(key.into(), text(&path)?);
-    }
-    for (key, value) in [
-        ("CARGO_BUILD_JOBS", "2"),
-        ("LANG", "C.UTF-8"),
-        ("LC_ALL", "C.UTF-8"),
-    ] {
-        environment.insert(key.into(), value.into());
-    }
-    let config = output.join("cargo-home/config.toml");
+    let isolated = prepare_cargo_environment(
+        output,
+        &args.rustc,
+        &args.sysroot,
+        &output.join("cargo-target"),
+    )
+    .context("installation_configuration")?;
+    let environment = isolated.environment;
+    let wrapper = isolated.rustc_wrapper;
+    let config = isolated.cargo_home.join("config.toml");
     fs::write(&config, "[registries.crates-io]\nprotocol = \"sparse\"\n")?;
     write_json(
         output.join("installation-configuration.json"),

@@ -3,7 +3,7 @@ use std::{
     fs::{self, DirBuilder, OpenOptions},
     io::Write,
     os::unix::{
-        fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt, symlink},
+        fs::{DirBuilderExt, OpenOptionsExt, symlink},
         process::ExitStatusExt,
     },
     path::{Path, PathBuf},
@@ -15,8 +15,8 @@ use cargo_publish_core::{
     ArchiveEvidence, Check, CheckRecord, CheckStatus, Command as CommandRecord, Configuration,
     DependencyEvidence, Diagnostic, FileEvidence, GenerationContract, ManifestEvidence,
     NetworkMode, PackagePath, REPORT_KIND, ReportStatus, SCHEMA_VERSION, SelectedTarget, TARGET,
-    Toolchain, ValidationReport, digest_bytes, digest_file, inspect_archive, read_json,
-    validate_report,
+    Toolchain, ValidationReport, digest_bytes, digest_file, inspect_archive,
+    prepare_cargo_environment, read_json, validate_report,
 };
 use chrono::Utc;
 use serde_json::{Value, json};
@@ -266,25 +266,15 @@ impl ValidationRun {
                 );
             }
         }
-        self.env = allowed_environment(&[
-            "PATH",
-            "NIX_LD",
-            "NIX_LD_LIBRARY_PATH",
-            "SSL_CERT_FILE",
-            "SSL_CERT_DIR",
-            "NIX_SSL_CERT_FILE",
-            "HTTP_PROXY",
-            "HTTPS_PROXY",
-            "ALL_PROXY",
-            "NO_PROXY",
-            "http_proxy",
-            "https_proxy",
-            "all_proxy",
-            "no_proxy",
-        ]);
-        for name in ["home", "cargo-home", "tmp"] {
-            private_directory(&self.output.join(name))?;
-        }
+        let isolated = prepare_cargo_environment(
+            &self.output,
+            &self.args.rustc,
+            &self.args.sysroot,
+            &self.output.join("target"),
+        )?;
+        self.env = isolated.environment;
+        let home = isolated.cargo_home;
+        let wrapper = isolated.rustc_wrapper;
         let cache = self
             .args
             .registry_cache
@@ -293,7 +283,6 @@ impl ValidationRun {
         private_directory(&cache)?;
         let cache = cache.canonicalize()?;
         private_directory(&cache.join("registry"))?;
-        let home = self.output.join("cargo-home");
         symlink(cache.join("registry"), home.join("registry"))?;
         for name in [".package-cache", ".package-cache-mutate", ".global-cache"] {
             // Cargo shares these lock/SQLite files: create missing files without truncating existing data.
@@ -305,36 +294,6 @@ impl ValidationRun {
                 .open(cache.join(name))?;
             symlink(cache.join(name), home.join(name))?;
         }
-        let wrapper = self.output.join("rustc-pinned.sh");
-        write_private(
-            &wrapper,
-            format!(
-                "#!/usr/bin/env bash\nexec {} --sysroot {} \"$@\"\n",
-                shell_quote(&self.args.rustc.to_string_lossy()),
-                shell_quote(&self.args.sysroot.to_string_lossy())
-            )
-            .as_bytes(),
-        )?;
-        fs::set_permissions(&wrapper, fs::Permissions::from_mode(0o700))?;
-        self.env.extend([
-            (
-                "HOME".into(),
-                self.output.join("home").to_string_lossy().into_owned(),
-            ),
-            (
-                "TMPDIR".into(),
-                self.output.join("tmp").to_string_lossy().into_owned(),
-            ),
-            ("CARGO_HOME".into(), home.to_string_lossy().into_owned()),
-            ("RUSTC".into(), wrapper.to_string_lossy().into_owned()),
-            (
-                "CARGO_TARGET_DIR".into(),
-                self.output.join("target").to_string_lossy().into_owned(),
-            ),
-            ("CARGO_BUILD_JOBS".into(), "2".into()),
-            ("LANG".into(), "C.UTF-8".into()),
-            ("LC_ALL".into(), "C.UTF-8".into()),
-        ]);
         let config = home.join("config.toml");
         write_private(
             &config,

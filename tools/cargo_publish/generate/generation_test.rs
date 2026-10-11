@@ -220,9 +220,14 @@ fn declared_nested_sources_and_mapped_assets_are_staged_and_fingerprinted() {
             .map(|p| p.strip_prefix(&tree).unwrap().to_str().unwrap().to_owned())
             .collect::<Vec<_>>(),
         eq(&vec![
+            "!literal.txt",
+            "#literal.txt",
             "Cargo.toml",
             "README.md",
+            "assets/[draft].txt",
             "assets/license.txt",
+            "assets/trailing ",
+            "assets/{draft,final}.txt",
             "src/lib.rs",
             "src/nested/value.rs"
         ])
@@ -234,6 +239,25 @@ fn declared_nested_sources_and_mapped_assets_are_staged_and_fingerprinted() {
     assert_that!(
         fs::read_to_string(tree.join("assets/license.txt")).unwrap(),
         eq("Fixture license asset.\n")
+    );
+    for path in [
+        "!literal.txt",
+        "#literal.txt",
+        "assets/[draft].txt",
+        "assets/trailing ",
+        "assets/{draft,final}.txt",
+    ] {
+        assert_that!(
+            fs::read_to_string(tree.join(path)).unwrap(),
+            eq("Fixture license asset.\n")
+        );
+    }
+    assert_that!(
+        manifest("publish")["package"]["include"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("/assets/\\[draft\\].txt")),
+        eq(true)
     );
     let contract = contract("publish");
     assert_that!(&contract["schema_version"], eq(&json!(1)));

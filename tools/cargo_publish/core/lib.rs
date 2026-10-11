@@ -4,6 +4,7 @@
 
 mod analysis;
 mod archive;
+mod environment;
 mod error;
 mod hash;
 mod json;
@@ -13,6 +14,7 @@ mod report;
 
 pub use analysis::{AnalysisInput, AnalysisSpec, CrateMetadata};
 pub use archive::{InspectedArchive, VerifiedArchive, inspect_archive, validate_verified_archive};
+pub use environment::{CargoEnvironment, prepare_cargo_environment};
 pub use error::ContractError;
 pub use hash::{Sha256, digest_bytes, digest_file};
 pub use json::{read_json, write_json};

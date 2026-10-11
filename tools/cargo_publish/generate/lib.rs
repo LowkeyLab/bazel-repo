@@ -604,6 +604,19 @@ fn identifier(value: &str, first_letter: bool) -> bool {
 fn quoted<T: serde::Serialize>(value: &T) -> Result<String> {
     Ok(serde_json::to_string(value)?)
 }
+// Cargo include entries use gitignore syntax, rather than literal file paths.
+// Anchor every declared file at the package root and quote pattern metacharacters.
+fn cargo_include_pattern(path: &str) -> String {
+    let mut pattern = String::from("/");
+    for character in path.chars() {
+        if matches!(character, '*' | '?' | '[' | ']' | '{' | '}' | ' ' | '\t') {
+            pattern.push('\\');
+        }
+        pattern.push(character);
+    }
+    pattern
+}
+
 fn target_path(target: &CrateMetadata) -> Result<PackagePath> {
     target.path.clone().ok_or_else(|| {
         GenerationError::Policy(format!("{}: missing required package path", target.label))
@@ -808,7 +821,8 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
     let mut paths: Vec<_> = spec.inputs.iter().map(|item| item.path.as_str()).collect();
     paths.sort();
     paths.insert(0, "Cargo.toml");
-    lines.push(format!("include = {}", quoted(&paths)?));
+    let include: Vec<_> = paths.into_iter().map(cargo_include_pattern).collect();
+    lines.push(format!("include = {}", quoted(&include)?));
     let library = spec
         .library
         .as_ref()

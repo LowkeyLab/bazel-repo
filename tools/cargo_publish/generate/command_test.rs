@@ -529,3 +529,56 @@ fn nonliteral_module_configuration_and_composed_source_mutations_fail_before_sta
         f.failure(&f.spec, &format!("nonliteral{index}"), diagnostic);
     }
 }
+
+#[gtest]
+fn declared_asset_paths_remain_literal_in_cargo_include_patterns() {
+    let mut f = Fixture::new();
+    for path in [
+        "assets/[draft].txt",
+        "assets/{draft,final}.txt",
+        "assets/star*.txt",
+        "assets/question?.txt",
+        "!literal.txt",
+        "#literal.txt",
+        "assets/trailing ",
+    ] {
+        f.spec["inputs"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"path":path,"source":f.root.path().join("README.md")}));
+    }
+    let manifest = f.success(&f.spec, "literal_assets");
+    assert_that!(
+        &manifest["package"]["include"],
+        eq(&json!([
+            "/Cargo.toml",
+            "/!literal.txt",
+            "/#literal.txt",
+            "/README.md",
+            "/assets/\\[draft\\].txt",
+            "/assets/question\\?.txt",
+            "/assets/star\\*.txt",
+            "/assets/trailing\\ ",
+            "/assets/\\{draft,final\\}.txt",
+            "/lib.rs"
+        ]))
+    );
+    let contract = f.contract("literal_assets");
+    assert_that!(
+        contract["inputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|input| input["path"] == "assets/[draft].txt"),
+        eq(true)
+    );
+    assert_that!(
+        fs::read_to_string(
+            f.root
+                .path()
+                .join("outputliteral_assets/assets/[draft].txt")
+        )
+        .unwrap(),
+        eq("# Fixture\n")
+    );
+}
