@@ -1,0 +1,41 @@
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+package(default_visibility = ["//tools/cargo_publish:__pkg__"])
+
+rust_test(
+    name = "generation_test",
+    size = "small",
+    srcs = ["generation_test.rs"],
+    crate_root = "generation_test.rs",
+    data = [
+        "//tools/cargo_publish/fixtures:binary_publish_files",
+        "//tools/cargo_publish/fixtures:combined_publish_files",
+        "//tools/cargo_publish/fixtures:combined_repeat_files",
+        "//tools/cargo_publish/fixtures:publish_files",
+        "//tools/cargo_publish/fixtures:repeat_files",
+    ],
+    edition = "2024",
+    deps = [
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:toml-1.1.6+spec-1.1.0",
+    ],
+)
+
+rust_test(
+    name = "command_test",
+    size = "small",
+    srcs = ["command_test.rs"],
+    crate_root = "command_test.rs",
+    data = ["//tools/cargo_publish:generate"],
+    edition = "2024",
+    rustc_env = {"GENERATOR": "$(rootpath //tools/cargo_publish:generate)"},
+    deps = [
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:tempfile",
+        "@crates//:toml-1.1.6+spec-1.1.0",
+    ],
+)
