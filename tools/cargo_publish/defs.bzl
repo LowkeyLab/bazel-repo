@@ -2,6 +2,7 @@
 
 load("@rules_rust//rust:defs.bzl", "rust_common")
 load("@rules_rust//rust/private:rustc.bzl", "ExtraExecRustcEnvInfo", "ExtraExecRustcFlagsInfo", "ExtraRustcEnvInfo", "ExtraRustcFlagsInfo", "PerCrateRustcFlagsInfo")
+load("@rules_rust//rust/private:stamp.bzl", "is_stamping_enabled")
 
 CargoPublishInfo = provider(
     doc = "Declared package tree and versioned generation contract for validation.",
@@ -15,10 +16,15 @@ def _metadata_impl(target, ctx):
         return []
     crate = target[rust_common.crate_info]
     attrs = ctx.rule.attr
-    aliases = {str(t[rust_common.crate_info].owner if rust_common.crate_info in t else t.label): value for t, value in getattr(attrs, "aliases", {}).items()}
+    original = getattr(attrs, "crate", None)
+    aliases = {str(t[rust_common.crate_info].owner if rust_common.crate_info in t else t.label): value for t, value in crate.aliases.items()}
+    aliases.update({str(t[rust_common.crate_info].owner if rust_common.crate_info in t else t.label): value for t, value in getattr(attrs, "aliases", {}).items()})
     dependencies = []
     inputs = []
     closure = {}
+    if original and _CargoTargetInfo in original:
+        inputs.append(original[_CargoTargetInfo].inputs)
+        closure.update(original[_CargoTargetInfo].closure)
     for group in ["deps", "proc_macro_deps"]:
         for dep in getattr(attrs, group, []):
             if _CargoTargetInfo in dep:
@@ -58,17 +64,30 @@ def _metadata_impl(target, ctx):
             settings[setting] = getattr(tc, setting)
     if tc.extra_rustc_flags_for_crate_types.get(crate.type):
         settings["extra_rustc_flags_for_crate_types"] = tc.extra_rustc_flags_for_crate_types[crate.type]
+    publisher_settings = {}
+    for setting in ["alwayslink", "linker_script"]:
+        value = getattr(attrs, setting, None)
+        if value:
+            publisher_settings[setting] = str(value)
+    if getattr(attrs, "link_std_dylib", False) or tc._link_std_dylib:
+        publisher_settings["link_std_dylib"] = True
+    if is_stamping_enabled(attrs):
+        publisher_settings["stamp"] = True
     metadata = {
         "label": str(crate.owner),
         "crate_name": crate.name,
         "crate_type": crate.type,
         "edition": crate.edition,
+        "target": tc.target_flag_value,
+        "is_test": crate.is_test,
+        "crate": str(original.label) if original else None,
         "version": getattr(attrs, "version", None),
         "features": sorted(getattr(attrs, "crate_features", [])),
         "external": crate.owner.workspace_name != "",
         "repository": crate.owner.workspace_name,
         "manifest": manifests[0].path if len(manifests) == 1 else None,
         "compiler_settings": settings,
+        "publisher_settings": publisher_settings,
         "rustc_flags": getattr(attrs, "rustc_flags", []),
         "rustc_env": getattr(attrs, "rustc_env", {}),
         "rustc_env_files": [str(t.label) for t in getattr(attrs, "rustc_env_files", [])],
@@ -80,7 +99,7 @@ def _metadata_impl(target, ctx):
 
 _cargo_metadata = aspect(
     implementation = _metadata_impl,
-    attr_aspects = ["deps", "proc_macro_deps"],
+    attr_aspects = ["deps", "proc_macro_deps", "crate"],
     toolchains = ["@rules_rust//rust:toolchain_type"],
 )
 
@@ -91,45 +110,64 @@ def _package_path(path, label):
         fail("{}: package path conflicts with generated Cargo file: {}".format(label, path))
     return path
 
+def _selected_metadata(target, expected_type, prefix, entries):
+    if target.label.workspace_name:
+        fail("{}: selected publisher must be local to the publishing repository".format(target.label))
+    crate = target[rust_common.crate_info]
+    metadata = target[_CargoTargetInfo].metadata
+    kind = "library" if expected_type == "rlib" else "binary"
+    if crate.type != expected_type or crate.is_test:
+        fail("{}: unsupported {} crate type {}".format(target.label, kind, crate.type))
+    if metadata["target"] != "x86_64-unknown-linux-gnu":
+        fail("{}: unsupported target platform {}".format(target.label, metadata["target"]))
+    for setting, value in metadata["publisher_settings"].items():
+        fail("{}: unsupported publisher {} {}".format(target.label, setting, value))
+    if metadata["features"]:
+        fail("{}: unsupported publisher crate_features {}".format(target.label, metadata["features"]))
+    if metadata["compiler_settings"]:
+        fail("{}: unsupported compiler settings {}".format(target.label, metadata["compiler_settings"]))
+    if metadata["rustc_flags"]:
+        fail("{}: unsupported publisher rustc_flags {}".format(target.label, metadata["rustc_flags"]))
+    if metadata["link_deps"]:
+        fail("{}: unsupported publisher link_deps {}".format(target.label, metadata["link_deps"]))
+    if metadata["rustc_env"] or metadata["rustc_env_files"]:
+        fail("{}: unsupported publisher rustc_env/rustc_env_files".format(target.label))
+    files = crate.srcs.to_list()
+    for source in files:
+        if not source.is_source or source.is_directory or not source.short_path.startswith(prefix):
+            fail("{}: unsupported generated/escaping source {}".format(target.label, source.short_path))
+        path = _package_path(source.short_path[len(prefix):], target.label)
+        if path in entries and entries[path] != source:
+            fail("{}: conflicting package path {}".format(target.label, path))
+        entries[path] = source
+    if crate.root not in files:
+        fail("{}: crate_root {} is missing from declared srcs".format(target.label, crate.root.short_path))
+    return dict(metadata, path = crate.root.short_path[len(prefix):])
+
 def _files_impl(ctx):
     tc = ctx.toolchains["@rules_rust//rust:toolchain_type"]
     if tc.target_flag_value != "x86_64-unknown-linux-gnu":
         fail("{}: unsupported target platform {} (requires x86_64-unknown-linux-gnu)".format(ctx.label, tc.target_flag_value))
-    if tc.extra_rustc_flags:
-        fail("{}: unsupported toolchain extra_rustc_flags {}".format(ctx.label, tc.extra_rustc_flags))
-    library = ctx.attr.library
-    if library == None:
-        fail("{}: a selected library is required in this publishing slice".format(ctx.label))
-    if library.label.workspace_name:
-        fail("{}: selected library {} must be local to the publishing repository".format(ctx.label, library.label))
-    crate = library[rust_common.crate_info]
-    metadata = library[_CargoTargetInfo].metadata
-    if crate.type != "rlib" or crate.is_test:
-        fail("{}: unsupported library crate type {}".format(library.label, crate.type))
-    if metadata["features"]:
-        fail("{}: unsupported publisher crate_features {}".format(library.label, metadata["features"]))
-
-    # CrateInfo contains configured values; the aspect also records settings
-    # absent from CrateInfo for the analysis rejection boundary.
-    if metadata["compiler_settings"]:
-        fail("{}: unsupported compiler settings {}".format(library.label, metadata["compiler_settings"]))
-    if metadata["rustc_flags"]:
-        fail("{}: unsupported publisher rustc_flags {}".format(library.label, metadata["rustc_flags"]))
-    if metadata["link_deps"]:
-        fail("{}: unsupported publisher link_deps {}".format(library.label, metadata["link_deps"]))
-    if metadata["rustc_env"] or metadata["rustc_env_files"]:
-        fail("{}: unsupported publisher rustc_env/rustc_env_files".format(library.label))
+    selected = ([ctx.attr.library] if ctx.attr.library else []) + ctx.attr.binaries.keys()
+    if not selected:
+        fail("{}: cargo_publish requires a library or binary".format(ctx.label))
     entries = {}
-    files = []
     prefix = ctx.label.package + "/" if ctx.label.package else ""
-    for source in crate.srcs.to_list():
-        if not source.is_source or source.is_directory or not source.short_path.startswith(prefix):
-            fail("{}: unsupported generated/escaping source {}".format(library.label, source.short_path))
-        path = _package_path(source.short_path[len(prefix):], library.label)
-        entries[path] = source
-        files.append(source)
-    if crate.root not in files:
-        fail("{}: crate_root {} is missing from declared srcs".format(library.label, crate.root.short_path))
+    library = _selected_metadata(ctx.attr.library, "rlib", prefix, entries) if ctx.attr.library else None
+    named_binaries = {}
+    for target, name in ctx.attr.binaries.items():
+        if name in named_binaries:
+            fail("{}: conflicting Cargo binary name {}".format(target.label, name))
+        named_binaries[name] = dict(_selected_metadata(target, "bin", prefix, entries), name = name)
+    binaries = [named_binaries[name] for name in sorted(named_binaries)]
+    tests = []
+    for target in ctx.attr.tests:
+        metadata = target[_CargoTargetInfo].metadata
+        if target.label.workspace_name or not metadata["is_test"]:
+            fail("{}: selected test must be a local Rust test target".format(target.label))
+        if metadata["target"] != "x86_64-unknown-linux-gnu":
+            fail("{}: unsupported target platform {}".format(target.label, metadata["target"]))
+        tests.append(metadata)
     for target, path in ctx.attr.package_files.items():
         path = _package_path(path, target.label)
         assets = target[DefaultInfo].files.to_list()
@@ -138,20 +176,28 @@ def _files_impl(ctx):
         if path in entries:
             fail("{}: conflicting package path {} from {} and {}".format(ctx.label, path, entries[path].short_path, target.label))
         entries[path] = assets[0]
-        files.append(assets[0])
     for path in entries:
         for parent in ["/".join(path.split("/")[:i]) for i in range(1, len(path.split("/")))]:
             if parent in entries:
                 fail("{}: conflicting file/directory package path {}".format(ctx.label, path))
-    for source in depset(transitive = [crate.compile_data, crate.data]).to_list():
-        if source not in files:
-            fail("{}: missing package_files mapping for compile_data {}".format(library.label, source.short_path))
+    files = entries.values()
+    inputs = []
+    closure = {}
+    for target in selected:
+        crate = target[rust_common.crate_info]
+        for source in depset(transitive = [crate.compile_data, crate.data]).to_list():
+            if source not in files:
+                fail("{}: missing package_files mapping for compile_data {}".format(target.label, source.short_path))
+        inputs.append(target[_CargoTargetInfo].inputs)
+        closure.update(target[_CargoTargetInfo].closure)
+    for target in ctx.attr.tests:
+        inputs.append(target[_CargoTargetInfo].inputs)
+        closure.update(target[_CargoTargetInfo].closure)
     if ctx.attr.readme not in entries:
         fail("{}: missing package_files readme path {}".format(ctx.label, ctx.attr.readme))
     package = ctx.actions.declare_directory(ctx.label.name + ".package")
     contract = ctx.actions.declare_file(ctx.label.name + ".json")
     specification = ctx.actions.declare_file(ctx.label.name + ".analysis.json")
-    metadata = dict(metadata, path = crate.root.short_path[len(prefix):])
     specification_data = {
         "schema_version": 1,
         "package": {
@@ -162,14 +208,14 @@ def _files_impl(ctx):
             "repository": ctx.attr.repository,
             "rust-version": ctx.attr.rust_version,
             "readme": ctx.attr.readme,
-            "edition": crate.edition,
+            "edition": library["edition"] if library else binaries[0]["edition"],
         },
-        "library": metadata,
-        "binaries": [],
-        "tests": [],
+        "library": library,
+        "binaries": binaries,
+        "tests": tests,
         "target": tc.target_flag_value,
         "inputs": [{"path": path, "source": entries[path].path} for path in sorted(entries)],
-        "dependency_closure": [library[_CargoTargetInfo].closure[key] for key in sorted(library[_CargoTargetInfo].closure)],
+        "dependency_closure": [closure[key] for key in sorted(closure)],
     }
     ctx.actions.write(specification, json.encode(specification_data))
     args = ctx.actions.args()
@@ -177,7 +223,7 @@ def _files_impl(ctx):
     ctx.actions.run(
         executable = ctx.executable._generator,
         arguments = [args],
-        inputs = depset(files + [specification, ctx.file.root_manifest, ctx.file.root_lockfile, ctx.file.module], transitive = [library[_CargoTargetInfo].inputs]),
+        inputs = depset(files + [specification, ctx.file.root_manifest, ctx.file.root_lockfile, ctx.file.module], transitive = inputs),
         outputs = [package, contract],
         mnemonic = "CargoPublishFiles",
         progress_message = "Generating declared Cargo publishing files for %s" % ctx.label,
@@ -188,6 +234,8 @@ _cargo_publish_files = rule(
     implementation = _files_impl,
     attrs = {
         "library": attr.label(providers = [rust_common.crate_info], aspects = [_cargo_metadata]),
+        "binaries": attr.label_keyed_string_dict(providers = [rust_common.crate_info], aspects = [_cargo_metadata]),
+        "tests": attr.label_list(providers = [rust_common.crate_info], aspects = [_cargo_metadata]),
         "package_files": attr.label_keyed_string_dict(allow_files = True),
         "package_name": attr.string(mandatory = True),
         "version": attr.string(mandatory = True),
@@ -206,8 +254,7 @@ _cargo_publish_files = rule(
 
 def cargo_publish(name, library = None, binaries = {}, tests = [], **kwargs):
     """Declare inspectable <name>_files inputs; validation is a later slice."""
-    if binaries or tests:
-        fail("{}: binaries/tests are not yet supported by cargo_publish".format(name))
-    if library == None:
+    if library == None and not binaries:
         fail("{}: cargo_publish requires a library or binary".format(name))
-    _cargo_publish_files(name = name + "_files", library = library, **kwargs)
+    testonly = kwargs.pop("testonly", bool(tests))
+    _cargo_publish_files(name = name + "_files", library = library, binaries = binaries, tests = tests, testonly = testonly, **kwargs)

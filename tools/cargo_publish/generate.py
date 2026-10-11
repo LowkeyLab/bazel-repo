@@ -171,13 +171,15 @@ def dependency(metadata, root, lock):
             f"{label}: ambiguous or unsupported crates.io lock provenance for {name}@{version}"
         )
     features = sorted(set(metadata["features"]))
-    known_features = set(upstream.get("features", {}))
-    for kind in ("dependencies", "build-dependencies"):
-        known_features.update(
-            alias
-            for alias, item in upstream.get(kind, {}).items()
-            if isinstance(item, dict) and item.get("optional")
-        )
+    known_features = {"default", *upstream.get("features", {})}
+    # Optional dependencies also define implicit features in target tables.
+    for table in [upstream, *upstream.get("target", {}).values()]:
+        for kind in ("dependencies", "build-dependencies"):
+            known_features.update(
+                alias
+                for alias, item in table.get(kind, {}).items()
+                if isinstance(item, dict) and item.get("optional")
+            )
     if set(features) - known_features:
         raise ValueError(
             f"{label}: ambiguous configured features {sorted(set(features) - known_features)} for {name}"
@@ -197,18 +199,36 @@ def generate(args):
     spec = json.loads(Path(args.spec).read_text())
     if spec.get("schema_version") != 1:
         raise ValueError("unsupported generation input schema_version")
+    library = spec.get("library")
+    binaries = spec.get("binaries", [])
+    production = ([library] if library else []) + binaries
+    if not production:
+        raise ValueError("cargo_publish requires a library or binary")
+    label = production[0]["label"]
     if spec.get("target") != "x86_64-unknown-linux-gnu":
+        raise ValueError(f"{label}: unsupported target platform {spec.get('target')}")
+    if library and library["crate_type"] != "rlib":
         raise ValueError(
-            f"{spec['library']['label']}: unsupported target platform {spec.get('target')}"
+            f"{library['label']}: unsupported library crate type {library['crate_type']}"
         )
-    if spec["library"]["crate_type"] != "rlib":
-        raise ValueError(
-            f"{spec['library']['label']}: unsupported library crate type {spec['library']['crate_type']}"
-        )
-    if spec["library"]["edition"] != spec["package"]["edition"]:
-        raise ValueError(
-            f"{spec['library']['label']}: ambiguous library/package edition"
-        )
+    if library and library["edition"] != spec["package"]["edition"]:
+        raise ValueError(f"{library['label']}: ambiguous library/package edition")
+    names = set()
+    for binary in binaries:
+        if binary["crate_type"] != "bin":
+            raise ValueError(
+                f"{binary['label']}: unsupported binary crate type {binary['crate_type']}"
+            )
+        name = binary.get("name", "")
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_-]*", name) or name in names:
+            raise ValueError(
+                f"{binary['label']}: invalid or conflicting Cargo binary name {name}"
+            )
+        names.add(name)
+        if binary["edition"] not in ("2015", "2018", "2021", "2024"):
+            raise ValueError(
+                f"{binary['label']}: unsupported binary edition {binary['edition']}"
+            )
     root = read_toml(args.root_manifest)
     lock = read_toml(args.root_lockfile)
     overrides = unsupported_annotations(args.module)
@@ -224,32 +244,20 @@ def generate(args):
         "edition",
     ):
         if not isinstance(package.get(key), str) or not package[key]:
-            raise ValueError(
-                f"{spec['library']['label']}: missing package metadata {key}"
-            )
-    if spec["binaries"] or spec["tests"]:
-        raise ValueError("binaries/tests are not yet supported in generation")
+            raise ValueError(f"{label}: missing package metadata {key}")
     if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", package["name"]):
-        raise ValueError(
-            f"{spec['library']['label']}: malformed package name {package['name']}"
-        )
+        raise ValueError(f"{label}: malformed package name {package['name']}")
     prerelease = package["version"].split("+", 1)[0].partition("-")[2]
     invalid_numeric_prerelease = any(
         part.isdecimal() and len(part) > 1 and part.startswith("0")
         for part in prerelease.split(".")
     )
     if not re.fullmatch(SEMVER, package["version"]) or invalid_numeric_prerelease:
-        raise ValueError(
-            f"{spec['library']['label']}: malformed package version {package['version']}"
-        )
+        raise ValueError(f"{label}: malformed package version {package['version']}")
     if package["edition"] not in ("2015", "2018", "2021", "2024"):
-        raise ValueError(
-            f"{spec['library']['label']}: unsupported package edition {package['edition']}"
-        )
+        raise ValueError(f"{label}: unsupported package edition {package['edition']}")
     if not re.fullmatch(r"1\.[0-9]+(?:\.[0-9]+)?", package["rust-version"]):
-        raise ValueError(
-            f"{spec['library']['label']}: malformed rust-version {package['rust-version']}"
-        )
+        raise ValueError(f"{label}: malformed rust-version {package['rust-version']}")
     seen_closure = set()
     for metadata in spec["dependency_closure"]:
         identity = (metadata["label"], tuple(metadata["features"]), metadata["version"])
@@ -265,18 +273,37 @@ def generate(args):
             raise ValueError(
                 f"{metadata['label']}: unsupported Bazel annotation/override for {name}: {mutations}"
             )
-    dependencies = []
+    groups = [("normal", production), ("dev", spec["tests"])]
     aliases = {}
-    for metadata in spec["library"]["dependencies"]:
-        item = dependency(metadata, root, lock)
-        alias = metadata["alias"]
-        if alias in aliases:
-            raise ValueError(
-                f"{metadata['label']}: conflicting direct dependency alias {alias}"
-            )
-        aliases[alias] = item
-        dependencies.append(dict(item, alias=alias, kind="normal"))
-    dependencies.sort(key=lambda item: item["alias"])
+    identities = {}
+    for kind, targets in groups:
+        for target in targets:
+            for metadata in target["dependencies"]:
+                alias = metadata["alias"]
+                if library and metadata["label"] == library["label"]:
+                    if alias != library["crate_name"]:
+                        raise ValueError(
+                            f"{target['label']}: unsupported selected library alias {alias}"
+                        )
+                    continue
+                item = dependency(metadata, root, lock)
+                identity = (item["package"], item["version"], item["source"])
+                if alias in identities and identities[alias] != identity:
+                    raise ValueError(
+                        f"{target['label']}: conflicting direct dependency alias {alias}: {identities[alias]} versus {identity}"
+                    )
+                identities[alias] = identity
+                key = (kind, alias)
+                if key in aliases:
+                    previous = aliases[key]
+                    previous["features"] = sorted(
+                        set(previous["features"]) | set(item["features"])
+                    )
+                    previous["default_features"] |= item["default_features"]
+                    previous["target"] = min(previous["target"], item["target"])
+                else:
+                    aliases[key] = dict(item, alias=alias, kind=kind)
+    dependencies = [aliases[key] for key in sorted(aliases)]
     lines = ["[package]"]
     lines.extend(
         f"{key} = {json.dumps(value, ensure_ascii=False)}"
@@ -294,25 +321,39 @@ def generate(args):
     )
     paths = sorted(item["path"] for item in spec["inputs"])
     lines.append("include = " + json.dumps(["Cargo.toml", *paths]))
-    library = spec["library"]
-    lines.extend(
-        [
-            "",
-            "[lib]",
-            f"name = {json.dumps(library['crate_name'])}",
-            f"path = {json.dumps(library['path'])}",
-            "",
-            "[dependencies]",
-        ]
-    )
-    for item in dependencies:
-        values = [
-            f"package = {json.dumps(item['package'])}",
-            f"version = {json.dumps('=' + item['version'])}",
-            "default-features = " + str(item["default_features"]).lower(),
-            "features = " + json.dumps([f for f in item["features"] if f != "default"]),
-        ]
-        lines.append(json.dumps(item["alias"]) + " = { " + ", ".join(values) + " }")
+    if library:
+        lines.extend(
+            [
+                "",
+                "[lib]",
+                f"name = {json.dumps(library['crate_name'])}",
+                f"path = {json.dumps(library['path'])}",
+            ]
+        )
+    for binary in sorted(binaries, key=lambda target: target["name"]):
+        lines.extend(
+            [
+                "",
+                "[[bin]]",
+                f"name = {json.dumps(binary['name'])}",
+                f"path = {json.dumps(binary['path'])}",
+                f"edition = {json.dumps(binary['edition'])}",
+            ]
+        )
+    for kind, section in [("normal", "dependencies"), ("dev", "dev-dependencies")]:
+        selected = [item for item in dependencies if item["kind"] == kind]
+        if kind == "dev" and not selected:
+            continue
+        lines.extend(["", f"[{section}]"])
+        for item in selected:
+            values = [
+                f"package = {json.dumps(item['package'])}",
+                f"version = {json.dumps('=' + item['version'])}",
+                "default-features = " + str(item["default_features"]).lower(),
+                "features = "
+                + json.dumps([f for f in item["features"] if f != "default"]),
+            ]
+            lines.append(json.dumps(item["alias"]) + " = { " + ", ".join(values) + " }")
     manifest = "\n".join(lines) + "\n"
     # Validate the entire declared inventory before writing output files.
     declared = {}
@@ -327,7 +368,7 @@ def generate(args):
     for path in declared:
         if any(str(parent) in declared for parent in PurePosixPath(path).parents):
             raise ValueError(f"conflicting file/directory package path: {path}")
-    for required in (package["readme"], library["path"]):
+    for required in [package["readme"], *(target["path"] for target in production)]:
         if required not in declared:
             raise ValueError(f"missing required package path: {required}")
     output = Path(args.output)
@@ -352,9 +393,31 @@ def generate(args):
         "library": {
             key: library[key]
             for key in ("label", "crate_name", "crate_type", "edition", "path")
-        },
-        "binaries": [],
-        "tests": [],
+        }
+        if library
+        else None,
+        "binaries": [
+            {
+                key: binary[key]
+                for key in (
+                    "label",
+                    "crate_name",
+                    "name",
+                    "crate_type",
+                    "edition",
+                    "path",
+                )
+            }
+            for binary in sorted(binaries, key=lambda target: target["name"])
+        ],
+        "tests": [
+            {
+                key: target[key]
+                for key in ("label", "crate_name", "crate_type", "edition", "crate")
+                if key in target
+            }
+            for target in sorted(spec["tests"], key=lambda target: target["label"])
+        ],
         "dependencies": dependencies,
         "inputs": inventory,
         "manifest_sha256": hashlib.sha256(manifest.encode()).hexdigest(),

@@ -10,6 +10,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import tomllib
+
 
 class GenerationCommandTest(unittest.TestCase):
     def setUp(self):
@@ -77,6 +79,230 @@ class GenerationCommandTest(unittest.TestCase):
             text=True,
             check=False,
         )
+
+    def test_binary_only_declares_the_requested_cargo_target(self):
+        (self.root / "main.rs").write_text("fn main() {}\n")
+        self.spec["library"] = None
+        self.spec["binaries"] = [
+            {
+                "label": "//fixture:binary",
+                "crate_name": "bazel_binary",
+                "name": "published-cli",
+                "crate_type": "bin",
+                "edition": "2024",
+                "path": "main.rs",
+                "dependencies": [],
+            }
+        ]
+        self.spec["inputs"] = [
+            {"path": path, "source": str(self.root / path)}
+            for path in ("main.rs", "README.md")
+        ]
+        result = self.run_generation()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        manifest = tomllib.loads((self.root / "output/Cargo.toml").read_text())
+        self.assertNotIn("lib", manifest)
+        self.assertEqual(
+            manifest["bin"],
+            [{"name": "published-cli", "path": "main.rs", "edition": "2024"}],
+        )
+        contract = json.loads((self.root / "contract.json").read_text())
+        self.assertIsNone(contract["library"])
+        self.assertEqual(contract["binaries"][0]["name"], "published-cli")
+
+    def test_combined_package_keeps_the_selected_library_edge_internal(self):
+        (self.root / "main.rs").write_text("fn main() {}\n")
+        self.spec["binaries"] = [
+            {
+                "label": "//fixture:binary",
+                "crate_name": "bazel_binary",
+                "name": "published-cli",
+                "crate_type": "bin",
+                "edition": "2024",
+                "path": "main.rs",
+                "dependencies": [
+                    dict(self.spec["library"], external=False, alias="fixture")
+                ],
+            }
+        ]
+        self.spec["inputs"].append(
+            {"path": "main.rs", "source": str(self.root / "main.rs")}
+        )
+        result = self.run_generation()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        manifest = tomllib.loads((self.root / "output/Cargo.toml").read_text())
+        self.assertEqual(manifest["lib"], {"name": "fixture", "path": "lib.rs"})
+        self.assertEqual(manifest["bin"][0]["name"], "published-cli")
+        self.assertEqual(manifest["dependencies"], {})
+
+    def test_selected_tests_preserve_dev_only_and_shared_dependencies(self):
+        metadata = []
+        for name, alias in [("anyhow", "errors"), ("test-helper", "test_helper")]:
+            upstream = self.root / (name + ".toml")
+            upstream.write_text(
+                f'[package]\nname="{name}"\nversion="1.0.100"\n[features]\ndefault=[]\nstd=[]\n'
+            )
+            metadata.append(
+                {
+                    "label": f"@crates//:{name}",
+                    "external": True,
+                    "repository": f"rules_rs++crate+crates__{name}-1.0.100",
+                    "crate_name": name.replace("-", "_"),
+                    "crate_type": "rlib",
+                    "version": "1.0.100",
+                    "manifest": str(upstream),
+                    "features": ["default", "std"],
+                    "compiler_settings": {},
+                    "alias": alias,
+                }
+            )
+        (self.root / "Cargo.toml").write_text(
+            '[dependencies]\nanyhow="1.0.100"\n[dev-dependencies]\ntest-helper="1.0.100"\n'
+        )
+        (self.root / "Cargo.lock").write_text(
+            "version=4\n"
+            + "".join(
+                f'[[package]]\nname="{name}"\nversion="1.0.100"\nsource="registry+https://github.com/rust-lang/crates.io-index"\nchecksum="fixture"\n'
+                for name in ("anyhow", "test-helper")
+            )
+        )
+        self.spec["library"]["dependencies"] = [metadata[0]]
+        self.spec["tests"] = [
+            {"label": "//fixture:unit_test", "dependencies": metadata}
+        ]
+        self.spec["dependency_closure"] = metadata
+        result = self.run_generation()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        manifest = tomllib.loads((self.root / "output/Cargo.toml").read_text())
+        self.assertEqual(set(manifest["dependencies"]), {"errors"})
+        self.assertEqual(set(manifest["dev-dependencies"]), {"errors", "test_helper"})
+        self.assertEqual(
+            manifest["dependencies"]["errors"], manifest["dev-dependencies"]["errors"]
+        )
+        self.assertEqual(
+            manifest["dev-dependencies"]["test_helper"]["version"], "=1.0.100"
+        )
+        contract = json.loads((self.root / "contract.json").read_text())
+        self.assertEqual(
+            {(d["kind"], d["alias"]) for d in contract["dependencies"]},
+            {("normal", "errors"), ("dev", "errors"), ("dev", "test_helper")},
+        )
+        self.assertNotIn("test", manifest)
+        metadata[1]["alias"] = "errors"
+        result = self.run_generation(suffix="alias_conflict")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("//fixture:unit_test", result.stderr)
+        self.assertIn("conflicting direct dependency alias errors", result.stderr)
+        self.assertFalse((self.root / "outputalias_conflict").exists())
+
+    def test_invalid_production_selections_fail_before_staging(self):
+        (self.root / "main.rs").write_text("fn main() {}\n")
+        binary = {
+            "label": "//fixture:binary",
+            "crate_name": "binary",
+            "name": "fixture-cli",
+            "crate_type": "bin",
+            "edition": "2024",
+            "path": "main.rs",
+            "dependencies": [],
+        }
+        cases = [
+            (
+                "empty",
+                None,
+                [],
+                "x86_64-unknown-linux-gnu",
+                "requires a library or binary",
+            ),
+            (
+                "platform",
+                self.spec["library"],
+                [],
+                "wasm32-unknown-unknown",
+                "unsupported target platform",
+            ),
+            (
+                "type",
+                None,
+                [dict(binary, crate_type="proc-macro")],
+                "x86_64-unknown-linux-gnu",
+                "unsupported binary crate type",
+            ),
+            (
+                "edition",
+                None,
+                [dict(binary, edition="2099")],
+                "x86_64-unknown-linux-gnu",
+                "unsupported binary edition",
+            ),
+            (
+                "name",
+                None,
+                [dict(binary, name="../outside")],
+                "x86_64-unknown-linux-gnu",
+                "Cargo binary name",
+            ),
+            (
+                "duplicate",
+                None,
+                [binary, dict(binary, label="//fixture:other")],
+                "x86_64-unknown-linux-gnu",
+                "conflicting Cargo binary name",
+            ),
+            (
+                "root",
+                None,
+                [dict(binary, path="missing.rs")],
+                "x86_64-unknown-linux-gnu",
+                "missing required package path: missing.rs",
+            ),
+            (
+                "self_alias",
+                self.spec["library"],
+                [
+                    dict(
+                        binary,
+                        dependencies=[
+                            dict(self.spec["library"], alias="renamed", external=False)
+                        ],
+                    )
+                ],
+                "x86_64-unknown-linux-gnu",
+                "selected library alias",
+            ),
+            (
+                "local",
+                self.spec["library"],
+                [
+                    dict(
+                        binary,
+                        dependencies=[
+                            dict(
+                                self.spec["library"],
+                                label="//other:library",
+                                alias="other",
+                                external=False,
+                            )
+                        ],
+                    )
+                ],
+                "x86_64-unknown-linux-gnu",
+                "separate local dependency packages",
+            ),
+        ]
+        for name, library, binaries, platform, diagnostic in cases:
+            with self.subTest(name=name):
+                spec = dict(
+                    self.spec, library=library, binaries=binaries, target=platform
+                )
+                spec["inputs"] = [
+                    *self.spec["inputs"],
+                    {"path": "main.rs", "source": str(self.root / "main.rs")},
+                ]
+                result = self.run_generation(spec, name)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(diagnostic, result.stderr)
+                self.assertFalse((self.root / ("output" + name)).exists())
 
     def test_contract_fingerprints_declared_catalog_inputs(self):
         result = self.run_generation()
@@ -185,6 +411,9 @@ class GenerationCommandTest(unittest.TestCase):
             ("custom_repository", {"repository": "custom"}, "repository provenance"),
             ("features", {"features": ["unsupported"]}, "configured features"),
             ("git", {}, "crates.io lock provenance"),
+            ("custom_registry", {}, "crates.io lock provenance"),
+            ("root_git", {}, "root dependency provenance"),
+            ("root_registry", {}, "root dependency provenance"),
             ("ambiguous_lock", {}, "ambiguous"),
             ("missing_catalog", {}, "root Cargo manifest"),
             ("select_flags", {}, "annotation/override"),
@@ -203,12 +432,23 @@ class GenerationCommandTest(unittest.TestCase):
                     if name != "missing_catalog"
                     else ""
                 )
+                if name in ("root_git", "root_registry"):
+                    setting = (
+                        'git="https://example.com/repo"'
+                        if name == "root_git"
+                        else 'registry="private"'
+                    )
+                    (self.root / "Cargo.toml").write_text(
+                        '[dependencies]\nanyhow={version="1.0.100",' + setting + "}\n"
+                    )
                 (self.root / "Cargo.lock").write_text(
                     locked.replace(
                         "registry+https://github.com/rust-lang/crates.io-index",
-                        "git+https://example.com/repo",
+                        "git+https://example.com/repo"
+                        if name == "git"
+                        else "registry+https://example.com/index",
                     )
-                    if name == "git"
+                    if name in ("git", "custom_registry")
                     else locked * (2 if name == "ambiguous_lock" else 1)
                 )
                 annotation = (

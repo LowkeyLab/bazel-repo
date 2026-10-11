@@ -19,6 +19,9 @@ py_test(
     size = "small",
     srcs = ["generation_test.py"],
     data = [
+        "//tools/cargo_publish/fixtures:binary_publish_files",
+        "//tools/cargo_publish/fixtures:combined_publish_files",
+        "//tools/cargo_publish/fixtures:combined_repeat_files",
         "//tools/cargo_publish/fixtures:publish_files",
         "//tools/cargo_publish/fixtures:repeat_files",
     ],
