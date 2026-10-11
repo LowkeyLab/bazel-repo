@@ -1,0 +1,86 @@
+{
+  "binaries": [],
+  "dependencies": [
+    {
+      "alias": "anyhow",
+      "checksum": "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470",
+      "default_features": true,
+      "features": ["default", "std"],
+      "kind": "normal",
+      "package": "anyhow",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "target": "@@rules_rs++crate+crates__anyhow-1.0.104//:anyhow",
+      "version": "1.0.104"
+    },
+    {
+      "alias": "renamed_json",
+      "checksum": "aa62079d232416ecf7b2f938d389e28bbcd3677bcdb67b42e2f29c2433552176",
+      "default_features": true,
+      "features": ["alloc", "default", "raw_value", "std", "unbounded_depth"],
+      "kind": "normal",
+      "package": "serde_json",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "target": "@@rules_rs++crate+crates__serde_json-1.0.153//:serde_json",
+      "version": "1.0.153"
+    },
+    {
+      "alias": "sha2",
+      "checksum": "446ba717509524cb3f22f17ecc096f10f4822d76ab5c0b9822c5f9c284e825f4",
+      "default_features": false,
+      "features": [],
+      "kind": "normal",
+      "package": "sha2",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "target": "@@rules_rs++crate+crates__sha2-0.11.0//:sha2",
+      "version": "0.11.0"
+    }
+  ],
+  "inputs": [
+    {
+      "path": "README.md",
+      "sha256": "b1b61351ee61007abc12bedf60022c024d828ed00ade4c34f6859dd295fbbf04",
+      "size": 70
+    },
+    {
+      "path": "assets/license.txt",
+      "sha256": "bf071888bd7f2691821e956f3d42e148cf8f8253a4cecc6caf30f2f09d07cd79",
+      "size": 23
+    },
+    {
+      "path": "src/lib.rs",
+      "sha256": "ee93967a5887c3a54e50ce7d482a6a953e599c55cf0ea19f6d27d705f9409905",
+      "size": 205
+    },
+    {
+      "path": "src/nested/value.rs",
+      "sha256": "88b5cf18bb61fee30410c0e30474c4305f4b271c77c570c56c132f62a488a4c4",
+      "size": 28
+    }
+  ],
+  "library": {
+    "crate_name": "fixture_library",
+    "crate_type": "rlib",
+    "edition": "2024",
+    "label": "@@//tools/cargo_publish/fixtures:library",
+    "path": "src/lib.rs"
+  },
+  "manifest_sha256": "9a3acefd7168d9e668676c8adfc6506f9d0a18d2c73d7f06772b1593fb76f5a9",
+  "package": {
+    "description": "A declared library publishing fixture",
+    "edition": "2024",
+    "license": "MIT",
+    "name": "publishing-fixture",
+    "readme": "README.md",
+    "repository": "https://github.com/LowkeyLab/bazel-repo",
+    "rust-version": "1.96",
+    "version": "0.1.0"
+  },
+  "provenance": {
+    "module_sha256": "affb6c46d2194661e34de053e44205fce8b3d8071a7144df2df8e72d00ab8081",
+    "root_lockfile_sha256": "ff396a80bc2b8e2718eb4b99dbf3dc5e1f4b4f643845dd96d25ac1720ac3f933",
+    "root_manifest_sha256": "73bda75385a7e7c4861790323deba23abac14c373f59f746bc08aa75db6ae92c"
+  },
+  "schema_version": 1,
+  "target": "x86_64-unknown-linux-gnu",
+  "tests": []
+}

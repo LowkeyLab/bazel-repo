@@ -1,0 +1,38 @@
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "core",
+    srcs = [
+        "analysis.rs",
+        "error.rs",
+        "hash.rs",
+        "json.rs",
+        "lib.rs",
+        "model.rs",
+        "path.rs",
+        "tests.rs",
+    ],
+    compile_data = ["testdata/generation-contract.json"],
+    crate_name = "cargo_publish_core",
+    crate_root = "lib.rs",
+    deps = [
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:thiserror",
+    ],
+)
+
+rust_test(
+    name = "core_test",
+    size = "small",
+    crate = ":core",
+    deps = [
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+    ],
+)
