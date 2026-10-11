@@ -1,13 +1,12 @@
+# gazelle:resolve rust toml @crates//:toml-1.1.6+spec-1.1.0
+# gazelle:resolve rust cargo_publish_core //tools/cargo_publish/core:core
+# gazelle:resolve rust installer_native //worktree_pool/install:native
+# gazelle:resolve rust flate2 @crates//:flate2-1.1.10
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load(":verify.bzl", "verify_install")
-
-py_binary(
-    name = "driver",
-    srcs = ["verify.py"],
-    main = "verify.py",
-    deps = ["//tools/cargo_publish:report"],
-)
 
 verify_install(
     name = "acceptance",
@@ -19,17 +18,83 @@ verify_install(
     zlib_source = "@worktree_pool_zlib//file",
 )
 
-py_test(
-    name = "acceptance_test",
-    size = "small",
-    srcs = ["acceptance_test.py"],
-    data = [":driver"],
-    env = {"DRIVER": "$(rootpath :driver)"},
-)
-
 bzl_library(
     name = "verify",
     srcs = ["verify.bzl"],
     visibility = ["//visibility:public"],
     deps = ["//worktree_pool:package_metadata"],
+)
+
+rust_test(
+    name = "acceptance_test",
+    size = "small",
+    srcs = ["acceptance_test.rs"],
+    crate_root = "acceptance_test.rs",
+    data = [
+        "testdata/consumer.crate",
+        "testdata/consumer-report.json",
+        ":driver",
+    ],
+    edition = "2024",
+    rustc_env = {"DRIVER": "$(rootpath :driver)"},
+    deps = [
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:tempfile",
+    ],
+)
+
+rust_library(
+    name = "native",
+    srcs = ["lib.rs"],
+    crate_name = "installer_native",
+    crate_root = "lib.rs",
+    edition = "2024",
+    deps = [
+        "//tools/cargo_publish/core",
+        "@crates//:flate2-1.1.10",
+        "@crates//:tar",
+        "@crates//:thiserror",
+    ],
+)
+
+rust_test(
+    name = "native_test",
+    size = "small",
+    srcs = ["native_test.rs"],
+    crate_root = "native_test.rs",
+    data = [
+        "@worktree_pool_git_minimum//file",
+        "@worktree_pool_zlib//file",
+    ],
+    edition = "2024",
+    rustc_env = {
+        "GIT_SOURCE": "$(rootpath @worktree_pool_git_minimum//file)",
+        "ZLIB_SOURCE": "$(rootpath @worktree_pool_zlib//file)",
+    },
+    deps = [
+        "//tools/cargo_publish/core",
+        "//worktree_pool/install:native",
+        "@crates//:flate2-1.1.10",
+        "@crates//:googletest",
+        "@crates//:tar",
+        "@crates//:tempfile",
+    ],
+)
+
+rust_binary(
+    name = "driver",
+    srcs = ["main.rs"],
+    crate_root = "main.rs",
+    edition = "2024",
+    deps = [
+        "//tools/cargo_publish/core",
+        "//worktree_pool/install:native",
+        "@crates//:anyhow",
+        "@crates//:clap",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:toml-1.1.6+spec-1.1.0",
+    ],
 )
