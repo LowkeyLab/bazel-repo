@@ -2,11 +2,8 @@
 
 load("@rules_rust//rust:defs.bzl", "rust_common")
 load("@rules_rust//rust/private:rustc.bzl", "ExtraExecRustcEnvInfo", "ExtraExecRustcFlagsInfo", "ExtraRustcEnvInfo", "ExtraRustcFlagsInfo", "PerCrateRustcFlagsInfo")
-
-CargoPublishInfo = provider(
-    doc = "Declared package tree and versioned generation contract for validation.",
-    fields = {"package": "Staged tree artifact", "contract": "Generation contract JSON"},
-)
+load(":providers.bzl", "CargoPublishInfo")
+load(":runtime.bzl", "cargo_publish_runtime")
 
 _CargoTargetInfo = provider(fields = ["metadata", "inputs", "closure"])
 
@@ -205,9 +202,11 @@ _cargo_publish_files = rule(
 )
 
 def cargo_publish(name, library = None, binaries = {}, tests = [], **kwargs):
-    """Declare inspectable <name>_files inputs; validation is a later slice."""
+    """Declare inspectable <name>_files and explicit pinned-Cargo validation."""
     if binaries or tests:
         fail("{}: binaries/tests are not yet supported by cargo_publish".format(name))
     if library == None:
         fail("{}: cargo_publish requires a library or binary".format(name))
     _cargo_publish_files(name = name + "_files", library = library, **kwargs)
+    runtime_kwargs = {key: kwargs[key] for key in ("tags", "visibility", "testonly", "target_compatible_with") if key in kwargs}
+    cargo_publish_runtime(name = name, package = ":" + name + "_files", **runtime_kwargs)

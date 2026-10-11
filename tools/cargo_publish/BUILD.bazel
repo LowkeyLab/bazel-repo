@@ -1,10 +1,14 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
 
 bzl_library(
     name = "defs",
     srcs = ["defs.bzl"],
     visibility = ["//visibility:public"],
+    deps = [
+        ":providers",
+        ":runtime",
+    ],
 )
 
 py_binary(
@@ -43,4 +47,40 @@ filegroup(
     name = "markdown",
     srcs = ["README.md"],
     tags = ["markdown"],
+)
+
+py_binary(
+    name = "verify",
+    srcs = ["verify.py"],
+    main = "verify.py",
+    visibility = ["//visibility:public"],
+    deps = [":report"],
+)
+
+py_test(
+    name = "runtime_test",
+    size = "small",
+    srcs = ["runtime_test.py"],
+    data = [":verify"],
+    env = {"VERIFIER": "$(rootpath :verify)"},
+    deps = [":report"],
+)
+
+bzl_library(
+    name = "providers",
+    srcs = ["providers.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
+    name = "runtime",
+    srcs = ["runtime.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [":providers"],
+)
+
+py_library(
+    name = "report",
+    srcs = ["report.py"],
+    visibility = ["//visibility:public"],
 )
