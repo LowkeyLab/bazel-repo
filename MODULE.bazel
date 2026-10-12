@@ -88,14 +88,14 @@ git_override(
 bazel_dep(name = "rules_java")
 git_override(
     module_name = "rules_java",
-    commit = "d3159af187d1fd311f8af94afb88c4f21c2454f4",
+    commit = "b74de71517fc9f27913fa85d677a716f0bd1d549",
     remote = "https://github.com/bazelbuild/rules_java.git",
 )
 
 bazel_dep(name = "rules_kotlin")
 git_override(
     module_name = "rules_kotlin",
-    commit = "db0e49bc14dbd677a3f663dcf244c1e4c6759c28",
+    commit = "28110903de4c1e6e433996ebbf2c65db9eb4a410",
     remote = "https://github.com/bazel-contrib/rules_kotlin.git",
 )
 
@@ -116,7 +116,7 @@ git_override(
 bazel_dep(name = "contrib_rules_jvm")
 git_override(
     module_name = "contrib_rules_jvm",
-    commit = "5c7fc7b034fb3185d9583d40b1a1c3028f6934d2",
+    commit = "09b17c48d7b6d87e39be5f1251f9f58442f7d891",
     remote = "https://github.com/bazel-contrib/rules_jvm.git",
 )
 
@@ -224,7 +224,7 @@ git_override(
 bazel_dep(name = "rules_jvm_external")
 git_override(
     module_name = "rules_jvm_external",
-    commit = "7f53fc5e58bec35b886b74ba3f29e9028d2aa77b",
+    commit = "e75220a13409f5e5096309740b8fc86b076ff1a2",
     remote = "https://github.com/bazel-contrib/rules_jvm_external.git",
 )
 
@@ -269,7 +269,7 @@ git_override(
 bazel_dep(name = "rules_python")
 git_override(
     module_name = "rules_python",
-    commit = "60445bb2ea9bec81247cd3af0b1598c00f100045",
+    commit = "58dda724a2c21016d64f08e6ec78edc8ff457132",
     remote = "https://github.com/bazel-contrib/rules_python.git",
 )
 
@@ -283,7 +283,7 @@ git_override(
 bazel_dep(name = "gazelle")
 git_override(
     module_name = "gazelle",
-    commit = "e9ba9bee1de4408da6409be18643d73d70e60590",
+    commit = "4a928fbfa45c946f8680fa67dc0796cbc0e788f3",
     remote = "https://github.com/bazel-contrib/bazel-gazelle.git",
 )
 

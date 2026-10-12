@@ -1,6 +1,9 @@
 name: Setup Bazel CI
 description: Shared setup for Bazel CI jobs
 inputs:
+  aspect-api-token:
+    description: Aspect API token used to create a session for CI tasks
+    required: true
   buildbuddy-api-key:
     description: BuildBuddy API key used for remote Bazel access
     required: true
@@ -37,6 +40,12 @@ runs:
           common:lint --build_tag_filters=-no-lint
           common --remote_header=x-buildbuddy-api-key=${{ inputs.buildbuddy-api-key }}
           test --test_env=XDG_CACHE_HOME
+    - name: Authenticate Aspect
+      uses: aspect-build/setup-aspect@ebca96eb49ef58c00d4226de8bd3a0813507dd87 # v2026.38.3
+      with:
+        launcher-install: false
+        bazelrc-generate: false
+        aspect-api-token: ${{ inputs.aspect-api-token }}
     - name: Log in to Docker Hub
       uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
       with:
