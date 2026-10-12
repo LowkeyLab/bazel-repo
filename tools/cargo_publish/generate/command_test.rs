@@ -709,6 +709,11 @@ fn unresolved_extension_identities_and_proxy_aliases_cannot_hide_mutations() {
             "ambiguous crate extension binding",
         ),
         (
+            6,
+            "crate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nforwarded, marker = crate, None\nforwarded.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
+            "ambiguous crate extension binding",
+        ),
+        (
             5,
             "crate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nforwarded = \"irrelevant\" if False else crate\nforwarded.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
             "ambiguous crate extension binding",
@@ -731,4 +736,22 @@ fn unresolved_extension_identities_and_proxy_aliases_cannot_hide_mutations() {
     let f = Fixture::new();
     f.write("MODULE.bazel", "original = use_extension(\"@other//:extensions.bzl\", \"tools\")\nforwarded = original\nforwarded.override(name=\"replacement\")");
     f.success(&f.spec, "other_alias");
+}
+
+#[gtest]
+fn composite_receivers_cannot_hide_crate_mutations() {
+    for (index, receiver) in ["(crate)", "[crate][0]"].iter().enumerate() {
+        let mut f = Fixture::new();
+        let metadata = f.upstream("anyhow", "friendly", "1.0.104");
+        f.spec["library"]["dependencies"] = json!([metadata]);
+        f.spec["dependency_closure"] = json!([metadata]);
+        f.write("Cargo.toml", "[dependencies]\nanyhow=\"1.0.104\"\n");
+        f.write("Cargo.lock", &Fixture::locked("anyhow", "1.0.104"));
+        f.write("MODULE.bazel", &format!("crate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\n{receiver}.annotation(crate=\"anyhow\",patches=[\"unsupported\"])"));
+        f.failure(
+            &f.spec,
+            &format!("composite{index}"),
+            "ambiguous crate extension binding",
+        );
+    }
 }

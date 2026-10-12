@@ -637,10 +637,7 @@ fn annotations(path: &Path) -> Result<Annotations> {
         "build_script_tags",
     ];
     for i in 0..tokens.len().saturating_sub(3) {
-        if !matches!(&tokens[i], Token::Word(_))
-            || tokens[i + 1] != Token::Punct('.')
-            || tokens[i + 3] != Token::Punct('(')
-        {
+        if tokens[i + 1] != Token::Punct('.') || tokens[i + 3] != Token::Punct('(') {
             continue;
         }
         let Token::Word(kind) = &tokens[i + 2] else {
@@ -650,16 +647,18 @@ fn annotations(path: &Path) -> Result<Annotations> {
             continue;
         }
         let Token::Word(receiver) = &tokens[i] else {
-            continue;
+            return reject(
+                "MODULE.bazel: ambiguous crate extension binding for composite receiver",
+            );
         };
         match proxies.get(receiver.as_str()) {
             Some(ExtensionProxy::RustCrates) => {}
-            Some(ExtensionProxy::Ambiguous) => {
+            Some(ExtensionProxy::Ambiguous) | None => {
                 return reject(format!(
                     "MODULE.bazel: ambiguous crate extension binding for {receiver}"
                 ));
             }
-            Some(ExtensionProxy::Other) | None => continue,
+            Some(ExtensionProxy::Other) => continue,
         }
         let mut p = i + 4;
         let mut settings = BTreeMap::new();
