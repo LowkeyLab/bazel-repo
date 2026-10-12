@@ -56,7 +56,7 @@ pub enum CheckStatus {
     Passed,
     Failed,
 }
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct CheckRecord {
     pub status: CheckStatus,
     pub completed: bool,
@@ -65,7 +65,7 @@ pub struct CheckRecord {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub evidence: BTreeMap<String, Value>,
 }
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Command {
     pub id: String,
     pub phase: Check,
@@ -136,7 +136,8 @@ pub enum ArchiveEntry {
     },
 }
 impl ArchiveEntry {
-    pub fn path(&self) -> &crate::PackagePath {
+    #[must_use]
+    pub const fn path(&self) -> &crate::PackagePath {
         match self {
             Self::File { path, .. } | Self::Directory { path } => path,
         }
@@ -183,7 +184,7 @@ pub struct Diagnostic {
     pub phase: Check,
     pub message: String,
 }
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ValidationReport {
     pub schema_version: u32,
     pub report_kind: String,
@@ -227,14 +228,15 @@ pub struct ExpectedPackage {
 fn reject(message: impl Into<String>) -> ContractError {
     ContractError::Policy(message.into())
 }
-fn required<'a, T>(value: &'a Option<T>, name: &str) -> Result<&'a T, ContractError> {
-    value
-        .as_ref()
-        .ok_or_else(|| reject(format!("missing validation report evidence: {name}")))
+pub fn required<'a, T>(value: Option<&'a T>, name: &str) -> Result<&'a T, ContractError> {
+    value.ok_or_else(|| reject(format!("missing validation report evidence: {name}")))
 }
 fn evidence(report: &ValidationReport, phase: Check, expected: Value) -> Result<(), ContractError> {
-    for (key, value) in expected.as_object().expect("evidence object") {
-        if report.checks[&phase].evidence.get(key) != Some(value) {
+    let Value::Object(expected) = expected else {
+        return Err(reject("malformed mandatory evidence object"));
+    };
+    for (key, value) in expected {
+        if report.checks[&phase].evidence.get(&key) != Some(&value) {
             return Err(reject(format!(
                 "missing or inconsistent mandatory evidence: {phase:?}/{key}"
             )));
@@ -245,6 +247,10 @@ fn evidence(report: &ValidationReport, phase: Check, expected: Value) -> Result<
 
 /// Certify the complete versioned evidence contract. Incomplete reports remain
 /// deserializable for diagnostics, but cannot be used as verified artifacts.
+///
+/// # Errors
+/// Returns a policy error for unsupported or incomplete evidence, a mismatched
+/// package, or commands that fail to cover the declared production targets.
 pub fn validate_report(
     report: &ValidationReport,
     expected: Option<&ExpectedPackage>,
@@ -263,7 +269,7 @@ pub fn validate_report(
     {
         return Err(reject("missing completed run identity/timestamp"));
     }
-    let package = required(&report.package, "package")?;
+    let package = required(report.package.as_ref(), "package")?;
     if expected.is_some_and(|expected| {
         package.name != expected.name || package.version != expected.version
     }) {
@@ -271,16 +277,143 @@ pub fn validate_report(
             "verified package identity/version does not match expected consumer",
         ));
     }
-    let selection = required(&report.selection, "selection")?;
-    let inputs = required(&report.inputs, "inputs")?;
-    let config = required(&report.configuration, "configuration")?;
-    let toolchain = required(&report.toolchain, "toolchain")?;
-    let manifests = required(&report.manifests, "manifests")?;
-    let original = required(&manifests.original, "manifests.original")?;
-    let normalized = required(&manifests.normalized, "manifests.normalized")?;
-    let archive = required(&report.archive, "archive")?;
-    let lockfile = required(&report.lockfile, "lockfile")?;
-    let deps = required(&report.dependencies, "dependencies")?;
+    let complete = CompleteEvidence::new(report, package)?;
+    validate_check_completion(report)?;
+    let targets = complete.validate(report)?;
+    validate_commands(report, complete.selection, &targets)?;
+    if complete.archive.inventory.is_empty() {
+        return Err(reject(
+            "missing archive inventory or packaged lockfile evidence",
+        ));
+    }
+    Ok(())
+}
+
+struct CompleteEvidence<'a> {
+    package: &'a PackageMetadata,
+    selection: &'a Selection,
+    inputs: &'a [InputFile],
+    config: &'a Configuration,
+    toolchain: &'a Toolchain,
+    manifests: &'a ManifestEvidence,
+    original: &'a FileEvidence,
+    normalized: &'a FileEvidence,
+    archive: &'a ArchiveEvidence,
+    lockfile: &'a FileEvidence,
+    deps: &'a DependencyEvidence,
+}
+
+impl<'a> CompleteEvidence<'a> {
+    fn new(
+        report: &'a ValidationReport,
+        package: &'a PackageMetadata,
+    ) -> Result<Self, ContractError> {
+        let selection = required(report.selection.as_ref(), "selection")?;
+        let inputs = required(report.inputs.as_ref(), "inputs")?;
+        let config = required(report.configuration.as_ref(), "configuration")?;
+        let toolchain = required(report.toolchain.as_ref(), "toolchain")?;
+        let manifests = required(report.manifests.as_ref(), "manifests")?;
+        let original = required(manifests.original.as_ref(), "manifests.original")?;
+        let normalized = required(manifests.normalized.as_ref(), "manifests.normalized")?;
+        let archive = required(report.archive.as_ref(), "archive")?;
+        let lockfile = required(report.lockfile.as_ref(), "lockfile")?;
+        let deps = required(report.dependencies.as_ref(), "dependencies")?;
+        Ok(Self {
+            package,
+            selection,
+            inputs,
+            config,
+            toolchain,
+            manifests,
+            original,
+            normalized,
+            archive,
+            lockfile,
+            deps,
+        })
+    }
+
+    fn validate(&self, report: &ValidationReport) -> Result<Vec<String>, ContractError> {
+        let Self {
+            package,
+            selection,
+            inputs,
+            config,
+            toolchain,
+            manifests,
+            original,
+            normalized,
+            archive,
+            lockfile,
+            deps,
+        } = self;
+        let targets: Vec<String> = selection
+            .selected_targets()?
+            .iter()
+            .map(ToString::to_string)
+            .collect();
+        if toolchain.host != TARGET
+            || toolchain.target != TARGET
+            || !toolchain.rustc.contains("release: 1.96.0\n")
+            || !toolchain.cargo.starts_with("cargo 1.96.0 ")
+        {
+            return Err(reject("unsupported pinned toolchain report evidence"));
+        }
+        if config.target != TARGET {
+            return Err(reject("unsupported validation target configuration"));
+        }
+        evidence(
+            report,
+            Check::InputFidelity,
+            json!({"inputs": inputs, "manifest_sha256": manifests.generated.sha256}),
+        )?;
+        evidence(report, Check::Configuration, json!(config))?;
+        evidence(
+            report,
+            Check::CargoPackage,
+            json!({"archive": archive.path, "verification_enabled": true}),
+        )?;
+        evidence(
+            report,
+            Check::GeneratedManifest,
+            json!({"package": package, "targets": targets, "dependencies": deps.requested}),
+        )?;
+        evidence(
+            report,
+            Check::ArchivePolicy,
+            json!({"inventory": archive.inventory, "root": format!("{}-{}", package.name, package.version)}),
+        )?;
+        evidence(
+            report,
+            Check::ArchiveFidelity,
+            json!({"inputs": inputs, "verified": true}),
+        )?;
+        evidence(report, Check::OriginalManifest, json!(original))?;
+        evidence(
+            report,
+            Check::NormalizedManifest,
+            json!({"manifest": normalized, "package": package, "dependencies": deps.requested}),
+        )?;
+        evidence(
+            report,
+            Check::DirectDependencies,
+            json!({"requested": deps.requested, "resolved_graph": deps.observed, "compared": true}),
+        )?;
+        evidence(report, Check::Toolchain, json!({"versions": toolchain}))?;
+        evidence(
+            report,
+            Check::LockedMetadata,
+            json!({"sha256": deps.metadata_sha256, "path": deps.metadata_path, "lockfile_sha256": lockfile.sha256}),
+        )?;
+        evidence(report, Check::LockedBuilds, json!({"targets": targets}))?;
+        if deps.observed.is_empty() {
+            return Err(reject("missing Cargo resolved graph evidence"));
+        }
+        Ok(targets)
+    }
+}
+
+fn validate_check_completion(report: &ValidationReport) -> Result<(), ContractError> {
     for phase in Check::ALL {
         let check = report
             .checks
@@ -292,68 +425,14 @@ pub fn validate_report(
             )));
         }
     }
-    let targets: Vec<String> = selection
-        .selected_targets()?
-        .iter()
-        .map(ToString::to_string)
-        .collect();
-    if toolchain.host != TARGET
-        || toolchain.target != TARGET
-        || !toolchain.rustc.contains("release: 1.96.0\n")
-        || !toolchain.cargo.starts_with("cargo 1.96.0 ")
-    {
-        return Err(reject("unsupported pinned toolchain report evidence"));
-    }
-    if config.target != TARGET {
-        return Err(reject("unsupported validation target configuration"));
-    }
-    evidence(
-        report,
-        Check::InputFidelity,
-        json!({"inputs": inputs, "manifest_sha256": manifests.generated.sha256}),
-    )?;
-    evidence(report, Check::Configuration, json!(config))?;
-    evidence(
-        report,
-        Check::CargoPackage,
-        json!({"archive": archive.path, "verification_enabled": true}),
-    )?;
-    evidence(
-        report,
-        Check::GeneratedManifest,
-        json!({"package": package, "targets": targets, "dependencies": deps.requested}),
-    )?;
-    evidence(
-        report,
-        Check::ArchivePolicy,
-        json!({"inventory": archive.inventory, "root": format!("{}-{}", package.name, package.version)}),
-    )?;
-    evidence(
-        report,
-        Check::ArchiveFidelity,
-        json!({"inputs": inputs, "verified": true}),
-    )?;
-    evidence(report, Check::OriginalManifest, json!(original))?;
-    evidence(
-        report,
-        Check::NormalizedManifest,
-        json!({"manifest": normalized, "package": package, "dependencies": deps.requested}),
-    )?;
-    evidence(
-        report,
-        Check::DirectDependencies,
-        json!({"requested": deps.requested, "resolved_graph": deps.observed, "compared": true}),
-    )?;
-    evidence(report, Check::Toolchain, json!({"versions": toolchain}))?;
-    evidence(
-        report,
-        Check::LockedMetadata,
-        json!({"sha256": deps.metadata_sha256, "path": deps.metadata_path, "lockfile_sha256": lockfile.sha256}),
-    )?;
-    evidence(report, Check::LockedBuilds, json!({"targets": targets}))?;
-    if deps.observed.is_empty() {
-        return Err(reject("missing Cargo resolved graph evidence"));
-    }
+    Ok(())
+}
+
+fn validate_commands(
+    report: &ValidationReport,
+    selection: &Selection,
+    targets: &[String],
+) -> Result<(), ContractError> {
     let mut commands = BTreeMap::new();
     for command in &report.commands {
         if command.id.is_empty() || commands.insert(command.id.as_str(), command).is_some() {
@@ -409,10 +488,10 @@ pub fn validate_report(
                         "locked build command does not build selected targets",
                     ));
                 }
-                if has("--lib") {
-                    if let Some(library) = &selection.library {
-                        built.push(format!("lib:{}", library.crate_name));
-                    }
+                if has("--lib")
+                    && let Some(library) = &selection.library
+                {
+                    built.push(format!("lib:{}", library.crate_name));
                 }
                 for pair in command.argv.windows(2) {
                     if pair[0] == "--bin" {
@@ -422,15 +501,10 @@ pub fn validate_report(
             }
         }
     }
-    built.sort();
+    built.sort_unstable();
     if built != targets {
         return Err(reject(
             "successful commands do not cover every selected library/binary",
-        ));
-    }
-    if archive.inventory.is_empty() {
-        return Err(reject(
-            "missing archive inventory or packaged lockfile evidence",
         ));
     }
     Ok(())

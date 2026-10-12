@@ -12,6 +12,8 @@ use crate::{
     ValidationReport, digest_bytes, digest_file, read_json, validate_report,
 };
 
+use crate::report::required;
+
 const GENERATED: [&str; 3] = ["Cargo.toml", "Cargo.toml.orig", "Cargo.lock"];
 const OPTIONAL: &str = ".cargo_vcs_info.json";
 
@@ -20,7 +22,7 @@ pub struct InspectedArchive {
     pub extracted_root: PathBuf,
     pub inventory: Vec<ArchiveEntry>,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VerifiedArchive {
     pub report: ValidationReport,
     pub copied_archive: PathBuf,
@@ -61,20 +63,31 @@ fn parents(name: &str) -> impl Iterator<Item = &str> {
     name.match_indices('/').map(|(index, _)| &name[..index])
 }
 
-/// Validate all archive members and declared bytes before creating the new
-/// extraction directory. Links, special objects, ambiguous paths, duplicates,
-/// undeclared entries and file/directory conflicts never reach the filesystem.
+/// Validate declared archive contents before creating the extraction directory.
+///
+/// Links, special objects, ambiguous paths, duplicates, undeclared entries, and
+/// file/directory conflicts never reach the filesystem.
+///
+/// # Errors
+/// Returns an I/O error for unreadable/corrupt archives or failed extraction, and
+/// a policy error for unsafe members, missing inputs, or mismatched bytes.
 pub fn inspect_archive(
     archive: impl AsRef<Path>,
     package: &PackageMetadata,
     inputs: &[InputFile],
     destination: impl AsRef<Path>,
 ) -> Result<InspectedArchive, ContractError> {
-    let archive = archive.as_ref();
     let root = PackagePath::new(format!("{}-{}", package.name, package.version))?;
     if root.as_str().contains('/') {
         return Err(policy(format!("unsafe package archive root: {root}")));
     }
+    let declared = declared_inputs(inputs)?;
+    let contents = inspect_members(archive.as_ref(), &root, &declared)?;
+    validate_contents(&contents.files, &declared)?;
+    extract_contents(contents, &root, destination.as_ref())
+}
+
+fn declared_inputs(inputs: &[InputFile]) -> Result<BTreeMap<&str, &InputFile>, ContractError> {
     let mut declared = BTreeMap::new();
     for input in inputs {
         PackagePath::declared(input.path.as_str())?;
@@ -92,6 +105,19 @@ pub fn inspect_archive(
             )));
         }
     }
+    Ok(declared)
+}
+
+struct ArchiveContents {
+    files: BTreeMap<PackagePath, Vec<u8>>,
+    inventory: Vec<ArchiveEntry>,
+}
+
+fn inspect_members(
+    archive: &Path,
+    root: &PackagePath,
+    declared: &BTreeMap<&str, &InputFile>,
+) -> Result<ArchiveContents, ContractError> {
     let allowed: BTreeSet<&str> = declared
         .keys()
         .copied()
@@ -124,7 +150,7 @@ pub fn inspect_archive(
         if !seen.insert(name.clone()) {
             return Err(policy(format!("duplicate archive path: {name}")));
         }
-        let relative = if name == root {
+        let relative = if &name == root {
             ""
         } else {
             name.as_str()
@@ -155,12 +181,12 @@ pub fn inspect_archive(
             .map_err(|source| io_error(archive, source))?;
         let sha256 = digest_bytes(&contents);
         let size = contents.len() as u64;
-        if let Some(expected) = declared.get(relative) {
-            if expected.size != size || expected.sha256 != sha256 {
-                return Err(policy(format!(
-                    "archive input fidelity mismatch: {relative}"
-                )));
-            }
+        if let Some(expected) = declared.get(relative)
+            && (expected.size != size || expected.sha256 != sha256)
+        {
+            return Err(policy(format!(
+                "archive input fidelity mismatch: {relative}"
+            )));
         }
         let path = PackagePath::new(relative)?;
         inventory.push(ArchiveEntry::File {
@@ -170,29 +196,46 @@ pub fn inspect_archive(
         });
         data.insert(path, contents);
     }
+    Ok(ArchiveContents {
+        files: data,
+        inventory,
+    })
+}
+
+fn validate_contents(
+    files: &BTreeMap<PackagePath, Vec<u8>>,
+    declared: &BTreeMap<&str, &InputFile>,
+) -> Result<(), ContractError> {
     let missing: Vec<&str> = declared
         .keys()
         .copied()
         .chain(GENERATED)
-        .filter(|name| !data.keys().any(|path| path.as_str() == *name))
+        .filter(|name| !files.keys().any(|path| path.as_str() == *name))
         .collect();
     if !missing.is_empty() {
         return Err(policy(format!(
             "missing required archive files: {missing:?}"
         )));
     }
-    for path in data.keys() {
-        if parents(path.as_str()).any(|parent| data.keys().any(|path| path.as_str() == parent)) {
+    for path in files.keys() {
+        if parents(path.as_str()).any(|parent| files.keys().any(|path| path.as_str() == parent)) {
             return Err(policy(format!(
                 "conflicting archive file/directory path: {path}"
             )));
         }
     }
-    let destination = destination.as_ref();
+    Ok(())
+}
+
+fn extract_contents(
+    mut contents: ArchiveContents,
+    root: &PackagePath,
+    destination: &Path,
+) -> Result<InspectedArchive, ContractError> {
     private_directory(destination)?;
     let extracted_root = destination.join(root.as_str());
     private_directory(&extracted_root)?;
-    for (name, contents) in data {
+    for (name, contents) in contents.files {
         let path = extracted_root.join(name.as_str());
         for parent in parents(name.as_str()) {
             let parent = extracted_root.join(parent);
@@ -204,16 +247,23 @@ pub fn inspect_archive(
             .write_all(&contents)
             .map_err(|source| io_error(&path, source))?;
     }
-    inventory.sort_by(|left, right| left.path().cmp(right.path()));
+    contents
+        .inventory
+        .sort_by(|left, right| left.path().cmp(right.path()));
     Ok(InspectedArchive {
         extracted_root,
-        inventory,
+        inventory: contents.inventory,
     })
 }
 
-/// Bind an explicit report to relocated archive bytes. Copy first; hash and
-/// safely inspect that exact private copy, then compare all inventory/manifest/
-/// lockfile fingerprints before returning the verified extraction to consumers.
+/// Bind an explicit report to a verified private copy of relocated archive bytes.
+///
+/// Copy first, then compare inventory, manifest, and lockfile fingerprints before
+/// returning the verified extraction.
+///
+/// # Errors
+/// Returns an I/O/JSON error for failed reads or writes, or a policy error for
+/// invalid reports, mismatched hashes/inventories, or unsafe archive contents.
 pub fn validate_verified_archive(
     report_path: impl AsRef<Path>,
     archive_path: impl AsRef<Path>,
@@ -230,7 +280,7 @@ pub fn validate_verified_archive(
     let mut copied = new_file(&copied_archive)?;
     io::copy(&mut source, &mut copied).map_err(|source| io_error(&copied_archive, source))?;
     drop(copied);
-    let archive = report.archive.as_ref().expect("validated archive evidence");
+    let archive = required(report.archive.as_ref(), "archive")?;
     if digest_file(&copied_archive)? != archive.sha256
         || fs::metadata(&copied_archive)
             .map_err(|source| io_error(&copied_archive, source))?
@@ -241,53 +291,27 @@ pub fn validate_verified_archive(
     }
     let inspected = inspect_archive(
         &copied_archive,
-        report.package.as_ref().expect("validated package evidence"),
-        report.inputs.as_ref().expect("validated input evidence"),
+        required(report.package.as_ref(), "package")?,
+        required(report.inputs.as_ref(), "inputs")?,
         destination.join("extracted"),
     )?;
     if inspected.inventory != archive.inventory {
         return Err(policy("archive/report inventory or file hash mismatch"));
     }
     if digest_file(inspected.extracted_root.join("Cargo.lock"))?
-        != report
-            .lockfile
-            .as_ref()
-            .expect("validated lockfile evidence")
-            .sha256
+        != required(report.lockfile.as_ref(), "lockfile")?.sha256
     {
         return Err(policy("packaged lockfile/report hash mismatch"));
     }
-    let manifests = report
-        .manifests
-        .as_ref()
-        .expect("validated manifest evidence");
-    for (filename, evidence) in [
-        (
-            "Cargo.toml.orig",
-            manifests
-                .original
-                .as_ref()
-                .expect("validated original manifest"),
-        ),
-        (
-            "Cargo.toml",
-            manifests
-                .normalized
-                .as_ref()
-                .expect("validated normalized manifest"),
-        ),
-    ] {
+    let manifests = required(report.manifests.as_ref(), "manifests")?;
+    let original = required(manifests.original.as_ref(), "manifests.original")?;
+    let normalized = required(manifests.normalized.as_ref(), "manifests.normalized")?;
+    for (filename, evidence) in [("Cargo.toml.orig", original), ("Cargo.toml", normalized)] {
         if digest_file(inspected.extracted_root.join(filename))? != evidence.sha256 {
             return Err(policy(format!("{filename}/report manifest hash mismatch")));
         }
     }
-    if manifests.generated.sha256
-        != manifests
-            .original
-            .as_ref()
-            .expect("validated original manifest")
-            .sha256
-    {
+    if manifests.generated.sha256 != original.sha256 {
         return Err(policy("original/generated manifest fidelity mismatch"));
     }
     Ok(VerifiedArchive {

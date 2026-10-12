@@ -8,6 +8,11 @@ use crate::ContractError;
 pub struct Sha256(String);
 
 impl Sha256 {
+    /// Construct a canonical lowercase hexadecimal fingerprint.
+    ///
+    /// # Errors
+    /// Returns a fingerprint error unless the value contains exactly 64 lowercase
+    /// hexadecimal ASCII characters.
     pub fn new(value: impl Into<String>) -> Result<Self, ContractError> {
         let value = value.into();
         if value.len() != 64
@@ -19,6 +24,7 @@ impl Sha256 {
         }
         Ok(Self(value))
     }
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -43,16 +49,21 @@ impl std::fmt::Display for Sha256 {
     }
 }
 
+#[must_use]
 pub fn digest_bytes(bytes: &[u8]) -> Sha256 {
-    Sha256(
-        sha2::Sha256::digest(bytes)
-            .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect(),
-    )
+    let mut hexadecimal = String::with_capacity(64);
+    for byte in sha2::Sha256::digest(bytes) {
+        for nibble in [byte >> 4, byte & 0x0f] {
+            hexadecimal.push(char::from(b"0123456789abcdef"[usize::from(nibble)]));
+        }
+    }
+    Sha256(hexadecimal)
 }
 
 /// Fingerprint file bytes, independent of timestamps and filesystem metadata.
+///
+/// # Errors
+/// Returns an I/O error when the file cannot be read.
 pub fn digest_file(path: impl AsRef<std::path::Path>) -> Result<Sha256, ContractError> {
     let path = path.as_ref();
     let bytes = std::fs::read(path).map_err(|source| ContractError::Io {

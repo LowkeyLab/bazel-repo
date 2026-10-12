@@ -4,8 +4,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::model::nullable_string;
-use crate::{PackageMetadata, PackagePath};
+use crate::{NullableString, PackageMetadata, PackagePath};
 
 /// Configured analysis metadata. Sparse public inputs omit genuinely optional
 /// fields; compiler/publisher settings are opaque rule-specific values.
@@ -25,10 +24,9 @@ pub struct CrateMetadata {
     #[serde(
         rename = "crate",
         default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "nullable_string"
+        skip_serializing_if = "NullableString::is_missing"
     )]
-    pub crate_: Option<Option<String>>,
+    pub crate_: NullableString,
     #[serde(default)]
     pub version: Option<String>,
     #[serde(default)]
@@ -52,7 +50,7 @@ pub struct CrateMetadata {
     #[serde(default)]
     pub link_deps: Vec<String>,
     #[serde(default)]
-    pub dependencies: Vec<CrateMetadata>,
+    pub dependencies: Vec<Self>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

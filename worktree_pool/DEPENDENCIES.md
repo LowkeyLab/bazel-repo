@@ -37,5 +37,5 @@ The dependency roles remain useful without maintaining a second version table:
 
 App execution needs Git and ordinary native C runtime libraries. Rust,
 Cargo, Bazel, Python and Nix are build/verification tools, not app
-runtime dependencies. Normal Rust CLI tests run through Bazel using the
+runtime dependencies. Normal Rust command-line tests run through Bazel using the
 development shell's Git and the Bazel-built executable.

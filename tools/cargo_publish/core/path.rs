@@ -6,6 +6,11 @@ use crate::ContractError;
 pub struct PackagePath(String);
 
 impl PackagePath {
+    /// Construct a nonempty relative path without traversal or ambiguous separators.
+    ///
+    /// # Errors
+    /// Returns a path error for absolute paths, empty components, traversal,
+    /// backslashes, or zero bytes.
     pub fn new(value: impl Into<String>) -> Result<Self, ContractError> {
         let value = value.into();
         if value.is_empty()
@@ -19,6 +24,9 @@ impl PackagePath {
     }
 
     /// Construct a declared source/asset path, reserving Cargo-generated files.
+    ///
+    /// # Errors
+    /// Returns a path error for invalid names or a policy error for a reserved file.
     pub fn declared(value: impl Into<String>) -> Result<Self, ContractError> {
         let path = Self::new(value)?;
         if matches!(
@@ -32,6 +40,7 @@ impl PackagePath {
         Ok(path)
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
