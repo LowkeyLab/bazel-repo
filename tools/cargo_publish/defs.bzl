@@ -103,7 +103,7 @@ _cargo_metadata = aspect(
 def _package_path(path, label):
     if not path or path.startswith("/") or "\\" in path or any([part in ["", ".", ".."] for part in path.split("/")]):
         fail("{}: package path must be relative and cannot escape the package: {}".format(label, path))
-    if path in ["Cargo.toml", "Cargo.toml.orig", "Cargo.lock", ".cargo_vcs_info.json"]:
+    if path.split("/")[0] in ["Cargo.toml", "Cargo.toml.orig", "Cargo.lock", ".cargo_vcs_info.json"]:
         fail("{}: package path conflicts with generated Cargo file: {}".format(label, path))
     return path
 

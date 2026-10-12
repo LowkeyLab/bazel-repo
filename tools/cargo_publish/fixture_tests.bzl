@@ -50,6 +50,13 @@ def publishing_rejection_tests():
     _reject("conflicting_asset", "conflicting package path src/lib.rs", package_files = {"README.md": "src/lib.rs"})
     _reject("directory_conflict", "conflicting file/directory package path", package_files = {"README.md": "src"})
     _reject("reserved_path", "conflicts with generated Cargo file", package_files = {"README.md": "Cargo.toml"})
+    for name, reserved in [
+        ("manifest", "Cargo.toml"),
+        ("original_manifest", "Cargo.toml.orig"),
+        ("lockfile", "Cargo.lock"),
+        ("vcs_info", ".cargo_vcs_info.json"),
+    ]:
+        _reject("reserved_" + name + "_descendant", "conflicts with generated Cargo file", package_files = {"README.md": "README.md", "LICENSE.txt": reserved + "/notice"})
     _reject("missing_readme", "missing package_files readme path", package_files = {})
     for name, setting, value in [
         ("publisher_flags", "rustc_flags", ["--cfg=custom"]),

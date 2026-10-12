@@ -27,6 +27,14 @@ fn main() {
         );
     }
     assert_eq!(env::var("CARGO_BUILD_JOBS").unwrap(), "2");
+    if let Some(expected) = scenario
+        .get("expected_proxy_environment")
+        .and_then(Value::as_object)
+    {
+        for (key, value) in expected {
+            assert_eq!(env::var(key).unwrap(), value.as_str().unwrap());
+        }
+    }
     let manifest = PathBuf::from(
         &args[args
             .iter()
@@ -187,10 +195,38 @@ fn package_archive(scenario: &Value, manifest: &Path, args: &[String], mode: &st
         &format!("{prefix}/Cargo.toml.orig"),
         &original,
     );
+    let version = if mode == "lock_version" {
+        "1.2.4"
+    } else {
+        "1.2.3"
+    };
+    let source = if mode == "lock_source" {
+        "registry+https://example.invalid/index"
+    } else {
+        "registry+https://github.com/rust-lang/crates.io-index"
+    };
+    let checksum = if mode == "lock_checksum" { "b" } else { "a" }.repeat(64);
+    let checksum_field = if mode == "lock_missing_checksum" {
+        String::new()
+    } else {
+        format!("checksum = '{checksum}'\n")
+    };
+    let entry = format!(
+        "\n[[package]]\nname = 'upstream'\nversion = '{version}'\nsource = '{source}'\n{checksum_field}"
+    );
+    let mut lockfile = "version = 4\n".to_string();
+    if mode != "lock_missing_dependency" {
+        lockfile.push_str(&entry);
+    }
+    if mode == "lock_duplicate_dependency" {
+        lockfile.push_str(&entry);
+    }
+    // Cargo can retain additional packages outside the selected direct dependency contract.
+    lockfile.push_str("\n[[package]]\nname = 'transitive-only'\nversion = '9.9.9'\nsource = 'registry+https://github.com/rust-lang/crates.io-index'\nchecksum = 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc'\n");
     append(
         &mut archive,
         &format!("{prefix}/Cargo.lock"),
-        b"version=4\n",
+        lockfile.as_bytes(),
     );
     if mode == "archive" {
         append(&mut archive, &format!("{prefix}/unexpected"), b"unexpected");

@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -246,5 +247,56 @@ fn compare_direct_edges(
         actual == expected,
         "resolved direct identity/version/alias/kind mismatch: expected {expected:?}; actual {actual:?}"
     );
+    Ok(())
+}
+
+#[derive(Deserialize)]
+struct PackagedLockfile {
+    #[serde(default)]
+    package: Vec<LockedPackage>,
+}
+
+#[derive(Deserialize)]
+struct LockedPackage {
+    name: String,
+    version: String,
+    source: Option<String>,
+    checksum: Option<String>,
+}
+
+pub fn compare_packaged_lockfile(path: &Path, contract: &GenerationContract) -> Result<()> {
+    let bytes = fs::read_to_string(path).context("read packaged Cargo.lock")?;
+    let lockfile: PackagedLockfile = toml::from_str(&bytes).context("parse packaged Cargo.lock")?;
+    for dependency in &contract.dependencies {
+        let identity = (
+            dependency.package.as_str(),
+            dependency.version.as_str(),
+            Some(dependency.source.as_str()),
+        );
+        let matches: Vec<_> = lockfile
+            .package
+            .iter()
+            .filter(|package| {
+                (
+                    package.name.as_str(),
+                    package.version.as_str(),
+                    package.source.as_deref(),
+                ) == identity
+            })
+            .collect();
+        ensure!(
+            matches.len() == 1,
+            "packaged Cargo.lock direct dependency is missing or ambiguous: {} {} from {}",
+            dependency.package,
+            dependency.version,
+            dependency.source
+        );
+        ensure!(
+            matches[0].checksum.as_deref() == Some(dependency.checksum.as_str()),
+            "packaged Cargo.lock direct checksum mismatch: {} {}",
+            dependency.package,
+            dependency.version
+        );
+    }
     Ok(())
 }

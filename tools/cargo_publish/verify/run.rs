@@ -22,7 +22,11 @@ use chrono::Utc;
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::{Args, manifest::compare_manifest, resolution::compare_resolution};
+use crate::{
+    Args,
+    manifest::compare_manifest,
+    resolution::{compare_packaged_lockfile, compare_resolution},
+};
 
 fn timestamp() -> String {
     Utc::now().to_rfc3339()
@@ -313,7 +317,7 @@ impl ValidationRun {
             cargo_home: home,
             target_directory: self.output.join("target"),
             registry_cache: cache,
-            environment: self.env.clone(),
+            environment: report_environment(&self.env),
             config_path: config.clone(),
             config_sha256: digest_file(&config)?,
             rustc_wrapper: wrapper.clone(),
@@ -539,6 +543,7 @@ impl ValidationRun {
             serde_json::from_slice(&metadata_bytes).context("parse Cargo metadata")?;
         self.check(json!({"command_ids": [metadata_id], "path": metadata_path, "sha256": metadata_sha256, "lockfile_sha256": lockfile.sha256}))?;
         self.phase = Check::DirectDependencies;
+        compare_packaged_lockfile(&extracted.join("Cargo.lock"), contract)?;
         let resolved = compare_resolution(
             serde_json::from_value(metadata).context("read Cargo metadata shape")?,
             contract,
@@ -615,4 +620,27 @@ fn allowed_environment(allowed: &[&str]) -> BTreeMap<String, String> {
 
 fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\"'\"'"))
+}
+
+fn report_environment(environment: &BTreeMap<String, String>) -> BTreeMap<String, String> {
+    environment
+        .iter()
+        .map(|(key, value)| {
+            let is_proxy = matches!(
+                key.as_str(),
+                "HTTP_PROXY"
+                    | "HTTPS_PROXY"
+                    | "ALL_PROXY"
+                    | "http_proxy"
+                    | "https_proxy"
+                    | "all_proxy"
+            );
+            let reported = if is_proxy && value.contains('@') {
+                "<redacted>".into()
+            } else {
+                value.clone()
+            };
+            (key.clone(), reported)
+        })
+        .collect()
 }

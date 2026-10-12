@@ -30,8 +30,8 @@ impl PackagePath {
     pub fn declared(value: impl Into<String>) -> Result<Self, ContractError> {
         let path = Self::new(value)?;
         if matches!(
-            path.as_str(),
-            "Cargo.toml" | "Cargo.toml.orig" | "Cargo.lock" | ".cargo_vcs_info.json"
+            path.as_str().split('/').next(),
+            Some("Cargo.toml" | "Cargo.toml.orig" | "Cargo.lock" | ".cargo_vcs_info.json")
         ) {
             return Err(ContractError::Policy(format!(
                 "conflicting declared package path: {path}"

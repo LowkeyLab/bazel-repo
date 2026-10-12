@@ -96,7 +96,9 @@ first resolves dependencies and runs `cargo package` with package verification
 enabled. The validator safely extracts that archive, compares declared source
 and asset fingerprints, checks original and normalized manifests, then runs
 locked metadata and an explicit locked build for every selected library/binary.
-The packaged lockfile must remain unchanged. Direct dependency declarations
+The packaged lockfile must remain unchanged. Each direct registry dependency must
+match one packaged lockfile entry by package name, version, registry source, and
+checksum. Direct dependency declarations
 retain exact identities, version requirements, aliases, normal/dev kinds,
 requested defaults, and explicit features. The report records Cargo's observed
 resolved graph and activation separately. Cargo owns additional/transitive
@@ -105,7 +107,9 @@ activation. Validation doesn't require equality with Bazel's transitive graph.
 Each run writes a private `publish.runs/<run-id>/` directory beneath the Bazel
 output directory and prints explicit archive/report paths. It retains command
 logs, configuration, metadata, inventory, fingerprints, and phase-specific
-failure diagnostics. Success requires all 12 mandatory checks and successful
+failure diagnostics. Reports replace proxy values containing credentials with
+`<redacted>`. Child commands use the original proxy settings. Success requires all
+12 mandatory checks and successful
 locked commands covering every production target. Selected Bazel tests provide
 dev dependency declarations. They aren't automatically run as Cargo tests.
 

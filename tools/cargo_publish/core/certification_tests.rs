@@ -621,3 +621,42 @@ fn failed_spawn_reports_retain_command_and_phase_errors_without_certification() 
     assert_that!(serde_json::to_value(&report).unwrap(), eq(&failed));
     assert_that!(validate_report(&report, None), err(anything()));
 }
+
+#[gtest]
+fn unsuccessful_archive_fidelity_never_certifies_success() {
+    let baseline = library_report();
+    assert_that!(validate_report(&baseline, None), ok(anything()));
+    for status in [CheckStatus::Pending, CheckStatus::Failed] {
+        let mut report = baseline.clone();
+        report.archive.as_mut().unwrap().fidelity = status;
+        assert_that!(validate_report(&report, None), err(anything()));
+    }
+}
+
+#[gtest]
+fn offline_reports_require_offline_cargo_commands() {
+    let mut baseline = combined_report();
+    assert_that!(validate_report(&baseline, None), ok(anything()));
+    baseline.configuration.as_mut().unwrap().network_mode = crate::NetworkMode::Offline;
+    baseline
+        .checks
+        .get_mut(&Check::Configuration)
+        .unwrap()
+        .evidence = serde_json::from_value(json!(baseline.configuration)).unwrap();
+    for command in &mut baseline.commands {
+        if command.phase != Check::Toolchain {
+            command.argv.push("--offline".into());
+        }
+    }
+    assert_that!(validate_report(&baseline, None), ok(anything()));
+    for (index, command) in baseline.commands.iter().enumerate() {
+        if command.phase == Check::Toolchain {
+            continue;
+        }
+        let mut report = baseline.clone();
+        report.commands[index]
+            .argv
+            .retain(|argument| argument != "--offline");
+        assert_that!(validate_report(&report, None), err(anything()));
+    }
+}

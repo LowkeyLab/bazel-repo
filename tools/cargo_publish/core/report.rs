@@ -279,8 +279,16 @@ pub fn validate_report(
     }
     let complete = CompleteEvidence::new(report, package)?;
     validate_check_completion(report)?;
+    if complete.archive.fidelity != CheckStatus::Passed {
+        return Err(reject("archive fidelity is not passed"));
+    }
     let targets = complete.validate(report)?;
-    validate_commands(report, complete.selection, &targets)?;
+    validate_commands(
+        report,
+        complete.selection,
+        &targets,
+        &complete.config.network_mode,
+    )?;
     if complete.archive.inventory.is_empty() {
         return Err(reject(
             "missing archive inventory or packaged lockfile evidence",
@@ -432,6 +440,7 @@ fn validate_commands(
     report: &ValidationReport,
     selection: &Selection,
     targets: &[String],
+    network_mode: &NetworkMode,
 ) -> Result<(), ContractError> {
     let mut commands = BTreeMap::new();
     for command in &report.commands {
@@ -470,6 +479,14 @@ fn validate_commands(
                 )));
             }
             let has = |argument: &str| command.argv.iter().any(|value| value == argument);
+            if network_mode == &NetworkMode::Offline
+                && phase != Check::Toolchain
+                && !has("--offline")
+            {
+                return Err(reject(format!(
+                    "missing offline command evidence: {phase:?}"
+                )));
+            }
             if matches!(phase, Check::LockedMetadata | Check::LockedBuilds) && !has("--locked") {
                 return Err(reject(format!(
                     "missing locked command evidence: {phase:?}"

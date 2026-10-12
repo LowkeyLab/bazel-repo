@@ -24,6 +24,12 @@ fn package_paths_reject_traversal_and_preserve_canonical_relative_names() {
         PackagePath::new("src/nested/lib.rs").unwrap().as_str(),
         eq("src/nested/lib.rs")
     );
+    for allowed in ["Cargo.toml-notice/license", "assets/Cargo.toml/notice"] {
+        assert_that!(
+            PackagePath::declared(allowed).unwrap().as_str(),
+            eq(allowed)
+        );
+    }
 }
 
 #[gtest]
@@ -117,6 +123,10 @@ fn contract_rejects_reserved_duplicate_and_file_directory_input_conflicts() {
         "Cargo.toml.orig",
         "Cargo.lock",
         ".cargo_vcs_info.json",
+        "Cargo.toml/notice",
+        "Cargo.toml.orig/notice",
+        "Cargo.lock/metadata",
+        ".cargo_vcs_info.json/notice",
         "src/lib.rs",
         "src",
     ] {

@@ -1,4 +1,4 @@
-use std::{fmt::Write, fs, path::PathBuf, process::Command};
+use std::{collections::BTreeMap, fmt::Write, fs, path::PathBuf, process::Command};
 
 use googletest::{
     assert_that, gtest,
@@ -76,6 +76,7 @@ struct Fixture {
     contract: Value,
     metadata: Value,
     normalized: Option<String>,
+    proxy_environment: BTreeMap<&'static str, &'static str>,
 }
 
 impl Fixture {
@@ -148,6 +149,7 @@ impl Fixture {
             contract,
             metadata,
             normalized: None,
+            proxy_environment: BTreeMap::new(),
         }
     }
 
@@ -165,7 +167,7 @@ impl Fixture {
             serde_json::to_vec(&self.contract).unwrap(),
         )
         .unwrap();
-        fs::write(self.root.path().join("scenario.json"), serde_json::to_vec(&json!({"mode":mode,"release":CONTROLLED_RELEASE.trim(),"contract":self.contract,"metadata":self.metadata,"normalized":self.normalized})).unwrap()).unwrap();
+        fs::write(self.root.path().join("scenario.json"), serde_json::to_vec(&json!({"mode":mode,"release":CONTROLLED_RELEASE.trim(),"contract":self.contract,"metadata":self.metadata,"normalized":self.normalized,"expected_proxy_environment":self.proxy_environment})).unwrap()).unwrap();
         let mut command = Command::new(verifier());
         command.args([
             "--package",
@@ -194,6 +196,7 @@ impl Fixture {
             .env("CARGO_HOME", "ambient-setting")
             .env("CC", "ambient-setting")
             .env("CFLAGS", "ambient-setting")
+            .envs(&self.proxy_environment)
             .output()
             .unwrap();
         let run = fs::read_dir(self.root.path().join("outputs"))
@@ -706,4 +709,82 @@ fn valid_metadata_json_with_invalid_shape_fails_dependency_phase_after_retaining
         .is_file(),
         eq(true)
     );
+}
+
+#[gtest]
+fn packaged_lockfile_must_match_direct_registry_identities_and_checksums() {
+    for mode in [
+        "lock_checksum",
+        "lock_version",
+        "lock_source",
+        "lock_missing_checksum",
+        "lock_missing_dependency",
+        "lock_duplicate_dependency",
+    ] {
+        Fixture::new("combined").failure(mode, "direct_dependencies", "packaged Cargo.lock");
+    }
+}
+
+#[gtest]
+fn retained_reports_redact_proxy_credentials_without_changing_child_environment() {
+    let proxies = [
+        (
+            "HTTP_PROXY",
+            "HTTP://fixture-user:fixture-password@[::1]:8080/path?transport=tcp#hint",
+            "<redacted>",
+        ),
+        (
+            "HTTPS_PROXY",
+            "https://proxy.invalid:443",
+            "https://proxy.invalid:443",
+        ),
+        (
+            "ALL_PROXY",
+            "socks5://fixture-user:fixture-password@proxy.invalid:1080",
+            "<redacted>",
+        ),
+        (
+            "http_proxy",
+            "fixture-user:fixture-password@proxy.invalid:8080",
+            "<redacted>",
+        ),
+        (
+            "https_proxy",
+            "socks5h://fixture-user:fixture-password@proxy.invalid:1080",
+            "<redacted>",
+        ),
+        (
+            "all_proxy",
+            "socks5://fixture%40user:fixture%3Apassword@proxy.invalid:1080",
+            "<redacted>",
+        ),
+    ];
+    for (mode, expected_code) in [("", 0), ("metadata", 1)] {
+        let mut fixture = Fixture::new("combined");
+        fixture.proxy_environment = proxies
+            .iter()
+            .map(|(key, value, _)| (*key, *value))
+            .collect();
+        let (result, run, report) = fixture.invoke(mode);
+        assert_that!(result.status.code(), eq(Some(expected_code)));
+        for (key, _, expected) in proxies {
+            assert_that!(
+                &report["configuration"]["environment"][key],
+                eq(&json!(expected))
+            );
+            assert_that!(
+                &report["checks"]["configuration"]["evidence"]["environment"][key],
+                eq(&json!(expected))
+            );
+        }
+        let retained = fs::read_to_string(run.join("report.json")).unwrap();
+        for credential in [
+            "fixture-user",
+            "fixture-password",
+            "fixture%40user",
+            "fixture%3Apassword",
+        ] {
+            assert_that!(retained.contains(credential), eq(false));
+        }
+    }
 }
