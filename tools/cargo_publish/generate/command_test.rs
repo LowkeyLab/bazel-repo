@@ -684,3 +684,46 @@ fn keyword_extension_bindings_preserve_crate_mutation_rejection() {
         f.failure(&f.spec, &format!("keyword{index}"), "unsupported Bazel annotation/override");
     }
 }
+
+#[gtest]
+fn unresolved_extension_identities_and_proxy_aliases_cannot_hide_mutations() {
+    for (index, module, diagnostic) in [
+        (
+            0,
+            "EXT = \"@rules_rs//rs:extensions.bzl\"\ncrate = use_extension(EXT, \"crate\")\ncrate.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
+            "ambiguous crate extension binding",
+        ),
+        (
+            1,
+            "crate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nforwarded = crate\nforwarded.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
+            "unsupported Bazel annotation/override",
+        ),
+        (
+            2,
+            "crate = use_extension(str(\"@rules_rs//rs:extensions.bzl\"), \"crate\")\ncrate.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
+            "ambiguous crate extension binding",
+        ),
+        (
+            3,
+            "other = use_extension(\"@other//:extensions.bzl\", \"tools\")\ncrate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nforwarded = other if False else crate\nforwarded.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
+            "ambiguous crate extension binding",
+        ),
+        (
+            4,
+            "crate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nforwarded = use_extension(\"@other//:extensions.bzl\", \"tools\") if False else crate\nforwarded.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
+            "ambiguous crate extension binding",
+        ),
+    ] {
+        let mut f = Fixture::new();
+        let metadata = f.upstream("anyhow", "friendly", "1.0.104");
+        f.spec["library"]["dependencies"] = json!([metadata]);
+        f.spec["dependency_closure"] = json!([metadata]);
+        f.write("Cargo.toml", "[dependencies]\nanyhow=\"1.0.104\"\n");
+        f.write("Cargo.lock", &Fixture::locked("anyhow", "1.0.104"));
+        f.write("MODULE.bazel", module);
+        f.failure(&f.spec, &format!("receiver{index}"), diagnostic);
+    }
+    let f = Fixture::new();
+    f.write("MODULE.bazel", "original = use_extension(\"@other//:extensions.bzl\", \"tools\")\nforwarded = original\nforwarded.override(name=\"replacement\")");
+    f.success(&f.spec, "other_alias");
+}

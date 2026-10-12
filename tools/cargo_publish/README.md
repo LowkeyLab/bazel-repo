@@ -42,7 +42,9 @@ default and explicit features reflect configured Bazel activation. The
 publisher maintains no separate dependency list or feature overrides. Root target-specific dependency
 and development dependency tables participate in provenance lookup for selected edges.
 Annotation checks inspect only proxies bound to the `rules_rs` crate extension, including
-renamed proxies and literal positional or keyword bindings.
+renamed proxies and literal positional or keyword bindings. Direct proxy aliases
+retain the extension identity. Annotations with extension identities the generator
+can't resolve fail with an ambiguity diagnostic.
 
 Generation reads only declared inputs and requires no registry access.
 Sources retain paths relative to the publishing package directory. Each

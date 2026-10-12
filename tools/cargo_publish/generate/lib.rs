@@ -521,6 +521,14 @@ struct Annotation {
 }
 type Annotations = BTreeMap<String, BTreeMap<String, Annotation>>;
 
+fn expression_continues(token: Option<&Token>) -> bool {
+    match token {
+        Some(Token::Word(word)) => ["if", "and", "or", "in", "not"].contains(&word.as_str()),
+        Some(Token::Punct(character)) => ".([+-*/%<>=!&|^".contains(*character),
+        _ => false,
+    }
+}
+
 fn extension_identity(tokens: &[Token]) -> Option<(&str, &str)> {
     let mut arguments = Vec::new();
     let mut depth = 0usize;
@@ -528,6 +536,9 @@ fn extension_identity(tokens: &[Token]) -> Option<(&str, &str)> {
     for (index, token) in tokens.iter().enumerate() {
         match token {
             Token::Punct(')') if depth == 0 => {
+                if expression_continues(tokens.get(index + 1)) {
+                    return None;
+                }
                 arguments.push(&tokens[start..index]);
                 break;
             }
@@ -562,32 +573,53 @@ fn extension_identity(tokens: &[Token]) -> Option<(&str, &str)> {
     Some((module?, extension?))
 }
 
-// Bind tag calls to the literal use_extension receiver; method names alone
-// do not identify a rules_rs mutation.
-fn crate_extension_proxies(tokens: &[Token]) -> BTreeSet<&str> {
-    tokens
-        .windows(4)
-        .enumerate()
-        .filter_map(|(index, binding)| match binding {
-            [
-                Token::Word(proxy),
-                Token::Punct('='),
-                Token::Word(function),
-                Token::Punct('('),
-            ] if function == "use_extension"
-                && extension_identity(&tokens[index + 4..])
-                    == Some(("@rules_rs//rs:extensions.bzl", "crate")) =>
-            {
-                Some(proxy.as_str())
-            }
-            _ => None,
-        })
-        .collect()
+// Track top-level proxy bindings and direct aliases. Nonliteral identities
+// remain ambiguous so relevant mutations cannot disappear from validation.
+#[derive(Clone, Copy)]
+enum ExtensionProxy {
+    RustCrates,
+    Other,
+    Ambiguous,
+}
+
+fn extension_proxies(tokens: &[Token]) -> BTreeMap<&str, ExtensionProxy> {
+    let mut proxies = BTreeMap::new();
+    let mut depth = 0usize;
+    for (index, token) in tokens.iter().enumerate() {
+        if depth == 0
+            && let [Token::Word(name), Token::Punct('='), value, ..] = &tokens[index..]
+        {
+            let binding = match &tokens[index + 2..] {
+                [Token::Word(function), Token::Punct('('), ..] if function == "use_extension" => {
+                    match extension_identity(&tokens[index + 4..]) {
+                        Some(("@rules_rs//rs:extensions.bzl", "crate")) => {
+                            ExtensionProxy::RustCrates
+                        }
+                        Some(_) => ExtensionProxy::Other,
+                        None => ExtensionProxy::Ambiguous,
+                    }
+                }
+                [Token::Word(alias), ..] if !expression_continues(tokens.get(index + 3)) => proxies
+                    .get(alias.as_str())
+                    .copied()
+                    .unwrap_or(ExtensionProxy::Ambiguous),
+                _ if matches!(value, Token::String(_)) => ExtensionProxy::Other,
+                _ => ExtensionProxy::Ambiguous,
+            };
+            proxies.insert(name.as_str(), binding);
+        }
+        match token {
+            Token::Punct('(' | '[' | '{') => depth += 1,
+            Token::Punct(')' | ']' | '}') => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    proxies
 }
 
 fn annotations(path: &Path) -> Result<Annotations> {
     let tokens = tokens(&read(path)?)?;
-    let proxies = crate_extension_proxies(&tokens);
+    let proxies = extension_proxies(&tokens);
     let mut output: Annotations = BTreeMap::new();
     let harmless = [
         "crate",
@@ -601,7 +633,7 @@ fn annotations(path: &Path) -> Result<Annotations> {
         "build_script_tags",
     ];
     for i in 0..tokens.len().saturating_sub(3) {
-        if !matches!(&tokens[i], Token::Word(receiver) if proxies.contains(receiver.as_str()))
+        if !matches!(&tokens[i], Token::Word(_))
             || tokens[i + 1] != Token::Punct('.')
             || tokens[i + 3] != Token::Punct('(')
         {
@@ -612,6 +644,18 @@ fn annotations(path: &Path) -> Result<Annotations> {
         };
         if !["annotation", "annotation_select", "override"].contains(&kind.as_str()) {
             continue;
+        }
+        let Token::Word(receiver) = &tokens[i] else {
+            continue;
+        };
+        match proxies.get(receiver.as_str()) {
+            Some(ExtensionProxy::RustCrates) => {}
+            Some(ExtensionProxy::Ambiguous) => {
+                return reject(format!(
+                    "MODULE.bazel: ambiguous crate extension binding for {receiver}"
+                ));
+            }
+            Some(ExtensionProxy::Other) | None => continue,
         }
         let mut p = i + 4;
         let mut settings = BTreeMap::new();
