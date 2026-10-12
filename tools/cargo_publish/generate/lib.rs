@@ -3,8 +3,9 @@
 
 use cargo_publish_core::{
     AnalysisSpec, BinaryTarget, ContractError, CrateMetadata, Dependency, DependencyKind,
-    GenerationContract, InputFile, LibraryTarget, PackagePath, Provenance, SCHEMA_VERSION,
-    Selection, TARGET, TestTarget, digest_bytes, digest_file, read_json, write_json,
+    GenerationContract, InputFile, LibraryTarget, PackageMetadata, PackagePath, Provenance,
+    SCHEMA_VERSION, Selection, TARGET, TestTarget, digest_bytes, digest_file, read_json,
+    write_json,
 };
 use serde::Deserialize;
 use std::{
@@ -129,6 +130,92 @@ fn toml_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
     })
 }
 
+fn validate_root_declaration(root: &CargoManifest, name: &str, label: &str) -> Result<()> {
+    let mut declared = false;
+    for table in [
+        &root.dependencies,
+        &root.dev_dependencies,
+        &root.build_dependencies,
+    ] {
+        for (key, item) in table {
+            let package = match item {
+                CargoDependency::Version(_) => key.as_str(),
+                CargoDependency::Detailed(d) => d.package.as_deref().unwrap_or(key),
+            };
+            if package != name {
+                continue;
+            }
+            declared = true;
+            let valid = match item {
+                CargoDependency::Version(v) => !v.is_empty(),
+                CargoDependency::Detailed(d) => {
+                    d.version.is_some()
+                        && !["git", "path", "registry", "workspace"]
+                            .iter()
+                            .any(|key| d.provenance.contains_key(*key))
+                }
+            };
+            if !valid {
+                return reject(format!(
+                    "{label}: unsupported/ambiguous root dependency provenance for {name}"
+                ));
+            }
+        }
+    }
+    if !declared {
+        return reject(format!(
+            "{label}: {name} has no direct package identity in root Cargo manifest"
+        ));
+    }
+    Ok(())
+}
+
+fn registry_checksum(lock: &CargoLock, name: &str, version: &str, label: &str) -> Result<String> {
+    let locked: Vec<_> = lock
+        .package
+        .iter()
+        .filter(|item| item.name == name && item.version == version)
+        .collect();
+    if locked.len() != 1
+        || locked[0].source.as_deref() != Some(REGISTRY)
+        || locked[0].checksum.as_ref().is_none_or(String::is_empty)
+    {
+        return reject(format!(
+            "{label}: ambiguous or unsupported crates.io lock provenance for {name}@{version}"
+        ));
+    }
+    Ok(locked[0].checksum.clone().unwrap_or_default())
+}
+
+fn configured_features(
+    upstream: &CargoManifest,
+    metadata: &CrateMetadata,
+    name: &str,
+) -> Result<BTreeSet<String>> {
+    let label = &metadata.label;
+    let mut known: BTreeSet<String> = upstream.features.keys().cloned().collect();
+    known.insert("default".into());
+    let mut tables = vec![&upstream.dependencies, &upstream.build_dependencies];
+    for target in upstream.target.values() {
+        tables.extend([&target.dependencies, &target.build_dependencies]);
+    }
+    for table in tables {
+        for (key, value) in table {
+            if matches!(value,CargoDependency::Detailed(d) if d.optional==Some(true)) {
+                known.insert(key.clone());
+            }
+        }
+    }
+    let features: BTreeSet<_> = metadata.features.iter().cloned().collect();
+    let unknown: Vec<_> = features.difference(&known).collect();
+    if !unknown.is_empty() {
+        return reject(format!(
+            "{label}: ambiguous configured features {unknown:?} for {name}"
+        ));
+    }
+    Ok(features)
+}
+
 fn dependency(
     metadata: &CrateMetadata,
     root: &CargoManifest,
@@ -173,7 +260,8 @@ fn dependency(
     if upstream
         .library
         .name
-        .unwrap_or_else(|| name.replace('-', "_"))
+        .as_deref()
+        .map_or_else(|| name.replace('-', "_"), str::to_owned)
         != metadata.crate_name
     {
         return reject(format!(
@@ -181,81 +269,15 @@ fn dependency(
             metadata.crate_name
         ));
     }
-    let mut declared = false;
-    for table in [
-        &root.dependencies,
-        &root.dev_dependencies,
-        &root.build_dependencies,
-    ] {
-        for (key, item) in table {
-            let package = match item {
-                CargoDependency::Version(_) => key.as_str(),
-                CargoDependency::Detailed(d) => d.package.as_deref().unwrap_or(key),
-            };
-            if package != name {
-                continue;
-            }
-            declared = true;
-            let valid = match item {
-                CargoDependency::Version(v) => !v.is_empty(),
-                CargoDependency::Detailed(d) => {
-                    d.version.is_some()
-                        && !["git", "path", "registry", "workspace"]
-                            .iter()
-                            .any(|key| d.provenance.contains_key(*key))
-                }
-            };
-            if !valid {
-                return reject(format!(
-                    "{label}: unsupported/ambiguous root dependency provenance for {name}"
-                ));
-            }
-        }
-    }
-    if !declared {
-        return reject(format!(
-            "{label}: {name} has no direct package identity in root Cargo manifest"
-        ));
-    }
-    let locked: Vec<_> = lock
-        .package
-        .iter()
-        .filter(|item| item.name == *name && item.version == *version)
-        .collect();
-    if locked.len() != 1
-        || locked[0].source.as_deref() != Some(REGISTRY)
-        || locked[0].checksum.as_ref().is_none_or(String::is_empty)
-    {
-        return reject(format!(
-            "{label}: ambiguous or unsupported crates.io lock provenance for {name}@{version}"
-        ));
-    }
-    let mut known: BTreeSet<String> = upstream.features.keys().cloned().collect();
-    known.insert("default".into());
-    let mut tables = vec![&upstream.dependencies, &upstream.build_dependencies];
-    for target in upstream.target.values() {
-        tables.extend([&target.dependencies, &target.build_dependencies]);
-    }
-    for table in tables {
-        for (key, value) in table {
-            if matches!(value,CargoDependency::Detailed(d) if d.optional==Some(true)) {
-                known.insert(key.clone());
-            }
-        }
-    }
-    let features: BTreeSet<_> = metadata.features.iter().cloned().collect();
-    let unknown: Vec<_> = features.difference(&known).collect();
-    if !unknown.is_empty() {
-        return reject(format!(
-            "{label}: ambiguous configured features {unknown:?} for {name}"
-        ));
-    }
+    validate_root_declaration(root, name, label)?;
+    let checksum = registry_checksum(lock, name, version, label)?;
+    let features = configured_features(&upstream, metadata, name)?;
     Ok(Dependency {
         target: label.clone(),
         package: name.clone(),
         version: version.clone(),
         source: REGISTRY.into(),
-        checksum: locked[0].checksum.clone().unwrap_or_default(),
+        checksum,
         default_features: features.contains("default"),
         features: features.into_iter().collect(),
         alias: alias.into(),
@@ -314,20 +336,21 @@ fn tokens(source: &str) -> Result<Vec<Token>> {
                     };
                     if raw {
                         value.push('\\');
-                        value.push(escaped);
+                    }
+                    value.push(if raw {
+                        escaped
                     } else {
-                        value.push(match escaped {
+                        match escaped {
                             'n' => '\n',
                             'r' => '\r',
                             't' => '\t',
                             other => other,
-                        });
-                    }
-                    i += 1;
+                        }
+                    });
                 } else {
                     value.push(chars[i]);
-                    i += 1;
                 }
+                i += 1;
             }
             if !closed {
                 return reject("MODULE.bazel: unterminated quoted string");
@@ -354,19 +377,19 @@ enum Literal {
     Bool(bool),
     Number(i64),
     None,
-    List(Vec<Literal>),
-    Tuple(Vec<Literal>),
-    Dict(Vec<(Literal, Literal)>),
+    List(Vec<Self>),
+    Tuple(Vec<Self>),
+    Dict(Vec<(Self, Self)>),
 }
 impl Literal {
-    fn string(&self) -> Option<&str> {
+    const fn string(&self) -> Option<&str> {
         if let Self::String(v) = self {
-            Some(v)
+            Some(v.as_str())
         } else {
             None
         }
     }
-    fn truthy(&self) -> bool {
+    const fn truthy(&self) -> bool {
         match self {
             Self::String(v) => !v.is_empty(),
             Self::Bool(v) => *v,
@@ -623,12 +646,7 @@ fn target_path(target: &CrateMetadata) -> Result<PackagePath> {
     })
 }
 
-pub fn generate(options: &GenerateOptions) -> Result<()> {
-    let spec: AnalysisSpec = read_json(&options.spec).map_err(|error| {
-        GenerationError::Policy(format!(
-            "{error}; package paths must be relative and cannot escape the package"
-        ))
-    })?;
+fn validate_production(spec: &AnalysisSpec) -> Result<&str> {
     if spec.schema_version != SCHEMA_VERSION {
         return reject("unsupported generation input schema_version");
     }
@@ -636,7 +654,7 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
     let Some(first) = production.first() else {
         return reject("cargo_publish requires a library or binary");
     };
-    let label = &first.label;
+    let label = first.label.as_str();
     if spec.target != TARGET {
         return reject(format!(
             "{label}: unsupported target platform {}",
@@ -676,11 +694,11 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             ));
         }
     }
-    let root: CargoManifest = toml_file(&options.root_manifest)?;
-    let lock: CargoLock = toml_file(&options.root_lockfile)?;
-    let annotations = annotations(&options.module)?;
-    let package = &spec.package;
-    let metadata = BTreeMap::from([
+    Ok(label)
+}
+
+fn package_fields(package: &PackageMetadata) -> BTreeMap<&'static str, &String> {
+    BTreeMap::from([
         ("name", &package.name),
         ("version", &package.version),
         ("description", &package.description),
@@ -689,7 +707,11 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
         ("rust-version", &package.rust_version),
         ("readme", &package.readme),
         ("edition", &package.edition),
-    ]);
+    ])
+}
+
+fn validate_package(package: &PackageMetadata, label: &str) -> Result<()> {
+    let metadata = package_fields(package);
     for (key, value) in &metadata {
         if value.is_empty() {
             return reject(format!("{label}: missing package metadata {key}"));
@@ -722,6 +744,10 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             package.rust_version
         ));
     }
+    Ok(())
+}
+
+fn validate_dependency_closure(spec: &AnalysisSpec, annotations: &Annotations) -> Result<()> {
     let mut seen = BTreeSet::new();
     for dep in &spec.dependency_closure {
         if !dep.external || !seen.insert((&dep.label, &dep.features, &dep.version)) {
@@ -733,7 +759,7 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             String::new()
         };
         let modified = mutations(
-            &annotations,
+            annotations,
             &name,
             dep.version.as_deref().unwrap_or_default(),
         );
@@ -744,6 +770,19 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             ));
         }
     }
+    Ok(())
+}
+
+fn collect_dependencies(
+    spec: &AnalysisSpec,
+    root: &CargoManifest,
+    lock: &CargoLock,
+) -> Result<Vec<Dependency>> {
+    let production = spec
+        .library
+        .iter()
+        .chain(spec.binaries.iter())
+        .collect::<Vec<_>>();
     let mut aliases: BTreeMap<(u8, String), Dependency> = BTreeMap::new();
     let mut identities = BTreeMap::new();
     for (group, kind, targets) in [
@@ -758,18 +797,18 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
                         target.label
                     ))
                 })?;
-                if let Some(lib) = &spec.library {
-                    if dep.label == lib.label {
-                        if alias != lib.crate_name {
-                            return reject(format!(
-                                "{}: unsupported selected library alias {alias}",
-                                target.label
-                            ));
-                        }
-                        continue;
+                if let Some(lib) = &spec.library
+                    && dep.label == lib.label
+                {
+                    if alias != lib.crate_name {
+                        return reject(format!(
+                            "{}: unsupported selected library alias {alias}",
+                            target.label
+                        ));
                     }
+                    continue;
                 }
-                let item = dependency(dep, &root, &lock, kind, alias)?;
+                let item = dependency(dep, root, lock, kind, alias)?;
                 let identity = (
                     item.package.clone(),
                     item.version.clone(),
@@ -802,27 +841,10 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             }
         }
     }
-    let dependencies: Vec<_> = aliases.into_values().collect();
-    let mut lines = vec!["[package]".to_owned()];
-    for (key, value) in metadata {
-        lines.push(format!("{key} = {}", quoted(value)?));
-    }
-    lines.extend(
-        [
-            "build = false",
-            "autolib = false",
-            "autobins = false",
-            "autotests = false",
-            "autoexamples = false",
-            "autobenches = false",
-        ]
-        .map(String::from),
-    );
-    let mut paths: Vec<_> = spec.inputs.iter().map(|item| item.path.as_str()).collect();
-    paths.sort();
-    paths.insert(0, "Cargo.toml");
-    let include: Vec<_> = paths.into_iter().map(cargo_include_pattern).collect();
-    lines.push(format!("include = {}", quoted(&include)?));
+    Ok(aliases.into_values().collect())
+}
+
+fn project_selection(spec: &AnalysisSpec) -> Result<Selection> {
     let library = spec
         .library
         .as_ref()
@@ -836,14 +858,6 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             })
         })
         .transpose()?;
-    if let Some(lib) = &library {
-        lines.extend([
-            String::new(),
-            "[lib]".into(),
-            format!("name = {}", quoted(&lib.crate_name)?),
-            format!("path = {}", quoted(&lib.path)?),
-        ]);
-    }
     let mut binaries = spec
         .binaries
         .iter()
@@ -859,7 +873,59 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
         })
         .collect::<Result<Vec<_>>>()?;
     binaries.sort_by(|a, b| a.name.cmp(&b.name));
-    for bin in &binaries {
+    let mut tests: Vec<_> = spec
+        .tests
+        .iter()
+        .map(|target| TestTarget {
+            label: target.label.clone(),
+            crate_name: (!target.crate_name.is_empty()).then(|| target.crate_name.clone()),
+            crate_type: (!target.crate_type.is_empty()).then(|| target.crate_type.clone()),
+            edition: (!target.edition.is_empty()).then(|| target.edition.clone()),
+            crate_: target.crate_.clone(),
+        })
+        .collect();
+    tests.sort_by(|a, b| a.label.cmp(&b.label));
+    Ok(Selection {
+        library,
+        binaries,
+        tests,
+    })
+}
+
+fn render_manifest(
+    spec: &AnalysisSpec,
+    selection: &Selection,
+    dependencies: &[Dependency],
+) -> Result<String> {
+    let mut lines = vec!["[package]".to_owned()];
+    for (key, value) in package_fields(&spec.package) {
+        lines.push(format!("{key} = {}", quoted(value)?));
+    }
+    lines.extend(
+        [
+            "build = false",
+            "autolib = false",
+            "autobins = false",
+            "autotests = false",
+            "autoexamples = false",
+            "autobenches = false",
+        ]
+        .map(String::from),
+    );
+    let mut paths: Vec<_> = spec.inputs.iter().map(|item| item.path.as_str()).collect();
+    paths.sort_unstable();
+    paths.insert(0, "Cargo.toml");
+    let include: Vec<_> = paths.into_iter().map(cargo_include_pattern).collect();
+    lines.push(format!("include = {}", quoted(&include)?));
+    if let Some(lib) = &selection.library {
+        lines.extend([
+            String::new(),
+            "[lib]".into(),
+            format!("name = {}", quoted(&lib.crate_name)?),
+            format!("path = {}", quoted(&lib.path)?),
+        ]);
+    }
+    for bin in &selection.binaries {
         lines.extend([
             String::new(),
             "[[bin]]".into(),
@@ -896,7 +962,13 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             ));
         }
     }
-    let manifest = lines.join("\n") + "\n";
+    Ok(lines.join("\n") + "\n")
+}
+
+fn validate_inventory<'a>(
+    spec: &'a AnalysisSpec,
+    selection: &Selection,
+) -> Result<BTreeMap<PackagePath, &'a PathBuf>> {
     let mut declared = BTreeMap::new();
     for item in &spec.inputs {
         PackagePath::declared(item.path.as_str())?;
@@ -920,41 +992,25 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             candidate = parent;
         }
     }
-    for required in std::iter::once(package.readme.as_str())
-        .chain(library.iter().map(|lib| lib.path.as_str()))
-        .chain(binaries.iter().map(|bin| bin.path.as_str()))
+    for required in std::iter::once(spec.package.readme.as_str())
+        .chain(selection.library.iter().map(|lib| lib.path.as_str()))
+        .chain(selection.binaries.iter().map(|bin| bin.path.as_str()))
     {
         if !declared.keys().any(|path| path.as_str() == required) {
             return reject(format!("missing required package path: {required}"));
         }
     }
-    let provenance = Provenance {
-        root_manifest_sha256: digest_file(&options.root_manifest)?,
-        root_lockfile_sha256: digest_file(&options.root_lockfile)?,
-        module_sha256: digest_file(&options.module)?,
-    };
-    let mut tests: Vec<_> = spec
-        .tests
-        .iter()
-        .map(|target| TestTarget {
-            label: target.label.clone(),
-            crate_name: (!target.crate_name.is_empty()).then(|| target.crate_name.clone()),
-            crate_type: (!target.crate_type.is_empty()).then(|| target.crate_type.clone()),
-            edition: (!target.edition.is_empty()).then(|| target.edition.clone()),
-            crate_: target.crate_.clone(),
-        })
-        .collect();
-    tests.sort_by(|a, b| a.label.cmp(&b.label));
-    let selection = Selection {
-        library,
-        binaries,
-        tests,
-    };
-    selection.selected_targets()?;
-    io(&options.output, fs::create_dir_all(&options.output))?;
+    Ok(declared)
+}
+
+fn stage_inputs(
+    output: &Path,
+    declared: BTreeMap<PackagePath, &PathBuf>,
+) -> Result<Vec<InputFile>> {
+    io(output, fs::create_dir_all(output))?;
     let mut inputs = Vec::new();
     for (path, source) in declared {
-        let dest = options.output.join(path.as_str());
+        let dest = output.join(path.as_str());
         if let Some(parent) = dest.parent() {
             io(parent, fs::create_dir_all(parent))?;
         }
@@ -965,6 +1021,37 @@ pub fn generate(options: &GenerateOptions) -> Result<()> {
             size: io(&dest, fs::metadata(&dest))?.len(),
         });
     }
+    Ok(inputs)
+}
+
+/// Generate the declared manifest, package files and schema-1 contract.
+///
+/// # Errors
+/// Returns an error for unsupported metadata or provenance, conflicting inputs,
+/// malformed declarations, or filesystem failures.
+pub fn generate(options: &GenerateOptions) -> Result<()> {
+    let spec: AnalysisSpec = read_json(&options.spec).map_err(|error| {
+        GenerationError::Policy(format!(
+            "{error}; package paths must be relative and cannot escape the package"
+        ))
+    })?;
+    let label = validate_production(&spec)?;
+    let root: CargoManifest = toml_file(&options.root_manifest)?;
+    let lock: CargoLock = toml_file(&options.root_lockfile)?;
+    let annotations = annotations(&options.module)?;
+    validate_package(&spec.package, label)?;
+    validate_dependency_closure(&spec, &annotations)?;
+    let dependencies = collect_dependencies(&spec, &root, &lock)?;
+    let selection = project_selection(&spec)?;
+    let manifest = render_manifest(&spec, &selection, &dependencies)?;
+    let declared = validate_inventory(&spec, &selection)?;
+    let provenance = Provenance {
+        root_manifest_sha256: digest_file(&options.root_manifest)?,
+        root_lockfile_sha256: digest_file(&options.root_lockfile)?,
+        module_sha256: digest_file(&options.module)?,
+    };
+    selection.selected_targets()?;
+    let inputs = stage_inputs(&options.output, declared)?;
     let manifest_path = options.output.join("Cargo.toml");
     io(&manifest_path, fs::write(&manifest_path, &manifest))?;
     let contract = GenerationContract {

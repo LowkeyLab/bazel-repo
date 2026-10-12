@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, process::Command};
+use std::{fmt::Write, fs, path::PathBuf, process::Command};
 
 use googletest::{
     assert_that, gtest,
@@ -104,12 +104,14 @@ impl Fixture {
             sources.push(("src/lib.rs".into(), "pub fn fixture() {}\n".into()));
         }
         for binary in &binaries {
-            manifest.push_str(&format!(
-                "[[bin]]\nname='{}'\npath='{}'\nedition='{}'\n",
+            writeln!(
+                manifest,
+                "[[bin]]\nname='{}'\npath='{}'\nedition='{}'",
                 binary["name"].as_str().unwrap(),
                 binary["path"].as_str().unwrap(),
                 binary["edition"].as_str().unwrap()
-            ));
+            )
+            .unwrap();
             targets.push(json!({"name":binary["name"],"kind":["bin"],"src_path":binary["path"],"edition":binary["edition"]}));
             sources.push((
                 binary["path"].as_str().unwrap().into(),
@@ -423,42 +425,42 @@ fn direct_metadata_declarations_edges_and_selected_targets_must_match_contract()
         let mut fixture = Fixture::new("combined");
         match case {
             "alias" => {
-                fixture.metadata["packages"][0]["dependencies"][0]["rename"] = json!("different")
+                fixture.metadata["packages"][0]["dependencies"][0]["rename"] = json!("different");
             }
             "version" => {
-                fixture.metadata["packages"][0]["dependencies"][0]["req"] = json!("^1.2.3")
+                fixture.metadata["packages"][0]["dependencies"][0]["req"] = json!("^1.2.3");
             }
             "kind" => fixture.metadata["packages"][0]["dependencies"][0]["kind"] = json!("build"),
             "defaults" => {
                 fixture.metadata["packages"][0]["dependencies"][0]["uses_default_features"] =
-                    json!(true)
+                    json!(true);
             }
             "features" => {
-                fixture.metadata["packages"][0]["dependencies"][0]["features"] = json!([])
+                fixture.metadata["packages"][0]["dependencies"][0]["features"] = json!([]);
             }
             "conditional" => {
-                fixture.metadata["packages"][0]["dependencies"][0]["target"] = json!("cfg(unix)")
+                fixture.metadata["packages"][0]["dependencies"][0]["target"] = json!("cfg(unix)");
             }
             "optional" => {
-                fixture.metadata["packages"][0]["dependencies"][0]["optional"] = json!(true)
+                fixture.metadata["packages"][0]["dependencies"][0]["optional"] = json!(true);
             }
             "source" => {
-                fixture.metadata["packages"][0]["dependencies"][0]["source"] = json!("path")
+                fixture.metadata["packages"][0]["dependencies"][0]["source"] = json!("path");
             }
             "edge_alias" => {
-                fixture.metadata["resolve"]["nodes"][0]["deps"][0]["name"] = json!("different")
+                fixture.metadata["resolve"]["nodes"][0]["deps"][0]["name"] = json!("different");
             }
             "edge_version" => fixture.metadata["packages"][1]["version"] = json!("1.2.4"),
             "edge_kind" => {
                 fixture.metadata["resolve"]["nodes"][0]["deps"][0]["dep_kinds"] =
-                    json!([{"kind":null,"target":null}])
+                    json!([{"kind":null,"target":null}]);
             }
             "edge_target" => {
                 fixture.metadata["resolve"]["nodes"][0]["deps"][0]["dep_kinds"][0]["target"] =
-                    json!("cfg(unix)")
+                    json!("cfg(unix)");
             }
             "target_path" => {
-                fixture.metadata["packages"][0]["targets"][0]["src_path"] = json!("wrong.rs")
+                fixture.metadata["packages"][0]["targets"][0]["src_path"] = json!("wrong.rs");
             }
             "extra_binary" => {
                 let extra =
@@ -476,15 +478,15 @@ fn direct_metadata_declarations_edges_and_selected_targets_must_match_contract()
                     .push(target);
             }
             "target_name" => {
-                fixture.metadata["packages"][0]["targets"][1]["name"] = json!("changed")
+                fixture.metadata["packages"][0]["targets"][1]["name"] = json!("changed");
             }
             "target_edition" => {
-                fixture.metadata["packages"][0]["targets"][1]["edition"] = json!("2021")
+                fixture.metadata["packages"][0]["targets"][1]["edition"] = json!("2021");
             }
             "target_kind" => fixture.metadata["packages"][0]["targets"][1]["kind"] = json!(["lib"]),
             "root_identity" => fixture.metadata["packages"][0]["name"] = json!("changed"),
             "edge_source" => {
-                fixture.metadata["packages"][1]["source"] = json!("git+https://example.com/source")
+                fixture.metadata["packages"][1]["source"] = json!("git+https://example.com/source");
             }
             "missing_binary" => {
                 fixture.metadata["packages"][0]["targets"]

@@ -32,14 +32,14 @@ struct Target {
     crate_type: Option<Vec<String>>,
 }
 #[derive(Debug, Eq, PartialEq)]
-pub(crate) struct Requirement {
-    pub(crate) package: String,
-    pub(crate) version: Option<String>,
-    pub(crate) default_features: bool,
-    pub(crate) features: Vec<String>,
+pub struct Requirement {
+    pub package: String,
+    pub version: Option<String>,
+    pub default_features: bool,
+    pub features: Vec<String>,
 }
 
-pub(crate) fn declared_requirements(
+pub fn declared_requirements(
     dependencies: &[Dependency],
 ) -> Result<BTreeMap<(String, String), Requirement>> {
     let mut expected = BTreeMap::new();
@@ -160,7 +160,7 @@ fn truthy(value: &toml::Value) -> bool {
     }
 }
 
-pub(crate) fn compare_manifest(path: &Path, contract: &GenerationContract) -> Result<()> {
+pub fn compare_manifest(path: &Path, contract: &GenerationContract) -> Result<()> {
     let manifest: Manifest = toml::from_str(&fs::read_to_string(path)?)
         .with_context(|| format!("parse {}", path.display()))?;
     ensure!(
@@ -189,10 +189,33 @@ pub(crate) fn compare_manifest(path: &Path, contract: &GenerationContract) -> Re
         manifest
             .package
             .build
-            .is_none_or(|value| value == toml::Value::Boolean(false)),
+            .as_ref()
+            .is_none_or(|value| value == &toml::Value::Boolean(false)),
         "{}: publisher build script is unsupported",
         path.display()
     );
+    compare_targets(&manifest, contract, path)?;
+    let expected = declared_requirements(&contract.dependencies)?;
+    let mut observed = BTreeMap::new();
+    for (kind, group) in [("normal", "dependencies"), ("dev", "dev-dependencies")] {
+        if let Some(table) = manifest.other.get(group) {
+            for (alias, dependency) in table.as_table().context("dependency group must be table")? {
+                observed.insert(
+                    (alias.clone(), kind.into()),
+                    dependency_fields(dependency, alias)?,
+                );
+            }
+        }
+    }
+    ensure!(
+        observed == expected,
+        "{}: dependencies identity/version/alias/kind/defaults/features differ: expected {expected:?}; actual {observed:?}",
+        path.display()
+    );
+    Ok(())
+}
+
+fn compare_targets(manifest: &Manifest, contract: &GenerationContract, path: &Path) -> Result<()> {
     if let Some(library) = &contract.selection.library {
         let actual = manifest
             .lib
@@ -249,23 +272,6 @@ pub(crate) fn compare_manifest(path: &Path, contract: &GenerationContract) -> Re
     ensure!(
         actual_binaries.len() == manifest.bin.len() && actual_binaries == expected_binaries,
         "{}: selected binary name/path/edition differs",
-        path.display()
-    );
-    let expected = declared_requirements(&contract.dependencies)?;
-    let mut observed = BTreeMap::new();
-    for (kind, group) in [("normal", "dependencies"), ("dev", "dev-dependencies")] {
-        if let Some(table) = manifest.other.get(group) {
-            for (alias, dependency) in table.as_table().context("dependency group must be table")? {
-                observed.insert(
-                    (alias.clone(), kind.into()),
-                    dependency_fields(dependency, alias)?,
-                );
-            }
-        }
-    }
-    ensure!(
-        observed == expected,
-        "{}: dependencies identity/version/alias/kind/defaults/features differ: expected {expected:?}; actual {observed:?}",
         path.display()
     );
     Ok(())

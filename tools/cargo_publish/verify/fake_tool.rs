@@ -17,40 +17,7 @@ fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     let mode = scenario["mode"].as_str().unwrap_or("");
     if args == ["-Vv"] || args == ["-V"] {
-        fs::write(
-            root.join(format!(
-                "probe-{}.json",
-                executable.file_name().unwrap().to_string_lossy()
-            )),
-            serde_json::to_vec(&env::vars().collect::<BTreeMap<_, _>>()).unwrap(),
-        )
-        .unwrap();
-        if mode == "signal" && args == ["-Vv"] {
-            // Raise SIGTERM in the child itself so the verifier receives a signaled ExitStatus.
-            unsafe extern "C" {
-                fn raise(signal: i32) -> i32;
-            }
-            unsafe {
-                raise(15);
-            }
-        }
-        if args == ["-Vv"] {
-            println!(
-                "rustc 1.96.0 (controlled fixture)\nrelease: {}\nhost: {}",
-                if mode == "version" {
-                    "1.95.0"
-                } else {
-                    scenario["release"].as_str().unwrap()
-                },
-                if mode == "host" {
-                    "aarch64-unknown-linux-gnu"
-                } else {
-                    "x86_64-unknown-linux-gnu"
-                }
-            );
-        } else {
-            println!("cargo 1.96.0 (controlled fixture)");
-        }
+        probe_toolchain(&executable, &scenario, &args, mode);
         return;
     }
     for key in ["RUSTFLAGS", "RUSTC_WRAPPER", "CC", "CFLAGS", "LD_PRELOAD"] {
@@ -73,52 +40,7 @@ fn main() {
         std::process::exit(23);
     }
     if command == "package" {
-        assert!(
-            !args
-                .iter()
-                .any(|arg| arg == "--locked" || arg == "--no-verify")
-        );
-        assert!(args.iter().any(|arg| arg == "--allow-dirty"));
-        let package = &scenario["contract"]["package"];
-        let prefix = format!(
-            "{}-{}",
-            package["name"].as_str().unwrap(),
-            package["version"].as_str().unwrap()
-        );
-        let output = PathBuf::from(env::var_os("CARGO_TARGET_DIR").unwrap()).join("package");
-        fs::create_dir_all(&output).unwrap();
-        let encoder = GzEncoder::new(
-            fs::File::create(output.join(format!("{prefix}.crate"))).unwrap(),
-            Compression::default(),
-        );
-        let mut archive = Builder::new(encoder);
-        add_files(
-            &mut archive,
-            manifest.parent().unwrap(),
-            manifest.parent().unwrap(),
-            &prefix,
-            mode,
-            scenario.get("normalized").and_then(Value::as_str),
-        );
-        let original = if mode == "original" {
-            b"changed original".to_vec()
-        } else {
-            fs::read(&manifest).unwrap()
-        };
-        append(
-            &mut archive,
-            &format!("{prefix}/Cargo.toml.orig"),
-            &original,
-        );
-        append(
-            &mut archive,
-            &format!("{prefix}/Cargo.lock"),
-            b"version=4\n",
-        );
-        if mode == "archive" {
-            append(&mut archive, &format!("{prefix}/unexpected"), b"unexpected");
-        }
-        archive.into_inner().unwrap().finish().unwrap();
+        package_archive(&scenario, &manifest, &args, mode);
     } else if command == "metadata" {
         assert!(args.iter().any(|arg| arg == "--locked"));
         if mode == "malformed_metadata" {
@@ -174,16 +96,104 @@ fn add_files<W: io::Write>(
             add_files(archive, &path, root, prefix, mode, normalized);
         } else {
             let relative = path.strip_prefix(root).unwrap();
-            let mut bytes = fs::read(&path).unwrap();
-            if relative == Path::new("Cargo.toml")
+            let mut bytes = if relative == Path::new("Cargo.toml")
                 && let Some(manifest) = normalized
             {
-                bytes = manifest.as_bytes().to_vec();
-            }
+                manifest.as_bytes().to_vec()
+            } else {
+                fs::read(&path).unwrap()
+            };
             if relative == Path::new("Cargo.toml") && mode == "normalized" {
                 bytes.extend_from_slice(b"\n[features]\nforbidden=[]\n");
             }
             append(archive, &format!("{prefix}/{}", relative.display()), &bytes);
         }
     }
+}
+
+fn probe_toolchain(executable: &Path, scenario: &Value, args: &[String], mode: &str) {
+    let root = executable.parent().unwrap();
+    fs::write(
+        root.join(format!(
+            "probe-{}.json",
+            executable.file_name().unwrap().to_string_lossy()
+        )),
+        serde_json::to_vec(&env::vars().collect::<BTreeMap<_, _>>()).unwrap(),
+    )
+    .unwrap();
+    if mode == "signal" && args == ["-Vv"] {
+        // Raise SIGTERM in the child itself so the verifier receives a signaled ExitStatus.
+        unsafe extern "C" {
+            fn raise(signal: i32) -> i32;
+        }
+        unsafe {
+            raise(15);
+        }
+    }
+    if args == ["-Vv"] {
+        println!(
+            "rustc 1.96.0 (controlled fixture)\nrelease: {}\nhost: {}",
+            if mode == "version" {
+                "1.95.0"
+            } else {
+                scenario["release"].as_str().unwrap()
+            },
+            if mode == "host" {
+                "aarch64-unknown-linux-gnu"
+            } else {
+                "x86_64-unknown-linux-gnu"
+            }
+        );
+    } else {
+        println!("cargo 1.96.0 (controlled fixture)");
+    }
+}
+
+fn package_archive(scenario: &Value, manifest: &Path, args: &[String], mode: &str) {
+    assert!(
+        !args
+            .iter()
+            .any(|arg| arg == "--locked" || arg == "--no-verify")
+    );
+    assert!(args.iter().any(|arg| arg == "--allow-dirty"));
+    let package = &scenario["contract"]["package"];
+    let prefix = format!(
+        "{}-{}",
+        package["name"].as_str().unwrap(),
+        package["version"].as_str().unwrap()
+    );
+    let output = PathBuf::from(env::var_os("CARGO_TARGET_DIR").unwrap()).join("package");
+    fs::create_dir_all(&output).unwrap();
+    let encoder = GzEncoder::new(
+        fs::File::create(output.join(format!("{prefix}.crate"))).unwrap(),
+        Compression::default(),
+    );
+    let mut archive = Builder::new(encoder);
+    add_files(
+        &mut archive,
+        manifest.parent().unwrap(),
+        manifest.parent().unwrap(),
+        &prefix,
+        mode,
+        scenario.get("normalized").and_then(Value::as_str),
+    );
+    let original = if mode == "original" {
+        b"changed original".to_vec()
+    } else {
+        fs::read(manifest).unwrap()
+    };
+    append(
+        &mut archive,
+        &format!("{prefix}/Cargo.toml.orig"),
+        &original,
+    );
+    append(
+        &mut archive,
+        &format!("{prefix}/Cargo.lock"),
+        b"version=4\n",
+    );
+    if mode == "archive" {
+        append(&mut archive, &format!("{prefix}/unexpected"), b"unexpected");
+    }
+    archive.into_inner().unwrap().finish().unwrap();
 }

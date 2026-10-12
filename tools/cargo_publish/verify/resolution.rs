@@ -12,7 +12,7 @@ use crate::manifest::{Requirement, declared_requirements};
 const REGISTRY: &str = "registry+https://github.com/rust-lang/crates.io-index";
 
 #[derive(Deserialize)]
-pub(crate) struct Metadata {
+pub struct Metadata {
     packages: Vec<Package>,
     resolve: Resolve,
 }
@@ -56,7 +56,7 @@ struct Node {
     deps: Vec<ResolvedDependency>,
 }
 
-pub(crate) fn compare_resolution(
+pub fn compare_resolution(
     metadata: Metadata,
     contract: &GenerationContract,
     extracted: &Path,
@@ -77,6 +77,38 @@ pub(crate) fn compare_resolution(
         root.name == contract.package.name && root.version == contract.package.version,
         "Cargo metadata root package identity/version differs"
     );
+    compare_declarations(root, contract)?;
+    compare_targets(root, contract, extracted)?;
+    let root_node = metadata
+        .resolve
+        .nodes
+        .iter()
+        .find(|node| node.id == metadata.resolve.root)
+        .context("missing Cargo metadata root node")?;
+    compare_direct_edges(root_node, &packages, contract)?;
+    metadata
+        .resolve
+        .nodes
+        .into_iter()
+        .map(|node| {
+            let package = packages
+                .get(node.id.as_str())
+                .context("resolved graph node has no package")?;
+            let mut features = node.features;
+            features.sort();
+            Ok(ResolvedPackage {
+                id: node.id,
+                name: package.name.clone(),
+                version: package.version.clone(),
+                source: package.source.clone(),
+                features,
+                deps: node.deps,
+            })
+        })
+        .collect()
+}
+
+fn compare_declarations(root: &Package, contract: &GenerationContract) -> Result<()> {
     let expected_declarations = declared_requirements(&contract.dependencies)?;
     let mut actual_declarations = BTreeMap::new();
     for declaration in root
@@ -113,6 +145,10 @@ pub(crate) fn compare_resolution(
         actual_declarations == expected_declarations,
         "Cargo metadata direct identity/alias/kind/requirement/defaults/features differ: expected {expected_declarations:?}; actual {actual_declarations:?}"
     );
+    Ok(())
+}
+
+fn compare_targets(root: &Package, contract: &GenerationContract, extracted: &Path) -> Result<()> {
     let mut expected_targets = BTreeSet::new();
     if let Some(library) = &contract.selection.library {
         expected_targets.insert((
@@ -159,12 +195,14 @@ pub(crate) fn compare_resolution(
         actual_targets.len() == root_targets.len() && actual_targets == expected_targets,
         "Cargo metadata selected targets differ: {actual_targets:?}"
     );
-    let root_node = metadata
-        .resolve
-        .nodes
-        .iter()
-        .find(|node| node.id == metadata.resolve.root)
-        .context("missing Cargo metadata root node")?;
+    Ok(())
+}
+
+fn compare_direct_edges(
+    root_node: &Node,
+    packages: &BTreeMap<&str, &Package>,
+    contract: &GenerationContract,
+) -> Result<()> {
     let expected: BTreeSet<_> = contract
         .dependencies
         .iter()
@@ -208,24 +246,5 @@ pub(crate) fn compare_resolution(
         actual == expected,
         "resolved direct identity/version/alias/kind mismatch: expected {expected:?}; actual {actual:?}"
     );
-    metadata
-        .resolve
-        .nodes
-        .into_iter()
-        .map(|node| {
-            let package = packages
-                .get(node.id.as_str())
-                .context("resolved graph node has no package")?;
-            let mut features = node.features;
-            features.sort();
-            Ok(ResolvedPackage {
-                id: node.id,
-                name: package.name.clone(),
-                version: package.version.clone(),
-                source: package.source.clone(),
-                features,
-                deps: node.deps,
-            })
-        })
-        .collect()
+    Ok(())
 }

@@ -28,7 +28,7 @@ fn timestamp() -> String {
     Utc::now().to_rfc3339()
 }
 
-pub(crate) fn private_directory(path: &Path) -> Result<()> {
+pub fn private_directory(path: &Path) -> Result<()> {
     DirBuilder::new()
         .recursive(true)
         .mode(0o700)
@@ -56,17 +56,17 @@ fn file_evidence(path: &Path) -> Result<FileEvidence> {
     })
 }
 
-pub(crate) struct ValidationRun {
+pub struct ValidationRun {
     args: Args,
     output: PathBuf,
-    pub(crate) path: PathBuf,
+    pub path: PathBuf,
     phase: Check,
     env: BTreeMap<String, String>,
     report: ValidationReport,
 }
 
 impl ValidationRun {
-    pub(crate) fn new(args: Args) -> Result<Self> {
+    pub fn new(args: Args) -> Result<Self> {
         let run_id = Uuid::new_v4().to_string();
         private_directory(&args.output_root)?;
         let output = args.output_root.canonicalize()?.join(&run_id);
@@ -118,7 +118,7 @@ impl ValidationRun {
         Ok(run)
     }
 
-    pub(crate) fn phase_name(&self) -> String {
+    pub fn phase_name(&self) -> String {
         serde_json::to_value(self.phase)
             .expect("check serialization")
             .as_str()
@@ -135,7 +135,7 @@ impl ValidationRun {
         Ok(())
     }
 
-    pub(crate) fn fail(&mut self, message: &str) -> Result<()> {
+    pub fn fail(&mut self, message: &str) -> Result<()> {
         self.report.status = ReportStatus::Failure;
         self.report.completed = false;
         self.report.completed_at = Some(timestamp());
@@ -168,13 +168,13 @@ impl ValidationRun {
         self.save()
     }
 
-    fn command(&mut self, argv: Vec<String>) -> Result<(Vec<u8>, String)> {
+    fn command(&mut self, argv: &[String]) -> Result<(Vec<u8>, String)> {
         let id = (self.report.commands.len() + 1).to_string();
         let log = self.output.join(format!("{id}-{}.log", self.phase_name()));
         self.report.commands.push(CommandRecord {
             id: id.clone(),
             phase: self.phase,
-            argv: argv.clone(),
+            argv: argv.to_vec(),
             cwd: self.output.clone(),
             log: log.clone(),
             started_at: timestamp(),
@@ -252,7 +252,7 @@ impl ValidationRun {
         if self.args.offline {
             argv.push("--offline".into());
         }
-        self.command(argv)
+        self.command(&argv)
     }
 
     fn configure(&mut self) -> Result<()> {
@@ -323,12 +323,11 @@ impl ValidationRun {
         Ok(())
     }
 
-    pub(crate) fn execute(&mut self) -> Result<()> {
-        let contract: GenerationContract = read_json(&self.args.contract)?;
+    fn stage_declared_inputs(&mut self, contract: &GenerationContract) -> Result<PathBuf> {
         self.report.package = Some(contract.package.clone());
         self.report.selection = Some(contract.selection.clone());
         self.report.inputs = Some(contract.inputs.clone());
-        self.report.provenance = contract.provenance.clone();
+        self.report.provenance.clone_from(&contract.provenance);
         self.report.generation_contract = Some(file_evidence(&self.args.contract)?);
         let staged = self.output.join("staged");
         private_directory(&staged)?;
@@ -366,16 +365,16 @@ impl ValidationRun {
         self.check(
             json!({"inputs": contract.inputs, "manifest_sha256": contract.manifest_sha256}),
         )?;
+        Ok(staged)
+    }
+
+    fn validate_toolchain(&mut self) -> Result<()> {
         self.phase = Check::Toolchain;
         self.env = allowed_environment(&["PATH", "NIX_LD", "NIX_LD_LIBRARY_PATH"]);
-        let (rust_bytes, rust_id) = self.command(vec![
-            self.args.rustc.to_string_lossy().into_owned(),
-            "-Vv".into(),
-        ])?;
-        let (cargo_bytes, cargo_id) = self.command(vec![
-            self.args.cargo.to_string_lossy().into_owned(),
-            "-V".into(),
-        ])?;
+        let (rust_bytes, rust_id) =
+            self.command(&[self.args.rustc.to_string_lossy().into_owned(), "-Vv".into()])?;
+        let (cargo_bytes, cargo_id) =
+            self.command(&[self.args.cargo.to_string_lossy().into_owned(), "-V".into()])?;
         let rust = String::from_utf8(rust_bytes)?;
         let cargo = String::from_utf8(cargo_bytes)?;
         ensure!(
@@ -400,9 +399,14 @@ impl ValidationRun {
             sysroot: self.args.sysroot.clone(),
         });
         self.check(json!({"command_ids": [rust_id, cargo_id], "versions": self.report.toolchain}))?;
-        self.phase = Check::Configuration;
-        self.configure()?;
-        self.check(json!(self.report.configuration))?;
+        Ok(())
+    }
+
+    fn validate_generated_manifest(
+        &mut self,
+        contract: &GenerationContract,
+        staged: &Path,
+    ) -> Result<Vec<String>> {
         self.phase = Check::GeneratedManifest;
         contract.validate()?;
         let targets: Vec<String> = contract
@@ -411,13 +415,17 @@ impl ValidationRun {
             .iter()
             .map(ToString::to_string)
             .collect();
-        compare_manifest(&staged.join("Cargo.toml"), &contract)?;
+        compare_manifest(&staged.join("Cargo.toml"), contract)?;
         self.report.manifests = Some(ManifestEvidence {
             generated: file_evidence(&staged.join("Cargo.toml"))?,
             original: None,
             normalized: None,
         });
         self.check(json!({"package": contract.package, "targets": targets, "dependencies": contract.dependencies}))?;
+        Ok(targets)
+    }
+
+    fn package_archive(&mut self, contract: &GenerationContract, staged: &Path) -> Result<PathBuf> {
         self.phase = Check::CargoPackage;
         let (_, package_id) = self.cargo(
             "package",
@@ -445,18 +453,26 @@ impl ValidationRun {
         self.check(
             json!({"command_ids": [package_id], "archive": archive, "verification_enabled": true}),
         )?;
+        Ok(archive)
+    }
+
+    fn inspect_packaged_archive(
+        &mut self,
+        contract: &GenerationContract,
+        archive: &Path,
+    ) -> Result<PathBuf> {
         self.phase = Check::ArchivePolicy;
         let inspected = inspect_archive(
-            &archive,
+            archive,
             &contract.package,
             &contract.inputs,
             self.output.join("extracted"),
         )?;
         let extracted = inspected.extracted_root;
         self.report.archive = Some(ArchiveEvidence {
-            path: archive.clone(),
-            sha256: digest_file(&archive)?,
-            size: fs::metadata(&archive)?.len(),
+            path: archive.to_path_buf(),
+            sha256: digest_file(archive)?,
+            size: fs::metadata(archive)?.len(),
             inventory: inspected.inventory.clone(),
             extracted_root: extracted.clone(),
             fidelity: CheckStatus::Passed,
@@ -464,6 +480,14 @@ impl ValidationRun {
         self.check(json!({"inventory": inspected.inventory, "root": extracted.file_name().context("archive root name")?.to_string_lossy()}))?;
         self.phase = Check::ArchiveFidelity;
         self.check(json!({"inputs": contract.inputs, "verified": true}))?;
+        Ok(extracted)
+    }
+
+    fn validate_archive_manifests(
+        &mut self,
+        contract: &GenerationContract,
+        extracted: &Path,
+    ) -> Result<FileEvidence> {
         self.phase = Check::OriginalManifest;
         let original = file_evidence(&extracted.join("Cargo.toml.orig"))?;
         ensure!(
@@ -477,7 +501,7 @@ impl ValidationRun {
             .original = Some(original.clone());
         self.check(json!(original))?;
         self.phase = Check::NormalizedManifest;
-        compare_manifest(&extracted.join("Cargo.toml"), &contract)?;
+        compare_manifest(&extracted.join("Cargo.toml"), contract)?;
         let normalized = file_evidence(&extracted.join("Cargo.toml"))?;
         self.report
             .manifests
@@ -487,6 +511,15 @@ impl ValidationRun {
         let lockfile = file_evidence(&extracted.join("Cargo.lock"))?;
         self.report.lockfile = Some(lockfile.clone());
         self.check(json!({"manifest": normalized, "package": contract.package, "dependencies": contract.dependencies}))?;
+        Ok(lockfile)
+    }
+
+    fn validate_locked_resolution(
+        &mut self,
+        contract: &GenerationContract,
+        extracted: &Path,
+        lockfile: &FileEvidence,
+    ) -> Result<()> {
         self.phase = Check::LockedMetadata;
         let (metadata_bytes, metadata_id) = self.cargo(
             "metadata",
@@ -508,8 +541,8 @@ impl ValidationRun {
         self.phase = Check::DirectDependencies;
         let resolved = compare_resolution(
             serde_json::from_value(metadata).context("read Cargo metadata shape")?,
-            &contract,
-            &extracted,
+            contract,
+            extracted,
         )?;
         self.report.dependencies = Some(DependencyEvidence {
             requested: contract.dependencies.clone(),
@@ -518,6 +551,16 @@ impl ValidationRun {
             metadata_sha256,
         });
         self.check(json!({"requested": contract.dependencies, "resolved_graph": resolved, "compared": true}))?;
+        Ok(())
+    }
+
+    fn validate_locked_builds(
+        &mut self,
+        contract: &GenerationContract,
+        extracted: &Path,
+        targets: &[String],
+        lockfile: &FileEvidence,
+    ) -> Result<()> {
         self.phase = Check::LockedBuilds;
         let mut build_ids = vec![];
         for target in contract.selection.selected_targets()? {
@@ -535,6 +578,22 @@ impl ValidationRun {
             "packaged Cargo.lock changed during locked validation"
         );
         self.check(json!({"command_ids": build_ids, "targets": targets}))?;
+        Ok(())
+    }
+
+    pub fn execute(&mut self) -> Result<()> {
+        let contract: GenerationContract = read_json(&self.args.contract)?;
+        let staged = self.stage_declared_inputs(&contract)?;
+        self.validate_toolchain()?;
+        self.phase = Check::Configuration;
+        self.configure()?;
+        self.check(json!(self.report.configuration))?;
+        let targets = self.validate_generated_manifest(&contract, &staged)?;
+        let archive = self.package_archive(&contract, &staged)?;
+        let extracted = self.inspect_packaged_archive(&contract, &archive)?;
+        let lockfile = self.validate_archive_manifests(&contract, &extracted)?;
+        self.validate_locked_resolution(&contract, &extracted, &lockfile)?;
+        self.validate_locked_builds(&contract, &extracted, &targets, &lockfile)?;
         self.report.status = ReportStatus::Success;
         self.report.completed = true;
         self.report.completed_at = Some(timestamp());

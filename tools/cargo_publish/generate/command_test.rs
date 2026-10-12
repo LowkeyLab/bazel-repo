@@ -1,7 +1,9 @@
 //! Exercise the public offline generation executable with explicit real inputs.
 
 use std::{
-    env, fs,
+    env,
+    fmt::Write,
+    fs,
     path::PathBuf,
     process::{Command, Output},
 };
@@ -335,8 +337,10 @@ fn contract_fingerprints_declared_catalog_inputs() {
     ] {
         let digest = Sha256::digest(fs::read(f.root.path().join(path)).unwrap())
             .iter()
-            .map(|byte| format!("{byte:02x}"))
-            .collect::<String>();
+            .fold(String::new(), |mut hex, byte| {
+                write!(hex, "{byte:02x}").unwrap();
+                hex
+            });
         assert_that!(&contract["provenance"][key], eq(&json!(digest)));
     }
     assert_that!(

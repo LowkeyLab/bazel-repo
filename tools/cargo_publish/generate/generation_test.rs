@@ -1,7 +1,9 @@
 //! Public macro output contracts, independent of the generator implementation.
 
 use std::{
-    env, fs,
+    env,
+    fmt::Write,
+    fs,
     path::{Path, PathBuf},
 };
 
@@ -266,12 +268,13 @@ fn declared_nested_sources_and_mapped_assets_are_staged_and_fingerprinted() {
         let bytes = fs::read(tree.join(item["path"].as_str().unwrap())).unwrap();
         assert_that!(
             &item["sha256"],
-            eq(&json!(
-                Sha256::digest(&bytes)
-                    .iter()
-                    .map(|byte| format!("{byte:02x}"))
-                    .collect::<String>()
-            ))
+            eq(&json!(Sha256::digest(&bytes).iter().fold(
+                String::new(),
+                |mut hex, byte| {
+                    write!(hex, "{byte:02x}").unwrap();
+                    hex
+                }
+            )))
         );
         assert_that!(&item["size"], eq(&json!(bytes.len())));
     }
