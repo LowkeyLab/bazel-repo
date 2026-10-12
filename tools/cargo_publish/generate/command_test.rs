@@ -709,6 +709,11 @@ fn unresolved_extension_identities_and_proxy_aliases_cannot_hide_mutations() {
             "ambiguous crate extension binding",
         ),
         (
+            5,
+            "crate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nforwarded = \"irrelevant\" if False else crate\nforwarded.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
+            "ambiguous crate extension binding",
+        ),
+        (
             4,
             "crate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nforwarded = use_extension(\"@other//:extensions.bzl\", \"tools\") if False else crate\nforwarded.annotation(crate=\"anyhow\",patches=[\"unsupported\"])",
             "ambiguous crate extension binding",

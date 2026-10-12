@@ -603,7 +603,11 @@ fn extension_proxies(tokens: &[Token]) -> BTreeMap<&str, ExtensionProxy> {
                     .get(alias.as_str())
                     .copied()
                     .unwrap_or(ExtensionProxy::Ambiguous),
-                _ if matches!(value, Token::String(_)) => ExtensionProxy::Other,
+                _ if matches!(value, Token::String(_))
+                    && !expression_continues(tokens.get(index + 3)) =>
+                {
+                    ExtensionProxy::Other
+                }
                 _ => ExtensionProxy::Ambiguous,
             };
             proxies.insert(name.as_str(), binding);
