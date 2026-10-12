@@ -1,15 +1,16 @@
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::{self, File, OpenOptions},
-    io::{self, Read, Write},
+    io::{self, Read, Seek},
     path::{Path, PathBuf},
 };
 
 use flate2::read::MultiGzDecoder;
+use tempfile::TempDir;
 
 use crate::{
     ArchiveEntry, ContractError, ExpectedPackage, InputFile, PackageMetadata, PackagePath,
-    ValidationReport, digest_bytes, digest_file, read_json, validate_report,
+    ValidationReport, digest_file, read_json, validate_report,
 };
 
 use crate::report::required;
@@ -109,8 +110,86 @@ fn declared_inputs(inputs: &[InputFile]) -> Result<BTreeMap<&str, &InputFile>, C
 }
 
 struct ArchiveContents {
-    files: BTreeMap<PackagePath, Vec<u8>>,
+    files: BTreeMap<PackagePath, usize>,
+    storage: TempDir,
     inventory: Vec<ArchiveEntry>,
+}
+
+const METADATA_LIMIT: u64 = 16 * 1024 * 1024;
+
+// Keep the complete gzip stream in a private, bounded backing file. This
+// validates trailers before extraction without retaining package bytes in RAM.
+fn decoded_archive(
+    archive: &Path,
+    root: &PackagePath,
+    declared: &BTreeMap<&str, &InputFile>,
+    allowed: &BTreeSet<&str>,
+    directories: &BTreeSet<&str>,
+) -> Result<File, ContractError> {
+    let overflow = || policy("archive size budget overflow");
+    let inputs = declared.values().try_fold(0u64, |sum, input| {
+        sum.checked_add(input.size).ok_or_else(overflow)
+    })?;
+    // Per-path framing covers tar headers, padding, and long-name records.
+    let framing = allowed
+        .iter()
+        .chain(directories)
+        .copied()
+        .chain([root.as_str()])
+        .try_fold(1024u64, |sum, name| {
+            sum.checked_add(4096 + name.len() as u64)
+                .ok_or_else(overflow)
+        })?;
+    // Four generated files plus a separate allowance for extension metadata.
+    let limit = inputs
+        .checked_add(framing)
+        .and_then(|sum| sum.checked_add(5 * METADATA_LIMIT))
+        .ok_or_else(overflow)?;
+    let source = File::open(archive).map_err(|source| io_error(archive, source))?;
+    let mut decoded = tempfile::tempfile().map_err(|source| io_error(archive, source))?;
+    let copied = io::copy(
+        &mut MultiGzDecoder::new(source).take(limit.checked_add(1).ok_or_else(overflow)?),
+        &mut decoded,
+    )
+    .map_err(|source| io_error(archive, source))?;
+    if copied > limit {
+        return Err(policy("archive decompressed size exceeds declared budget"));
+    }
+    decoded
+        .rewind()
+        .map_err(|source| io_error(archive, source))?;
+    // Check extension sizes without allowing tar to preprocess their contents.
+    // Regular file contents are streamed later, after path and size validation.
+    let mut extension_bytes = 0u64;
+    {
+        let mut tar = tar::Archive::new(&mut decoded);
+        for entry in tar
+            .entries()
+            .map_err(|source| io_error(archive, source))?
+            .raw(true)
+        {
+            let entry = entry.map_err(|source| io_error(archive, source))?;
+            let kind = entry.header().entry_type();
+            if kind.is_gnu_longname()
+                || kind.is_gnu_longlink()
+                || kind.is_pax_local_extensions()
+                || kind.is_pax_global_extensions()
+            {
+                extension_bytes = extension_bytes
+                    .checked_add(entry.size())
+                    .ok_or_else(overflow)?;
+                if extension_bytes > METADATA_LIMIT {
+                    return Err(policy("archive metadata exceeds allowed size"));
+                }
+            } else if !kind.is_file() && !kind.is_dir() {
+                return Err(policy("archive link or special entry"));
+            }
+        }
+    }
+    decoded
+        .rewind()
+        .map_err(|source| io_error(archive, source))?;
+    Ok(decoded)
 }
 
 fn inspect_members(
@@ -125,14 +204,9 @@ fn inspect_members(
         .chain([OPTIONAL])
         .collect();
     let directories: BTreeSet<&str> = allowed.iter().flat_map(|name| parents(name)).collect();
-    // Read through the gzip trailer as well as the tar entries, so checksum or
-    // truncation errors are detected before any extraction writes.
-    let source = File::open(archive).map_err(|source| io_error(archive, source))?;
-    let mut decoded = Vec::new();
-    MultiGzDecoder::new(source)
-        .read_to_end(&mut decoded)
-        .map_err(|source| io_error(archive, source))?;
-    let mut tar = tar::Archive::new(decoded.as_slice());
+    let decoded = decoded_archive(archive, root, declared, &allowed, &directories)?;
+    let mut tar = tar::Archive::new(decoded);
+    let storage = tempfile::tempdir().map_err(|source| io_error(archive, source))?;
     let mut seen = BTreeSet::new();
     let mut data = BTreeMap::new();
     let mut inventory = Vec::new();
@@ -175,12 +249,33 @@ fn inspect_members(
         if !allowed.contains(relative) {
             return Err(policy(format!("unexpected archive file: {name}")));
         }
-        let mut contents = Vec::new();
-        entry
-            .read_to_end(&mut contents)
-            .map_err(|source| io_error(archive, source))?;
-        let sha256 = digest_bytes(&contents);
-        let size = contents.len() as u64;
+        let size = entry.size();
+        let limit = declared
+            .get(relative)
+            .map_or(METADATA_LIMIT, |input| input.size);
+        if size > limit {
+            return Err(policy(format!(
+                "archive file exceeds allowed size: {relative}"
+            )));
+        }
+        if declared
+            .get(relative)
+            .is_some_and(|input| input.size != size)
+        {
+            return Err(policy(format!(
+                "archive input fidelity mismatch: {relative}"
+            )));
+        }
+        let index = data.len();
+        let path = storage.path().join(index.to_string());
+        let mut contents = new_file(&path)?;
+        let copied =
+            io::copy(&mut entry, &mut contents).map_err(|source| io_error(archive, source))?;
+        if copied != size {
+            return Err(policy(format!("archive input size mismatch: {relative}")));
+        }
+        drop(contents);
+        let sha256 = digest_file(&path)?;
         if let Some(expected) = declared.get(relative)
             && (expected.size != size || expected.sha256 != sha256)
         {
@@ -194,16 +289,17 @@ fn inspect_members(
             sha256,
             size,
         });
-        data.insert(path, contents);
+        data.insert(path, index);
     }
     Ok(ArchiveContents {
         files: data,
+        storage,
         inventory,
     })
 }
 
 fn validate_contents(
-    files: &BTreeMap<PackagePath, Vec<u8>>,
+    files: &BTreeMap<PackagePath, usize>,
     declared: &BTreeMap<&str, &InputFile>,
 ) -> Result<(), ContractError> {
     let missing: Vec<&str> = declared
@@ -235,7 +331,7 @@ fn extract_contents(
     private_directory(destination)?;
     let extracted_root = destination.join(root.as_str());
     private_directory(&extracted_root)?;
-    for (name, contents) in contents.files {
+    for (name, index) in contents.files {
         let path = extracted_root.join(name.as_str());
         for parent in parents(name.as_str()) {
             let parent = extracted_root.join(parent);
@@ -243,9 +339,9 @@ fn extract_contents(
                 private_directory(&parent)?;
             }
         }
-        new_file(&path)?
-            .write_all(&contents)
-            .map_err(|source| io_error(&path, source))?;
+        let stored = contents.storage.path().join(index.to_string());
+        let mut source = File::open(&stored).map_err(|error| io_error(&stored, error))?;
+        io::copy(&mut source, &mut new_file(&path)?).map_err(|source| io_error(&path, source))?;
     }
     contents
         .inventory

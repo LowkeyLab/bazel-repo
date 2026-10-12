@@ -51,8 +51,12 @@ impl std::fmt::Display for Sha256 {
 
 #[must_use]
 pub fn digest_bytes(bytes: &[u8]) -> Sha256 {
+    fingerprint(&sha2::Sha256::digest(bytes))
+}
+
+fn fingerprint(bytes: &[u8]) -> Sha256 {
     let mut hexadecimal = String::with_capacity(64);
-    for byte in sha2::Sha256::digest(bytes) {
+    for byte in bytes {
         for nibble in [byte >> 4, byte & 0x0f] {
             hexadecimal.push(char::from(b"0123456789abcdef"[usize::from(nibble)]));
         }
@@ -65,10 +69,21 @@ pub fn digest_bytes(bytes: &[u8]) -> Sha256 {
 /// # Errors
 /// Returns an I/O error when the file cannot be read.
 pub fn digest_file(path: impl AsRef<std::path::Path>) -> Result<Sha256, ContractError> {
+    use std::io::Read;
     let path = path.as_ref();
-    let bytes = std::fs::read(path).map_err(|source| ContractError::Io {
+    let error = |source| ContractError::Io {
         path: path.to_owned(),
         source,
-    })?;
-    Ok(digest_bytes(&bytes))
+    };
+    let mut file = std::fs::File::open(path).map_err(error)?;
+    let mut digest = sha2::Sha256::new();
+    let mut buffer = [0; 8 * 1024];
+    loop {
+        let count = file.read(&mut buffer).map_err(error)?;
+        if count == 0 {
+            break;
+        }
+        digest.update(&buffer[..count]);
+    }
+    Ok(fingerprint(&digest.finalize()))
 }

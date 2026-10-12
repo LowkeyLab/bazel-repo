@@ -91,6 +91,8 @@ struct CargoDependencyDetails {
 struct CargoTarget {
     #[serde(default)]
     dependencies: BTreeMap<String, CargoDependency>,
+    #[serde(default, rename = "dev-dependencies")]
+    dev_dependencies: BTreeMap<String, CargoDependency>,
     #[serde(default, rename = "build-dependencies")]
     build_dependencies: BTreeMap<String, CargoDependency>,
 }
@@ -132,11 +134,21 @@ fn toml_file<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T> {
 
 fn validate_root_declaration(root: &CargoManifest, name: &str, label: &str) -> Result<()> {
     let mut declared = false;
-    for table in [
+    // Configured Bazel edges decide which dependencies are selected. Root target
+    // tables provide provenance for those identities, without adding inactive edges.
+    let mut tables = vec![
         &root.dependencies,
         &root.dev_dependencies,
         &root.build_dependencies,
-    ] {
+    ];
+    for target in root.target.values() {
+        tables.extend([
+            &target.dependencies,
+            &target.dev_dependencies,
+            &target.build_dependencies,
+        ]);
+    }
+    for table in tables {
         for (key, item) in table {
             let package = match item {
                 CargoDependency::Version(_) => key.as_str(),
@@ -508,8 +520,74 @@ struct Annotation {
     selected: BTreeSet<String>,
 }
 type Annotations = BTreeMap<String, BTreeMap<String, Annotation>>;
+
+fn extension_identity(tokens: &[Token]) -> Option<(&str, &str)> {
+    let mut arguments = Vec::new();
+    let mut depth = 0usize;
+    let mut start = 0;
+    for (index, token) in tokens.iter().enumerate() {
+        match token {
+            Token::Punct(')') if depth == 0 => {
+                arguments.push(&tokens[start..index]);
+                break;
+            }
+            Token::Punct(',') if depth == 0 => {
+                arguments.push(&tokens[start..index]);
+                start = index + 1;
+            }
+            Token::Punct('(' | '[' | '{') => depth += 1,
+            Token::Punct(')' | ']' | '}') => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    let mut module = None;
+    let mut extension = None;
+    for (index, argument) in arguments.into_iter().enumerate() {
+        match argument {
+            [Token::String(value)] if index == 0 => module = Some(value.as_str()),
+            [Token::String(value)] if index == 1 => extension = Some(value.as_str()),
+            [Token::Word(key), Token::Punct('='), Token::String(value)]
+                if key == "extension_bzl_file" =>
+            {
+                module = Some(value.as_str());
+            }
+            [Token::Word(key), Token::Punct('='), Token::String(value)]
+                if key == "extension_name" =>
+            {
+                extension = Some(value.as_str());
+            }
+            _ => {}
+        }
+    }
+    Some((module?, extension?))
+}
+
+// Bind tag calls to the literal use_extension receiver; method names alone
+// do not identify a rules_rs mutation.
+fn crate_extension_proxies(tokens: &[Token]) -> BTreeSet<&str> {
+    tokens
+        .windows(4)
+        .enumerate()
+        .filter_map(|(index, binding)| match binding {
+            [
+                Token::Word(proxy),
+                Token::Punct('='),
+                Token::Word(function),
+                Token::Punct('('),
+            ] if function == "use_extension"
+                && extension_identity(&tokens[index + 4..])
+                    == Some(("@rules_rs//rs:extensions.bzl", "crate")) =>
+            {
+                Some(proxy.as_str())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 fn annotations(path: &Path) -> Result<Annotations> {
     let tokens = tokens(&read(path)?)?;
+    let proxies = crate_extension_proxies(&tokens);
     let mut output: Annotations = BTreeMap::new();
     let harmless = [
         "crate",
@@ -523,7 +601,7 @@ fn annotations(path: &Path) -> Result<Annotations> {
         "build_script_tags",
     ];
     for i in 0..tokens.len().saturating_sub(3) {
-        if !matches!(&tokens[i], Token::Word(_))
+        if !matches!(&tokens[i], Token::Word(receiver) if proxies.contains(receiver.as_str()))
             || tokens[i + 1] != Token::Punct('.')
             || tokens[i + 3] != Token::Punct('(')
         {

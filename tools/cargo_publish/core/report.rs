@@ -283,12 +283,7 @@ pub fn validate_report(
         return Err(reject("archive fidelity is not passed"));
     }
     let targets = complete.validate(report)?;
-    validate_commands(
-        report,
-        complete.selection,
-        &targets,
-        &complete.config.network_mode,
-    )?;
+    validate_commands(report, &complete, &targets)?;
     if complete.archive.inventory.is_empty() {
         return Err(reject(
             "missing archive inventory or packaged lockfile evidence",
@@ -312,6 +307,72 @@ struct CompleteEvidence<'a> {
 }
 
 impl<'a> CompleteEvidence<'a> {
+    fn validate_cargo_command(&self, command: &Command) -> Result<Option<String>, ContractError> {
+        if command.cwd != self.config.cwd {
+            return Err(reject(
+                "Cargo command working directory differs from configuration",
+            ));
+        }
+        let (subcommand, manifest, flags) = match command.phase {
+            Check::CargoPackage => (
+                "package",
+                self.manifests.generated.path.clone(),
+                vec!["--target", TARGET, "--allow-dirty"],
+            ),
+            Check::LockedMetadata => (
+                "metadata",
+                self.archive.extracted_root.join("Cargo.toml"),
+                vec![
+                    "--locked",
+                    "--filter-platform",
+                    TARGET,
+                    "--format-version",
+                    "1",
+                ],
+            ),
+            Check::LockedBuilds => (
+                "build",
+                self.archive.extracted_root.join("Cargo.toml"),
+                vec!["--locked", "--target", TARGET],
+            ),
+            _ => return Err(reject("unexpected certified Cargo phase")),
+        };
+        let mut expected = vec![
+            self.toolchain.cargo_path.to_string_lossy().into_owned(),
+            subcommand.into(),
+            "--manifest-path".into(),
+            manifest.to_string_lossy().into_owned(),
+        ];
+        expected.extend(flags.into_iter().map(str::to_owned));
+        if command.phase == Check::LockedBuilds {
+            for target in self.selection.selected_targets()? {
+                let mut candidate = expected.clone();
+                match &target {
+                    crate::SelectedTarget::Library(_) => candidate.push("--lib".into()),
+                    crate::SelectedTarget::Binary(name) => {
+                        candidate.extend(["--bin".into(), name.clone()]);
+                    }
+                }
+                if self.config.network_mode == NetworkMode::Offline {
+                    candidate.push("--offline".into());
+                }
+                if command.argv == candidate {
+                    return Ok(Some(target.to_string()));
+                }
+            }
+        } else {
+            if self.config.network_mode == NetworkMode::Offline {
+                expected.push("--offline".into());
+            }
+            if command.argv == expected {
+                return Ok(None);
+            }
+        }
+        Err(reject(format!(
+            "Cargo command does not match validated package, toolchain, or target: {:?}",
+            command.phase
+        )))
+    }
     fn new(
         report: &'a ValidationReport,
         package: &'a PackageMetadata,
@@ -438,9 +499,8 @@ fn validate_check_completion(report: &ValidationReport) -> Result<(), ContractEr
 
 fn validate_commands(
     report: &ValidationReport,
-    selection: &Selection,
+    complete: &CompleteEvidence<'_>,
     targets: &[String],
-    network_mode: &NetworkMode,
 ) -> Result<(), ContractError> {
     let mut commands = BTreeMap::new();
     for command in &report.commands {
@@ -478,43 +538,10 @@ fn validate_commands(
                     "unsuccessful command evidence: {phase:?}/{identity}"
                 )));
             }
-            let has = |argument: &str| command.argv.iter().any(|value| value == argument);
-            if network_mode == &NetworkMode::Offline
-                && phase != Check::Toolchain
-                && !has("--offline")
+            if phase != Check::Toolchain
+                && let Some(target) = complete.validate_cargo_command(command)?
             {
-                return Err(reject(format!(
-                    "missing offline command evidence: {phase:?}"
-                )));
-            }
-            if matches!(phase, Check::LockedMetadata | Check::LockedBuilds) && !has("--locked") {
-                return Err(reject(format!(
-                    "missing locked command evidence: {phase:?}"
-                )));
-            }
-            if phase == Check::CargoPackage
-                && (has("--locked") || has("--no-verify") || !has("package"))
-            {
-                return Err(reject(
-                    "package command must resolve and verify the extracted package",
-                ));
-            }
-            if phase == Check::LockedBuilds {
-                if !has("build") {
-                    return Err(reject(
-                        "locked build command does not build selected targets",
-                    ));
-                }
-                if has("--lib")
-                    && let Some(library) = &selection.library
-                {
-                    built.push(format!("lib:{}", library.crate_name));
-                }
-                for pair in command.argv.windows(2) {
-                    if pair[0] == "--bin" {
-                        built.push(format!("bin:{}", pair[1]));
-                    }
-                }
+                built.push(target);
             }
         }
     }

@@ -49,7 +49,13 @@ impl Fixture {
     }
 
     fn write(&self, path: &str, bytes: &str) {
-        fs::write(self.root.path().join(path), bytes).unwrap();
+        // Annotation fixtures use a real extension binding, including renamed proxies.
+        let contents = if path == "MODULE.bazel" && !bytes.contains("use_extension(") {
+            format!("crate = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\n{bytes}")
+        } else {
+            bytes.to_owned()
+        };
+        fs::write(self.root.path().join(path), contents).unwrap();
     }
 
     fn run(&self, spec: &Value, suffix: &str) -> Output {
@@ -585,4 +591,96 @@ fn declared_asset_paths_remain_literal_in_cargo_include_patterns() {
         .unwrap(),
         eq("# Fixture\n")
     );
+}
+
+#[gtest]
+fn selected_dependencies_declared_only_under_target_tables_are_publishable() {
+    for (index, target) in ["cfg(unix)", "x86_64-unknown-linux-gnu"].iter().enumerate() {
+        let mut f = Fixture::new();
+        let shared = f.upstream("anyhow", "errors", "1.0.104");
+        let helper = f.upstream("test-helper", "test_helper", "1.0.100");
+        f.spec["library"]["dependencies"] = json!([shared]);
+        f.spec["tests"] = json!([{"label":"//fixture:unit_test","dependencies":[shared,helper]}]);
+        f.spec["dependency_closure"] = json!([shared, helper]);
+        let root = format!(
+            "[target.'{target}'.dependencies]\nrenamed={{package=\"anyhow\",version=\"1.0.104\"}}\n[target.'{target}'.dev-dependencies]\ntest-helper=\"1.0.100\"\n[target.'cfg(windows)'.dependencies]\nwindows-only=\"0.1.0\"\n"
+        );
+        f.write("Cargo.toml", &root);
+        f.write(
+            "Cargo.lock",
+            &format!(
+                "{}{}",
+                Fixture::locked("anyhow", "1.0.104"),
+                Fixture::locked("test-helper", "1.0.100")
+            ),
+        );
+        let manifest = f.success(&f.spec, &format!("target{index}"));
+        assert_that!(
+            &manifest["dependencies"]["errors"]["version"],
+            eq(&json!("=1.0.104"))
+        );
+        assert_that!(
+            &manifest["dev-dependencies"]["test_helper"]["version"],
+            eq(&json!("=1.0.100"))
+        );
+        assert_that!(
+            manifest["dependencies"].get("windows-only").is_none(),
+            eq(true)
+        );
+        assert_that!(
+            &manifest["dependencies"]["errors"],
+            eq(&manifest["dev-dependencies"]["errors"])
+        );
+        f.write(
+            "Cargo.toml",
+            &root.replace(
+                "package=\"anyhow\",",
+                "package=\"anyhow\",git=\"https://example.com/unsupported\",",
+            ),
+        );
+        f.failure(
+            &f.spec,
+            &format!("target_git{index}"),
+            "unsupported/ambiguous root dependency provenance",
+        );
+    }
+}
+
+#[gtest]
+fn unrelated_extension_calls_do_not_affect_rust_package_generation() {
+    for (index, module) in [
+        "tool = use_extension(\"@other//:extension.bzl\", \"crate\")\ntool.override(name=\"replacement\")\n",
+        "tool = use_extension(\"@other//:extension.bzl\", \"tools\")\ntool.annotation(name=choose_name(), **settings)\n",
+        "rust_packages = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nrust_packages.annotation(crate=\"anyhow\",gen_build_script=\"on\")\ntool = use_extension(\"@other//:extension.bzl\", \"tools\")\ntool.annotation(crate=\"anyhow\",patches=[\"unrelated\"])\n",
+    ].iter().enumerate() {
+        let mut f = Fixture::new();
+        let dependency = f.upstream("anyhow", "friendly", "1.0.104");
+        f.spec["library"]["dependencies"] = json!([dependency]);
+        f.spec["dependency_closure"] = json!([dependency]);
+        f.write("Cargo.toml", "[dependencies]\nanyhow=\"1.0.104\"\n");
+        f.write("Cargo.lock", &Fixture::locked("anyhow", "1.0.104"));
+        f.write("MODULE.bazel", module);
+        let manifest = f.success(&f.spec, &format!("unrelated{index}"));
+        assert_that!(&manifest["dependencies"]["friendly"]["version"], eq(&json!("=1.0.104")));
+        f.write("MODULE.bazel", &format!("{module}\nselected = use_extension(\"@rules_rs//rs:extensions.bzl\", \"crate\")\nselected.annotation(crate=\"anyhow\",patches=[\"//fixture:unsupported\"])"));
+        f.failure(&f.spec, &format!("selected_mutation{index}"), "unsupported Bazel annotation/override");
+    }
+}
+
+#[gtest]
+fn keyword_extension_bindings_preserve_crate_mutation_rejection() {
+    for (index, binding) in [
+        "rust_packages = use_extension(extension_bzl_file=\"@rules_rs//rs:extensions.bzl\", extension_name=\"crate\")",
+        "rust_packages = use_extension(extension_name=\"crate\", extension_bzl_file=\"@rules_rs//rs:extensions.bzl\")",
+        "rust_packages = use_extension(\"@rules_rs//rs:extensions.bzl\", extension_name=\"crate\", dev_dependency=True)",
+    ].iter().enumerate() {
+        let mut f = Fixture::new();
+        let metadata = f.upstream("anyhow", "friendly", "1.0.104");
+        f.spec["library"]["dependencies"] = json!([metadata]);
+        f.spec["dependency_closure"] = json!([metadata]);
+        f.write("Cargo.toml", "[dependencies]\nanyhow=\"1.0.104\"\n");
+        f.write("Cargo.lock", &Fixture::locked("anyhow","1.0.104"));
+        f.write("MODULE.bazel", &format!("{binding}\nrust_packages.annotation(crate=\"anyhow\",patches=[\"unsupported\"])"));
+        f.failure(&f.spec, &format!("keyword{index}"), "unsupported Bazel annotation/override");
+    }
 }

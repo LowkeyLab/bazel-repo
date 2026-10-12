@@ -2,7 +2,7 @@ use std::io::Read;
 
 use googletest::{
     assert_that, gtest,
-    matchers::{anything, elements_are, eq, err, is_false, ok},
+    matchers::{anything, contains_substring, elements_are, eq, err, is_false, ok},
 };
 use serde_json::json;
 
@@ -659,4 +659,189 @@ fn offline_reports_require_offline_cargo_commands() {
             .retain(|argument| argument != "--offline");
         assert_that!(validate_report(&report, None), err(anything()));
     }
+}
+
+#[gtest]
+fn certified_commands_must_run_the_recorded_package_with_the_recorded_toolchain() {
+    let baseline = combined_report();
+    assert_that!(validate_report(&baseline, None), ok(anything()));
+    for phase in [
+        Check::CargoPackage,
+        Check::LockedMetadata,
+        Check::LockedBuilds,
+    ] {
+        for fault in [
+            "executable",
+            "cwd",
+            "manifest",
+            "missing_manifest",
+            "subcommand",
+            "target",
+            "terminator",
+            "override",
+        ] {
+            let mut report = baseline.clone();
+            let command = report
+                .commands
+                .iter_mut()
+                .find(|command| command.phase == phase)
+                .unwrap();
+            match fault {
+                "executable" => command.argv[0] = "/another/cargo".into(),
+                "cwd" => command.cwd = "/another/project".into(),
+                "manifest" => {
+                    let index = command
+                        .argv
+                        .iter()
+                        .position(|arg| arg == "--manifest-path")
+                        .unwrap();
+                    command.argv[index + 1] = "/another/Cargo.toml".into();
+                }
+                "missing_manifest" => {
+                    let index = command
+                        .argv
+                        .iter()
+                        .position(|arg| arg == "--manifest-path")
+                        .unwrap();
+                    command.argv.drain(index..index + 2);
+                }
+                "subcommand" => command.argv[1] = "echo".into(),
+                "target" => {
+                    let index = command
+                        .argv
+                        .iter()
+                        .position(|arg| arg == "--target" || arg == "--filter-platform")
+                        .unwrap();
+                    command.argv[index + 1] = "aarch64-apple-darwin".into();
+                }
+                "terminator" => command.argv.insert(2, "--".into()),
+                "override" => command
+                    .argv
+                    .extend(["--manifest-path".into(), "/another/Cargo.toml".into()]),
+                _ => unreachable!(),
+            }
+            assert_that!(
+                validate_report(&report, None),
+                err(anything()),
+                "{phase:?}: {fault}"
+            );
+        }
+    }
+}
+
+#[gtest]
+fn oversized_archive_streams_and_metadata_fail_before_extraction() {
+    use std::io::Write;
+    let report = library_report();
+    for fault in ["generated", "decompressed", "extension"] {
+        let mut members = library_members();
+        if fault == "generated" {
+            members
+                .iter_mut()
+                .find(|member| member.name.ends_with("/Cargo.lock"))
+                .unwrap()
+                .contents = vec![0; 16 * 1024 * 1024 + 1];
+        }
+        if fault == "extension" {
+            members.insert(
+                0,
+                Member {
+                    name: "././@LongLink".into(),
+                    kind: tar::EntryType::GNULongName,
+                    contents: vec![b'x'; 16 * 1024 * 1024 + 1],
+                },
+            );
+        }
+        let mut bytes = gzip_archive(&members);
+        if fault == "decompressed" {
+            let mut tar_bytes = Vec::new();
+            flate2::read::MultiGzDecoder::new(bytes.as_slice())
+                .read_to_end(&mut tar_bytes)
+                .unwrap();
+            let mut encoder =
+                flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+            encoder.write_all(&tar_bytes).unwrap();
+            for _ in 0..1536 {
+                encoder.write_all(&[0; 64 * 1024]).unwrap();
+            }
+            bytes = encoder.finish().unwrap();
+        }
+        let scratch = tempfile::tempdir().unwrap();
+        let archive = scratch.path().join("oversized.crate");
+        std::fs::write(&archive, bytes).unwrap();
+        let destination = scratch.path().join("destination");
+        let result = inspect_archive(
+            &archive,
+            report.package.as_ref().unwrap(),
+            report.inputs.as_ref().unwrap(),
+            &destination,
+        );
+        assert_that!(result.as_ref(), err(anything()), "{fault}");
+        let diagnostic = match fault {
+            "generated" => "archive file exceeds allowed size",
+            "decompressed" => "archive decompressed size exceeds declared budget",
+            "extension" => "archive metadata exceeds allowed size",
+            _ => unreachable!(),
+        };
+        assert_that!(
+            result.unwrap_err().to_string().as_str(),
+            contains_substring(diagnostic)
+        );
+        assert_that!(destination.exists(), is_false(), "{fault}");
+    }
+}
+
+#[gtest]
+fn declared_large_assets_and_gnu_long_paths_remain_extractable() {
+    let report = library_report();
+    let path = format!(
+        "assets/{}/{}.txt",
+        "nested".repeat(12),
+        "literal".repeat(12)
+    );
+    let contents = vec![b'x'; 17 * 1024 * 1024];
+    let mut inputs = report.inputs.clone().unwrap();
+    inputs.push(crate::InputFile {
+        path: crate::PackagePath::declared(&path).unwrap(),
+        size: contents.len() as u64,
+        sha256: digest_bytes(&contents),
+    });
+    let encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    let mut archive = tar::Builder::new(encoder);
+    for member in library_members() {
+        let mut header = tar::Header::new_gnu();
+        header.set_entry_type(member.kind);
+        header.set_size(member.contents.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        archive
+            .append_data(&mut header, member.name, member.contents.as_slice())
+            .unwrap();
+    }
+    let mut header = tar::Header::new_gnu();
+    header.set_size(contents.len() as u64);
+    header.set_mode(0o644);
+    header.set_cksum();
+    archive
+        .append_data(
+            &mut header,
+            format!("publishing-fixture-0.1.0/{path}"),
+            contents.as_slice(),
+        )
+        .unwrap();
+    let bytes = archive.into_inner().unwrap().finish().unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let source = scratch.path().join("large.crate");
+    std::fs::write(&source, bytes).unwrap();
+    let inspected = inspect_archive(
+        &source,
+        report.package.as_ref().unwrap(),
+        &inputs,
+        scratch.path().join("destination"),
+    )
+    .unwrap();
+    assert_that!(
+        std::fs::read(inspected.extracted_root.join(path)).unwrap(),
+        eq(&contents)
+    );
 }
