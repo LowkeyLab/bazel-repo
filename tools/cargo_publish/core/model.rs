@@ -61,16 +61,33 @@ pub struct TestTarget {
     #[serde(
         rename = "crate",
         default,
-        skip_serializing_if = "Option::is_none",
-        deserialize_with = "nullable_string"
+        skip_serializing_if = "NullableString::is_missing"
     )]
-    pub crate_: Option<Option<String>>,
+    pub crate_: NullableString,
 }
 
-pub(crate) fn nullable_string<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Option<Option<String>>, D::Error> {
-    Option::<String>::deserialize(deserializer).map(Some)
+/// Optional wire metadata distinguishes an omitted field from explicit null.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum NullableString {
+    #[default]
+    Missing,
+    Null,
+    Value(String),
+}
+
+impl NullableString {
+    #[must_use]
+    pub const fn is_missing(&self) -> bool {
+        matches!(self, Self::Missing)
+    }
+}
+
+impl<'de> Deserialize<'de> for NullableString {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Option::<String>::deserialize(deserializer)
+            .map(|value| value.map_or(Self::Null, Self::Value))
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
@@ -99,6 +116,10 @@ impl std::fmt::Display for SelectedTarget {
 }
 
 impl Selection {
+    /// Return the declared production target identities in canonical order.
+    ///
+    /// # Errors
+    /// Returns a policy error for absent targets, empty names, or duplicate identities.
     pub fn selected_targets(&self) -> Result<Vec<SelectedTarget>, ContractError> {
         let mut targets = Vec::new();
         if let Some(library) = &self.library {
@@ -176,6 +197,10 @@ pub struct GenerationContract {
 impl GenerationContract {
     /// Validate the supported schema and selected target coverage. Generator and
     /// runtime phases separately validate package/dependency/manifest semantics.
+    ///
+    /// # Errors
+    /// Returns a policy error for an unsupported schema/target, invalid selection,
+    /// reserved input paths, or conflicting file/directory declarations.
     pub fn validate(&self) -> Result<(), ContractError> {
         if self.schema_version != SCHEMA_VERSION || self.target != TARGET {
             return Err(ContractError::Policy(

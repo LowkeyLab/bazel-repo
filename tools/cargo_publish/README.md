@@ -138,8 +138,7 @@ produce identical generated trees/contracts. Archives, executables, and fresh
 transitive resolution aren't required to be byte-identical.
 
 Generic verification proves supported package generation, declared-input and
-direct-dependency fidelity, and pinned package/archive builds. App behavior is
-covered by normal Bazel Rust tests. Authenticated registry upload is a separate
+direct-dependency fidelity, and pinned package/archive builds. Normal Bazel Rust tests cover app behavior. Authenticated registry upload is a separate
 operation.
 
 ## Programmatic publishing tests
@@ -157,7 +156,7 @@ bytes, dependency classification, archive/report contracts, and command failures
 Controlled external tools and archive fixtures exercise verification behavior
 without registry-backed package installation.
 
-CLI behavior is covered by `//worktree_pool:cli_test`, a normal Rust test target
+The normal Rust target `//worktree_pool:cli_test` tests command-line behavior
 using the Bazel-built executable. CI runs the programmatic tests with formatting,
 lint, and coverage. Explicit publishing commands remain available for release
 preparation and retain their per-run reports and diagnostics.

@@ -186,3 +186,22 @@ fn relocated_archive_handoff_checks_the_private_copy_and_exact_inventory() {
         eq(&b"pub const ANSWER: u32 = 42;\n".to_vec())
     );
 }
+
+#[gtest]
+fn test_metadata_preserves_omitted_null_and_named_crate_references() {
+    use crate::{CrateMetadata, TestTarget};
+    for input in [
+        serde_json::json!({"label": "//fixture:test"}),
+        serde_json::json!({"label": "//fixture:test", "crate": null}),
+        serde_json::json!({"label": "//fixture:test", "crate": "//fixture:library"}),
+    ] {
+        let target: TestTarget = serde_json::from_value(input.clone()).unwrap();
+        let metadata: CrateMetadata = serde_json::from_value(input.clone()).unwrap();
+        for output in [
+            serde_json::to_value(target).unwrap(),
+            serde_json::to_value(metadata).unwrap(),
+        ] {
+            assert_that!(output.get("crate"), eq(input.get("crate")));
+        }
+    }
+}

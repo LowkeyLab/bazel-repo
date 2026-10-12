@@ -34,12 +34,13 @@ struct Manifest {
     dev_dependencies: BTreeMap<String, Dependency>,
 }
 fn root() -> PathBuf {
-    env::var_os("PUBLISHING_GUARD_ROOT")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
+    env::var_os("PUBLISHING_GUARD_ROOT").map_or_else(
+        || {
             PathBuf::from(env::var_os("TEST_SRCDIR").unwrap())
                 .join(env::var_os("TEST_WORKSPACE").unwrap())
-        })
+        },
+        PathBuf::from,
+    )
 }
 fn manifest() -> Manifest {
     toml::from_str(
@@ -172,7 +173,7 @@ fn package_inventory_and_declared_asset_bytes_match_public_contract() {
             .collect::<BTreeSet<_>>(),
         eq(&expected)
     );
-    let mut all_files = expected.clone();
+    let mut all_files = expected;
     all_files.insert("Cargo.toml".into());
     assert_that!(files(&tree), eq(&all_files));
     for asset in [
@@ -227,15 +228,15 @@ struct LockedPackage {
     version: String,
     source: Option<String>,
 }
+fn keys(map: &BTreeMap<String, Dependency>) -> BTreeSet<&str> {
+    map.keys().map(String::as_str).collect()
+}
 #[gtest]
 fn direct_dependencies_preserve_bazel_kinds_exact_versions_aliases_and_features() {
     let root = root();
     let manifest = manifest();
     let production = &manifest.dependencies;
     let development = &manifest.dev_dependencies;
-    fn keys(map: &BTreeMap<String, Dependency>) -> BTreeSet<&str> {
-        map.keys().map(String::as_str).collect()
-    }
     assert_that!(
         keys(production),
         eq(&BTreeSet::from([
