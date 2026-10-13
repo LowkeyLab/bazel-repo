@@ -2,13 +2,13 @@
   description = "Dev shell for bazel-repo";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=3181085bfd08663b6b9e60bc7a8395c2aaa741bd";
     lowkeylab-nix = {
-      url = "github:LowkeyLab/nix";
+      url = "github:LowkeyLab/nix?rev=b95f91988835ed8974f8081edceee8f790a6c199";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     llm-agents = {
-      url = "github:numtide/llm-agents.nix";
+      url = "github:numtide/llm-agents.nix?rev=5e6551b25e457e2d5559b351d95f3af867448f05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
