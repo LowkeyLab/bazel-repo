@@ -11,6 +11,9 @@ module(
 # create a bootstrap cycle with the LLVM toolchain.
 bazel_dep(name = "bazel_lib", version = "3.7.2")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
+
+# Use released Python APIs with native uv and interpreter provisioning.
+bazel_dep(name = "aspect_rules_py", version = "1.12.1")
 bazel_dep(name = "aspect_rules_lint")
 git_override(
     module_name = "aspect_rules_lint",
@@ -264,7 +267,7 @@ git_override(
 )
 
 # We have to take a dependency on rules_python in order to set bootstrap=script
-# for transitive dependencies, even if there are no Python rules used in this repo.
+# for transitive tooling independently of first-party rules_py targets.
 # See .bazelrc
 bazel_dep(name = "rules_python")
 git_override(
@@ -287,6 +290,7 @@ git_override(
     remote = "https://github.com/bazel-contrib/bazel-gazelle.git",
 )
 
+bazel_dep(name = "rules_python_gazelle_plugin", version = "2.4.1", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", dev_dependency = True)
 git_override(
     module_name = "bazel_skylib_gazelle_plugin",
@@ -625,6 +629,37 @@ crate.annotation(
     gen_build_script = "on",
 )
 use_repo(crate, "crates")
+
+#########################
+# Python
+interpreters = use_extension("@aspect_rules_py//py/unstable:extension.bzl", "python_interpreters")
+interpreters.configure(
+    # renovate: datasource=github-releases depName=astral-sh/python-build-standalone
+    releases = ["20261009"],
+)
+interpreters.toolchain(
+    is_default = True,
+    # renovate: datasource=python-version depName=python
+    python_version = "3.14",
+)
+use_repo(interpreters, "python_interpreters")
+
+register_toolchains("@python_interpreters//:all")
+
+uv_bin = use_extension("@aspect_rules_py//uv/unstable:extension.bzl", "uv_bin")
+uv_bin.toolchain()
+use_repo(uv_bin, "uv")
+
+register_toolchains("@uv//:all")
+
+uv = use_extension("@aspect_rules_py//uv/unstable:extension.bzl", "uv")
+uv.declare_hub(hub_name = "pypi")
+uv.project(
+    hub_name = "pypi",
+    lock = "//:uv.lock",
+    pyproject = "//:pyproject.toml",
+)
+use_repo(uv, "pypi")
 
 #########################
 # Go

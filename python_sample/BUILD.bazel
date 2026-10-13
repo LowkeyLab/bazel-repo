@@ -1,0 +1,56 @@
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("//tools/python:defs.bzl", "py_test")
+
+# gazelle:python_root
+# gazelle:python_generation_mode package
+
+py_library(
+    name = "python_sample",
+    srcs = [
+        "cli.py",
+        "versions.py",
+    ],
+    imports = ["."],  # keep
+    visibility = ["//python_sample:__subpackages__"],
+    deps = ["@pypi//packaging"],
+)
+
+py_binary(
+    name = "python_sample_bin",
+    srcs = ["__main__.py"],
+    main = "__main__.py",
+    visibility = ["//python_sample:__subpackages__"],
+    deps = [":python_sample"],
+)
+
+py_test(
+    name = "cli_test",
+    size = "small",  # keep
+    srcs = ["cli_test.py"],
+    data = [":python_sample_bin"],  # keep
+    deps = [":python_sample"],
+)
+
+py_test(
+    name = "runtime_test",
+    size = "small",  # keep
+    srcs = ["runtime_test.py"],
+    data = ["//:MODULE.bazel"],  # keep
+)
+
+py_test(
+    name = "versions_test",
+    size = "small",  # keep
+    srcs = ["versions_test.py"],
+    deps = [
+        ":python_sample",
+        "@pypi//packaging",
+        "@pypi//pytest",
+    ],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = ["README.md"],
+    tags = ["markdown"],
+)

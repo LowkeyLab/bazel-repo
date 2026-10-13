@@ -1,0 +1,10 @@
+"""Sort Python package versions by their release ordering."""
+
+from collections.abc import Iterable
+
+from packaging.version import Version
+
+
+def sort_versions(versions: Iterable[str]) -> list[str]:
+    """Return the supplied version strings in package release order."""
+    return sorted(versions, key=Version)

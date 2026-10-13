@@ -1,0 +1,11 @@
+manifest:
+  modules_mapping:
+    colorama: colorama
+    iniconfig: iniconfig
+    packaging: packaging
+    pluggy: pluggy
+    py: pytest
+    pygments: pygments
+    pytest: pytest
+  pip_repository:
+    name: pypi
