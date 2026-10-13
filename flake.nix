@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=3181085bfd08663b6b9e60bc7a8395c2aaa741bd";
     lowkeylab-nix = {
-      url = "github:LowkeyLab/nix?rev=b95f91988835ed8974f8081edceee8f790a6c199";
+      url = "github:LowkeyLab/nix?rev=ffa3d47c86d7cc598617eaf699d6ee8684d8d43c";
       inputs.nixpkgs.follows = "nixpkgs";
     };
     llm-agents = {
