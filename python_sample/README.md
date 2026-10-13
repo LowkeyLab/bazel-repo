@@ -26,7 +26,8 @@ all locked packages. Generated libraries and executables load from
 Keep the library's explicit `imports = ["."]` root so isolated execution can
 resolve this project's modules without relying on the entry point's directory.
 
-Renovate maintains the selected stable Python minor and standalone interpreter
-release date together. Interpreter updates refresh build metadata and must pass
+Renovate maintains the selected stable Python minor in `MODULE.bazel` and
+the matching toolchain selection in `.bazelrc` together with the standalone
+interpreter release date. Interpreter updates refresh build metadata and must pass
 CI. The runtime test compares the running interpreter with `MODULE.bazel`, so
 future minor upgrades exercise the same acceptance checks.

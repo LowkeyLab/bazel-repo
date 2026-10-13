@@ -640,7 +640,7 @@ interpreters.configure(
 interpreters.toolchain(
     is_default = True,
     # renovate: datasource=python-version depName=python
-    python_version = "3.14",
+    python_version = "3.15",
 )
 use_repo(interpreters, "python_interpreters")
 
