@@ -114,6 +114,7 @@
       "original": {
         "owner": "numtide",
         "repo": "llm-agents.nix",
+        "rev": "5e6551b25e457e2d5559b351d95f3af867448f05",
         "type": "github"
       }
     },
@@ -136,6 +137,7 @@
       "original": {
         "owner": "LowkeyLab",
         "repo": "nix",
+        "rev": "b95f91988835ed8974f8081edceee8f790a6c199",
         "type": "github"
       }
     },
@@ -143,16 +145,18 @@
       "locked": {
         "lastModified": 1790510107,
         "narHash": "sha256-EVMNYv7hYDDD9TGVT/hIyTYgpiXA8y3m5xIEIxuGNU0=",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
+        "ref": "nixpkgs-unstable",
         "rev": "3181085bfd08663b6b9e60bc7a8395c2aaa741bd",
-        "type": "github"
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/NixOS/nixpkgs"
       },
       "original": {
-        "owner": "NixOS",
         "ref": "nixpkgs-unstable",
-        "repo": "nixpkgs",
-        "type": "github"
+        "rev": "3181085bfd08663b6b9e60bc7a8395c2aaa741bd",
+        "shallow": true,
+        "type": "git",
+        "url": "https://github.com/NixOS/nixpkgs"
       }
     },
     "root": {
