@@ -1,0 +1,12 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load(":uv_lock.bzl", "uv_lock")
+
+package(default_visibility = ["//:__subpackages__"])
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    deps = ["@aspect_rules_py//py:defs"],
+)
+
+uv_lock(name = "lock")

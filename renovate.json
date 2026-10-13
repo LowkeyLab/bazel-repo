@@ -42,6 +42,79 @@
       "matchManagers": ["cargo"],
       "matchFileNames": ["3rdparty/gazelle_rust/upstream/generation_tests/**"],
       "enabled": false
+    },
+    {
+      "description": "Keep Python interpreter releases and minor versions tested together",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["python", "astral-sh/python-build-standalone"],
+      "groupName": "Python interpreter",
+      "automerge": true,
+      "ignoreTests": false,
+      "postUpgradeTasks": {
+        "commands": [
+          "bazel mod deps --lockfile_mode=update --config=ci-remote",
+          "bazel run //tools/python:lock --config=ci-remote",
+          "bazel run //:gazelle_python_manifest.update --config=ci-remote",
+          "bazel run //:gazelle --config=ci-remote"
+        ],
+        "fileFilters": [
+          "MODULE.bazel.lock",
+          "uv.lock",
+          "gazelle_python.yaml",
+          "python_sample/BUILD.bazel"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Update first-party Python artifacts through Bazel",
+      "matchManagers": ["pep621"],
+      "matchFileNames": ["pyproject.toml"],
+      "skipArtifactsUpdate": true,
+      "postUpgradeTasks": {
+        "commands": [
+          "bazel run //tools/python:lock --config=ci-remote",
+          "bazel run //:gazelle_python_manifest.update --config=ci-remote",
+          "bazel run //:gazelle --config=ci-remote"
+        ],
+        "fileFilters": [
+          "MODULE.bazel.lock",
+          "uv.lock",
+          "gazelle_python.yaml",
+          "python_sample/BUILD.bazel"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Maintain the supported Python range separately from the selected interpreter",
+      "matchManagers": ["pep621"],
+      "matchFileNames": ["pyproject.toml"],
+      "matchDepTypes": ["requires-python"],
+      "enabled": false
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
+      "matchStrings": [
+        "# renovate: datasource=python-version depName=python\\s+python_version = \"(?<currentValue>3\\.\\d+)\""
+      ],
+      "datasourceTemplate": "python-version",
+      "depNameTemplate": "python",
+      "versioningTemplate": "semver-coerced",
+      "extractVersionTemplate": "^(?<version>3\\.\\d+)(?:\\.\\d+)?$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
+      "matchStrings": [
+        "# renovate: datasource=github-releases depName=astral-sh/python-build-standalone\\s+releases = \\[\"(?<currentValue>\\d{8})\"\\]"
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "astral-sh/python-build-standalone",
+      "versioningTemplate": "regex:^(?<patch>\\d{8})$"
     }
   ]
 }

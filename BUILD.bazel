@@ -1,7 +1,9 @@
 """Targets in the repository root"""
 
 load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_py//uv/unstable:defs.bzl", "gazelle_python_manifest")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@gazelle//:def.bzl", "DEFAULT_LANGUAGES", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_clojure//rules:tools_deps.bzl", "clojure_gen_srcs")
@@ -11,10 +13,26 @@ npm_link_all_packages(name = "node_modules")
 
 clojure_gen_srcs(name = "clojure_gen_build_files")
 
+gazelle_python_manifest(
+    name = "gazelle_python_manifest",
+    hub = "pypi",
+    venvs = ["default"],
+)
+
+diff_test(
+    name = "gazelle_python_manifest_test",
+    size = "small",
+    file1 = "gazelle_python.yaml",
+    file2 = ":gazelle_python_manifest",
+)
+
 exports_files(
     [
         "Cargo.toml",
+        "MODULE.bazel",
         "deps.edn",
+        "pyproject.toml",
+        "uv.lock",
     ],
     visibility = ["//visibility:public"],
 )
@@ -28,7 +46,6 @@ exports_files(
         "checkstyle.xml",
         "gazelle_python.yaml",
         "pmd.xml",
-        "pyproject.toml",
         ".editorconfig",
         ".ktlint-baseline.xml",
         ".clippy.toml",
@@ -72,6 +89,12 @@ js_library(
 )
 
 # Gazelle configuration
+# gazelle:map_kind py_library py_library @aspect_rules_py//py:defs.bzl
+# gazelle:map_kind py_binary py_binary @aspect_rules_py//py:defs.bzl
+# gazelle:map_kind py_test py_test //tools/python:defs.bzl
+# gazelle:python_generate_pyi_deps false
+# gazelle:python_generate_pyi_srcs false
+# gazelle:python_generation_mode package
 # gazelle:exclude githooks/*
 # gazelle:exclude tools/*
 # gazelle:exclude angular/*
@@ -93,6 +116,7 @@ gazelle_binary(
         "@bazel_skylib_gazelle_plugin//bzl",
         "//3rdparty/gazelle_rust/upstream/rust_language",
         "@gazelle_ts//ts",
+        "@rules_python_gazelle_plugin//python",
     ],
 )
 

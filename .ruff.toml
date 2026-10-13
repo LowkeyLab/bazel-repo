@@ -1,0 +1,8 @@
+[lint]
+extend-select = ["I"]
+# Remote execution materializes inputs as 755 even when Git tracks them as 644.
+# Bazel supplies the interpreter for Python sources through its launchers.
+ignore = ["EXE002"]
+
+[lint.isort]
+known-first-party = ["cli", "versions"]

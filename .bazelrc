@@ -55,6 +55,9 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 # NB: some tools run py_binary targets even if the user didn't select to add Python to their project
 common --@rules_python//python/config_settings:bootstrap_impl=script
 
+# Shared dependency group from the first-party Python uv hub.
+common --@pypi//venv=default
+
 # rules_rs native Linux targets need the Rust triple's libc ABI constraint for
 # toolchain resolution. Use the LLVM-flavored platform for host, exec, and target
 # actions so all C/C++/Rust links resolve through the hermetic LLVM toolchain.
