@@ -3,17 +3,17 @@
     "aspect-cli-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1791720651,
-        "narHash": "sha256-mfWLfjVljCurAZLrt0Yzo404OLJV24oCeBDD6tX/u+A=",
+        "lastModified": 1791950834,
+        "narHash": "sha256-jT9KYNfgGr8n/n74oixa5qaNYGqqFNsE5E1CaFNTxng=",
         "owner": "aspect-build",
         "repo": "aspect-cli",
-        "rev": "5a09b7c479084c233bcf554cef3932fe97c71556",
+        "rev": "618f5c40cb0b3e015649acb6fc030aed4ac685f1",
         "type": "github"
       },
       "original": {
         "owner": "aspect-build",
         "repo": "aspect-cli",
-        "rev": "5a09b7c479084c233bcf554cef3932fe97c71556",
+        "rev": "618f5c40cb0b3e015649acb6fc030aed4ac685f1",
         "type": "github"
       }
     },
@@ -129,17 +129,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1791928350,
-        "narHash": "sha256-ps3Mzz8BUmnAE8DF3QUe0DZYCvJXfzdj7w8wkJ+Y2po=",
+        "lastModified": 1791955503,
+        "narHash": "sha256-EUpurDFbijb+dDUnbSXSdML5hSg1a1OAS3VaK+angyA=",
         "owner": "LowkeyLab",
         "repo": "nix",
-        "rev": "fbc633b8aac49d0d1f67a7204531410091f1614b",
+        "rev": "a4c827b47ea473f0b4ff7934e455cfc9d4b3afff",
         "type": "github"
       },
       "original": {
         "owner": "LowkeyLab",
         "repo": "nix",
-        "rev": "fbc633b8aac49d0d1f67a7204531410091f1614b",
+        "rev": "a4c827b47ea473f0b4ff7934e455cfc9d4b3afff",
         "type": "github"
       }
     },
