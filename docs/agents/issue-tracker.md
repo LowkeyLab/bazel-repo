@@ -60,12 +60,17 @@ retain that assignment across sessions. Continuing an existing assignment needs
 no session-specific claim, dispatch comment, or coordinator handoff.
 
 Read the map's ordered `subIssues` and each child's current state, assignees, and
-`blockedBy` before selecting the first open, unassigned, unblocked child. Follow
-pagination when enumerating children or blockers:
+`blockedBy` before choosing a ticket. Follow pagination when enumerating children
+or blockers:
 use `gh api --paginate repos/LowkeyLab/bazel-repo/issues/<map>/sub_issues`
 and `gh api --paginate repos/LowkeyLab/bazel-repo/issues/<child>/dependencies/blocked_by`.
 For fallback task lists and "Blocked by" lines, read every referenced issue's
 current state. Missing or incomplete dependency data prevents starting work.
+
+For sequential work, use a user-named ticket after checking its ownership,
+state, and blockers. Without a named ticket, resume the first open, unblocked
+child assigned to the developer driving the map, in map order. Select the first
+open, unassigned, unblocked child only when no resumable assigned child exists.
 
 Assign a newly selected ticket with
 `gh issue edit --repo LowkeyLab/bazel-repo <number> --add-assignee <developer>`,
@@ -87,9 +92,11 @@ it before parallel work starts. Other sessions request tickets from it rather
 than claiming independently. Pause parallel dispatch until a coordinator is
 selected.
 
-The coordinator serializes selection, assignment, and dispatch using the
-selection and assignment checks. Record the ticket-to-session mapping in a comment on each ticket before
-dispatch, with the worker session identifier and coordinator identifier.
+The coordinator serializes selection, assignment, and dispatch. For a new
+dispatch, select the first open, unassigned, unblocked child in map order using
+the state and blocker checks. Record the ticket-to-session mapping in a comment
+on each ticket before dispatch, with the worker session identifier and
+coordinator identifier.
 Assignment identifies the developer; dispatch identifies the worker when sessions
 share a GitHub account. Confirm assignment and eligibility with a fresh read
 before dispatching to exactly one worker session. Workers start after explicit
