@@ -59,6 +59,9 @@ default. Assign a newly selected ticket to the developer driving the map and
 retain that assignment across sessions. Continuing an existing assignment needs
 no session-specific claim, dispatch comment, or coordinator handoff.
 
+Before selecting sequential work, reconcile closed child decisions with the map
+index using the procedure in Recording results.
+
 Read the map's ordered `subIssues` and each child's current state, assignees, and
 `blockedBy` before choosing a ticket. Follow pagination when enumerating children
 or blockers:
@@ -92,11 +95,20 @@ it before parallel work starts. Other sessions request tickets from it rather
 than claiming independently. Pause parallel dispatch until a coordinator is
 selected.
 
-The coordinator serializes selection, assignment, and dispatch. For a new
-dispatch, select the first open, unassigned, unblocked child in map order using
-the state and blocker checks. Record the ticket-to-session mapping in a comment
-on each ticket before dispatch, with the worker session identifier and
-coordinator identifier.
+When entering parallel work, the coordinator first reconciles completed decisions
+using Recording results, then confirms the worker status of retained open
+assignments with the worker or maintainer. Preserve confirmed active workers and
+existing dispatches. For eligible retained tickets without a dispatch, record one
+for the confirmed worker. When replacing a worker, confirm the previous worker
+has stopped first. Dispatch these tickets in map order before claiming unassigned
+children, retaining their developer assignments. Keep blocked tickets assigned.
+Pause dispatch for tickets whose worker status is uncertain.
+
+The coordinator serializes selection, assignment, and dispatch. After accounting
+for retained assignments, select the first open, unassigned, unblocked child in
+map order for additional work, using the state and blocker checks. Record the
+ticket-to-session mapping in a comment on each ticket before dispatch, with the
+worker session identifier and coordinator identifier.
 Assignment identifies the developer; dispatch identifies the worker when sessions
 share a GitHub account. Confirm assignment and eligibility with a fresh read
 before dispatching to exactly one worker session. Workers start after explicit
@@ -124,8 +136,16 @@ context link while preserving existing entries, write the body, and verify the
 result. If another writer is detected, pause map edits and reconcile before
 continuing.
 
+Reconciliation compares closed child issues with Decisions-so-far and Out of
+scope. For each missing entry, read the recorded resolution or scope explanation.
+Restore resolved decisions as title links with a short gist. Restore out-of-scope
+closures in Out of scope. Preserve existing entries and verify the updated map
+using the same map-update procedure. Report missing closure context rather than
+inventing a decision. This recovers a session interrupted after closing its ticket
+but before updating the map.
+
 During parallel work, workers post resolution comments on their own tickets,
 close them, and notify the coordinator. Only the coordinator edits the map body
 and processes updates serially. The maintainer and other sessions route map edits
 through it while parallel coordination is active. After coordinator recovery,
-reconcile closed tickets against the index so completed results are not lost.
+use the same reconciliation before resuming dispatches.
