@@ -1,9 +1,20 @@
 package rust_language
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/bazel-contrib/bazel-gazelle/v2/cmd/gazelle/update"
+	"github.com/bazel-contrib/bazel-gazelle/v2/compat"
+	languagev2 "github.com/bazel-contrib/bazel-gazelle/v2/language"
 
 	pb "github.com/calsign/gazelle_rust/proto"
 	"google.golang.org/protobuf/proto"
@@ -13,9 +24,7 @@ func realParser(t *testing.T) *Parser {
 	t.Helper()
 	p := NewParser()
 	t.Cleanup(func() {
-		_ = p.stdin.Close()
-		_ = p.cmd.Wait()
-		_ = p.stdout.Close()
+		_ = p.cleanup()
 	})
 	return p
 }
@@ -116,5 +125,114 @@ func TestRealParserUnsuccessfulSourceResponseKeepsSessionUsable(t *testing.T) {
 	}
 	if !next.Success || !next.GetHints().GetHasMain() {
 		t.Fatalf("successful response after parse diagnostic: %v", next)
+	}
+}
+
+func TestRealParserEOFShutdownIsIdempotent(t *testing.T) {
+	p := NewParser()
+	if err := p.cleanup(); err != nil {
+		t.Fatal(err)
+	}
+	if p.cmd.ProcessState == nil || !p.cmd.ProcessState.Success() {
+		t.Fatalf("parser did not exit successfully after EOF: %v", p.cmd.ProcessState)
+	}
+	if err := p.cleanup(); err != nil {
+		t.Fatalf("repeated cleanup: %v", err)
+	}
+}
+
+func TestGenerationEntrypointReapsParser(t *testing.T) {
+	l := NewLanguage().(*rustLang)
+	t.Cleanup(func() { _ = l.Parser.cleanup() })
+	dir := t.TempDir()
+	parserFixture(t, dir, "WORKSPACE", "")
+	parserFixture(t, dir, "BUILD.bazel", "")
+	parserFixture(t, dir, "lib.rs", "pub fn library() {}\n")
+	if err := update.Run(context.Background(), []languagev2.Language{compat.LanguageV2(l)}, dir, nil); err != nil {
+		t.Fatal(err)
+	}
+	if l.Parser.cmd.ProcessState == nil || !l.Parser.cmd.ProcessState.Success() {
+		t.Fatalf("generation left parser running or unsuccessful: %v", l.Parser.cmd.ProcessState)
+	}
+	generated, err := os.ReadFile(filepath.Join(dir, "BUILD.bazel"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(generated) == 0 {
+		t.Fatal("generation did not produce BUILD rules")
+	}
+}
+
+// The child is a test fixture, selected only inside the test executable. The
+// production launcher and five-second grace period have no test-only modes.
+func TestParserLifecycleChild(t *testing.T) {
+	switch os.Getenv("GAZELLE_PARSER_LIFECYCLE_CHILD") {
+	case "startup":
+		NewParser()
+		os.Exit(0)
+	case "unresponsive":
+		fmt.Fprint(os.Stdout, "ready")
+		for {
+			time.Sleep(time.Hour)
+		}
+	}
+}
+
+func TestParserStartupFailureIsFatalWithLaunchContext(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	// Runfile resolution succeeds, but this non-executable fixture cannot launch.
+	parserFixture(t, dir, "3rdparty/gazelle_rust/upstream/rust_parser/rust_parser", "not executable")
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, executable, "-test.run=^TestParserLifecycleChild$")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), "GAZELLE_PARSER_LIFECYCLE_CHILD=startup")
+	output, err := cmd.CombinedOutput()
+	if err == nil || ctx.Err() != nil {
+		t.Fatalf("startup did not fail promptly: %v (%v), output=%s", err, ctx.Err(), output)
+	}
+	if !strings.Contains(string(output), "start parser") || !strings.Contains(string(output), "rust_parser") {
+		t.Fatalf("missing launch context in diagnostic: %s", output)
+	}
+}
+
+func TestParserKillsAndReapsUnresponsiveChildAfterGrace(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// This independent outer deadline also terminates the child if cleanup loses
+	// its timeout, so a regression cannot strand the harness or its child.
+	ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, executable, "-test.run=^TestParserLifecycleChild$")
+	cmd.Env = append(os.Environ(), "GAZELLE_PARSER_LIFECYCLE_CHILD=unresponsive")
+	p, err := startParser(cmd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = p.cleanup() })
+	ready := make([]byte, 5)
+	if _, err := io.ReadFull(p.stdout, ready); err != nil || string(ready) != "ready" {
+		t.Fatalf("child readiness: %q, %v", ready, err)
+	}
+	started := time.Now()
+	err = p.cleanup()
+	var exitError *exec.ExitError
+	if !errors.As(err, &exitError) || !strings.Contains(err.Error(), "shutdown timeout") {
+		t.Fatalf("shutdown did not report forced termination: %v", err)
+	}
+	if elapsed := time.Since(started); elapsed < 5*time.Second || ctx.Err() != nil {
+		t.Fatalf("shutdown grace: %v, outer deadline: %v", elapsed, ctx.Err())
+	}
+	if err := cmd.Process.Signal(os.Interrupt); !errors.Is(err, os.ErrProcessDone) {
+		t.Fatalf("child was not reaped: %v", err)
+	}
+	if again := p.cleanup(); again == nil || again.Error() != err.Error() {
+		t.Fatalf("repeated forced cleanup: first %v, again %v", err, again)
 	}
 }

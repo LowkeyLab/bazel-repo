@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/bazelbuild/rules_go/go/tools/bazel"
 
@@ -22,6 +23,8 @@ type Parser struct {
 	stdout         io.ReadCloser
 	marshalOptions *proto.MarshalOptions
 	responseBuffer []byte
+	cleanupDone    bool
+	cleanupErr     error
 }
 
 func NewParser() *Parser {
@@ -29,24 +32,76 @@ func NewParser() *Parser {
 	if err != nil {
 		log.Fatal(err)
 	}
-	cmd := exec.Command(path, "stream-proto")
-	stdin, err := cmd.StdinPipe()
+	p, err := startParser(exec.Command(path, "stream-proto"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	stdout, err := cmd.StdoutPipe()
+	return p
+}
+
+// startParser owns the command and all pipes it acquires, including on failure.
+func startParser(cmd *exec.Cmd) (*Parser, error) {
+	p := &Parser{cmd: cmd, marshalOptions: &proto.MarshalOptions{}, responseBuffer: make([]byte, 1024)}
+	// Keep both ends explicit so a later pipe-creation or launch failure can
+	// release every descriptor, even before exec.Cmd has a process to wait for.
+	stdinRead, stdinWrite, err := os.Pipe()
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("parser stdin: %w", err)
 	}
+	defer stdinRead.Close()
+	p.stdin = stdinWrite
+	stdoutRead, stdoutWrite, err := os.Pipe()
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("parser stdout: %w", err), p.cleanup())
+	}
+	defer stdoutWrite.Close()
+	p.stdout = stdoutRead
+	cmd.Stdin, cmd.Stdout = stdinRead, stdoutWrite
 	cmd.Stderr = os.Stderr
-	cmd.Start()
-	return &Parser{
-		cmd:            cmd,
-		stdin:          stdin,
-		stdout:         stdout,
-		marshalOptions: &proto.MarshalOptions{},
-		responseBuffer: make([]byte, 1024),
+	if err := cmd.Start(); err != nil {
+		return nil, errors.Join(fmt.Errorf("start parser %q: %w", cmd.Path, err), p.cleanup())
 	}
+	return p, nil
+}
+
+// cleanup ends this sequential session. EOF gives the child a chance to exit
+// normally; only shutdown has a deadline, never an individual parse request.
+func (p *Parser) cleanup() error {
+	if p.cleanupDone {
+		return p.cleanupErr
+	}
+	p.cleanupDone = true
+	if p.stdin != nil {
+		if err := p.stdin.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			p.cleanupErr = fmt.Errorf("close parser stdin: %w", err)
+		}
+	}
+	if p.cmd != nil && p.cmd.Process != nil {
+		exited := make(chan error, 1)
+		go func() { exited <- p.cmd.Wait() }()
+		timer := time.NewTimer(5 * time.Second)
+		defer timer.Stop()
+		select {
+		case err := <-exited:
+			if err != nil {
+				p.cleanupErr = errors.Join(p.cleanupErr, fmt.Errorf("wait for parser: %w", err))
+			}
+		case <-timer.C:
+			if err := p.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+				p.cleanupErr = errors.Join(p.cleanupErr, fmt.Errorf("kill parser: %w", err))
+			}
+			// Wait exactly once, including after a forced termination.
+			if err := <-exited; err != nil {
+				p.cleanupErr = errors.Join(p.cleanupErr, fmt.Errorf("wait for parser after shutdown timeout: %w", err))
+			}
+		}
+	}
+	if p.stdout != nil {
+		if err := p.stdout.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+			p.cleanupErr = errors.Join(p.cleanupErr, fmt.Errorf("close parser stdout: %w", err))
+		}
+	}
+	return p.cleanupErr
 }
 
 func (p *Parser) writeRequest(request *pb.Request) error {
