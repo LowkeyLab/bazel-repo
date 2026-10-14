@@ -1,20 +1,25 @@
 package rust_language
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/bazel-contrib/bazel-gazelle/v2/cmd/gazelle/update"
 	"github.com/bazel-contrib/bazel-gazelle/v2/compat"
 	languagev2 "github.com/bazel-contrib/bazel-gazelle/v2/language"
+	"github.com/bazelbuild/bazel-gazelle/config"
+	"github.com/bazelbuild/bazel-gazelle/language"
 
 	pb "github.com/calsign/gazelle_rust/proto"
 	"google.golang.org/protobuf/proto"
@@ -170,6 +175,31 @@ func TestParserLifecycleChild(t *testing.T) {
 	case "startup":
 		NewParser()
 		os.Exit(0)
+	case "truncated-response":
+		// The fixture remains alive until production cleanup sends EOF. A separate
+		// watchdog bounds the child even if a fatal parent bypasses its context.
+		go func() { time.Sleep(10 * time.Second); os.Exit(97) }()
+		_, _ = os.Stdout.Write([]byte{2, 0})
+		_ = os.Stdout.Close()
+		_, _ = io.Copy(io.Discard, os.Stdin)
+		os.Exit(0)
+	case "fatal-exchange":
+		executable, err := os.Executable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 12*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, executable, "-test.run=^TestParserLifecycleChild$")
+		cmd.Env = append(os.Environ(), "GAZELLE_PARSER_LIFECYCLE_CHILD=truncated-response")
+		p, err := startParser(cmd)
+		if err != nil {
+			t.Fatal(err)
+		}
+		log.SetOutput(terminationDiagnostic{pid: cmd.Process.Pid})
+		l := &rustLang{Parser: p}
+		l.parseFile(config.New(), "lib.rs", nil, &language.GenerateArgs{Dir: os.TempDir()}, nil, nil, nil, nil)
+		t.Fatal("terminal exchange returned from fatal path")
 	case "unresponsive":
 		fmt.Fprint(os.Stdout, "ready")
 		for {
@@ -234,5 +264,130 @@ func TestParserKillsAndReapsUnresponsiveChildAfterGrace(t *testing.T) {
 	}
 	if again := p.cleanup(); again == nil || again.Error() != err.Error() {
 		t.Fatalf("repeated forced cleanup: first %v, again %v", err, again)
+	}
+}
+
+// Stream collaborators are the private standard-I/O boundary; requests still
+// exercise the public typed parsing operations and production wire protocol.
+type parserWriter struct {
+	bytes.Buffer
+	limit    int
+	writeErr error
+	closeErr error
+}
+
+func (w *parserWriter) Write(b []byte) (int, error) {
+	if w.writeErr != nil {
+		return 0, w.writeErr
+	}
+	if w.limit >= 0 && len(b) > w.limit {
+		b = b[:w.limit]
+	}
+	return w.Buffer.Write(b)
+}
+func (w *parserWriter) Close() error { return w.closeErr }
+func streamParser(w *parserWriter, response []byte) *Parser {
+	return &Parser{stdin: w, stdout: io.NopCloser(bytes.NewReader(response)), marshalOptions: &proto.MarshalOptions{}, responseBuffer: make([]byte, 1024)}
+}
+
+func TestParserFailedWriteIsTerminal(t *testing.T) {
+	failure := errors.New("broken transport")
+	p := streamParser(&parserWriter{limit: -1, writeErr: failure, closeErr: errors.New("cleanup failure")}, nil)
+	_, err := p.Parse(&pb.RustImportsRequest{RelativePath: "lib.rs"})
+	if !errors.Is(err, failure) || !strings.Contains(err.Error(), "write") || !strings.Contains(err.Error(), "cleanup failure") {
+		t.Fatalf("write failure lost context or cleanup: %v", err)
+	}
+	_, err = p.ParseCargoToml(&pb.CargoTomlRequest{})
+	if err == nil || !strings.Contains(err.Error(), "closed") {
+		t.Fatalf("failed session resumed: %v", err)
+	}
+}
+
+func TestParserCompletesShortWrites(t *testing.T) {
+	w := &parserWriter{limit: 1}
+	// Literal wire frame: RustImportsResponse.success = true.
+	p := streamParser(w, []byte{2, 0, 0, 0, 56, 1})
+	response, err := p.Parse(&pb.RustImportsRequest{RelativePath: "lib.rs"})
+	if err != nil || !response.GetSuccess() {
+		t.Fatalf("short write exchange: %v, %v", response, err)
+	}
+	// Request.kind.rust_imports.relative_path = "lib.rs".
+	if want := []byte{10, 0, 0, 0, 10, 8, 18, 6, 'l', 'i', 'b', '.', 'r', 's'}; !bytes.Equal(w.Bytes(), want) {
+		t.Fatalf("incomplete request: %x", w.Bytes())
+	}
+}
+
+func TestParserZeroProgressWriteFails(t *testing.T) {
+	p := streamParser(&parserWriter{limit: 0}, nil)
+	_, err := p.GetLockfileCrates(&pb.LockfileCratesRequest{})
+	if !errors.Is(err, io.ErrShortWrite) || !strings.Contains(err.Error(), "write") {
+		t.Fatalf("zero-progress write: %v", err)
+	}
+}
+
+func TestParserTruncatedPrefixHasContext(t *testing.T) {
+	p := streamParser(&parserWriter{limit: -1}, []byte{2, 0})
+	_, err := p.ParseCargoToml(&pb.CargoTomlRequest{})
+	if !errors.Is(err, io.ErrUnexpectedEOF) || !strings.Contains(err.Error(), "prefix") {
+		t.Fatalf("truncated prefix: %v", err)
+	}
+	_, err = p.GetLockfileCrates(&pb.LockfileCratesRequest{})
+	if err == nil || !strings.Contains(err.Error(), "closed") {
+		t.Fatalf("session resumed after truncated prefix: %v", err)
+	}
+}
+
+func TestParserResponseFailuresHaveContext(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		frame   []byte
+		context string
+		cause   error
+	}{
+		{"body", []byte{2, 0, 0, 0, 56}, "body", io.ErrUnexpectedEOF},
+		{"protobuf", []byte{1, 0, 0, 0, 255}, "decode", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := streamParser(&parserWriter{limit: -1}, tc.frame)
+			_, err := p.GetLockfileCrates(&pb.LockfileCratesRequest{})
+			if err == nil || !strings.Contains(err.Error(), tc.context) || (tc.cause != nil && !errors.Is(err, tc.cause)) {
+				t.Fatalf("response error lacks context/cause: %v", err)
+			}
+			_, err = p.Parse(&pb.RustImportsRequest{})
+			if err == nil || !strings.Contains(err.Error(), "closed") {
+				t.Fatalf("session resumed after response failure: %v", err)
+			}
+		})
+	}
+}
+
+// Observe the OS process boundary at the instant the production fatal logger
+// emits its diagnostic. This does not depend on defers after log.Fatal.
+type terminationDiagnostic struct{ pid int }
+
+func (d terminationDiagnostic) Write(b []byte) (int, error) {
+	if errors.Is(syscall.Kill(d.pid, 0), syscall.ESRCH) {
+		fmt.Fprintln(os.Stderr, "child terminated before fatal diagnostic")
+	} else {
+		fmt.Fprintln(os.Stderr, "child still alive at fatal diagnostic")
+	}
+	return os.Stderr.Write(b)
+}
+
+func TestParserTerminatesChildBeforeFatalDiagnostic(t *testing.T) {
+	executable, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, executable, "-test.run=^TestParserLifecycleChild$")
+	cmd.Env = append(os.Environ(), "GAZELLE_PARSER_LIFECYCLE_CHILD=fatal-exchange")
+	output, err := cmd.CombinedOutput()
+	if err == nil || ctx.Err() != nil {
+		t.Fatalf("fatal exchange did not exit promptly: %v (%v), output=%s", err, ctx.Err(), output)
+	}
+	if !strings.Contains(string(output), "child terminated before fatal diagnostic") || !strings.Contains(string(output), "failed to parse lib.rs") || !strings.Contains(string(output), "prefix") {
+		t.Fatalf("missing terminated child or exchange diagnostic: %s", output)
 	}
 }

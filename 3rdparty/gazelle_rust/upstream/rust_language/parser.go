@@ -114,49 +114,53 @@ func (p *Parser) writeRequest(request *pb.Request) error {
 		return err
 	}
 
-	p.stdin.Write(buf)
-
+	for len(buf) > 0 {
+		n, err := p.stdin.Write(buf)
+		if err != nil {
+			return fmt.Errorf("write parser request: %w", err)
+		}
+		if n <= 0 || n > len(buf) {
+			return fmt.Errorf("write parser request: %w", io.ErrShortWrite)
+		}
+		buf = buf[n:]
+	}
 	return nil
 }
 
 func (p *Parser) readResponse(response proto.Message) error {
 	sf32 := protowire.SizeFixed32()
 	n, err := io.ReadFull(p.stdout, p.responseBuffer[:sf32])
-	if n != sf32 {
-		return errors.New("invalid size")
-	}
 	if err != nil {
-		return err
+		return fmt.Errorf("read parser response prefix (%d of %d bytes): %w", n, sf32, err)
 	}
-	size, n := protowire.ConsumeFixed32(p.responseBuffer[:sf32])
-	if n != sf32 {
-		log.Fatalf("n: %v\n", n)
-	}
+	size, _ := protowire.ConsumeFixed32(p.responseBuffer[:sf32])
 	if size > uint32(len(p.responseBuffer)) {
 		// Grow the response buffer as needed.
 		p.responseBuffer = make([]byte, size)
 	}
 	n, err = io.ReadFull(p.stdout, p.responseBuffer[:size])
 	if err != nil {
-		return err
+		return fmt.Errorf("read parser response body (%d of %d bytes): %w", n, size, err)
 	}
-	if uint32(n) != size {
-		return errors.New(fmt.Sprintf(
-			"recieved wrong size %d, expected %d", n, size))
-	}
-	err = proto.Unmarshal(p.responseBuffer[:size], response)
-	if err != nil {
-		return err
+	if err := proto.Unmarshal(p.responseBuffer[:size], response); err != nil {
+		return fmt.Errorf("decode parser response: %w", err)
 	}
 
 	return nil
 }
 
 func (p *Parser) exchange(request *pb.Request, response proto.Message) error {
-	if err := p.writeRequest(request); err != nil {
-		return err
+	if p.cleanupDone {
+		return errors.New("parser session is closed")
 	}
-	return p.readResponse(response)
+	err := p.writeRequest(request)
+	if err == nil {
+		err = p.readResponse(response)
+	}
+	if err != nil {
+		return errors.Join(err, p.cleanup())
+	}
+	return nil
 }
 
 func (p *Parser) Parse(request *pb.RustImportsRequest) (*pb.RustImportsResponse, error) {

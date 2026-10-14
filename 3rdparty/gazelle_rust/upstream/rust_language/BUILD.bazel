@@ -34,6 +34,8 @@ go_test(
     embed = [":rust_language"],
     deps = [
         "//3rdparty/gazelle_rust/upstream/proto:messages_go",
+        "@gazelle//config",
+        "@gazelle//language",
         "@gazelle//v2/cmd/gazelle/update",
         "@gazelle//v2/compat",
         "@gazelle//v2/language",
