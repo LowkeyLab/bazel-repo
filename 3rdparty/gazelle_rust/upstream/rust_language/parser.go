@@ -21,6 +21,7 @@ type Parser struct {
 	stdin          io.WriteCloser
 	stdout         io.ReadCloser
 	marshalOptions *proto.MarshalOptions
+	responseBuffer []byte
 }
 
 func NewParser() *Parser {
@@ -44,15 +45,11 @@ func NewParser() *Parser {
 		stdin:          stdin,
 		stdout:         stdout,
 		marshalOptions: &proto.MarshalOptions{},
+		responseBuffer: make([]byte, 1024),
 	}
 }
 
-var (
-	buf  []byte = make([]byte, 1024)
-	sf32 int    = protowire.SizeFixed32()
-)
-
-func (p *Parser) WriteRequest(request *pb.Request) error {
+func (p *Parser) writeRequest(request *pb.Request) error {
 	size := p.marshalOptions.Size(request)
 
 	buf := []byte{}
@@ -67,23 +64,24 @@ func (p *Parser) WriteRequest(request *pb.Request) error {
 	return nil
 }
 
-func ReadResponse[M proto.Message](p *Parser, response M) error {
-	n, err := io.ReadFull(p.stdout, buf[:sf32])
+func (p *Parser) readResponse(response proto.Message) error {
+	sf32 := protowire.SizeFixed32()
+	n, err := io.ReadFull(p.stdout, p.responseBuffer[:sf32])
 	if n != sf32 {
 		return errors.New("invalid size")
 	}
 	if err != nil {
 		return err
 	}
-	size, n := protowire.ConsumeFixed32(buf[:sf32])
+	size, n := protowire.ConsumeFixed32(p.responseBuffer[:sf32])
 	if n != sf32 {
 		log.Fatalf("n: %v\n", n)
 	}
-	if size > uint32(len(buf)) {
-		// grow buffer as neeeded
-		buf = make([]byte, size)
+	if size > uint32(len(p.responseBuffer)) {
+		// Grow the response buffer as needed.
+		p.responseBuffer = make([]byte, size)
 	}
-	n, err = io.ReadFull(p.stdout, buf[:size])
+	n, err = io.ReadFull(p.stdout, p.responseBuffer[:size])
 	if err != nil {
 		return err
 	}
@@ -91,7 +89,7 @@ func ReadResponse[M proto.Message](p *Parser, response M) error {
 		return errors.New(fmt.Sprintf(
 			"recieved wrong size %d, expected %d", n, size))
 	}
-	err = proto.Unmarshal(buf[:size], response)
+	err = proto.Unmarshal(p.responseBuffer[:size], response)
 	if err != nil {
 		return err
 	}
@@ -99,40 +97,38 @@ func ReadResponse[M proto.Message](p *Parser, response M) error {
 	return nil
 }
 
-func (p *Parser) Parse(request *pb.RustImportsRequest) (*pb.RustImportsResponse, error) {
-	if err := p.WriteRequest(&pb.Request{
-		Kind: &pb.Request_RustImports{RustImports: request},
-	}); err != nil {
-		return nil, err
+func (p *Parser) exchange(request *pb.Request, response proto.Message) error {
+	if err := p.writeRequest(request); err != nil {
+		return err
 	}
+	return p.readResponse(response)
+}
+
+func (p *Parser) Parse(request *pb.RustImportsRequest) (*pb.RustImportsResponse, error) {
 	response := &pb.RustImportsResponse{}
-	if err := ReadResponse[*pb.RustImportsResponse](p, response); err != nil {
+	if err := p.exchange(&pb.Request{
+		Kind: &pb.Request_RustImports{RustImports: request},
+	}, response); err != nil {
 		return nil, err
 	}
 	return response, nil
 }
 
 func (p *Parser) GetLockfileCrates(request *pb.LockfileCratesRequest) (*pb.LockfileCratesResponse, error) {
-	if err := p.WriteRequest(&pb.Request{
-		Kind: &pb.Request_LockfileCrates{LockfileCrates: request},
-	}); err != nil {
-		return nil, err
-	}
 	response := &pb.LockfileCratesResponse{}
-	if err := ReadResponse[*pb.LockfileCratesResponse](p, response); err != nil {
+	if err := p.exchange(&pb.Request{
+		Kind: &pb.Request_LockfileCrates{LockfileCrates: request},
+	}, response); err != nil {
 		return nil, err
 	}
 	return response, nil
 }
 
 func (p *Parser) ParseCargoToml(request *pb.CargoTomlRequest) (*pb.CargoTomlResponse, error) {
-	if err := p.WriteRequest(&pb.Request{
-		Kind: &pb.Request_CargoToml{CargoToml: request},
-	}); err != nil {
-		return nil, err
-	}
 	response := &pb.CargoTomlResponse{}
-	if err := ReadResponse[*pb.CargoTomlResponse](p, response); err != nil {
+	if err := p.exchange(&pb.Request{
+		Kind: &pb.Request_CargoToml{CargoToml: request},
+	}, response); err != nil {
 		return nil, err
 	}
 	return response, nil
