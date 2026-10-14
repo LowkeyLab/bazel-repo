@@ -2,7 +2,7 @@
   description = "Dev shell for bazel-repo";
 
   inputs = {
-    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=8edc0c72e3a38faf5434e40d1f19431125fe4b30";
+    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=ca1659429c950a11a565b5764e37a1b704e17ec8";
     lowkeylab-nix = {
       url = "github:LowkeyLab/nix?rev=a4c827b47ea473f0b4ff7934e455cfc9d4b3afff";
       inputs.nixpkgs.follows = "nixpkgs";
