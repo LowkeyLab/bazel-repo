@@ -11,8 +11,8 @@ The existing CI workflows and merge requirements remain in place.
 The stable compiler pin in `MODULE.bazel` is the compiler authority. Two custom
 regular expression managers track that pin and the formatter repository name in
 `MODULE.bazel` and `tools/format/BUILD.bazel`. Both managers use the same `rust`
-dependency identity and the `rust-version` datasource. Numeric stable releases
-are grouped as **Rust toolchain**; beta and nightly releases are excluded.
+dependency identity and the `rust-version` data source. Renovate groups numeric
+stable releases as **Rust toolchain** and excludes beta and nightly releases.
 The dated nightly toolchain remains pinned.
 
 The formatter manager converts underscore-separated versions into semantic
@@ -23,36 +23,37 @@ regenerating the lockfile.
 
 [Renovate custom managers](https://docs.renovatebot.com/modules/manager/regex/)
 and [replacement templates](https://docs.renovatebot.com/templates/) support this
-coupling. The [Rust datasource](https://docs.renovatebot.com/modules/datasource/rust-version/)
+coupling. The [Rust data source](https://docs.renovatebot.com/modules/datasource/rust-version/)
 reads official Rust distribution manifests.
 
 ## Generated changes
 
 Branch-level post-upgrade commands regenerate `MODULE.bazel.lock`, apply the
 selected rustfmt to Rust sources, run Gazelle immediately after source formatting,
-and format Starlark files. The PR retains the resulting Rust and BUILD file
+and format Starlark files. The PR retains the resulting Rust and `BUILD.bazel` file
 changes along with the toolchain references and lockfile. All commands run through
 Bazel and must match the existing Renovate service command allowlist.
 
-Rust upgrades can introduce new Clippy findings, fail tests, or change the LLVM
-raw coverage-profile format. Such failures block merging for human repair. The
-LLVM coverage-tools pin changes only through a reviewed compatibility fix;
-this automation does not upgrade LLVM or relax coverage checks.
+Rust upgrades can introduce new Clippy findings, fail tests, or change the raw
+coverage-profile format. Such failures block merging for human repair. The
+`llvm` coverage-tools pin changes only through a reviewed compatibility fix.
+This automation doesn't upgrade the `llvm` tools or relax coverage checks.
 
 ## Acceptance
 
 Validate the configuration and perform dependency extraction and release lookup
 with the deployed Renovate version. Verify that patch and minor candidates update
-all three references together, preserve the nightly pin, and exclude prereleases.
-Verify that major candidates require approval and have automerge disabled.
+all three references together, preserve the nightly pin, and exclude pre-release
+versions. Verify that major candidates require approval and have automatic merging
+turned off.
 
-Exercise the post-upgrade commands and confirm that generated files and rustfmt
-changes are retained. A second generation and formatting pass must produce no
+Exercise the post-upgrade commands and confirm that the branch retains generated
+files and rustfmt changes. A second generation and formatting pass must produce no
 changes. Run repository formatting, build, tests, lint, and coverage through the
-existing Bazel workflows. Distinguish a local configuration or extraction check
-from a successful run by the deployed service.
+existing Bazel workflows. Distinguish local configuration validation or dependency
+extraction from a successful run by the deployed service.
 
-The design and implementation scope were approved on 2026-10-14.
+The design and implementation scope received approval on 2026-10-14.
 
 ## Verification on 2026-10-14
 
@@ -61,12 +62,12 @@ Strict configuration validation and a local release-lookup dry run used Renovate
 [successful workflow run](https://github.com/LowkeyLab/renovatebot/actions/runs/38513492679).
 The dry run detected all three 1.96.0 references and proposed 1.99.0 for each.
 Runtime replacement checks verified coupled edits, preserved nightly, excluded
-prereleases, and resolved the inherited merge policy for patch, minor, and major
-candidates. Patch and major candidates were simulated.
+pre-release versions, and resolved the inherited merge policy for patch, minor,
+and major candidates. Patch and major candidates used simulated releases.
 
 A real 1.99.0 validation scenario exercised lockfile regeneration, rustfmt,
-Gazelle, buildifier, and strict lockfile checking. Validation files were restored
-from a saved snapshot afterward. Repository build, all 145 test targets, lint,
-and CI-configured coverage passed for the current 1.96.0 toolchain. The test and
+Gazelle, `buildifier`, and strict lockfile checking. The validation process restored
+the files from a saved snapshot afterward. Repository build, all 145 test targets,
+lint, and CI-configured coverage passed for the current 1.96.0 toolchain. The test and
 coverage results used cached executions. Coverage HTML generation emitted
 existing category warnings.
