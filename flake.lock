@@ -3,17 +3,17 @@
     "aspect-cli-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1790907042,
-        "narHash": "sha256-nLR0R3Tkz+EATHBYVU1pthngYM/btftONQAgjZX0i7A=",
+        "lastModified": 1791720651,
+        "narHash": "sha256-mfWLfjVljCurAZLrt0Yzo404OLJV24oCeBDD6tX/u+A=",
         "owner": "aspect-build",
         "repo": "aspect-cli",
-        "rev": "47a8a9361a646e6839ba202deb318050696bb5a9",
+        "rev": "5a09b7c479084c233bcf554cef3932fe97c71556",
         "type": "github"
       },
       "original": {
         "owner": "aspect-build",
         "repo": "aspect-cli",
-        "rev": "47a8a9361a646e6839ba202deb318050696bb5a9",
+        "rev": "5a09b7c479084c233bcf554cef3932fe97c71556",
         "type": "github"
       }
     },
@@ -26,17 +26,17 @@
         "systems": "systems_2"
       },
       "locked": {
-        "lastModified": 1788342924,
-        "narHash": "sha256-Sfyygt2dL88+160d014gaXMlWTGIL2HGxlIzLGsGPvE=",
+        "lastModified": 1791920352,
+        "narHash": "sha256-Zbd0CGR2Dh9USbYglGXQ09FJXxxKkD5w5vi99nlz1yE=",
         "owner": "numtide",
         "repo": "blueprint",
-        "rev": "8be75245e274a789b87cc4df542abbcd8c5e7f93",
+        "rev": "2bf123541bd5024046f32299c9f8a6cc6bdd8a9f",
         "type": "github"
       },
       "original": {
         "owner": "numtide",
         "repo": "blueprint",
-        "rev": "8be75245e274a789b87cc4df542abbcd8c5e7f93",
+        "rev": "2bf123541bd5024046f32299c9f8a6cc6bdd8a9f",
         "type": "github"
       }
     },
@@ -129,17 +129,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1791882525,
-        "narHash": "sha256-6U51tBL2evmdUcC+vbGsbznbN0vfV+EIhAT6SxW+3yE=",
+        "lastModified": 1791928350,
+        "narHash": "sha256-ps3Mzz8BUmnAE8DF3QUe0DZYCvJXfzdj7w8wkJ+Y2po=",
         "owner": "LowkeyLab",
         "repo": "nix",
-        "rev": "ffa3d47c86d7cc598617eaf699d6ee8684d8d43c",
+        "rev": "fbc633b8aac49d0d1f67a7204531410091f1614b",
         "type": "github"
       },
       "original": {
         "owner": "LowkeyLab",
         "repo": "nix",
-        "rev": "ffa3d47c86d7cc598617eaf699d6ee8684d8d43c",
+        "rev": "fbc633b8aac49d0d1f67a7204531410091f1614b",
         "type": "github"
       }
     },
