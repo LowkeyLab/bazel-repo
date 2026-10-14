@@ -13,9 +13,11 @@ def personal_website_ts_library(name, srcs, tsconfig_types = None, **kwargs):
         extends = "//personal_website:tsconfig",
         preserve_jsx = True,
         tsconfig = {
+            "include": [],
             "compilerOptions": {
                 "allowImportingTsExtensions": False,
                 "noEmit": False,
+                "types": ["astro/client"] + (tsconfig_types or []),
             },
         },
         **kwargs
@@ -29,7 +31,13 @@ def personal_website_ts_config(name, srcs, tsconfig_types = None, **kwargs):
         allow_js = True,
         no_emit = True,
         preserve_jsx = True,
-        tsconfig = "//personal_website:tsconfig",
+        extends = "//personal_website:tsconfig",
+        tsconfig = {
+            "include": [],
+            "compilerOptions": {
+                "types": ["astro/client"] + (tsconfig_types or []),
+            },
+        },
         **kwargs
     )
 

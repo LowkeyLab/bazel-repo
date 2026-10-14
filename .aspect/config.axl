@@ -1,7 +1,10 @@
 def config(ctx):
     ctx.tasks["format"].args.formatter_target = "//tools/format:format"
 
-    ctx.tasks["lint"].args.bazel_flags = ["--config=lint"]
+    ctx.tasks["lint"].args.bazel_flags = [
+        "--config=lint",
+        "--remote_cache=grpcs://remote.buildbuddy.io",
+    ]
     ctx.tasks["lint"].args.aspects = [
         "//tools/lint:linters.bzl%buf",
         "//tools/lint:linters.bzl%eslint",
@@ -20,3 +23,9 @@ def config(ctx):
     ctx.tasks["delivery"].args.bazel_flags = ["--compilation_mode=opt"]
     ctx.tasks["delivery"].args.release_bazel_flags = ["--nostamp"]
     ctx.tasks["delivery"].args.max_parallelization = 8
+
+    # Preserve the BuildBuddy cache configured in .bazelrc while reporting to Aspect.
+    for name in ["build", "test", "format"]:
+        ctx.tasks[name].args.bazel_flags = [
+            "--remote_cache=grpcs://remote.buildbuddy.io",
+        ]
