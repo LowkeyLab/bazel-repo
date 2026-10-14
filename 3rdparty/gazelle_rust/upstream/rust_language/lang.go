@@ -2,6 +2,7 @@ package rust_language
 
 import (
 	"flag"
+	"log"
 	"path"
 	"strconv"
 	"strings"
@@ -329,6 +330,16 @@ func (l *rustLang) Configure(c *config.Config, rel string, from *rule.File) {
 		cfg.KindMapInverse[v.KindName] = k
 	}
 	l.prepareCrates(c, rel, from)
+}
+
+// DoneGeneratingRules is Gazelle's standard generation-finished hook. The
+// pinned v2 compatibility adapter calls it after the directory walk and before
+// resolution. Parser exchanges occur only during Configure and GenerateRules;
+// dependency resolution and unused-crate reporting use already collected data.
+func (l *rustLang) DoneGeneratingRules() {
+	if err := l.Parser.cleanup(); err != nil {
+		log.Fatalf("shutdown parser: %v", err)
+	}
 }
 
 func (l *rustLang) DoneResolving(c *config.Config) {
