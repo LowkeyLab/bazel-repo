@@ -43,20 +43,40 @@ remain pilot acceptance evidence to collect after provisioning.
 
 ## Strict pilot acceptance (ticket #2244)
 
-The manual **Nix cache acceptance** workflow uses a fresh hosted runner per
-package and the same installer with `install-only: 'true'`. This installs Nix
-without building the requested package. No store cache is restored and no
-upload, Aspect-service, BuildBuddy or Docker secret is supplied. It never
-invokes coverage or production deployment.
+The **Nix cache acceptance** workflow has an opt-in premerge route. Apply the
+`nix-cache-acceptance` label to a PR containing this workflow. A regular
+`pull_request` event (`opened`, `labeled`, `synchronize` or `reopened`) runs
+from the PR merge revision, so this route works on a draft PR before the file
+exists on main. Both pilot jobs require the label; PRs without it skip all
+pilot work. Later pushes to a labeled PR repeat the check. No default-branch
+registration, main merge, bootstrap PR or deployment is needed for this route.
 
-[GitHub requires the manual workflow to exist on the default branch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
-before `workflow_dispatch` is available. An unmerged PR adding this file does
-not by itself provide a dispatchable hosted check. Once the file exists on
-main, `gh workflow run nix-cache-acceptance.yml --repo LowkeyLab/bazel-repo
---ref REVISION` selects the intended branch revision. Until that integration
-boundary is authorized and completed, retain the executable helper and
-structural checks as preparation only; report hosted acceptance as blocked.
-Do not imply that draft PR publication bypasses workflow discovery.
+For a labeled PR, an Aspect/lcov matrix calls the existing preparation
+workflow. Only preparation receives the optional `CACHIX_AUTH_TOKEN`; its
+existing guard permits publication from same-repository PRs, including
+Renovate, and leaves forks read-only. Both preparation jobs must succeed
+before the independent fresh-reader matrix starts. Preparation may build from
+source, and optional publication failures may warn, as in ordinary CI. Only
+successful strict download evidence establishes acceptance; successful
+preparation alone does not establish a cache hit or remote availability.
+
+Each strict reader uses a fresh hosted runner and the shared installer with
+`install-only: 'true'`, which installs Nix without building the requested
+package. Readers receive no upload, Aspect-service, BuildBuddy or Docker
+secret, persist no checkout credentials, and restore no Nix store. The pilot
+never invokes coverage or production deployment. Existing Bazel Tests and
+Coverage triggers and ordinary source fallback remain unchanged. A strict
+pilot failure is reported by this separate opt-in workflow.
+
+The manual route skips preparation and reads the existing cache. Its
+`always()` plus explicit event/result guard allows fresh readers to run after
+intentionally skipped preparation, while blocking them after a failed or
+cancelled PR preparation. [GitHub requires the manual workflow to exist on
+the default branch](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
+before `workflow_dispatch` is available. Once the file exists on main,
+`gh workflow run nix-cache-acceptance.yml --repo LowkeyLab/bazel-repo --ref REVISION`
+selects the intended branch revision. This manual discovery requirement does
+not prevent the labeled PR route described above.
 
 The command `python3 .github/scripts/nix_tool.py strict aspect` (or `lcov`)
 requires real public cache variables, evaluates the exact locked output and
@@ -115,8 +135,12 @@ execution** until linked evidence exists:
 | Missing output and unavailable substituter | Strict failure; ordinary fallback diagnostics and measured elapsed time                               |
 | Failed publication/build                   | Upload failure reported distinctly; genuine build failure remains fatal                               |
 
-The manual workflow supplies the fresh-download row only. It neither warms a
-cache nor proves event guards, preparation ordering or the broader live matrix.
+The manual route supplies the fresh-download row only and does not warm a
+cache. The labeled PR route additionally exercises preparation before fresh
+readers for that PR revision. Neither route by itself proves main publication,
+Renovate and fork behavior, twice-concurrent format/lint/test fan-out, or the
+broader live matrix. Keep their evidence separate and require actual logs;
+structural workflow checks do not complete any live row.
 For coverage/deployment installation, exercise just the shared action with the
 appropriate tool on a hosted runner; do not dispatch a production deployment
 workflow merely to gather this evidence. Keep #2244 open until the complete
