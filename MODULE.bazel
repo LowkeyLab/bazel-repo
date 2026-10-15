@@ -166,10 +166,9 @@ git_override(
     remote = "https://github.com/hermeticbuild/hermetic-llvm.git",
 )
 
-# Rust 1.96 emits LLVM raw profile version 10, but LLVM 23 expects version 11.
-# Keep the coverage tools on LLVM 22 until the Rust toolchains use LLVM 23.
+# Rust 1.99.1 emits LLVM raw profile version 11, which requires LLVM 23 tools.
 llvm = use_extension("@llvm//extensions:llvm.bzl", "llvm")
-llvm.version(llvm_version = "22.1.8")
+llvm.version(llvm_version = "23.1.2")
 use_repo(llvm, "llvm-project")
 
 git_override(
@@ -559,7 +558,7 @@ toolchains = use_extension(
 toolchains.toolchain(
     name = "default_rust_toolchains",
     edition = "2024",
-    version = "1.99.0",
+    version = "1.99.1",
 )
 toolchains.toolchain(
     name = "nightly_rust_toolchains",
@@ -570,7 +569,7 @@ use_repo(
     toolchains,
     "default_rust_toolchains",
     "nightly_rust_toolchains",
-    "rustfmt_linux_x86_64_1_99_0",
+    "rustfmt_linux_x86_64_1_99_1",
 )
 
 register_toolchains(
