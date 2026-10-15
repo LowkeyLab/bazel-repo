@@ -9,3 +9,4 @@ pnpm-lock.yaml linguist-generated=true
 3rdparty/gazelle_rust/upstream/gazelle_rust_parser/test_data/** rules-lint-ignored
 # Patch context whitespace is part of the upstream patch format.
 3rdparty/gazelle_rust/upstream/patches/*.patch -whitespace rules-lint-ignored
+3rdparty/aspect_cli/*.patch -whitespace rules-lint-ignored

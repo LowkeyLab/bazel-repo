@@ -1,0 +1,33 @@
+"""Regression check for the flag redaction used by the delivery header."""
+
+load("@aspect//private/lib/bazel_results.axl", "redact_flags")
+
+def _impl(ctx):
+    # CI injects version-gated flags as (flag, condition) tuples. Preserve
+    # that shape by expanding an rc without a resolved Bazel version.
+    rc = ctx.bazel.new_rc(flags = [
+        "--compilation_mode=opt",
+        ("--remote_header=x-test=fixture-secret", ">=8.0.0"),
+        ("--repo_env=SECRET=fixture-secret", ">=8.0.0"),
+        ("--remote_cache=https://user:fixture-secret@example.com", ">=8.0.0"),
+    ])
+    actual = redact_flags(rc.expand(command = "build"))
+    expected = [
+        "--compilation_mode=opt",
+        "--remote_header=x-test=<REDACTED>",
+        "--repo_env=SECRET=<REDACTED>",
+        "--remote_cache=https://user:<REDACTED>@example.com",
+    ]
+    if actual != expected:
+        fail("delivery flag redaction: got %r, expected %r" % (actual, expected))
+    if redact_flags([]) != [] or redact_flags(None) != []:
+        fail("empty flag lists must stay empty")
+    print("PASS: delivery handles version-gated flags and masks credentials")
+    return 0
+
+delivery_flags = task(
+    kind = "delivery-flags",
+    summary = "Check delivery header redaction without builds or network access.",
+    implementation = _impl,
+    args = {},
+)
