@@ -29,10 +29,13 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          aspect = import ./nix/packages/aspect {
+          # Upstream 618f5c4 passes version-gated flag tuples to its redactor.
+          aspect = (import ./nix/packages/aspect {
             inherit pkgs;
             inputs = { inherit aspect-cli-src; };
-          };
+          }).overrideAttrs (old: {
+            patches = (old.patches or [ ]) ++ [ ./3rdparty/aspect_cli/delivery_versioned_flags.patch ];
+          });
           agent-browser = llm-agents.packages.${system}.agent-browser;
         in
         {
@@ -61,6 +64,13 @@
             inherit pkgs;
             perSystem.self = { inherit aspect; };
           };
+          aspect-delivery-flags = pkgs.runCommand "aspect-delivery-flags" { nativeBuildInputs = [ aspect ]; } ''
+            export ASPECT_CLI_CACHE="$TMPDIR/aspect-cache"
+            mkdir .aspect
+            cp ${./tools/aspect/delivery_flags.axl} .aspect/check.axl
+            aspect delivery-flags
+            touch "$out"
+          '';
         }
       );
       devShells = forAllSystems (

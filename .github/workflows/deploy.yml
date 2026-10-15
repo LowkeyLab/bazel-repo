@@ -35,6 +35,8 @@ jobs:
         env:
           ASPECT_PATH: ${{ steps.aspect.outputs.path }}
         run: install -Dm755 "$ASPECT_PATH/bin/aspect" /usr/local/bin/aspect
+      - name: Check Aspect delivery flags
+        run: nix build .#checks.x86_64-linux.aspect-delivery-flags --no-link
       - name: Log in to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:
