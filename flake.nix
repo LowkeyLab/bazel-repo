@@ -3,9 +3,9 @@
 
   inputs = {
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=ca1659429c950a11a565b5764e37a1b704e17ec8";
-    lowkeylab-nix = {
-      url = "github:LowkeyLab/nix?rev=a4c827b47ea473f0b4ff7934e455cfc9d4b3afff";
-      inputs.nixpkgs.follows = "nixpkgs";
+    aspect-cli-src = {
+      url = "github:aspect-build/aspect-cli?rev=618f5c40cb0b3e015649acb6fc030aed4ac685f1";
+      flake = false;
     };
     llm-agents = {
       url = "github:numtide/llm-agents.nix?rev=09aee45133d3dfce34e4873ac1c9003d284b695e";
@@ -16,7 +16,7 @@
   outputs =
     {
       nixpkgs,
-      lowkeylab-nix,
+      aspect-cli-src,
       llm-agents,
       ...
     }:
@@ -29,7 +29,10 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          aspect = lowkeylab-nix.packages.${system}.aspect;
+          aspect = import ./nix/packages/aspect {
+            inherit pkgs;
+            inputs = { inherit aspect-cli-src; };
+          };
           agent-browser = llm-agents.packages.${system}.agent-browser;
         in
         {
@@ -45,6 +48,18 @@
         {
           inherit aspect;
           default = aspect;
+        }
+      );
+      checks = forAllSystems (
+        system:
+        let
+          inherit (mkPackagesForSystem system) pkgs aspect;
+        in
+        {
+          aspect = import ./nix/checks/aspect {
+            inherit pkgs;
+            perSystem.self = { inherit aspect; };
+          };
         }
       );
       devShells = forAllSystems (
