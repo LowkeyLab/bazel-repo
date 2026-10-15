@@ -1,0 +1,20 @@
+diff --git a/crates/aspect-cli/src/builtins/aspect/private/lib/bazel_results.axl b/crates/aspect-cli/src/builtins/aspect/private/lib/bazel_results.axl
+--- a/crates/aspect-cli/src/builtins/aspect/private/lib/bazel_results.axl
++++ b/crates/aspect-cli/src/builtins/aspect/private/lib/bazel_results.axl
+@@ -53,6 +53,7 @@
+ 
+ load("@aspect//bazel/trait.axl", "exit_codes")
+ load("@std//time.axl", "time")
++load("./aspect_flags.axl", "flag_text")
+ load("./ci.axl", "detect_ci_host", "resolve_build_url")
+ load(
+     "./environment.axl",
+@@ -2569,7 +2570,7 @@ def redact_flags(args, metadata = None):
+     ALLOW_ENV is resolved from `metadata` (`--build_metadata` dict), defaulting
+     when unset.
+     """
+-    return _redact_args(args or [], _allow_env_patterns(metadata))
++    return _redact_args([flag_text(arg) for arg in args or []], _allow_env_patterns(metadata))
+ 
+ # Chars safe to leave unquoted in a shell token; anything else triggers quoting.
+ _SHELL_SAFE_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_=./:@,+%"
