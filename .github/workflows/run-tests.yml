@@ -13,7 +13,14 @@ on:
 env:
   MISE_EXPERIMENTAL: true
 jobs:
+  prepare:
+    uses: ./.github/workflows/prepare-nix-tools.yml
+    permissions:
+      contents: read
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
   format:
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -21,6 +28,8 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup-bazel-ci
         with:
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
           aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
           docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
@@ -29,6 +38,7 @@ jobs:
         run: |
           aspect format
   lint:
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -36,6 +46,8 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup-bazel-ci
         with:
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
           aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
           docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
@@ -44,6 +56,7 @@ jobs:
         run: |
           aspect lint //...
   test:
+    needs: prepare
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -51,6 +64,8 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup-bazel-ci
         with:
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
           aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
           docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}

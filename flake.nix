@@ -3,9 +3,9 @@
 
   inputs = {
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=319e4cebef10cbb636c6ea392137b52ad105336a";
-    lowkeylab-nix = {
-      url = "github:LowkeyLab/nix?rev=00c1628686b8fc59a8a389c9597c72a95c069955";
-      inputs.nixpkgs.follows = "nixpkgs";
+    aspect-cli-src = {
+      url = "github:aspect-build/aspect-cli?rev=618f5c40cb0b3e015649acb6fc030aed4ac685f1";
+      flake = false;
     };
     llm-agents = {
       url = "github:numtide/llm-agents.nix?rev=4e80fdc9b04f4531a78c89f6dff66e0a4d920b3f";
@@ -16,7 +16,7 @@
   outputs =
     {
       nixpkgs,
-      lowkeylab-nix,
+      aspect-cli-src,
       llm-agents,
       ...
     }:
@@ -30,7 +30,10 @@
         let
           pkgs = nixpkgs.legacyPackages.${system};
           # Upstream 618f5c4 passes version-gated flag tuples to its redactor.
-          aspect = lowkeylab-nix.packages.${system}.aspect.overrideAttrs (old: {
+          aspect = (import ./nix/packages/aspect {
+            inherit pkgs;
+            inputs = { inherit aspect-cli-src; };
+          }).overrideAttrs (old: {
             patches = (old.patches or [ ]) ++ [ ./3rdparty/aspect_cli/delivery_versioned_flags.patch ];
           });
           agent-browser = llm-agents.packages.${system}.agent-browser;
@@ -43,10 +46,11 @@
       packages = forAllSystems (
         system:
         let
-          inherit (mkPackagesForSystem system) aspect;
+          inherit (mkPackagesForSystem system) pkgs aspect;
         in
         {
           inherit aspect;
+          inherit (pkgs) lcov;
           default = aspect;
         }
       );
@@ -56,6 +60,10 @@
           inherit (mkPackagesForSystem system) pkgs aspect;
         in
         {
+          aspect = import ./nix/checks/aspect {
+            inherit pkgs;
+            perSystem.self = { inherit aspect; };
+          };
           aspect-delivery-flags = pkgs.runCommand "aspect-delivery-flags" { nativeBuildInputs = [ aspect ]; } ''
             export ASPECT_CLI_CACHE="$TMPDIR/aspect-cache"
             mkdir .aspect
