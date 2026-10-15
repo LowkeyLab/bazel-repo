@@ -27,7 +27,7 @@ if grep -Eq '(^|/)tests/' <<<"${archive_entries}"; then
 	fail "browser fixture entered frontend layer"
 fi
 
-for slug in free-dsl guess-the-word landing-page mindreadr local-first-gradle-build-scan building-jvm-rpc-tooling prototyping-a-flink-pipeline making-a-platform-buildable-again; do
+for slug in free-dsl guess-the-word landing-page mindreadr local-first-gradle-build-scan; do
 	[[ -f "${dist}/blog/${slug}/index.html" ]] || fail "missing /blog/${slug}"
 done
 
@@ -99,20 +99,20 @@ count_entry_links() {
 	printf '%s' "${count}"
 }
 
-[[ "$(count_entry_links "${featured}")" -eq 3 ]] || fail "featured section must contain three article links"
-for slug in building-jvm-rpc-tooling mindreadr the-future-is-remote; do
+[[ "$(count_entry_links "${featured}")" -eq 2 ]] || fail "featured section must contain two article links"
+for slug in mindreadr the-future-is-remote; do
 	[[ "${featured}" == *"href=\"/blog/${slug}/\""* ]] || fail "missing featured article ${slug}"
 done
 
 recent_count="$(count_entry_links "${recent_before_all}")"
 [[ "${recent_count}" -ge 1 && "${recent_count}" -le 3 ]] || fail "recent section must contain one to three entries before All writing"
-for slug in building-jvm-rpc-tooling mindreadr the-future-is-remote; do
+for slug in mindreadr the-future-is-remote; do
 	[[ "${recent}" != *"href=\"/blog/${slug}/\""* ]] || fail "featured article ${slug} repeated in recent writing"
 done
 [[ -f "${dist}/about/index.html" ]] || fail "missing About page"
 for slug in building-jvm-rpc-tooling prototyping-a-flink-pipeline making-a-platform-buildable-again; do
-	article="$(<"${dist}/blog/${slug}/index.html")"
-	[[ "${article}" == *'entry-type">Work</span>'* ]] || fail "missing Work label for ${slug}"
-	[[ "${article}" == *'Bloomberg'* ]] || fail "missing company context for ${slug}"
-	[[ "${article}" == *'October 1, 2026'* ]] || fail "wrong publication date for ${slug}"
+	[[ ! -e "${dist}/blog/${slug}" ]] || fail "generated removed article ${slug}"
+	if grep -R -q "/blog/${slug}/" "${dist}"; then
+		fail "published site still references removed article ${slug}"
+	fi
 done

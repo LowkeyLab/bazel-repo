@@ -134,9 +134,6 @@ func TestLegacyRedirects(t *testing.T) {
 		destination string
 	}{
 		{"/work", "/blog/"},
-		{"/work/core-java-infrastructure", "/blog/building-jvm-rpc-tooling/"},
-		{"/work/ioi-pipeline", "/blog/prototyping-a-flink-pipeline/"},
-		{"/work/model-driven-architecture", "/blog/making-a-platform-buildable-again/"},
 		{"/projects", "/blog/"},
 		{"/projects/guess-the-word", "/blog/guess-the-word/"},
 		{"/projects/free-dsl", "/blog/free-dsl/"},
@@ -158,13 +155,24 @@ func TestLegacyRedirects(t *testing.T) {
 			})
 		}
 	}
-	for _, path := range []string{"/work/unknown", "/work/unknown/", "/projects/unknown", "/projects/unknown/"} {
-		t.Run(path, func(t *testing.T) {
-			response, _ := get(t, client, path, nil)
-			if response.StatusCode != http.StatusNotFound {
-				t.Errorf("unknown route status = %d; want 404", response.StatusCode)
-			}
-		})
+	for _, path := range []string{
+		"/work/unknown",
+		"/projects/unknown",
+		"/work/core-java-infrastructure",
+		"/work/ioi-pipeline",
+		"/work/model-driven-architecture",
+		"/blog/building-jvm-rpc-tooling",
+		"/blog/prototyping-a-flink-pipeline",
+		"/blog/making-a-platform-buildable-again",
+	} {
+		for _, suffix := range []string{"", "/"} {
+			t.Run(path+suffix, func(t *testing.T) {
+				response, _ := get(t, client, path+suffix, nil)
+				if response.StatusCode != http.StatusNotFound {
+					t.Errorf("retired or unknown route status = %d; want 404", response.StatusCode)
+				}
+			})
+		}
 	}
 }
 

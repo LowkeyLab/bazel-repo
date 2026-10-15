@@ -321,7 +321,7 @@ func publishedRoutes(t *testing.T, files map[string]string) map[string]bool {
 			routes[siteOrigin+strings.TrimSuffix(link, "/")+"/"] = true
 		}
 	}
-	for _, slug := range []string{"building-jvm-rpc-tooling", "prototyping-a-flink-pipeline", "making-a-platform-buildable-again", "guess-the-word", "free-dsl", "landing-page", "mindreadr", "local-first-gradle-build-scan", "the-future-is-remote", "rust-is-a-mind-virus"} {
+	for _, slug := range []string{"guess-the-word", "free-dsl", "landing-page", "mindreadr", "local-first-gradle-build-scan", "the-future-is-remote", "rust-is-a-mind-virus"} {
 		if !routes[siteOrigin+"/blog/"+slug+"/"] {
 			t.Errorf("published article missing: %s", slug)
 		}

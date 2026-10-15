@@ -10,12 +10,6 @@
 
 	redir /work /blog/ permanent
 	redir /work/ /blog/ permanent
-	redir /work/core-java-infrastructure /blog/building-jvm-rpc-tooling/ permanent
-	redir /work/core-java-infrastructure/ /blog/building-jvm-rpc-tooling/ permanent
-	redir /work/ioi-pipeline /blog/prototyping-a-flink-pipeline/ permanent
-	redir /work/ioi-pipeline/ /blog/prototyping-a-flink-pipeline/ permanent
-	redir /work/model-driven-architecture /blog/making-a-platform-buildable-again/ permanent
-	redir /work/model-driven-architecture/ /blog/making-a-platform-buildable-again/ permanent
 
 	redir /projects /blog/ permanent
 	redir /projects/ /blog/ permanent
