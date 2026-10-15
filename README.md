@@ -140,3 +140,5 @@ GNU Affero General Public License v3.0 (AGPLv3). See `LICENSE`.
 - Monorepo reference: `AGENTS.md`
 - Nicknamer service details: `nicknamer/README.md`
 - Angular workflows: `angular/AGENTS.md`
+
+<!-- Temporary fork-only cache acceptance fixture for ticket 2244. -->
