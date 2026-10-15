@@ -159,7 +159,7 @@ reread the current map body, merge the new context link while preserving existin
 entries, write the body, and verify the result. If you detect another writer,
 pause map edits and reconcile before continuing.
 
-Reconciliation compares closed child issues with Decisions-so-far and Out of
+Reconciliation compares closed child issues with Decisions so far and Out of
 scope. For each missing entry, read the recorded resolution or scope explanation.
 Restore resolved decisions as title links with a short gist. Restore out-of-scope
 closures in Out of scope, creating that section if an older map lacks it. Preserve
