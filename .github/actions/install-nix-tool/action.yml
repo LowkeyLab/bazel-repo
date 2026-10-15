@@ -4,6 +4,9 @@ inputs:
   tool:
     description: Repository package (aspect or lcov)
     default: aspect
+  install-only:
+    description: Install and configure Nix without realizing a tool (fresh-runner acceptance)
+    default: 'false'
   cache-name:
     description: Public Cachix cache name
     default: ''
@@ -40,6 +43,7 @@ runs:
           ${{ inputs.cache-name != '' && format('extra-substituters = https://{0}.cachix.org', inputs.cache-name) || '' }}
           ${{ inputs.public-key != '' && format('extra-trusted-public-keys = {0}', inputs.public-key) || '' }}
     - name: Resolve repository tool
+      if: inputs.install-only != 'true'
       id: tool
       shell: bash
       env:

@@ -132,17 +132,201 @@ def verify(tool, output, url):
     return True
 
 
+class Evidence:
+    def __init__(self, tool):
+        self.directory = (
+            Path(os.environ.get("RUNNER_TEMP", "/tmp")) / f"nix-acceptance-{tool}"
+        )
+        self.directory.mkdir(mode=0o700, parents=True, exist_ok=False)
+        self.commands = []
+
+    def run(self, label, *args):
+        started = time.monotonic()
+        record = {"command": list(args), "label": label, "exit": None}
+        self.commands.append(record)
+        journal = self.directory / "commands.json"
+        journal.write_text(json.dumps(self.commands, indent=2) + "\n")
+        stdout = self.directory / f"{label}.stdout"
+        stderr = self.directory / f"{label}.stderr"
+        # Stream directly to artifacts so even cancellation retains partial transfer logs.
+        with stdout.open("w") as output, stderr.open("w") as errors:
+            process = subprocess.run(
+                args, stdout=output, stderr=errors, text=True, check=False
+            )
+        record.update(
+            exit=process.returncode, elapsed_seconds=time.monotonic() - started
+        )
+        journal.write_text(json.dumps(self.commands, indent=2) + "\n")
+        if process.returncode:
+            raise RuntimeError(
+                f"{label} failed ({process.returncode}); see {self.directory}"
+            )
+        return stdout.read_text(), stderr.read_text()
+
+
+def downloaded_sources(stderr, allowed):
+    sources = {}
+    for line in stderr.splitlines():
+        if not line.startswith("@nix "):
+            continue
+        event = json.loads(line[5:])
+        if event.get("action") != "start":
+            continue
+        if event.get("type") == 105:
+            raise ValueError("Nix reported a build activity during strict acceptance")
+        if event.get("type") != 108:
+            continue
+        fields = event.get("fields")
+        if not isinstance(fields, list) or len(fields) != 2:
+            raise ValueError("Unknown Nix substitution log schema")
+        path, source = fields
+        if (
+            not isinstance(path, str)
+            or not isinstance(source, str)
+            or source not in allowed
+        ):
+            raise ValueError("Unknown substitution path or source in Nix log")
+        sources.setdefault(path, set()).add(source)
+    return sources
+
+
+def accept(tool):
+    evidence = Evidence(tool)
+    result = {"tool": tool, "status": "failed"}
+    try:
+        if any(
+            os.environ.get(key) for key in ("CACHIX_AUTH_TOKEN", "CACHIX_SIGNING_KEY")
+        ):
+            raise ValueError("Strict readers must not receive Cachix credentials")
+        url = configure()
+        if not url:
+            raise ValueError(
+                "Strict acceptance requires verified public cache configuration"
+            )
+        # Do not inherit additional substituters, remote builders or credential providers.
+        os.environ["NIX_CONFIG"] += (
+            f"\nsubstituters = {url} https://cache.nixos.org\n"
+            "builders =\nmax-jobs = 0\nfallback = false\n"
+            "access-tokens =\nnetrc-file = /dev/null\nsecret-key-files =\n"
+        )
+        evidence.run("version", "nix", "--version")
+        config, _ = evidence.run("effective-config", "nix", "config", "show", "--json")
+        settings = json.loads(config)
+        if settings["require-sigs"]["value"] is not True:
+            raise ValueError("Signature verification must remain enabled")
+        output, _ = evidence.run(
+            "evaluate",
+            "nix",
+            "eval",
+            "--raw",
+            "--no-update-lock-file",
+            f".#packages.x86_64-linux.{tool}.outPath",
+        )
+        if not re.fullmatch(
+            r"/nix/store/[0-9abcdfghijklmnpqrsvwxyz]{32}-[^/!\s]+", output
+        ) or output.endswith(".drv"):
+            raise ValueError("Expected one exact raw non-derivation output path")
+        result["output"] = output
+        initial, _ = evidence.run("initial-store", "nix", "path-info", "--all")
+        initial = set(initial.splitlines())
+        if output in initial or os.path.lexists(output):
+            raise ValueError(
+                "Output already present: this runner cannot prove a fresh download"
+            )
+        # For raw (non-.drv) paths Nix retrieves the closure without building a known deriver.
+        # max-jobs/builders/fallback also document and enforce the acceptance configuration.
+        _, stderr = evidence.run(
+            "realise",
+            "nix-store",
+            "--realise",
+            output,
+            "--log-format",
+            "internal-json",
+            "-vv",
+            "--option",
+            "max-jobs",
+            "0",
+            "--option",
+            "builders",
+            "",
+            "--option",
+            "fallback",
+            "false",
+            "--option",
+            "require-sigs",
+            "true",
+        )
+        evidence.run("valid-output", "nix-store", "--check-validity", output)
+        sources = downloaded_sources(stderr, {url, "https://cache.nixos.org"})
+        if output not in sources or len(sources[output]) != 1:
+            raise ValueError("Output download provenance is absent or ambiguous")
+        if tool == "aspect" and sources[output] != {url}:
+            raise ValueError(
+                "Aspect root was not downloaded exclusively from intended Cachix"
+            )
+        closure, _ = evidence.run(
+            "closure", "nix", "path-info", "--recursive", "--json", output
+        )
+        records = []
+        for path in json.loads(closure):
+            if path in initial:
+                records.append({"path": path, "status": "present-before-realisation"})
+            elif path not in sources or len(sources[path]) != 1:
+                raise ValueError(
+                    f"Closure download provenance absent or ambiguous: {path}"
+                )
+            else:
+                records.append(
+                    {
+                        "path": path,
+                        "source": next(iter(sources[path])),
+                        "status": "downloaded",
+                    }
+                )
+        evidence.run(
+            "remote-availability", sys.executable, __file__, "verify", tool, output
+        )
+        manifest = (
+            Path(os.environ.get("RUNNER_TEMP", "/tmp")) / f"nix-{tool}-closure.json"
+        )
+        (evidence.directory / "remote-availability.json").write_bytes(
+            manifest.read_bytes()
+        )
+        for executable in (
+            ["aspect"] if tool == "aspect" else ["lcov", "genhtml", "geninfo"]
+        ):
+            evidence.run(
+                f"smoke-{executable}",
+                str(Path(output) / "bin" / executable),
+                "--version",
+            )
+        result.update(status="passed", paths=records)
+        print(
+            f"Verified fresh signed {tool} download: {output}; evidence {evidence.directory}"
+        )
+    except (ValueError, RuntimeError, KeyError, OSError) as error:
+        result["error"] = str(error)
+        print(f"Strict acceptance failed: {error}")
+    finally:
+        (evidence.directory / "result.json").write_text(
+            json.dumps(result, indent=2) + "\n"
+        )
+    return 0 if result["status"] == "passed" else 1
+
+
 def main():
     command, tool = sys.argv[1:3]
     if tool not in ("aspect", "lcov"):
         raise ValueError("Only repository Aspect and lcov outputs are supported")
+    if command == "strict":
+        return accept(tool)
     url = configure()
     if command == "validate":
         return 0
     if command == "verify":
         return 0 if verify(tool, sys.argv[3], url) else 1
     if command != "build":
-        raise ValueError("Expected validate, build or verify")
+        raise ValueError("Expected validate, build, verify or strict")
     started = time.monotonic()
     # Evaluation/build failures are not optional cache failures.
     output = run(

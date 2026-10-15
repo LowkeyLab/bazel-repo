@@ -1,0 +1,40 @@
+name: Nix cache acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fresh-download:
+    strategy:
+      fail-fast: false
+      matrix:
+        tool: [aspect, lcov]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      # No restored Nix store and no tool build before the strict absence check.
+      # No upload or unrelated service secrets are passed to this job.
+      - uses: ./.github/actions/install-nix-tool
+        with:
+          tool: ${{ matrix.tool }}
+          install-only: 'true'
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+      - name: Require fresh signed download and actual source evidence
+        env:
+          NIX_TOOL: ${{ matrix.tool }}
+          CACHIX_CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
+          CACHIX_PUBLIC_KEY: ${{ vars.CACHIX_PUBLIC_KEY }}
+        run: python3 .github/scripts/nix_tool.py strict "$NIX_TOOL"
+      - name: Retain strict acceptance evidence including failures
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: nix-cache-acceptance-${{ matrix.tool }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/nix-acceptance-${{ matrix.tool }}/
+          if-no-files-found: error
