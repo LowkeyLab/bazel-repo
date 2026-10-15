@@ -60,14 +60,14 @@ git_override(
 bazel_dep(name = "aspect_rules_swc")
 git_override(
     module_name = "aspect_rules_swc",
-    commit = "5dd2fb34aeaaf5243ecd0f5d2f03dc28afc0bfe1",
+    commit = "75ff008e5767e5b3f5d0a002551d2b45c86a58d3",
     remote = "https://github.com/aspect-build/rules_swc.git",
 )
 
 bazel_dep(name = "aspect_rules_ts")
 git_override(
     module_name = "aspect_rules_ts",
-    commit = "d3c2ab2c0f2122e5df4b0d6e8bb4cf9ab8413f7f",
+    commit = "7f76b72dcb5d2022d8b3db4c70ae9ae676d72969",
     remote = "https://github.com/aspect-build/rules_ts.git",
 )
 
@@ -91,14 +91,14 @@ git_override(
 bazel_dep(name = "rules_java")
 git_override(
     module_name = "rules_java",
-    commit = "b31212208a21aae095f488fe3c2d509b1ddec828",
+    commit = "67eac3e76c7c2321fb757f5751c0c4e8f573619e",
     remote = "https://github.com/bazelbuild/rules_java.git",
 )
 
 bazel_dep(name = "rules_kotlin")
 git_override(
     module_name = "rules_kotlin",
-    commit = "28110903de4c1e6e433996ebbf2c65db9eb4a410",
+    commit = "f62005acff6725c8b933148e3fd636466b2e5f2e",
     remote = "https://github.com/bazel-contrib/rules_kotlin.git",
 )
 
@@ -166,10 +166,9 @@ git_override(
     remote = "https://github.com/hermeticbuild/hermetic-llvm.git",
 )
 
-# Rust 1.96 emits LLVM raw profile version 10, but LLVM 23 expects version 11.
-# Keep the coverage tools on LLVM 22 until the Rust toolchains use LLVM 23.
+# Rust 1.99.1 emits LLVM raw profile version 11, which requires LLVM 23 tools.
 llvm = use_extension("@llvm//extensions:llvm.bzl", "llvm")
-llvm.version(llvm_version = "22.1.8")
+llvm.version(llvm_version = "23.1.2")
 use_repo(llvm, "llvm-project")
 
 git_override(
@@ -272,7 +271,7 @@ git_override(
 bazel_dep(name = "rules_python")
 git_override(
     module_name = "rules_python",
-    commit = "b7ec5bd151df5f725ab8f76446fd548ac4fedce1",
+    commit = "ce2cc3592329aa5cdf797497074f382627dd056e",
     remote = "https://github.com/bazel-contrib/rules_python.git",
 )
 
@@ -286,7 +285,7 @@ git_override(
 bazel_dep(name = "gazelle")
 git_override(
     module_name = "gazelle",
-    commit = "4a928fbfa45c946f8680fa67dc0796cbc0e788f3",
+    commit = "97454a6a7c6088327f0d68938d90ce49facf2132",
     remote = "https://github.com/bazel-contrib/bazel-gazelle.git",
 )
 
@@ -310,7 +309,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "b5869cff3db5d2217b8896d483e75af8a1d26712",
+    commit = "bfe6e98434982bad38c393f1bd472ec33f16cd32",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",
@@ -559,7 +558,7 @@ toolchains = use_extension(
 toolchains.toolchain(
     name = "default_rust_toolchains",
     edition = "2024",
-    version = "1.96.0",
+    version = "1.99.1",
 )
 toolchains.toolchain(
     name = "nightly_rust_toolchains",
@@ -570,7 +569,7 @@ use_repo(
     toolchains,
     "default_rust_toolchains",
     "nightly_rust_toolchains",
-    "rustfmt_linux_x86_64_1_96_0",
+    "rustfmt_linux_x86_64_1_99_1",
 )
 
 register_toolchains(

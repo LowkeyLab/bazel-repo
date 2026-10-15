@@ -23,14 +23,7 @@ jobs:
     needs: prepare
     # always() permits manual runs after intentionally skipped preparation.
     # PR readers require every preparation matrix job to complete successfully.
-    if: >-
-      ${{ always() && !cancelled() &&
-
-
-        ((github.event_name == 'workflow_dispatch' && needs.prepare.result == 'skipped') ||
-         (github.event_name == 'pull_request' &&
-          contains(github.event.pull_request.labels.*.name, 'nix-cache-acceptance') &&
-          needs.prepare.result == 'success')) }}
+    if: ${{ always() && !cancelled() && ((github.event_name == 'workflow_dispatch' && needs.prepare.result == 'skipped') || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'nix-cache-acceptance') && needs.prepare.result == 'success')) }}
     strategy:
       fail-fast: false
       matrix:

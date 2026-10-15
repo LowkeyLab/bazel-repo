@@ -42,7 +42,7 @@ rust_test(
 
 rust_test(
     name = "name_repo_test",
-    timeout = "short",
+    timeout = "moderate",
     crate = ":name_repo",
     data = image_data("postgres_18"),
     env = image_env("postgres_18"),
@@ -64,7 +64,7 @@ rust_test(
 
 rust_test(
     name = "name_service_test",
-    timeout = "short",
+    timeout = "moderate",
     crate = ":name_service",
     data = image_data("postgres_18"),
     env = image_env("postgres_18"),
