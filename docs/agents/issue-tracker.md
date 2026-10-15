@@ -90,18 +90,18 @@ When continuing a ticket already assigned to that developer, retain its
 assignment and verify its current state and blockers. Resolve an assignment to
 another developer with the maintainer before changing ownership.
 
-A historical session or dispatch comment alone does not establish active
+A historical session or dispatch comment alone doesn't establish active
 concurrent work. Ask about ownership only when current evidence identifies a
 competing active session or conflicting claim. Resolve that conflict before
-writing; use the protocol for parallel work when sessions continue concurrently.
+writing. Use the protocol for parallel work when sessions continue concurrently.
 
 ### Parallel work
 
 Use this protocol when the maintainer explicitly requests parallel sessions on
-the same map. One coordinator session dispatches work; the maintainer designates
-it before parallel work starts. Other sessions request tickets from it rather
-than claiming independently. Pause parallel dispatch until a coordinator is
-selected.
+the same map. The maintainer designates one coordinator session to dispatch work
+before parallel work starts. Other sessions request tickets from it rather than
+claiming independently. Pause parallel dispatch until the maintainer selects a
+coordinator.
 
 When entering parallel work, the coordinator first reconciles completed decisions
 using Recording results, then confirms the worker status of retained open
@@ -119,7 +119,7 @@ parallel entry. Dispatch eligible retained tickets without a dispatch before
 selecting the first open, unassigned, unblocked child in map order for additional
 work. Record the ticket-to-session mapping in a comment on each ticket before
 dispatch, with the worker session identifier and coordinator identifier.
-Assignment identifies the developer; dispatch identifies the worker when sessions
+Assignment identifies the developer. Dispatch identifies the worker when sessions
 share a GitHub account. Confirm assignment and eligibility with a fresh read
 before dispatching to exactly one worker session. Workers start after explicit
 dispatch. Conflicting claims pause work until the coordinator selects one worker
@@ -133,17 +133,17 @@ If the parallel coordinator is unavailable, pause new dispatches and map-body
 updates. The maintainer may authorize a replacement after stopping or revoking
 the old coordinator. The replacement reconstructs active dispatches from ticket
 comments and confirms each worker's status with the worker or maintainer.
-Retain confirmed active ownership; reassign only after the previous worker
-is confirmed stopped. Uncertain tickets remain paused rather than dispatched
+Retain confirmed active ownership. Reassign only after confirming the previous
+worker has stopped. Uncertain tickets remain paused rather than dispatched
 again. Record the takeover and reconciled ownership in tracker comments before
-resuming; a returning old coordinator must obtain authorization before acting.
+resuming. A returning old coordinator must obtain authorization before acting.
 
 ### Recording results
 
 The sequential session posts the resolution comment, closes its ticket, and
 records its outcome in the map using reconciliation below. For every map update,
 reread the current map body, merge the new context link while preserving existing
-entries, write the body, and verify the result. If another writer is detected,
+entries, write the body, and verify the result. If you detect another writer,
 pause map edits and reconcile before continuing.
 
 Reconciliation compares closed child issues with Decisions-so-far and Out of
