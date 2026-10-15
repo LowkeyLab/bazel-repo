@@ -2,11 +2,11 @@
 
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 
 def run(*args, capture=False):
@@ -62,6 +62,7 @@ def diagnose(url, path):
         ],
         text=True,
         capture_output=True,
+        check=False,
     )
     if result.returncode:
         return "network failure"
@@ -77,7 +78,7 @@ def info(path, store=None):
     if store:
         args += ["--store", store]
     metadata = json.loads(run(*args, path, capture=True).stdout).get(path)
-    if not isinstance(metadata, dict):
+    if metadata is None:
         raise ValueError(f"Remote store does not contain {path}")
     return metadata
 

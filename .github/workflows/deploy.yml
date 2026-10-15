@@ -18,13 +18,13 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+      - name: Prepare Aspect from public cache
+        uses: ./.github/actions/install-nix-tool
+        id: aspect
         with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-      - name: Configure Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
+          tool: aspect
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
@@ -32,9 +32,9 @@ jobs:
             common --config=ci
             common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Install Aspect from flake
-        run: |
-          nix build .#aspect
-          install -Dm755 ./result/bin/aspect /usr/local/bin/aspect
+        env:
+          ASPECT_PATH: ${{ steps.aspect.outputs.path }}
+        run: install -Dm755 "$ASPECT_PATH/bin/aspect" /usr/local/bin/aspect
       - name: Log in to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:

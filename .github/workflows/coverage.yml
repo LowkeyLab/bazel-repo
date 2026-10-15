@@ -10,17 +10,24 @@ on:
 env:
   MISE_EXPERIMENTAL: true
 jobs:
+  prepare-nix-tools:
+    uses: ./.github/workflows/prepare-nix-tools.yml
+    with:
+      tool: lcov
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
   coverage:
+    needs: prepare-nix-tools
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+      - name: Prepare lcov from public cache
+        uses: ./.github/actions/install-nix-tool
+        id: lcov
         with:
-          extra-conf: |
-            experimental-features = nix-command flakes
-      - name: Configure Magic Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
+          tool: lcov
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
@@ -34,9 +41,10 @@ jobs:
           username: ${{ vars.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Install lcov from Nix
+        env:
+          LCOV_PATH: ${{ steps.lcov.outputs.path }}
         run: |
-          nix build .#lcov
-          install -m755 ./result/bin/lcov ./result/bin/genhtml ./result/bin/geninfo /usr/local/bin/
+          install -m755 "$LCOV_PATH/bin/lcov" "$LCOV_PATH/bin/genhtml" "$LCOV_PATH/bin/geninfo" /usr/local/bin/
       - name: Run Coverage
         run: bazel run //tools/coverage -- //...
       - name: Upload to Codecov
