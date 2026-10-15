@@ -92,6 +92,52 @@
       "matchFileNames": ["pyproject.toml"],
       "matchDepTypes": ["requires-python"],
       "enabled": false
+    },
+    {
+      "description": "Update the stable Rust compiler and formatter together without a release delay",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["rust"],
+      "matchDatasources": ["rust-version"],
+      "groupName": "Rust toolchain",
+      "allowedVersions": "/^\\d+\\.\\d+\\.\\d+$/",
+      "minimumReleaseAge": "0 days",
+      "schedule": ["at any time"],
+      "ignoreUnstable": true,
+      "ignoreTests": false,
+      "automerge": false,
+      "postUpgradeTasks": {
+        "commands": [
+          "bazel mod deps --lockfile_mode=update --config=ci-remote",
+          "bazel run //tools/format:format_Rust_with_rustfmt --config=ci-remote",
+          "bazel run //:gazelle --config=ci-remote",
+          "bazel run //tools/format:format_Starlark_with_buildifier --config=ci-remote"
+        ],
+        "fileFilters": [
+          "MODULE.bazel",
+          "MODULE.bazel.lock",
+          "**/*.rs",
+          "**/BUILD.bazel"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Automerge stable Rust patch and minor updates after required CI passes",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["rust"],
+      "matchDatasources": ["rust-version"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "dependencyDashboardApproval": false,
+      "automerge": true
+    },
+    {
+      "description": "Require approval for Rust major upgrades",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["rust"],
+      "matchDatasources": ["rust-version"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "automerge": false
     }
   ],
   "customManagers": [
@@ -116,6 +162,31 @@
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "astral-sh/python-build-standalone",
       "versioningTemplate": "regex:^(?<patch>\\d{8})$"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
+      "matchStrings": [
+        "toolchains\\.toolchain\\(\\s*name\\s*=\\s*\"default_rust_toolchains\",[^)]*?version\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "datasourceTemplate": "rust-version",
+      "depNameTemplate": "rust",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^MODULE\\.bazel$/",
+        "/^tools/format/BUILD\\.bazel$/"
+      ],
+      "matchStrings": [
+        "rustfmt_linux_x86_64_(?<major>\\d+)_(?<minor>\\d+)_(?<patch>\\d+)"
+      ],
+      "currentValueTemplate": "{{{major}}}.{{{minor}}}.{{{patch}}}",
+      "autoReplaceStringTemplate": "rustfmt_linux_x86_64_{{{replace '[.]' '_' newValue}}}",
+      "datasourceTemplate": "rust-version",
+      "depNameTemplate": "rust",
+      "versioningTemplate": "semver"
     }
   ]
 }
