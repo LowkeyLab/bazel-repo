@@ -41,9 +41,10 @@ its type before operating on it.
 
 ## Wayfinding
 
-A map is one issue labelled wayfinder:map, containing Notes,
-Decisions-so-far, and Fog. Link child tickets as GitHub sub-issues;
-if unavailable, use a task list in the map and `Part of #<map>` in each child.
+A map is one issue labelled wayfinder:map, with Destination, Notes,
+Decisions so far, Not yet specified, and Out of scope sections. Not yet specified
+holds the remaining fog of war. Link child tickets as GitHub sub-issues.
+If unavailable, use a task list in the map and `Part of #<map>` in each child.
 
 Use wayfinder:research, wayfinder:prototype, wayfinder:grilling, or
 wayfinder:task for child tickets.
@@ -106,13 +107,19 @@ before parallel work starts. Other sessions request tickets from it rather than
 claiming independently. Pause parallel dispatch until the maintainer selects a
 coordinator.
 
-When entering parallel work, the coordinator first reconciles completed decisions
-using Recording results, then confirms the worker status of retained open
-assignments with the worker or maintainer. Preserve confirmed active workers and
-existing dispatches. For eligible retained tickets without a dispatch, record one
-for the confirmed worker. When replacing a worker, confirm the previous worker
-has stopped first. Retain the developer assignment for a replacement session run
-by the same developer. For a different developer, confirm the ownership change
+When entering parallel work, first transfer map writes from each existing
+sequential session. A continuing session must finish pending map updates and
+acknowledge that it has stopped direct map writes and routes further results
+through the coordinator. If a session can't acknowledge, the maintainer must
+confirm it has stopped. Pause coordinator map writes and new dispatches until
+the worker or maintainer confirms the handoff, then record it in tracker comments. Only then reconcile
+completed decisions using Recording results and confirm the worker status of
+retained open assignments with the worker or maintainer.
+
+Preserve confirmed active workers and existing dispatches. For eligible retained
+tickets without a dispatch, record one for the confirmed worker. When replacing a
+worker, confirm the previous worker has stopped first. Retain the developer
+assignment for a replacement session run by the same developer. For a different developer, confirm the ownership change
 with the maintainer, remove the previous developer's assignment, assign the
 replacement developer, and verify ownership before dispatch. Dispatch these
 tickets in map order before claiming unassigned children. Keep blocked tickets
@@ -155,10 +162,10 @@ pause map edits and reconcile before continuing.
 Reconciliation compares closed child issues with Decisions-so-far and Out of
 scope. For each missing entry, read the recorded resolution or scope explanation.
 Restore resolved decisions as title links with a short gist. Restore out-of-scope
-closures in Out of scope. Preserve existing entries and verify the updated map
-using the same map-update procedure. Report missing closure context rather than
-inventing a decision. This recovers a session interrupted after closing its ticket
-but before updating the map.
+closures in Out of scope, creating that section if an older map lacks it. Preserve
+existing entries and verify the updated map using the same map-update procedure.
+Report missing closure context rather than inventing a decision. This recovers a
+session interrupted after closing its ticket but before updating the map.
 
 During parallel work, workers post resolution comments on their own tickets,
 close them, and notify the coordinator. Only the coordinator edits the map body
