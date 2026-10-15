@@ -55,9 +55,10 @@ all blockers are closed.
 ## Selecting and claiming work
 
 GitHub issue assignment is ticket ownership for sequential work, which is the
-default. Assign a newly selected ticket to the developer driving the map and
-retain that assignment across sessions. Continuing an existing assignment needs
-no session-specific claim, dispatch comment, or coordinator handoff.
+default. Sequential work assumes one active working session on the map. Assign a
+newly selected ticket to the developer driving the map and retain that assignment
+across sessions. Continuing an existing assignment needs no session-specific claim,
+dispatch comment, or coordinator handoff.
 
 While parallel coordination is active, follow Parallel work. To return to
 sequential work, the maintainer authorizes the transition. The coordinator pauses
@@ -78,10 +79,12 @@ and `gh api --paginate repos/LowkeyLab/bazel-repo/issues/<child>/dependencies/bl
 For fallback task lists and "Blocked by" lines, read every referenced issue's
 current state. Missing or incomplete dependency data prevents starting work.
 
-For sequential work, use a user-named ticket after checking its ownership,
-state, and blockers. Without a named ticket, resume the first open, unblocked
-child assigned to the developer driving the map, in map order. Select the first
-open, unassigned, unblocked child only when no resumable assigned child exists.
+For sequential work, verify a user-named ticket's ownership and require it to be
+open and unblocked before starting. Naming a ticket overrides map order only.
+Report a closed or blocked named ticket instead of starting it. Without a named
+ticket, resume the first open, unblocked child assigned to the developer driving
+the map, in map order. Select the first open, unassigned, unblocked child only when
+no resumable assigned child exists.
 
 Assign a newly selected ticket with
 `gh issue edit --repo LowkeyLab/bazel-repo <number> --add-assignee <developer>`,
@@ -108,9 +111,12 @@ using Recording results, then confirms the worker status of retained open
 assignments with the worker or maintainer. Preserve confirmed active workers and
 existing dispatches. For eligible retained tickets without a dispatch, record one
 for the confirmed worker. When replacing a worker, confirm the previous worker
-has stopped first. Dispatch these tickets in map order before claiming unassigned
-children, retaining their developer assignments. Keep blocked tickets assigned.
-Pause dispatch for tickets whose worker status is uncertain.
+has stopped first. Retain the developer assignment for a replacement session run
+by the same developer. For a different developer, confirm the ownership change
+with the maintainer, remove the previous developer's assignment, assign the
+replacement developer, and verify ownership before dispatch. Dispatch these
+tickets in map order before claiming unassigned children. Keep blocked tickets
+assigned. Pause dispatch for tickets whose worker status is uncertain.
 
 The coordinator serializes selection, assignment, and dispatch. Before every new
 dispatch, reconcile closed children using Recording results, then recheck retained
