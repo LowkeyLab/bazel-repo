@@ -1,0 +1,74 @@
+name: Prepare Nix tools
+on:
+  workflow_call:
+    inputs:
+      tool:
+        description: Repository package (aspect or lcov)
+        type: string
+        default: aspect
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: false
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/install-nix-tool
+        id: tool
+        with:
+          tool: ${{ inputs.tool }}
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+      - name: Check existing remote closure
+        if: steps.tool.outputs.configured == 'true'
+        shell: bash
+        env:
+          CACHIX_CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
+          CACHIX_PUBLIC_KEY: ${{ vars.CACHIX_PUBLIC_KEY }}
+          NIX_TOOL: ${{ inputs.tool }}
+          TOOL_PATH: ${{ steps.tool.outputs.path }}
+        run: |
+          if ! python3 .github/scripts/nix_tool.py verify "$NIX_TOOL" "$TOOL_PATH"; then
+            echo '::warning::Remote closure unavailable before publication; ordinary source fallback remains enabled'
+          fi
+      - name: Prepare publication client
+        id: cachix
+        if: ${{ steps.tool.outputs.configured == 'true' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name && github.event.pull_request.base.repo.full_name == github.repository)) }}
+        shell: bash
+        run: |
+          if client=$(nix build --no-link --print-out-paths --no-update-lock-file --inputs-from . nixpkgs#cachix); then
+            echo "path=$client" >> "$GITHUB_OUTPUT"
+          else
+            echo '::warning::Publication client unavailable; ordinary consumers may build from source'
+          fi
+      - name: Publish requested output and verify runtime closure
+        if: steps.cachix.outputs.path != ''
+        shell: bash
+        env:
+          CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          CACHIX_CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
+          CACHIX_PUBLIC_KEY: ${{ vars.CACHIX_PUBLIC_KEY }}
+          NIX_TOOL: ${{ inputs.tool }}
+          TOOL_PATH: ${{ steps.tool.outputs.path }}
+          CACHIX_PATH: ${{ steps.cachix.outputs.path }}
+        run: |
+          if [[ -z "$CACHIX_AUTH_TOKEN" ]]; then
+            echo '::warning::Publication unconfigured: CACHIX_AUTH_TOKEN missing; ordinary consumers may build from source'
+            exit 0
+          fi
+          if ! timeout 15m "$CACHIX_PATH/bin/cachix" push "$CACHIX_CACHE_NAME" "$TOOL_PATH"; then
+            echo '::warning::Cachix publication failed; ordinary consumers may build from source'
+            exit 0
+          fi
+          unset CACHIX_AUTH_TOKEN
+          if python3 .github/scripts/nix_tool.py verify "$NIX_TOOL" "$TOOL_PATH"; then
+            echo "Verified remote runtime closure for $NIX_TOOL ($TOOL_PATH)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '::warning::Publication completed but remote closure is unavailable; degraded source fallback, not verified warm success'
+          fi

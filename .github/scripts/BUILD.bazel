@@ -1,0 +1,13 @@
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+
+py_binary(
+    name = "nix_tool",
+    srcs = ["nix_tool.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+py_library(
+    name = "scripts",
+    srcs = ["nix_tool.py"],
+    visibility = ["//:__subpackages__"],
+)

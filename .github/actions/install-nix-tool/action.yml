@@ -1,0 +1,49 @@
+name: Install repository Nix tool
+description: Read a signed public cache with ordinary source fallback and no upload credentials
+inputs:
+  tool:
+    description: Repository package (aspect or lcov)
+    default: aspect
+  cache-name:
+    description: Public Cachix cache name
+    default: ''
+  public-key:
+    description: Maintainer verified signing key
+    default: ''
+outputs:
+  path:
+    description: Exact repository output path
+    value: ${{ steps.tool.outputs.path }}
+  configured:
+    description: Whether the public Cachix reader is configured
+    value: ${{ steps.tool.outputs.configured }}
+runs:
+  using: composite
+  steps:
+    - name: Validate public cache configuration
+      shell: bash
+      env:
+        NIX_TOOL: ${{ inputs.tool }}
+        CACHIX_CACHE_NAME: ${{ inputs.cache-name }}
+        CACHIX_PUBLIC_KEY: ${{ inputs.public-key }}
+      run: python3 .github/scripts/nix_tool.py validate "$NIX_TOOL"
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+      with:
+        extra-conf: |
+          experimental-features = nix-command flakes
+          require-sigs = true
+          connect-timeout = 5
+          stalled-download-timeout = 30
+          download-attempts = 2
+          narinfo-cache-negative-ttl = 0
+          ${{ inputs.cache-name != '' && format('extra-substituters = https://{0}.cachix.org', inputs.cache-name) || '' }}
+          ${{ inputs.public-key != '' && format('extra-trusted-public-keys = {0}', inputs.public-key) || '' }}
+    - name: Resolve repository tool
+      id: tool
+      shell: bash
+      env:
+        NIX_TOOL: ${{ inputs.tool }}
+        CACHIX_CACHE_NAME: ${{ inputs.cache-name }}
+        CACHIX_PUBLIC_KEY: ${{ inputs.public-key }}
+      run: python3 .github/scripts/nix_tool.py build "$NIX_TOOL"

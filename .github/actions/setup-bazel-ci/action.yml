@@ -13,21 +13,20 @@ inputs:
   docker-hub-token:
     description: Docker Hub token used for authenticated pulls
     required: true
+  cache-name:
+    description: Public Cachix cache name
+    default: ''
+  public-key:
+    description: Maintainer verified Cachix signing key
+    default: ''
 runs:
   using: composite
   steps:
-    - name: Install Nix
-      uses: DeterminateSystems/nix-installer-action@92148bb48b9a0c5458c53dd0b368fbfbfbaa3210
+    - uses: ./.github/actions/install-nix-tool
       with:
-        extra-conf: |
-          experimental-features = nix-command flakes
-    - name: Configure Magic Nix Cache
-      uses: DeterminateSystems/magic-nix-cache-action@565684385bcd71bad329742eefe8d12f2e765b39
-    - name: Install Aspect from flake
-      shell: bash
-      run: |
-        nix build .#aspect
-        install -Dm755 ./result/bin/aspect /usr/local/bin/aspect
+        tool: aspect
+        cache-name: ${{ inputs.cache-name }}
+        public-key: ${{ inputs.public-key }}
     - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
       with:
         # Avoid downloading Bazel every time.
