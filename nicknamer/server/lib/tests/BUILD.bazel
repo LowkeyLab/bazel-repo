@@ -76,6 +76,7 @@ rust_test(
 rust_test(
     name = "name_service_tests",
     size = "small",
+    timeout = "moderate",
     srcs = [
         "common/mod.rs",
         "common/observations.rs",
@@ -141,6 +142,7 @@ rust_test(
 rust_test(
     name = "observations_service_tests",
     size = "small",
+    timeout = "moderate",
     srcs = [
         "common/mod.rs",
         "common/observations.rs",
