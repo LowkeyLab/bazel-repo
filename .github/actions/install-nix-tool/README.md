@@ -68,6 +68,15 @@ never invokes coverage or production deployment. Existing Bazel Tests and
 Coverage triggers and ordinary source fallback remain unchanged. A strict
 pilot failure is reported by this separate opt-in workflow.
 
+After successful strict Aspect download, the Aspect reader also executes
+Deploy's exact `install -Dm755 "$ASPECT_PATH/bin/aspect" /usr/local/bin/aspect`
+command using the output recorded by strict acceptance, then runs
+`/usr/local/bin/aspect --version`. Installation stdout, stderr and combined
+installation/smoke exit status are retained alongside strict evidence. This
+checks binary installation only; it performs no delivery, registry login or
+production deployment, and does not change the earlier compilation-disabled
+download proof.
+
 The manual route skips preparation and reads the existing cache. Its
 `always()` plus explicit event/result guard allows fresh readers to run after
 intentionally skipped preparation, while blocking them after a failed or
@@ -141,9 +150,10 @@ readers for that PR revision. Neither route by itself proves main publication,
 Renovate and fork behavior, twice-concurrent format/lint/test fan-out, or the
 broader live matrix. Keep their evidence separate and require actual logs;
 structural workflow checks do not complete any live row.
-For coverage/deployment installation, exercise just the shared action with the
-appropriate tool on a hosted runner; do not dispatch a production deployment
-workflow merely to gather this evidence. Keep #2244 open until the complete
+The lcov strict reader runs all three coverage tools; the Aspect reader
+additionally exercises Deploy's exact binary-install command.
+Require their hosted logs before recording installation evidence, and do not
+dispatch a production deployment workflow merely to gather it. Keep #2244 open until the complete
 live matrix is met. Record compressed occupancy and actual available download
 and eviction observations separately under #2245; uncompressed closure sizes
 and client transfers are not account-wide storage or traffic measurements.

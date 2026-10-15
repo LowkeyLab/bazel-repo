@@ -50,6 +50,21 @@ jobs:
           CACHIX_CACHE_NAME: ${{ vars.CACHIX_CACHE_NAME }}
           CACHIX_PUBLIC_KEY: ${{ vars.CACHIX_PUBLIC_KEY }}
         run: python3 .github/scripts/nix_tool.py strict "$NIX_TOOL"
+      - name: Exercise deployment binary installation without deployment
+        if: matrix.tool == 'aspect'
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/nix-acceptance-aspect
+        run: |
+          ASPECT_PATH=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["output"])' "$EVIDENCE_DIR/result.json")
+          status=0
+          {
+            install -Dm755 "$ASPECT_PATH/bin/aspect" /usr/local/bin/aspect &&
+              /usr/local/bin/aspect --version
+          } > "$EVIDENCE_DIR/deployment-install.stdout" 2> "$EVIDENCE_DIR/deployment-install.stderr" || status=$?
+          printf '%s\n' "$status" > "$EVIDENCE_DIR/deployment-install.exit-status"
+          cat "$EVIDENCE_DIR/deployment-install.stdout"
+          cat "$EVIDENCE_DIR/deployment-install.stderr" >&2
+          exit "$status"
       - name: Retain strict acceptance evidence including failures
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
