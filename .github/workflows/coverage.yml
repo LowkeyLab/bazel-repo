@@ -35,7 +35,7 @@ jobs:
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       - name: Install lcov from Nix
         run: |
-          nix build nixpkgs#lcov
+          nix build .#lcov
           install -m755 ./result/bin/lcov ./result/bin/genhtml ./result/bin/geninfo /usr/local/bin/
       - name: Run Coverage
         run: bazel run //tools/coverage -- //...
