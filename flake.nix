@@ -40,10 +40,11 @@
       packages = forAllSystems (
         system:
         let
-          inherit (mkPackagesForSystem system) aspect;
+          inherit (mkPackagesForSystem system) pkgs aspect;
         in
         {
           inherit aspect;
+          inherit (pkgs) lcov;
           default = aspect;
         }
       );
