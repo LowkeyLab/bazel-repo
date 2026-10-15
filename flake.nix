@@ -8,7 +8,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     llm-agents = {
-      url = "github:numtide/llm-agents.nix?rev=03c78d9ddce7c3e45775511de8a24c6af7aea462";
+      url = "github:numtide/llm-agents.nix?rev=09aee45133d3dfce34e4873ac1c9003d284b695e";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
