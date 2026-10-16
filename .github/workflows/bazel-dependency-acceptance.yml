@@ -47,6 +47,7 @@ jobs:
           FAULT_MODE: ${{ matrix.fault }}
         run: python3 .github/scripts/bazel_dependency_faults.py restored "$FAULT_MODE"
       - name: Run real required preparation after restore fault
+        shell: bash
         env:
           RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
           CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
