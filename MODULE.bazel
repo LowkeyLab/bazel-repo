@@ -626,6 +626,8 @@ crate.annotation(
     },
     crate = "utoipa-swagger-ui",
     gen_build_script = "on",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/utoipa_swagger_ui:relative_embed_paths.patch"],
 )
 use_repo(crate, "crates")
 
