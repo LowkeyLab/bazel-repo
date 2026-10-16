@@ -30,6 +30,9 @@ common:ci --config=ci-remote
 common:ci-remote --config=remote-linux
 common:ci-remote --remote_timeout=3600
 common:ci-remote --incompatible_strict_action_env
+# Keep fallback actions isolated from undeclared files in the shared execroot.
+# TypeScript otherwise resolves dependency sources instead of their declarations.
+common:ci-remote --remote_local_fallback_strategy=sandboxed
 
 # For keep-sorted
 common --experimental_isolated_extension_usages
