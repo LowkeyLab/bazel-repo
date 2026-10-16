@@ -67,7 +67,7 @@ jobs:
           exit "$status"
       - name: Retain strict acceptance evidence including failures
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: nix-cache-acceptance-${{ matrix.tool }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/nix-acceptance-${{ matrix.tool }}/
@@ -96,7 +96,7 @@ jobs:
         run: python3 .github/scripts/nix_cache_failures.py
       - name: Retain fault evidence including partial failures
         if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: nix-cache-failures-${{ github.run_attempt }}
           path: ${{ runner.temp }}/nix-acceptance-failures/
