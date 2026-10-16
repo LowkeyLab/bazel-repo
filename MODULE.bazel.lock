@@ -604,7 +604,7 @@
     "@@rules_python+//python/uv:uv.bzl%uv": {
       "general": {
         "bzlTransitiveDigest": "Gwl7J+NEdxmBWrWGAU5oRad91vhJlzPIRRLwzTNZxEg=",
-        "usagesDigest": "6yXGw7XDyXjOfqBL0SBu1YBEMMYPQzCE3jTzUCkxPgg=",
+        "usagesDigest": "4oeBVCEzXt49RrVnpRaNDbydAxQ9Yw+5jX6Xm82siGM=",
         "recordedInputs": [
           "REPO_MAPPING:rules_python+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_python+,platforms platforms"
