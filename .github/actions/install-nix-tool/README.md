@@ -3,17 +3,28 @@
 `install-nix-tool` installs `aspect` or `lcov` from this checkout's locked
 flake. It returns the exact store `path` and adds its `bin` directory to
 `GITHUB_PATH`. It accepts public `cache-name` and `public-key` inputs only;
-readers receive no Cachix upload credential. Missing public configuration
-warns and permits a source build. Partial or malformed configuration fails
-with a configuration error. Nix signature verification remains enabled.
+readers receive no Cachix upload credential. When both public values are
+absent or empty, the helper uses the committed verified `lowkey-lab` cache
+name and signing key. This makes signed public reads available to fork PRs,
+where repository variables are unavailable. A complete explicit pair overrides
+the default; a partial or malformed pair fails with a configuration error.
+Nix signature verification remains enabled.
 
 `prepare-nix-tools.yml` builds the selected package first, without the upload
 token or unrelated CI credentials. Only its publication step receives
 `CACHIX_AUTH_TOKEN`. Main pushes and PRs whose head and base both belong to
 this repository may publish, including Renovate PRs. Forks only read.
-Configure repository variables `CACHIX_CACHE_NAME` and `CACHIX_PUBLIC_KEY`
-with the real public cache name and its independently verified signing key,
-and the scoped repository secret `CACHIX_AUTH_TOKEN` for uploads.
+Repository variables `CACHIX_CACHE_NAME` and `CACHIX_PUBLIC_KEY` may override
+the default with a complete verified public pair. The scoped repository secret
+`CACHIX_AUTH_TOKEN` is for uploads only; no token has a committed default.
+
+When rotating the cache or signing key, independently verify and update both
+`DEFAULT_CACHIX_CACHE_NAME` and `DEFAULT_CACHIX_PUBLIC_KEY` in
+`.github/scripts/nix_tool.py`, and update both repository variables if they
+are configured. Forks use the committed pair, so changing repository variables
+alone does not rotate their trust configuration. Never place upload tokens or
+private signing keys alongside these public defaults. Ordinary source fallback
+and the existing main/same-repository publication guard remain unchanged.
 
 After publication, the helper enumerates the local runtime closure and
 checks each path's remote NAR hash and references against Cachix or
@@ -88,7 +99,8 @@ selects the intended branch revision. This manual discovery requirement does
 not prevent the labeled PR route described above.
 
 The command `python3 .github/scripts/nix_tool.py strict aspect` (or `lcov`)
-requires real public cache variables, evaluates the exact locked output and
+uses the verified committed public pair or a complete override, evaluates the
+exact locked output and
 rejects a preexisting output rather than deleting it. It realizes only that
 raw non-derivation store path with local jobs and remote builders disabled,
 source fallback disabled and signature verification required. Nix's raw-path
