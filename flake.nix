@@ -8,7 +8,7 @@
       flake = false;
     };
     llm-agents = {
-      url = "github:numtide/llm-agents.nix?rev=af01f46dd7520c12ddb35a139171af9b879ee24d";
+      url = "github:numtide/llm-agents.nix?rev=64f24d6169b8e5996e0c3a3ae696bdf11806b34e";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
