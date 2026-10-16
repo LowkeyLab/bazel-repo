@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Book Smartz · placement prototype</title>
+    <style>
+      :root {
+        font:
+          16px/1.5 system-ui,
+          sans-serif;
+        color: #202b28;
+        background: #f5f4ef;
+        --accent: #215d4c;
+        --line: #d5dcd5;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.6rem 0.9rem;
+        color: inherit;
+      }
+      button:hover:not(:disabled) {
+        border-color: var(--accent);
+        background: #edf3ef;
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.5;
+      }
+      button.primary {
+        background: var(--accent);
+        color: white;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      summary:focus-visible,
+      a:focus-visible {
+        outline: 3px solid #b26913;
+        outline-offset: 3px;
+      }
+      a {
+        color: var(--accent);
+      }
+      header,
+      .intro,
+      main,
+      .lab {
+        max-width: 1160px;
+        margin: auto;
+        padding: 1rem 1.5rem;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      header strong {
+        font-size: 1.3rem;
+      }
+      header span,
+      .muted {
+        color: #54665b;
+      }
+      .intro {
+        padding-top: 0;
+      }
+      .intro h1 {
+        font-size: 1.7rem;
+        margin: 0.5rem 0;
+      }
+      .intro p {
+        max-width: 80ch;
+      }
+      h2 {
+        font-size: 1.25rem;
+        margin-top: 0;
+      }
+      h3 {
+        font-size: 1.05rem;
+      }
+      .eyebrow {
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.1em;
+        color: var(--accent);
+      }
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+        gap: 1rem;
+        align-items: start;
+      }
+      .panel {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 1.3rem;
+        min-width: 0;
+      }
+      .stack {
+        display: grid;
+        gap: 1rem;
+      }
+      .notice {
+        background: #eaf2eb;
+        border-left: 4px solid var(--accent);
+        padding: 0.8rem;
+        margin: 0 0 1rem;
+      }
+      .notice:focus {
+        outline-offset: 3px;
+      }
+      .search {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .search input {
+        flex: 1;
+        min-width: 140px;
+        padding: 0.7rem;
+        border: 1px solid #87998d;
+        border-radius: 8px;
+      }
+      .results {
+        list-style: none;
+        padding: 0;
+      }
+      .book {
+        display: flex;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .book:last-child {
+        border-bottom: 0;
+      }
+      .cover {
+        width: 42px;
+        height: 60px;
+        flex: none;
+        background: #ebeee6;
+        border: 1px solid var(--line);
+        display: grid;
+        place-items: center;
+        font-size: 0.65rem;
+        text-align: center;
+        color: #15211a;
+      }
+      .book-info {
+        flex: 1;
+        min-width: 0;
+      }
+      .book-info strong {
+        display: block;
+      }
+      .book-info small {
+        display: block;
+        color: #54665b;
+      }
+      .book button {
+        flex: none;
+      }
+      .pair {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin: 1rem 0;
+      }
+      .choice {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.6rem;
+        text-align: center;
+        padding: 1rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      .choice .cover {
+        width: 76px;
+        height: 108px;
+      }
+      .choice button {
+        width: 100%;
+        margin-top: auto;
+      }
+      .actions {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+      .ranking {
+        padding-left: 1.8rem;
+      }
+      .ranking li {
+        padding: 0.6rem 0.2rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .ranking small {
+        display: block;
+        color: #54665b;
+      }
+      .pending {
+        border: 1px dashed var(--accent);
+        padding: 1rem;
+        margin: 1rem 0;
+        border-radius: 8px;
+      }
+      .pending small {
+        display: block;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.3rem 1rem;
+        font-size: 0.88rem;
+      }
+      dt {
+        color: #54665b;
+      }
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+      .lab {
+        padding-bottom: 7rem;
+      }
+      .lab details {
+        border-top: 1px solid var(--line);
+        padding-top: 1rem;
+      }
+      .scenario-tabs {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin: 1rem 0;
+      }
+      .scenario-tabs [aria-selected="true"] {
+        background: var(--accent);
+        color: white;
+      }
+      .walkthrough {
+        padding: 1rem;
+        background: #eef1eb;
+        border-radius: 8px;
+      }
+      .walkthrough p {
+        margin-top: 0;
+      }
+      .steps {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .switcher {
+        position: fixed;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.6rem;
+        align-items: center;
+        background: #23352c;
+        color: white;
+        padding: 0.5rem;
+        border-radius: 40px;
+        box-shadow: 0 4px 16px #0003;
+        white-space: nowrap;
+        z-index: 5;
+      }
+      .switcher button {
+        border-radius: 50%;
+        padding: 0.3rem 0.7rem;
+        background: #fff;
+        color: #203d30;
+      }
+      .switcher span {
+        min-width: 170px;
+        text-align: center;
+        font-size: 0.85rem;
+      }
+      .variant-B {
+        display: flex;
+        flex-direction: column;
+        max-width: 760px;
+      }
+      .variant-B > .stack,
+      .variant-B > .saved {
+        width: 100%;
+      }
+      .variant-B .discovery {
+        order: 2;
+      }
+      .variant-B .placement {
+        order: 1;
+      }
+      .variant-C {
+        grid-template-columns: 1fr 1.6fr;
+      }
+      .variant-C > .saved {
+        grid-column: 1;
+        grid-row: 1;
+      }
+      .variant-C > .stack {
+        grid-column: 2;
+        grid-row: 1;
+      }
+      .variant-C .pair {
+        grid-template-columns: 1fr;
+      }
+      .variant-C .choice {
+        flex-direction: row;
+        text-align: left;
+      }
+      .variant-C .choice .cover {
+        width: 42px;
+        height: 60px;
+      }
+      .variant-C .choice button {
+        width: auto;
+        margin-left: auto;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+      }
+      @media (max-width: 650px) {
+        main,
+        .variant-C {
+          display: flex;
+          flex-direction: column;
+        }
+        main > .stack,
+        main > .saved {
+          width: 100%;
+        }
+        .pair {
+          grid-template-columns: 1fr;
+        }
+        .choice {
+          padding: 0.8rem;
+        }
+        .intro,
+        main,
+        header,
+        .lab {
+          padding-left: 1rem;
+          padding-right: 1rem;
+        }
+        .switcher span {
+          min-width: 150px;
+        }
+        .book {
+          flex-wrap: wrap;
+        }
+        .variant-C .choice {
+          flex-direction: column;
+          text-align: center;
+        }
+        .variant-C .choice button {
+          width: 100%;
+          margin: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Book Smartz</strong><span>Private ranking · fixture reader</span>
+    </header>
+    <section class="intro">
+      <span class="eyebrow">Throwaway prototype · nothing is saved</span>
+      <h1>Find a book. Find its place.</h1>
+      <p>
+        Can readers understand discovery, comparison, pause/resume, and safe
+        recovery on mobile and desktop? Try the layouts and guided scenarios
+        below. All books and server responses are fixtures; reload resets the
+        demo.
+      </p>
+    </section>
+    <div id="app"></div>
+    <section class="lab" aria-label="Prototype controls">
+      <h2>Try a scenario</h2>
+      <p class="muted">
+        Selecting a scenario resets the fixture ranking. Steps simulate the same
+        actions as the app; use the app freely between steps.
+      </p>
+      <div
+        id="scenarios"
+        class="scenario-tabs"
+        role="tablist"
+        aria-label="Guided scenarios"
+      ></div>
+      <div
+        id="walkthrough"
+        class="walkthrough"
+        role="tabpanel"
+        aria-label="Scenario walkthrough"
+      ></div>
+      <details open>
+        <summary>Prototype state and failure controls</summary>
+        <div id="state"></div>
+        <div class="actions">
+          <button data-lab="search-failure">Make next search fail</button
+          ><button data-lab="uncertain">Lose next save acknowledgement</button
+          ><button data-lab="stale">Answer in another tab</button
+          ><button data-lab="reload">Return to authoritative view</button
+          ><button data-lab="expire">Expire session</button>
+        </div>
+        <p class="muted">
+          These controls simulate outcomes, not real sessions, persistence,
+          network failures, or CloudEvents storage.
+        </p>
+      </details>
+    </section>
+    <nav class="switcher" aria-label="Prototype layout">
+      <button id="previous" aria-label="Previous layout">←</button
+      ><span id="layout-name"></span
+      ><button id="next" aria-label="Next layout">→</button>
+    </nav>
+    <script>
+      // Pure fixture state machine; no DOM or I/O. Mirrors approved placement rules.
+      const Model = (() => {
+        const books = [
+          {
+            id: "dune",
+            title: "Dune",
+            author: "Frank Herbert",
+            year: 1965,
+            color: "#b98d5b",
+          },
+          {
+            id: "earthsea",
+            title: "A Wizard of Earthsea",
+            author: "Ursula K. Le Guin",
+            year: 1968,
+            color: "#7b9d96",
+          },
+          {
+            id: "piranesi",
+            title: "Piranesi",
+            author: "Susanna Clarke",
+            year: 2020,
+            color: "#879aaf",
+          },
+          {
+            id: "hobbit",
+            title: "The Hobbit",
+            author: "J. R. R. Tolkien",
+            year: 1937,
+            color: "#9daa76",
+          },
+          {
+            id: "murder",
+            title: "The Murder of Roger Ackroyd",
+            author: "Agatha Christie",
+            year: 1926,
+            color: "#b89595",
+          },
+          {
+            id: "left-hand",
+            title: "The Left Hand of Darkness",
+            author: "Ursula K. Le Guin",
+            year: 1969,
+            color: "#8b97b2",
+          },
+          {
+            id: "missing",
+            title: "A Book Without a Cover",
+            author: "",
+            year: null,
+            color: null,
+          },
+        ];
+        const initial = (empty = false) => ({
+          ranked: empty
+            ? []
+            : ["dune", "earthsea", "piranesi", "hobbit", "murder"],
+          pending: null,
+          revision: 0,
+          viewRevision: 0,
+          notice: "Search by title or author to add a book.",
+          query: "",
+          results: null,
+          searchError: false,
+          failSearch: false,
+          uncertainNext: false,
+          recovery: null,
+          lastAction: null,
+          session: true,
+          stale: false,
+          count: 0,
+        });
+        const book = (id) => books.find((b) => b.id === id);
+        const opponent = (s) => {
+          const p = s.pending;
+          if (!p || p.paused) return null;
+          const midpoint = p.lo + Math.floor((p.hi - p.lo - 1) / 2);
+          return (
+            s.ranked
+              .map((id, j) => ({ id, j }))
+              .filter(
+                (x) => x.j >= p.lo && x.j < p.hi && !p.skipped.includes(x.id),
+              )
+              .sort(
+                (a, b) =>
+                  Math.abs(a.j - midpoint) - Math.abs(b.j - midpoint) ||
+                  a.j - b.j,
+              )[0] ?? null
+          );
+        };
+        const settle = (s) => {
+          const p = s.pending;
+          if (p.lo === p.hi) {
+            s.ranked.splice(p.lo, 0, p.id);
+            s.notice =
+              book(p.id).title + " is now #" + (p.lo + 1) + " in your ranking.";
+            s.pending = null;
+          } else if (!opponent(s)) {
+            p.paused = true;
+            s.notice =
+              "Placement paused: you skipped every remaining comparison. Resume whenever you are ready; no rank has been assigned.";
+          }
+        };
+        function apply(s, a) {
+          if (a.type === "add") {
+            if (s.ranked.includes(a.id)) {
+              s.notice = "Already ranked. Your saved position has not changed.";
+              return;
+            }
+            if (s.pending) {
+              s.notice =
+                "Finish or resume your current placement before adding another book.";
+              return;
+            }
+            if (!s.ranked.length) {
+              s.ranked.push(a.id);
+              s.notice = "Your first book is ranked #1. No comparison needed.";
+            } else {
+              s.pending = {
+                id: a.id,
+                lo: 0,
+                hi: s.ranked.length,
+                skipped: [],
+                paused: false,
+                answers: 0,
+              };
+              s.notice =
+                "Choose the book you prefer. There is no fixed number of comparisons.";
+            }
+          } else if (a.type === "answer") {
+            const o = opponent(s);
+            if (!o) return;
+            if (a.choice === "candidate") s.pending.hi = o.j;
+            if (a.choice === "opponent") s.pending.lo = o.j + 1;
+            if (a.choice === "skip") s.pending.skipped.push(o.id);
+            else s.pending.answers++;
+            s.notice =
+              a.choice === "skip"
+                ? "Comparison skipped. Your earlier preferences are kept."
+                : "Preference saved. Choose between the next pair.";
+            settle(s);
+          } else if (a.type === "pause") {
+            if (!s.pending || s.pending.paused) return;
+            s.pending.paused = true;
+            s.notice =
+              "Placement paused. Your earlier preferences are kept; this book is not ranked yet.";
+          } else if (a.type === "resume") {
+            if (!s.pending?.paused) return;
+            s.pending.paused = false;
+            s.pending.skipped = [];
+            s.notice =
+              "Placement resumed. Previous preferences are kept; skipped books can appear again.";
+          }
+          s.revision++;
+          s.viewRevision = s.revision;
+        }
+        function reduce(state, action) {
+          const s = structuredClone(state);
+          if (action.type === "search") {
+            s.query = action.query.trim();
+            s.results = null;
+            if (!s.session) {
+              s.notice =
+                "Sign in again to search. No ranking action was submitted.";
+              return s;
+            }
+            if (s.failSearch) {
+              s.failSearch = false;
+              s.searchError = true;
+              s.notice =
+                "Search is unavailable. Retry when you are ready; your saved ranking still works.";
+              return s;
+            }
+            s.searchError = false;
+            s.results = books
+              .filter((b) =>
+                (b.title + " " + b.author)
+                  .toLowerCase()
+                  .includes(s.query.toLowerCase()),
+              )
+              .map((b) => b.id);
+            s.notice = s.results.length
+              ? "Search results ready."
+              : "No books found. Try a different title or author.";
+            return s;
+          }
+          if (action.type === "expire") {
+            s.session = false;
+            s.notice =
+              "Your session expired. Sign in again; an unconfirmed preference will not be submitted.";
+            return s;
+          }
+          if (action.type === "signin") {
+            s.session = true;
+            s.viewRevision = s.revision;
+            s.stale = false;
+            s.notice =
+              "Signed in again. Review the current comparison before choosing.";
+            return s;
+          }
+          if (action.type === "search-failure") {
+            s.failSearch = true;
+            s.notice = "Fixture: the next submitted search will fail.";
+            return s;
+          }
+          if (action.type === "uncertain") {
+            s.uncertainNext = true;
+            s.notice =
+              "Fixture: the next ranking action will wait for confirmation.";
+            return s;
+          }
+          if (action.type === "stale") {
+            if (s.recovery) {
+              s.notice =
+                "Resolve the save outcome before simulating another ranking action.";
+              return s;
+            }
+            if (!opponent(s)) {
+              s.notice =
+                "Start an active placement before answering in another tab.";
+              return s;
+            }
+            const old = s.viewRevision;
+            apply(s, { type: "answer", choice: "candidate" });
+            s.viewRevision = old;
+            s.stale = true;
+            s.notice =
+              "Another tab saved a preference. This screen still represents an older revision.";
+            return s;
+          }
+          if (action.type === "refresh") {
+            s.viewRevision = s.revision;
+            s.stale = false;
+            s.notice = s.recovery
+              ? "Still checking the original save. Further ranking actions are blocked."
+              : "Current ranking loaded. Review the comparison before choosing.";
+            return s;
+          }
+          if (action.type === "resolve") {
+            if (s.recovery) {
+              const frozen = s.recovery;
+              s.recovery = null;
+              apply(s, frozen.action);
+              s.lastAction = frozen.id;
+              s.notice = "Original save confirmed once. " + s.notice;
+            }
+            return s;
+          }
+          if (action.type === "duplicate") {
+            s.notice = s.lastAction
+              ? "That submission was already saved. Showing its saved outcome; no second change."
+              : "No confirmed submission to repeat yet.";
+            return s;
+          }
+          if (!s.session) {
+            s.notice = "Sign in again before choosing. Nothing was submitted.";
+            return s;
+          }
+          if (s.recovery) {
+            s.notice =
+              "Checking the original save. Wait for confirmation before another ranking action.";
+            return s;
+          }
+          if (s.viewRevision !== s.revision) {
+            s.stale = true;
+            s.viewRevision = s.revision;
+            s.notice =
+              "This comparison changed. Your old choice was not applied. Load current state, then choose again.";
+            return s;
+          }
+          if (s.stale) {
+            s.notice =
+              "Load current state and review it before choosing again.";
+            return s;
+          }
+          if (s.uncertainNext) {
+            s.uncertainNext = false;
+            s.count++;
+            s.recovery = {
+              id: "action-" + s.count,
+              action: structuredClone(action),
+              revision: s.revision,
+            };
+            s.notice =
+              "Checking whether your save succeeded. Do not submit another preference; the original action will be reconciled.";
+            return s;
+          }
+          s.count++;
+          apply(s, action);
+          s.lastAction = "action-" + s.count;
+          return s;
+        }
+        return { initial, book, opponent, reduce };
+      })();
+    </script>
+    <script>
+      // Throwaway view and scenario driver. All effects remain in this shell.
+      let state = Model.initial(true),
+        busy = false,
+        scenarioIndex = 0,
+        stepIndex = 0;
+      const variants = [
+        ["A", "Workspace"],
+        ["B", "One step at a time"],
+        ["C", "Ranking first"],
+      ];
+      let variant = new URLSearchParams(location.search).get("variant") || "A";
+      if (!variants.some((v) => v[0] === variant)) variant = "A";
+      const scenarios = [
+        {
+          name: "First book",
+          empty: true,
+          description:
+            "An empty ranking needs no comparison. Search, then Add.",
+          steps: [
+            ["Search for Dune", { type: "search", query: "Dune" }],
+            ["Add Dune", { type: "add", id: "dune" }],
+          ],
+        },
+        {
+          name: "Ordinary placement",
+          description:
+            "Compare a new book until its position is certain. Progress counts preferences, not a promised total.",
+          steps: [
+            ["Find Left Hand", { type: "search", query: "Left Hand" }],
+            ["Add it", { type: "add", id: "left-hand" }],
+            ["Prefer new book", { type: "answer", choice: "candidate" }],
+            ["Prefer existing book", { type: "answer", choice: "opponent" }],
+            ["Prefer new book", { type: "answer", choice: "candidate" }],
+          ],
+        },
+        {
+          name: "Missing cover",
+          description:
+            "A local placeholder and Author unavailable keep an incomplete book usable.",
+          steps: [
+            [
+              "Find incomplete book",
+              { type: "search", query: "Without a Cover" },
+            ],
+            ["Add it", { type: "add", id: "missing" }],
+          ],
+        },
+        {
+          name: "Duplicate / pending",
+          description:
+            "Already ranked books keep their position. A pending book blocks another Add, even while paused.",
+          steps: [
+            ["Find Dune", { type: "search", query: "Dune" }],
+            ["Try duplicate Add", { type: "add", id: "dune" }],
+            ["Start Left Hand", { type: "add", id: "left-hand" }],
+            ["Pause it", { type: "pause" }],
+            ["Try a second Add", { type: "add", id: "missing" }],
+          ],
+        },
+        {
+          name: "Skip every opponent",
+          description:
+            "Skipping never guesses a rank. Exhaust the five opponents, then Resume to revisit them.",
+          steps: [
+            ["Start placement", { type: "add", id: "left-hand" }],
+            ...Array.from({ length: 5 }, (_, i) => [
+              "Skip " + (i + 1),
+              { type: "answer", choice: "skip" },
+            ]),
+            ["Resume", { type: "resume" }],
+          ],
+        },
+        {
+          name: "Pause and return",
+          description:
+            "Pause after narrowing the bounds. Return and Resume keep those preferences, while clearing skipped opponents.",
+          steps: [
+            ["Start placement", { type: "add", id: "left-hand" }],
+            ["Prefer new book", { type: "answer", choice: "candidate" }],
+            ["Skip this opponent", { type: "answer", choice: "skip" }],
+            ["Pause", { type: "pause" }],
+            ["Return to ranking", { type: "refresh" }],
+            ["Resume", { type: "resume" }],
+          ],
+        },
+        {
+          name: "Stale comparison",
+          description:
+            "Another tab saves first. The old preference is rejected and never transferred to a different opponent.",
+          steps: [
+            ["Start placement", { type: "add", id: "left-hand" }],
+            ["Another tab answers", { type: "stale" }],
+            ["Try the old preference", { type: "answer", choice: "opponent" }],
+            ["Load current state", { type: "refresh" }],
+            ["Choose afresh", { type: "answer", choice: "opponent" }],
+          ],
+        },
+        {
+          name: "Uncertain save",
+          description:
+            "A lost acknowledgement is not failure. Return while checking, confirm the original action once, then try its duplicate.",
+          steps: [
+            ["Start placement", { type: "add", id: "left-hand" }],
+            ["Lose acknowledgement", { type: "uncertain" }],
+            ["Submit preference", { type: "answer", choice: "candidate" }],
+            ["Return while checking", { type: "refresh" }],
+            ["Confirm original save", { type: "resolve" }],
+            ["Repeat same submission", { type: "duplicate" }],
+          ],
+        },
+        {
+          name: "Search outage",
+          description:
+            "A provider failure offers Retry instead of no matches. Saved ranking and comparisons remain available.",
+          steps: [
+            ["Fail next search", { type: "search-failure" }],
+            ["Search", { type: "search", query: "Dune" }],
+            ["Retry search", { type: "search", query: "Dune" }],
+            [
+              "Search with no matches",
+              { type: "search", query: "xyz-no-matches" },
+            ],
+          ],
+        },
+        {
+          name: "Session expiry",
+          description:
+            "Signing in again restores the comparison without automatically submitting the unconfirmed answer.",
+          steps: [
+            ["Start placement", { type: "add", id: "left-hand" }],
+            ["Expire session", { type: "expire" }],
+            ["Try preference", { type: "answer", choice: "candidate" }],
+            ["Sign in again", { type: "signin" }],
+            ["Confirm preference", { type: "answer", choice: "candidate" }],
+          ],
+        },
+      ];
+      const esc = (value) =>
+        String(value).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      function cover(b) {
+        return `<span class="cover" role="img" aria-label="${b.color ? "Fixture cover" : "Cover unavailable"}" style="${b.color ? "background:" + b.color : ""}">${b.color ? "BOOK" : "No cover"}</span>`;
+      }
+      function render() {
+        const s = state,
+          p = s.pending,
+          o = Model.opponent(s),
+          locked = busy || !!s.recovery || !s.session || s.stale;
+        const row = (id) => {
+          const b = Model.book(id),
+            rank = s.ranked.includes(id),
+            pending = !!p;
+          return `<li class="book">${cover(b)}<div class="book-info"><strong>${esc(b.title)}</strong><small>${esc(b.author || "Author unavailable")}${b.year ? " · " + b.year : ""}</small></div><button data-add="${id}" ${locked || rank || pending ? "disabled" : ""}>${rank ? "Already ranked" : pending ? (p.id === id ? "Placement pending" : "Finish placement first") : "Add"}</button></li>`;
+        };
+        let placement = "";
+        if (!s.session)
+          placement =
+            '<h2>Sign in to continue</h2><p>Your unconfirmed choice has not been submitted.</p><button class="primary" data-action="signin">Sign in again (fixture)</button>';
+        else if (s.recovery)
+          placement = `<h2>Checking your save…</h2><p>The result is still unknown. Your original submission is retained, and further ranking actions are blocked.</p><button data-action="refresh">Check again</button> <button class="primary" data-action="resolve">Simulate save confirmation</button>`;
+        else if (s.stale)
+          placement =
+            '<h2>This comparison changed</h2><p>Another tab saved first. Your old choice will not be applied to a new pair.</p><button class="primary" data-action="refresh">Load current state</button>';
+        else if (!p)
+          placement =
+            "<h2>Ready for another book</h2><p>Search for something you have read. Your first book goes straight into your ranking; later books find their place through comparisons.</p>";
+        else if (p.paused)
+          placement = `<h2>Placement paused</h2><p><strong>${esc(Model.book(p.id).title)}</strong> has no rank yet. Your ${p.answers} saved preference${p.answers === 1 ? "" : "s"} will be kept.</p><button class="primary" data-action="resume" ${busy ? "disabled" : ""}>Resume placement</button>`;
+        else
+          placement = `<span class="eyebrow">Place a book</span><h2>Which book do you prefer?</h2><p>${p.answers} preference${p.answers === 1 ? "" : "s"} saved · ${p.skipped.length} skipped this round. We will stop when its position is clear.</p><div class="pair">${[
+            [p.id, "candidate", "Prefer this book"],
+            [o.id, "opponent", "Prefer this book"],
+          ]
+            .map(([id, choice, label]) => {
+              const b = Model.book(id);
+              return `<article class="choice">${cover(b)}<div><small class="muted">${choice === "candidate" ? "New book" : "In your ranking"}</small><h3>${esc(b.title)}</h3><p>${esc(b.author || "Author unavailable")}</p></div><button class="primary" data-choice="${choice}" aria-label="Prefer ${esc(b.title)}" ${busy ? "disabled" : ""}>${label}</button></article>`;
+            })
+            .join(
+              "",
+            )}</div><div class="actions"><button data-choice="skip" ${busy ? "disabled" : ""}>Skip this comparison</button><button data-action="pause" ${busy ? "disabled" : ""}>Pause for now</button></div>`;
+        document.querySelector("#app").innerHTML =
+          `<main class="variant-${variant}" aria-busy="${busy}"><div class="stack"><section class="panel placement"><p class="notice" id="notice" tabindex="-1" role="status" aria-live="polite">${esc(busy ? "Saving… Please wait." : s.notice)}</p>${placement}</section><section class="panel discovery"><h2>Find a book</h2><form id="search" class="search"><label for="query" class="sr-only">Book title or author</label><input id="query" name="query" maxlength="256" placeholder="Book title or author" value="${esc(s.query)}" required><button class="primary" ${busy || !s.session ? "disabled" : ""}>Search</button></form><p class="muted">Fixture search · up to 20 work results per page.</p>${s.searchError ? '<p>Search failed. Your ranking is available.</p><button data-action="retry">Retry search</button>' : s.results === null ? "" : s.results.length ? `<ul class="results">${s.results.map(row).join("")}</ul>` : "<p>No books found. Try another title or author.</p>"}${p ? '<p class="muted">Finish or resume your pending placement before adding another book.</p>' : ""}</section></div><aside class="panel saved"><span class="eyebrow">Your library</span><h2>My ranking <small class="muted">(${s.ranked.length})</small></h2><p>Best to least preferred · private</p>${
+            s.ranked.length
+              ? `<ol class="ranking">${s.ranked
+                  .map((id) => {
+                    const b = Model.book(id);
+                    return `<li><strong>${esc(b.title)}</strong><small>${esc(b.author || "Author unavailable")}</small></li>`;
+                  })
+                  .join("")}</ol>`
+              : "<p>Your ranking is empty. Add your first book to begin.</p>"
+          }${p ? `<section class="pending"><strong>Not ranked yet</strong><p>${esc(Model.book(p.id).title)}</p><small>${p.paused ? "Paused" : "Placement in progress"}</small></section>` : ""}</aside></main>`;
+        document.querySelector("#state").innerHTML =
+          `<dl><dt>Ranking revision / displayed revision</dt><dd>${s.revision} / ${s.viewRevision}</dd><dt>Possible insertion positions</dt><dd>${p ? "#" + (p.lo + 1) + " through #" + (p.hi + 1) : "No pending placement"}</dd><dt>Current opponent</dt><dd>${o ? esc(Model.book(o.id).title) : "None"}</dd><dt>Skipped this round</dt><dd>${p?.skipped.map((id) => esc(Model.book(id).title)).join(", ") || "None"}</dd><dt>Original action awaiting confirmation</dt><dd>${s.recovery ? esc(s.recovery.id) + " at revision " + s.recovery.revision : "None"}</dd><dt>Last confirmed action</dt><dd>${s.lastAction || "None"}</dd></dl>`;
+        document.querySelector("#layout-name").textContent = variants
+          .find((v) => v[0] === variant)
+          .join(" · ");
+        renderScenario();
+      }
+      function renderScenario() {
+        document.querySelector("#scenarios").innerHTML = scenarios
+          .map(
+            (x, i) =>
+              `<button id="scenario-${i}" role="tab" aria-selected="${i === scenarioIndex}" aria-controls="walkthrough" tabindex="${i === scenarioIndex ? 0 : -1}" data-scenario="${i}">${esc(x.name)}</button>`,
+          )
+          .join("");
+        const sc = scenarios[scenarioIndex];
+        document
+          .querySelector("#walkthrough")
+          .setAttribute("aria-labelledby", "scenario-" + scenarioIndex);
+        document.querySelector("#walkthrough").innerHTML =
+          `<p>${esc(sc.description)}</p><div class="steps">${sc.steps.map(([label], i) => `<button data-step="${i}" ${i !== stepIndex || busy ? "disabled" : ""}>${i < stepIndex ? "✓ " : i + 1 + ". "}${esc(label)}</button>`).join("")}</div>${stepIndex === sc.steps.length ? "<p>Walkthrough complete. Explore freely, or select another scenario.</p>" : ""}`;
+      }
+      async function dispatch(action) {
+        if (busy) return;
+        busy = true;
+        render();
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        state = Model.reduce(state, action);
+        busy = false;
+        render();
+        document.querySelector("#notice")?.focus();
+      }
+      function selectScenario(index) {
+        if (busy) return;
+        scenarioIndex = index;
+        stepIndex = 0;
+        state = Model.initial(!!scenarios[index].empty);
+        render();
+        document.querySelector("#scenario-" + index).focus();
+      }
+      document.addEventListener("submit", (e) => {
+        if (e.target.id === "search") {
+          e.preventDefault();
+          dispatch({
+            type: "search",
+            query: new FormData(e.target).get("query"),
+          });
+        }
+      });
+      document.addEventListener("click", async (e) => {
+        const b = e.target.closest("button");
+        if (!b || b.disabled) return;
+        if (b.dataset.scenario !== undefined) {
+          selectScenario(Number(b.dataset.scenario));
+          return;
+        }
+        if (b.dataset.step !== undefined) {
+          const action = scenarios[scenarioIndex].steps[stepIndex][1];
+          stepIndex++;
+          await dispatch(action);
+          return;
+        }
+        if (b.dataset.add) {
+          await dispatch({ type: "add", id: b.dataset.add });
+          return;
+        }
+        if (b.dataset.choice) {
+          await dispatch({ type: "answer", choice: b.dataset.choice });
+          return;
+        }
+        const type = b.dataset.action || b.dataset.lab;
+        if (type)
+          await dispatch(
+            type === "retry"
+              ? { type: "search", query: state.query }
+              : { type: type === "reload" ? "refresh" : type },
+          );
+      });
+      function cycle(direction) {
+        variant =
+          variants[
+            (variants.findIndex((v) => v[0] === variant) +
+              direction +
+              variants.length) %
+              variants.length
+          ][0];
+        const u = new URL(location.href);
+        u.searchParams.set("variant", variant);
+        history.replaceState(null, "", u);
+        render();
+      }
+      document.querySelector("#previous").onclick = () => cycle(-1);
+      document.querySelector("#next").onclick = () => cycle(1);
+      document.addEventListener("keydown", (e) => {
+        if (
+          !["ArrowLeft", "ArrowRight"].includes(e.key) ||
+          e.target.closest("input,textarea,[contenteditable]")
+        )
+          return;
+        if (e.target.matches('[role="tab"]')) {
+          e.preventDefault();
+          selectScenario(
+            (scenarioIndex +
+              (e.key === "ArrowLeft" ? -1 : 1) +
+              scenarios.length) %
+              scenarios.length,
+          );
+          return;
+        }
+        e.preventDefault();
+        cycle(e.key === "ArrowLeft" ? -1 : 1);
+      });
+      render();
+    </script>
+  </body>
+</html>
