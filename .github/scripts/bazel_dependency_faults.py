@@ -62,6 +62,13 @@ def serve(mode):
 def start(mode):
     evidence = evidence_path()
     evidence.mkdir()
+    # The runner overwrites runtime endpoint/token environment for Node actions.
+    # A preload runs after that injection and before the pinned client loads.
+    (evidence / "cache-env.cjs").write_text(
+        "process.env.ACTIONS_RESULTS_URL = process.env.FAULT_URL;\n"
+        "process.env.ACTIONS_CACHE_URL = process.env.FAULT_URL;\n"
+        'process.env.ACTIONS_RUNTIME_TOKEN = "isolated-fault-token";\n'
+    )
     with (evidence / "server.log").open("w") as output:
         process = subprocess.Popen(
             [sys.executable, __file__, "serve", mode], stdout=output, stderr=output

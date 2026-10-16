@@ -35,6 +35,7 @@ jobs:
         timeout-minutes: 2
         continue-on-error: true
         env:
+          NODE_OPTIONS: --require=${{ env.FAULT_EVIDENCE }}/cache-env.cjs
           ACTIONS_CACHE_SERVICE_V2: 'true'
           ACTIONS_RESULTS_URL: ${{ env.FAULT_URL }}
           ACTIONS_RUNTIME_TOKEN: isolated-fault-token
