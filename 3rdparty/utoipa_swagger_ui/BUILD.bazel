@@ -1,5 +1,6 @@
 exports_files(
     [
         "fix.patch",
+        "relative_embed_paths.patch",
     ],
 )

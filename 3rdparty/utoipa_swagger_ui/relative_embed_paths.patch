@@ -1,0 +1,11 @@
+--- a/build.rs
++++ b/build.rs
+@@ -312,6 +312,8 @@
+         .collect::<Result<Vec<_>, _>>()?
+         .into_iter()
+         .map(|(relative_path, path, gzip)| {
++            // embed.rs and its assets move together between Bazel action sandboxes.
++            let path = path.strip_prefix(target_dir).expect("asset must be under OUT_DIR");
+             format!(
+                 r###"Asset {{
+                 data: include_bytes!({path:?}),
