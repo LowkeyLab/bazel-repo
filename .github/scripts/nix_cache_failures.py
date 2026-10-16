@@ -158,13 +158,15 @@ def main():
         )
         command(f"{mode}-smoke", [f"{output}/bin/aspect", "--version"], True)
         if not any(
-            json.loads(line[5:]).get("type") == 105
+            json.loads(line[5:]).get("action") == "start"
+            and json.loads(line[5:]).get("type") == 105
             for line in ordinary.splitlines()
             if line.startswith("@nix ")
         ):
             raise ValueError("Source fallback requires an observed Nix build activity")
         if any(
-            json.loads(line[5:]).get("type") == 105
+            json.loads(line[5:]).get("action") == "start"
+            and json.loads(line[5:]).get("type") == 105
             for line in strict.splitlines()
             if line.startswith("@nix ")
         ):
