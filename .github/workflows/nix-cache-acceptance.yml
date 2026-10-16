@@ -72,3 +72,32 @@ jobs:
           name: nix-cache-acceptance-${{ matrix.tool }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/nix-acceptance-${{ matrix.tool }}/
           if-no-files-found: error
+  cache-failures:
+    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'nix-cache-failures')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/install-nix-tool
+        with:
+          install-only: 'true'
+      - name: Resolve pinned publication client without credentials
+        id: client
+        run: |
+          client=$(nix build --no-link --print-out-paths --no-update-lock-file --inputs-from . nixpkgs#cachix)
+          echo "path=$client" >> "$GITHUB_OUTPUT"
+      - name: Exercise real Nix failures and ordinary source fallback
+        env:
+          CACHIX_PATH: ${{ steps.client.outputs.path }}
+        run: python3 .github/scripts/nix_cache_failures.py
+      - name: Retain fault evidence including partial failures
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: nix-cache-failures-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/nix-acceptance-failures/
+          if-no-files-found: error

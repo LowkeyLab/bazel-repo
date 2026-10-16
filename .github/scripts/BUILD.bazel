@@ -12,7 +12,10 @@ py_binary(
 
 py_library(
     name = "scripts",
-    srcs = ["nix_tool.py"],
+    srcs = [
+        "nix_cache_failures.py",
+        "nix_tool.py",
+    ],
     imports = ["."],  # keep
     visibility = ["//:__subpackages__"],
 )
@@ -25,4 +28,11 @@ py_test(
         "//.github/scripts",
         "@pypi//pytest",
     ],
+)
+
+py_binary(
+    name = "nix_cache_failures",
+    srcs = ["nix_cache_failures.py"],
+    visibility = ["//.github/scripts:__subpackages__"],
+    deps = ["//.github/scripts"],
 )
