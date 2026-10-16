@@ -212,7 +212,7 @@ git_override(
 bazel_dep(name = "rules_buf")
 git_override(
     module_name = "rules_buf",
-    commit = "cf6f378ca66cb9bd973ed71fcf73bad1e1297b6d",
+    commit = "ae0f59a8a8ad18e566ccce0ee020a10854d45e70",
     remote = "https://github.com/bufbuild/rules_buf.git",
 )
 
