@@ -8,6 +8,11 @@ import sys
 import time
 from pathlib import Path
 
+DEFAULT_CACHIX_CACHE_NAME = "lowkey-lab"
+DEFAULT_CACHIX_PUBLIC_KEY = (
+    "lowkey-lab.cachix.org-1:7YzknrrOt9NRhJp4VIYCqa9Edc/401MuFrtqyPUW3i8="
+)
+
 
 def run(*args, capture=False):
     return subprocess.run(
@@ -23,10 +28,8 @@ def configure():
     name = os.environ.get("CACHIX_CACHE_NAME", "")
     key = os.environ.get("CACHIX_PUBLIC_KEY", "")
     if not name and not key:
-        warning(
-            "Cachix unconfigured: source fallback enabled; this is not verified warm-cache success"
-        )
-        return None
+        name = DEFAULT_CACHIX_CACHE_NAME
+        key = DEFAULT_CACHIX_PUBLIC_KEY
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", name) or not re.fullmatch(
         re.escape(name) + r"\.cachix\.org-1:[A-Za-z0-9+/]{43}=", key
     ):
