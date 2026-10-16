@@ -27,7 +27,7 @@
     "io.ktor:ktor-server-thymeleaf-jvm": 779675687,
     "io.ktor:ktor-server-websockets-jvm": -371656992,
     "org.jetbrains.exposed:exposed-core": 1510823307,
-    "org.jetbrains.exposed:exposed-dao": 1368470094,
+    "org.jetbrains.exposed:exposed-dao": 1378973198,
     "org.jetbrains.exposed:exposed-jdbc": -1700247065,
     "org.jetbrains.kotlin:kotlin-test-junit": 1914213676,
     "org.jetbrains.kotlin:kotlin-test-junit5": 1406189049,
@@ -328,15 +328,15 @@
     "org.javassist:javassist": -1460003306,
     "org.javassist:javassist:jar:javadoc": 1262034680,
     "org.javassist:javassist:jar:sources": 200392990,
-    "org.jetbrains.exposed:exposed-core": 2124739778,
-    "org.jetbrains.exposed:exposed-core:jar:javadoc": -836519594,
-    "org.jetbrains.exposed:exposed-core:jar:sources": 2145464302,
-    "org.jetbrains.exposed:exposed-dao": -419707542,
-    "org.jetbrains.exposed:exposed-dao:jar:javadoc": 1910348574,
-    "org.jetbrains.exposed:exposed-dao:jar:sources": 548267139,
-    "org.jetbrains.exposed:exposed-jdbc": -245928603,
-    "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": 848705784,
-    "org.jetbrains.exposed:exposed-jdbc:jar:sources": 475695068,
+    "org.jetbrains.exposed:exposed-core": -1134188077,
+    "org.jetbrains.exposed:exposed-core:jar:javadoc": 530920796,
+    "org.jetbrains.exposed:exposed-core:jar:sources": -1343149475,
+    "org.jetbrains.exposed:exposed-dao": 920677971,
+    "org.jetbrains.exposed:exposed-dao:jar:javadoc": -2136558069,
+    "org.jetbrains.exposed:exposed-dao:jar:sources": -1155139867,
+    "org.jetbrains.exposed:exposed-jdbc": 548352548,
+    "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": 440315567,
+    "org.jetbrains.exposed:exposed-jdbc:jar:sources": 747893950,
     "org.jetbrains.kotlin:kotlin-reflect": -1734605400,
     "org.jetbrains.kotlin:kotlin-reflect:jar:javadoc": 1121744771,
     "org.jetbrains.kotlin:kotlin-reflect:jar:sources": 290175045,
@@ -444,7 +444,9 @@
     "org.unbescape:unbescape:jar:sources": 1350857716
   },
   "conflict_resolution": {
-    "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1"
+    "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1",
+    "org.jetbrains.exposed:exposed-core:1.5.1": "org.jetbrains.exposed:exposed-core:1.6.0",
+    "org.jetbrains.exposed:exposed-jdbc:1.5.1": "org.jetbrains.exposed:exposed-jdbc:1.6.0"
   },
   "artifacts": {
     "ch.qos.logback:logback-classic": {
@@ -1212,27 +1214,27 @@
     },
     "org.jetbrains.exposed:exposed-core": {
       "shasums": {
-        "jar": "6689fe8999b14e56ea51e518fa2495573be8280cac939230a5d5b12164c6c1ad",
-        "javadoc": "6b0756aae3c17574a712040d599d6648797ca53f8625e140026f8951ba5cc808",
-        "sources": "ce1bfe5df7d67682016354bd48d149c830b4da135bc1ae4ce0dee22bddc62de0"
+        "jar": "7a8dbee347d3577f1e4f204e940f5f3e31a6fe93395af203b27263ff99fd8ae3",
+        "javadoc": "84df3c6455770e77df59c61ea33b7413d8339d2948f7aaf9886082b87fe6c60a",
+        "sources": "b8e16eaf74d51641169ff488c857fea796ac2c0c71f1e396bb1bd72ac9cf4152"
       },
-      "version": "1.5.1"
+      "version": "1.6.0"
     },
     "org.jetbrains.exposed:exposed-dao": {
       "shasums": {
-        "jar": "78604d67e9fbdd8903136cfed054a62cceb5c3e010ad2d8cb4166ca367739751",
-        "javadoc": "ed9414e1bf526d57098e7d0486bdc17c042af00eb20e578a6b81ec57ca9ff40a",
-        "sources": "6dd872ca558444c82de4337e8f237f07b9697e3d5d07532d544c945b8c97014f"
+        "jar": "825dbd2104dd240ed3c83e1a7556d25ca3eb6ef10c774bc8a172222344e026af",
+        "javadoc": "056a55f3f9e0948c3b660d920fe017dacbf471604255e83debc0fbbe23e44b6d",
+        "sources": "393db4ca1a7412659dcb58c6537192798c18fddfd206199ee009335ca7e476e1"
       },
-      "version": "1.5.1"
+      "version": "1.6.0"
     },
     "org.jetbrains.exposed:exposed-jdbc": {
       "shasums": {
-        "jar": "2d787f13f8df5fd5a740de974cf2ba926ba64c7421ea52bb0ff287e897b520cc",
-        "javadoc": "a7b60dc67847ecf1378e8d0d4b8cbe3bed59500492965e8fe1f3c0acd9238352",
-        "sources": "4716451a886c36bd53cf561ba30b6dd5624ecdfe0ae8c2ca8e84cd9536155597"
+        "jar": "4e364fcec09afa36a81ec2b3602bb317969eede659ed573a36e4d3fdb45275f5",
+        "javadoc": "564bba96d39b1d258f80eacf98da87f6f2351382e757d834807380a8d1d2d7a1",
+        "sources": "486c44bd85d6d88bcaca764126066090b7925f5e6af58746480e7fa11da130b9"
       },
-      "version": "1.5.1"
+      "version": "1.6.0"
     },
     "org.jetbrains.kotlin:kotlin-reflect": {
       "shasums": {
