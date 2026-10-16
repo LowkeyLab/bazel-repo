@@ -26,7 +26,7 @@
     "io.ktor:ktor-server-test-host-jvm": 2035263202,
     "io.ktor:ktor-server-thymeleaf-jvm": 779675687,
     "io.ktor:ktor-server-websockets-jvm": -371656992,
-    "org.jetbrains.exposed:exposed-core": 1510823307,
+    "org.jetbrains.exposed:exposed-core": 1521326411,
     "org.jetbrains.exposed:exposed-dao": 1378973198,
     "org.jetbrains.exposed:exposed-jdbc": -1700247065,
     "org.jetbrains.kotlin:kotlin-test-junit": 1914213676,
@@ -445,7 +445,6 @@
   },
   "conflict_resolution": {
     "com.google.j2objc:j2objc-annotations:2.8": "com.google.j2objc:j2objc-annotations:3.1",
-    "org.jetbrains.exposed:exposed-core:1.5.1": "org.jetbrains.exposed:exposed-core:1.6.0",
     "org.jetbrains.exposed:exposed-jdbc:1.5.1": "org.jetbrains.exposed:exposed-jdbc:1.6.0"
   },
   "artifacts": {
