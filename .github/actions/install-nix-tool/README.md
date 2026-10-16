@@ -169,3 +169,52 @@ dispatch a production deployment workflow merely to gather it. Keep #2244 open u
 live matrix is met. Record compressed occupancy and actual available download
 and eviction observations separately under #2245; uncompressed closure sizes
 and client transfers are not account-wide storage or traffic measurements.
+
+### Outage and free-allowance measurements
+
+Apply `nix-cache-failures` to a PR to run the opt-in `cache-failures` job.
+It uses real Nix against isolated loopback binary-cache endpoints returning
+404, 503, connection refusal and a stalled response. It records the production
+HTTP diagnostic, each exact output path, effective Nix settings, raw native
+activity logs, command exit status and elapsed seconds. Each output starts
+absent: compilation-disabled realization must fail without a build activity,
+then ordinary `--fallback` must build and execute the tiny fixture. This is
+failure-path evidence, separate from signed public-tool download acceptance.
+The input-free host-shell fixture alone uses `sandbox=false`; production
+sandbox and trust settings remain unchanged.
+
+The same job invokes the production publication script with the real pinned
+Cachix CLI routed exclusively to an unavailable loopback API. Its synthetic
+marker is public test data, carries no cache authority and is never routed to
+Cachix. The isolated client has a separate 10-second TERM deadline and five-second
+KILL grace; its actual exit status is retained. The script must report publication
+failure while permitting ordinary fallback. Separately, the production tool reader runs an intentionally failing
+source derivation; builder exit 23 must remain fatal. No production cache is
+corrupted or taken offline and no upload credential is supplied to this job.
+Partial evidence is retained even if a later assertion fails.
+
+The pilot configures a 5-second connection timeout, 30-second stalled-download
+timeout and two download attempts. The diagnostic curl independently uses
+5-second connection/30-second total request limits and one retry. These are
+per-transfer settings, **not a total fallback deadline**. Repeated metadata or
+closure requests, retry backoff, active slow transfers and source compilation
+can exceed them. Publication sends TERM at 15 minutes and forces KILL after another five seconds;
+the opt-in fault job has a 20-minute overall limit. Refusal proves a connection
+failure, not a measured five-second connection timeout. Hosted command timings
+must be reported from the artifacts before calling the outage matrix complete.
+
+The human setup baseline at `2026-10-15T22:23:07Z` recorded the following:
+
+| Account measurement          | Recorded value |
+| ---------------------------- | -------------- |
+| Free allowance               | unavailable    |
+| Compressed account occupancy | unavailable    |
+| Observed account eviction    | unavailable    |
+| Account download volume      | unavailable    |
+
+These values were unavailable in the captured setup evidence; they do not
+establish that the selected tier forbids those metrics. Public narinfo NAR
+sizes describe individual compressed objects and cannot establish account
+occupancy, eviction or download totals. No paid-plan recommendation or purchase
+follows from these missing measurements. Preserve that limit unless actual
+account measurements become available.
