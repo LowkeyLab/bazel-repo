@@ -67,7 +67,10 @@
           aspect-delivery-flags = pkgs.runCommand "aspect-delivery-flags" { nativeBuildInputs = [ aspect ]; } ''
             export ASPECT_CLI_CACHE="$TMPDIR/aspect-cache"
             mkdir .aspect
+            cp ${./.aspect/config.axl} .aspect/repo_config.axl
             cp ${./tools/aspect/delivery_flags.axl} .aspect/check.axl
+            echo 'load("./check.axl", "config")' > .aspect/config.axl
+            echo "common --remote_cache=grpcs://remote.buildbuddy.io" > .bazelrc
             aspect delivery-flags
             touch "$out"
           '';
