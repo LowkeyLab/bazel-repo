@@ -31,6 +31,7 @@ runs:
       with:
         # Avoid downloading Bazel every time.
         bazelisk-cache: true
+        repository-cache: false
         bazelrc: |
           common --config=ci
           common --remote_download_outputs=all

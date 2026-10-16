@@ -70,6 +70,23 @@ jobs:
           buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
           docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
           docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Configure shared dependency cache
+        run: python3 .github/scripts/bazel_dependencies.py configure
+      - name: Restore Bazel dependencies (advisory)
+        id: dependencies
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        timeout-minutes: 2
+        continue-on-error: true
+        with:
+          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
+          key: ${{ env.BAZEL_DEPENDENCY_PREFIX }}${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ${{ env.BAZEL_DEPENDENCY_PREFIX }}
+      - name: Prepare dependencies (required; publication disabled)
+        env:
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+        run: python3 .github/scripts/bazel_dependencies.py prepare
       - name: Run Bazel tests
         run: |
           aspect test //...
