@@ -38,6 +38,15 @@ class Cache(http.server.BaseHTTPRequestHandler):
         pass
 
 
+def require_publication_timeout(status_file, elapsed_seconds):
+    status = int(status_file.read_text())
+    if status not in (124, 137) or elapsed_seconds < 10:
+        raise ValueError(
+            "Publication client must reach its 10-second timeout; "
+            f"observed exit {status} after {elapsed_seconds:.3f}s"
+        )
+
+
 def main():
     if os.environ.get("CACHIX_AUTH_TOKEN") or os.environ.get("CACHIX_SIGNING_KEY"):
         raise ValueError("Fault experiments must not receive cache credentials")
@@ -222,6 +231,10 @@ def main():
     finally:
         os.environ.pop("CACHIX_AUTH_TOKEN", None)
         os.environ.pop("CACHIX_CACHE_NAME", None)
+    require_publication_timeout(
+        evidence.directory / "publication-client.exit-status",
+        evidence.commands[-1]["elapsed_seconds"],
+    )
     if "Cachix publication failed" not in publication or "127.0.0.1" not in errors:
         raise ValueError(
             "Publication must fail at the isolated endpoint and emit ordinary fallback warning"
