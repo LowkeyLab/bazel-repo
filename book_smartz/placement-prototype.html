@@ -515,18 +515,7 @@
           const p = s.pending;
           if (!p || p.paused) return null;
           const midpoint = p.lo + Math.floor((p.hi - p.lo - 1) / 2);
-          return (
-            s.ranked
-              .map((id, j) => ({ id, j }))
-              .filter(
-                (x) => x.j >= p.lo && x.j < p.hi && !p.skipped.includes(x.id),
-              )
-              .sort(
-                (a, b) =>
-                  Math.abs(a.j - midpoint) - Math.abs(b.j - midpoint) ||
-                  a.j - b.j,
-              )[0] ?? null
-          );
+          return { id: s.ranked[midpoint], j: midpoint };
         };
         const settle = (s) => {
           const p = s.pending;
@@ -535,10 +524,6 @@
             s.notice =
               book(p.id).title + " is now #" + (p.lo + 1) + " in your ranking.";
             s.pending = null;
-          } else if (!opponent(s)) {
-            p.paused = true;
-            s.notice =
-              "Placement paused: you skipped every remaining comparison. Resume whenever you are ready; no rank has been assigned.";
           }
         };
         function apply(s, a) {
@@ -560,7 +545,6 @@
                 id: a.id,
                 lo: 0,
                 hi: s.ranked.length,
-                skipped: [],
                 paused: false,
                 answers: 0,
               };
@@ -569,15 +553,11 @@
             }
           } else if (a.type === "answer") {
             const o = opponent(s);
-            if (!o) return;
+            if (!o || !["candidate", "opponent"].includes(a.choice)) return;
             if (a.choice === "candidate") s.pending.hi = o.j;
             if (a.choice === "opponent") s.pending.lo = o.j + 1;
-            if (a.choice === "skip") s.pending.skipped.push(o.id);
-            else s.pending.answers++;
-            s.notice =
-              a.choice === "skip"
-                ? "Comparison skipped. Your earlier preferences are kept."
-                : "Preference saved. Choose between the next pair.";
+            s.pending.answers++;
+            s.notice = "Preference saved. Choose between the next pair.";
             settle(s);
           } else if (a.type === "pause") {
             if (!s.pending || s.pending.paused) return;
@@ -587,9 +567,8 @@
           } else if (a.type === "resume") {
             if (!s.pending?.paused) return;
             s.pending.paused = false;
-            s.pending.skipped = [];
             s.notice =
-              "Placement resumed. Previous preferences are kept; skipped books can appear again.";
+              "Placement resumed. Your previous preferences are kept. Continue with the same comparison.";
           }
           s.revision++;
           s.viewRevision = s.revision;
@@ -794,26 +773,12 @@
           ],
         },
         {
-          name: "Skip every opponent",
-          description:
-            "Skipping never guesses a rank. Exhaust the five opponents, then Resume to revisit them.",
-          steps: [
-            ["Start placement", { type: "add", id: "left-hand" }],
-            ...Array.from({ length: 5 }, (_, i) => [
-              "Skip " + (i + 1),
-              { type: "answer", choice: "skip" },
-            ]),
-            ["Resume", { type: "resume" }],
-          ],
-        },
-        {
           name: "Pause and return",
           description:
-            "Pause after narrowing the bounds. Return and Resume keep those preferences, while clearing skipped opponents.",
+            "Pause after narrowing the bounds. Return and Resume keep your preferences and bring you back to the same comparison.",
           steps: [
             ["Start placement", { type: "add", id: "left-hand" }],
             ["Prefer new book", { type: "answer", choice: "candidate" }],
-            ["Skip this opponent", { type: "answer", choice: "skip" }],
             ["Pause", { type: "pause" }],
             ["Return to ranking", { type: "refresh" }],
             ["Resume", { type: "resume" }],
@@ -912,7 +877,7 @@
         else if (p.paused)
           placement = `<h2>Placement paused</h2><p><strong>${esc(Model.book(p.id).title)}</strong> has no rank yet. Your ${p.answers} saved preference${p.answers === 1 ? "" : "s"} will be kept.</p><button class="primary" data-action="resume" ${busy ? "disabled" : ""}>Resume placement</button>`;
         else
-          placement = `<span class="eyebrow">Place a book</span><h2>Which book do you prefer?</h2><p>${p.answers} preference${p.answers === 1 ? "" : "s"} saved · ${p.skipped.length} skipped this round. We will stop when its position is clear.</p><div class="pair">${[
+          placement = `<span class="eyebrow">Place a book</span><h2>Which book do you prefer?</h2><p>${p.answers} preference${p.answers === 1 ? "" : "s"} saved. We will stop when its position is clear.</p><div class="pair">${[
             [p.id, "candidate", "Prefer this book"],
             [o.id, "opponent", "Prefer this book"],
           ]
@@ -922,7 +887,7 @@
             })
             .join(
               "",
-            )}</div><div class="actions"><button data-choice="skip" ${busy ? "disabled" : ""}>Skip this comparison</button><button data-action="pause" ${busy ? "disabled" : ""}>Pause for now</button></div>`;
+            )}</div><div class="actions"><button data-action="pause" ${busy ? "disabled" : ""}>Pause for now</button></div>`;
         document.querySelector("#app").innerHTML =
           `<main class="variant-${variant}" aria-busy="${busy}"><div class="stack"><section class="panel placement"><p class="notice" id="notice" tabindex="-1" role="status" aria-live="polite">${esc(busy ? "Saving… Please wait." : s.notice)}</p>${placement}</section><section class="panel discovery"><h2>Find a book</h2><form id="search" class="search"><label for="query" class="sr-only">Book title or author</label><input id="query" name="query" maxlength="256" placeholder="Book title or author" value="${esc(s.query)}" required><button class="primary" ${busy || !s.session ? "disabled" : ""}>Search</button></form><p class="muted">Fixture search · up to 20 work results per page.</p>${s.searchError ? '<p>Search failed. Your ranking is available.</p><button data-action="retry">Retry search</button>' : s.results === null ? "" : s.results.length ? `<ul class="results">${s.results.map(row).join("")}</ul>` : "<p>No books found. Try another title or author.</p>"}${p ? '<p class="muted">Finish or resume your pending placement before adding another book.</p>' : ""}</section></div><aside class="panel saved"><span class="eyebrow">Your library</span><h2>My ranking <small class="muted">(${s.ranked.length})</small></h2><p>Best to least preferred · private</p>${
             s.ranked.length
@@ -935,7 +900,7 @@
               : "<p>Your ranking is empty. Add your first book to begin.</p>"
           }${p ? `<section class="pending"><strong>Not ranked yet</strong><p>${esc(Model.book(p.id).title)}</p><small>${p.paused ? "Paused" : "Placement in progress"}</small></section>` : ""}</aside></main>`;
         document.querySelector("#state").innerHTML =
-          `<dl><dt>Ranking revision / displayed revision</dt><dd>${s.revision} / ${s.viewRevision}</dd><dt>Possible insertion positions</dt><dd>${p ? "#" + (p.lo + 1) + " through #" + (p.hi + 1) : "No pending placement"}</dd><dt>Current opponent</dt><dd>${o ? esc(Model.book(o.id).title) : "None"}</dd><dt>Skipped this round</dt><dd>${p?.skipped.map((id) => esc(Model.book(id).title)).join(", ") || "None"}</dd><dt>Original action awaiting confirmation</dt><dd>${s.recovery ? esc(s.recovery.id) + " at revision " + s.recovery.revision : "None"}</dd><dt>Last confirmed action</dt><dd>${s.lastAction || "None"}</dd></dl>`;
+          `<dl><dt>Ranking revision / displayed revision</dt><dd>${s.revision} / ${s.viewRevision}</dd><dt>Possible insertion positions</dt><dd>${p ? "#" + (p.lo + 1) + " through #" + (p.hi + 1) : "No pending placement"}</dd><dt>Current opponent</dt><dd>${o ? esc(Model.book(o.id).title) : "None"}</dd><dt>Original action awaiting confirmation</dt><dd>${s.recovery ? esc(s.recovery.id) + " at revision " + s.recovery.revision : "None"}</dd><dt>Last confirmed action</dt><dd>${s.lastAction || "None"}</dd></dl>`;
         document.querySelector("#layout-name").textContent = variants
           .find((v) => v[0] === variant)
           .join(" · ");
