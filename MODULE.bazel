@@ -627,6 +627,14 @@ crate.annotation(
     crate = "utoipa-swagger-ui",
     gen_build_script = "on",
 )
+
+# Topcoat asset metadata must remain relative to the declared action inputs.
+crate.annotation(
+    additive_build_file_content = 'filegroup(name = "asset_inputs", srcs = glob(["browser/dist/**"]), visibility = ["//visibility:public"])',
+    crate = "topcoat-runtime",
+    extra_aliased_targets = {"topcoat_runtime_assets": "asset_inputs"},
+    rustc_env = {"CARGO_MANIFEST_DIR": "external/rules_rs++crate+crates__topcoat-runtime-0.10.0"},
+)
 use_repo(crate, "crates")
 
 #########################

@@ -2,6 +2,9 @@
   "private": true,
   "devDependencies": {
     "@angular/cli": "catalog:",
-    "astro": "catalog:"
+    "astro": "catalog:",
+    "@tailwindcss/cli": "catalog:",
+    "@fontsource/roboto": "catalog:",
+    "@iconify-json/feather": "catalog:"
   }
 }

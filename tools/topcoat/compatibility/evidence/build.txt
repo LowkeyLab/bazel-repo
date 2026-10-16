@@ -1,0 +1,58 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+→ 🎬 Running build task
+
+→ 🔧 Setup · Running setup
+
+→ 🔨 Build · Spawning bazel build
+INFO: Invocation ID: ca2a4fd0-1372-430e-919e-cdf5af3e2133
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/ca2a4fd0-1372-430e-919e-cdf5af3e2133
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: 531 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 531 targets (1 packages loaded, 78899 targets configured, 549 aspect applications).
+ no actions running
+INFO: Found 531 targets...
+[0 / 14] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[16,110 / 16,114] Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file); Downloading tools/topcoat/compatibility/compatibility_test; 0s remote, remote-cache ... (2 actions, 0 running)
+[16,110 / 16,114] Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file); Downloading tools/topcoat/compatibility/compatibility_test, 2.7 MiB / 47.5 MiB; 2s remote, remote-cache ... (2 actions, 0 running)
+[16,110 / 16,114] Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file); Downloading tools/topcoat/compatibility/compatibility_test, 17.4 MiB / 47.5 MiB; 4s remote, remote-cache ... (2 actions, 0 running)
+[16,110 / 16,114] Compiling Rust bin //tools/topcoat:format_impl (1 file); 0s remote, remote-cache ... (2 actions, 1 running)
+INFO: From Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[16,112 / 16,114] Compiling Rust bin //tools/topcoat:format_impl (1 file); Downloading tools/topcoat/format_impl; 1s remote, remote-cache
+INFO: From Compiling Rust bin //tools/topcoat:format_impl (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[16,113 / 16,114] [Prepa] runfiles for //tools/topcoat:format_impl
+INFO: Elapsed time: 12.658s, Critical Path: 9.26s
+INFO: 10 processes: 12162 action cache hit, 2 remote cache hit, 7 internal, 1 remote.
+INFO: Build completed successfully, 10 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/ca2a4fd0-1372-430e-919e-cdf5af3e2133
+
+→ ✅ Passed build task in 15.6s · Successful build
+    🔧 Setup    0ms  Prepare the task environment
+    🔨 Build  15.6s  Build bazel targets

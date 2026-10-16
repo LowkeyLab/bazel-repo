@@ -1,0 +1,10 @@
+exec ${PAGER:-/usr/bin/less} "$0" || exit 1
+Executing tests from //tools/topcoat/compatibility:compatibility_test
+-----------------------------------------------------------------------------
+
+running 2 tests
+Error: formatting required: /tmp/.tmpkoT8qD/example.rs
+test formatter_checks_and_converges ... ok
+test packaged_http_and_session_survive_restart ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.78s

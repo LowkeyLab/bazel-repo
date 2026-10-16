@@ -1,0 +1,41 @@
+{
+  "archive_sha256": "236d2dea6185778a7a6e8b61cbf909f8e8fa6b39412e1b847cbbe40b5286a29b",
+  "files": [
+    {
+      "path": "app",
+      "bytes": 36496480,
+      "sha256": "2cd7c694f0ea952a124a5622411319349b2b9d164c65783f23506b8ce907b302",
+      "mode": "0o555"
+    },
+    {
+      "path": "assets/fixture-425c0713a8176f92.woff2",
+      "bytes": 21884,
+      "sha256": "425c0713a8176f92273d378599c7eac57de7fafabd4bd0ed457b70eb8f80d371",
+      "mode": "0o555"
+    },
+    {
+      "path": "assets/library-f322c8317bc93b0c.txt",
+      "bytes": 34,
+      "sha256": "f322c8317bc93b0c070623930877150d86516932f6528b367122276732f89d82",
+      "mode": "0o555"
+    },
+    {
+      "path": "assets/manifest.toml",
+      "bytes": 726,
+      "sha256": "e4dd364b691a486d5e96d6a43d4385ec3996d30269d6060ead2f40915496ad5f",
+      "mode": "0o555"
+    },
+    {
+      "path": "assets/styles-c77d892a77c260b9.css",
+      "bytes": 4733,
+      "sha256": "c77d892a77c260b9f1a6c31de40b6eba388dc997c1b6c732aafc95b7e2f29ea2",
+      "mode": "0o555"
+    },
+    {
+      "path": "assets/topcoat-a85ca5b0b8314af5.js",
+      "bytes": 49018,
+      "sha256": "a85ca5b0b8314af5da862c1a16bf94e5b1705ef618a1ecbb944ad4c5a4998e39",
+      "mode": "0o555"
+    }
+  ]
+}

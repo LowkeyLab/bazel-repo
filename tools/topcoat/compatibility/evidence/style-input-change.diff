@@ -1,0 +1,11 @@
+--- views.rs.baseline
++++ views.rs.variant
+@@ -21,7 +21,7 @@
+ #[component]
+ pub async fn library_panel() -> Result<impl View> {
+     Ok(view! {
+-        <section class="text-emerald-700">
++        <section class="text-emerald-800">
+             topcoat::font::link(font: FIXTURE_FONT)
+             <h1>"Topcoat compatibility fixture"</h1>
+             icon(data: feather::FEATHER, label: "Fixture feather")

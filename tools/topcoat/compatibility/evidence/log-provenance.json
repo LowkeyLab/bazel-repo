@@ -1,0 +1,52 @@
+{
+  "test.txt": {
+    "raw_archive": "test.txt.gz",
+    "raw_sha256": "366630dd4466cb58f211528bfe19e0a0bc0af0fe9617e0f7c01d0737ca29ec60",
+    "readable_sha256": "db488917fbc5204a8163ece6041f95556b159b9993b39c2054453de094ac6aa2"
+  },
+  "initial-staging-failure.txt": {
+    "raw_archive": "initial-staging-failure.txt.gz",
+    "raw_sha256": "a26fbcd414b9fcc7a039ba5f285d5b6b151c81bd536bf9d465c8b7433f8336ab",
+    "readable_sha256": "628035a48bb8f0cdb53867331cfeaa5045070a0fb39d2910dde005f7c304ca42"
+  },
+  "variant-test.txt": {
+    "raw_archive": "variant-test.txt.gz",
+    "raw_sha256": "f8bc4d25bb104f485508df3ecf67d9f7bd0b134e0c59d851c4de78816977f7c5",
+    "readable_sha256": "e547f2ea48ea019289a1eef50941776f615b26b08306cec18b4e833058e97c7e"
+  },
+  "initial-path-failure.txt": {
+    "raw_archive": "initial-path-failure.txt.gz",
+    "raw_sha256": "6ec053fe4b70e416f7c155ed6d2bb1424d48c6c3ef06205b9cd33b343ea69b61",
+    "readable_sha256": "f1d2def0fcd3c83b2bcf88c3dd19286ddefd5f8f32b8d7fdd5e4415a74015e9b"
+  },
+  "gazelle.txt": {
+    "raw_archive": "gazelle.txt.gz",
+    "raw_sha256": "6975e5138f289d9bc8181b8e4561916dea84b037eea9a97991fb9199d7417f49",
+    "readable_sha256": "2077d0fdb39063c83dda7b8de768c37d26f8219cf998ef15ed68e28fdebb17e1"
+  },
+  "variant-test-results.txt": {
+    "raw_archive": "variant-test-results.txt.gz",
+    "raw_sha256": "56b6a33823338bb58460cefce52c8d613e9ccb25ee284239e06360966ad458cc",
+    "readable_sha256": "bdbc3d72f7b2474d5bc2571b0d8a40d049fd33180b0d8622816b36f81d026faf"
+  },
+  "test-results.txt": {
+    "raw_archive": "test-results.txt.gz",
+    "raw_sha256": "0ef36c3ace240cc604c215ce312ee5daf305c7571d508f56680648234b51b2ba",
+    "readable_sha256": "3e1a0527b037df2e619bc2c4b4eea71faba165add67c2c6cdf12d778a8d773fc"
+  },
+  "build.txt": {
+    "raw_archive": "build.txt.gz",
+    "raw_sha256": "cdabe1c725ab088c2249bd8aedc7b09707c9d1d9a204627baa000d002ad835bb",
+    "readable_sha256": "9f0a975f31c9626014ba5afb10932d9e3e2b8a69201cd562a0fd8dc08bbb26ca"
+  },
+  "format.txt": {
+    "raw_archive": "format.txt.gz",
+    "raw_sha256": "cd7e20d983c4e54b61e43d41a63d7be76e09e69d71a4866b71d4fd9f7af5e8ba",
+    "readable_sha256": "add9036f84ec55cd5b529d15eced141ee77e155867de610bf64a659074d66eca"
+  },
+  "lint.txt": {
+    "raw_archive": "lint.txt.gz",
+    "raw_sha256": "73f5f06fe4c2868da3e03347b81323023b9a66d33f2f7894ce16e51df772c1dc",
+    "readable_sha256": "ed9b707976f6869bd300e76c0b5e984b8471ccbae4575c8627fdbeeb5cb472cf"
+  }
+}

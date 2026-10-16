@@ -1,0 +1,72 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running build task
+
+→ 🔧 Setup · Running setup
+
+→ 🔨 Build · Spawning bazel build
+INFO: Invocation ID: 930fdefa-8b94-4cc2-b189-edb4831ef0a6
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/930fdefa-8b94-4cc2-b189-edb4831ef0a6
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Loading: 0 packages loaded
+Analyzing: target @@rules_rs++crate+crates//:topcoat (1 packages loaded, 0 targets configured)
+Analyzing: target @@rules_rs++crate+crates//:topcoat (168 packages loaded, 10146 targets configured, 84 aspect applications)
+INFO: Analyzed target @@rules_rs++crate+crates//:topcoat (206 packages loaded, 12117 targets configured, 84 aspect applications).
+INFO: Found 1 target...
+[0 / 9] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[2,820 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__const-oid-0.10.2//:const-oid v0.10.2 (13 files); 0s remote, remote-cache ... (47 actions, 0 running)
+[2,825 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__alloc-no-stdlib-3.0.0//:alloc-no-stdlib v3.0.0 (12 files); 0s remote, remote-cache ... (43 actions, 25 running)
+[2,849 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__inventory-0.3.25//:inventory v0.3.25 (10 files) [for tool]; 1s remote, remote-cache ... (32 actions, 18 running)
+[2,869 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__http-range-header-0.4.2//:http-range-header v0.4.2 (2 files) [for tool]; 2s remote, remote-cache ... (27 actions, 13 running)
+[2,880 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__http-range-header-0.4.2//:http-range-header v0.4.2 (2 files) [for tool]; 3s remote, remote-cache ... (26 actions, 9 running)
+[2,888 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__rustls-0.23.45//:rustls v0.23.45 (110 files); 2s remote, remote-cache ... (24 actions, 11 running)
+[2,893 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__rustls-0.23.45//:rustls v0.23.45 (110 files); 3s remote, remote-cache ... (22 actions, 18 running)
+[2,904 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__rustls-0.23.45//:rustls v0.23.45 (110 files) [for tool]; 4s remote, remote-cache ... (16 actions, 10 running)
+[2,911 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-core-grammar-0.10.0//:topcoat-core-grammar v0.10.0 (32 files) [for tool]; 3s remote, remote-cache ... (13 actions, 8 running)
+[2,916 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-core-grammar-0.10.0//:topcoat-core-grammar v0.10.0 (32 files) [for tool]; 4s remote, remote-cache ... (11 actions, 6 running)
+[2,923 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__brotli-9.0.0//:brotli v9.0.0 (69 files) [for tool]; 0s remote, remote-cache ... (10 actions, 4 running)
+[2,925 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__brotli-9.0.0//:brotli v9.0.0 (69 files) [for tool]; 1s remote, remote-cache ... (10 actions, 9 running)
+[2,928 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__brotli-9.0.0//:brotli v9.0.0 (69 files) [for tool]; 3s remote, remote-cache ... (9 actions, 6 running)
+[2,932 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-router-grammar-0.10.0//:topcoat-router-grammar v0.10.0 (16 files) [for tool]; 2s remote, remote-cache ... (7 actions, 4 running)
+[2,935 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-router-grammar-0.10.0//:topcoat-router-grammar v0.10.0 (16 files) [for tool]; 3s remote, remote-cache ... (6 actions, 4 running)
+[2,936 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-view-grammar-0.10.0//:topcoat-view-grammar v0.10.0 (57 files) [for tool]; 4s remote, remote-cache ... (6 actions, 3 running)
+[2,939 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__compression-codecs-0.4.45//:compression-codecs v0.4.45 (47 files) [for tool]; 2s remote, remote-cache ... (5 actions, 3 running)
+[2,941 / 2,965] Compiling Rust proc-macro @@rules_rs++crate+crates__topcoat-router-macro-0.10.0//:topcoat-router-macro v0.10.0 (8 files) [for tool]; 1s remote, remote-cache ... (5 actions, 2 running)
+[2,942 / 2,965] Compiling Rust proc-macro @@rules_rs++crate+crates__topcoat-router-macro-0.10.0//:topcoat-router-macro v0.10.0 (8 files) [for tool]; 2s remote, remote-cache ... (6 actions, 3 running)
+[2,945 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-router-0.10.0//:topcoat-router v0.10.0 (64 files); 0s remote, remote-cache ... (4 actions, 2 running)
+[2,945 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-router-0.10.0//:topcoat-router v0.10.0 (64 files); 1s remote, remote-cache ... (4 actions running)
+[2,947 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-icon-0.10.0//:topcoat-icon v0.10.0 (7 files) [for tool]; 2s remote, remote-cache ... (4 actions, 2 running)
+[2,949 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-icon-grammar-0.10.0//:topcoat-icon-grammar v0.10.0 (8 files) [for tool]; 0s remote, remote-cache ... (4 actions, 0 running)
+[2,949 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-cookie-0.10.0//:topcoat-cookie v0.10.0 (9 files); 0s remote, remote-cache ... (4 actions, 3 running)
+[2,950 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-icon-grammar-0.10.0//:topcoat-icon-grammar v0.10.0 (8 files) [for tool]; 1s remote, remote-cache ... (4 actions, 3 running)
+[2,952 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-router-0.10.0//:topcoat-router v0.10.0 (64 files) [for tool]; 1s remote, remote-cache ... (5 actions, 2 running)
+[2,954 / 2,965] Compiling Rust proc-macro @@rules_rs++crate+crates__topcoat-icon-macro-0.10.0//:topcoat-icon-macro v0.10.0 (1 file) [for tool]; 0s remote, remote-cache ... (4 actions, 3 running)
+[2,956 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-runtime-0.10.0//:topcoat-runtime v0.10.0 (32 files); 1s remote, remote-cache ... (2 actions running)
+[2,956 / 2,965] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-runtime-0.10.0//:topcoat-runtime v0.10.0 (32 files); Downloading external/rules_rs++crate+crates__topcoat-runtime-0.10.0/libtopcoat_runtime-1785734650.rlib; 3s remote, remote-cache ... (2 actions running)
+ERROR: /home/tacascer/.cache/bazel/_bazel_tacascer/3d53d73e516c96571eb7ab48db4d63d2/external/rules_rs++crate+crates__topcoat-runtime-0.10.0/BUILD.bazel:5:11: Compiling Rust rlib @@rules_rs++crate+crates__topcoat-runtime-0.10.0//:topcoat-runtime v0.10.0 (32 files) failed: (Exit 1): process_wrapper failed: error executing Rustc command (from rust_library rule target @@rules_rs++crate+crates__topcoat-runtime-0.10.0//:topcoat-runtime) bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-fd45d9624a1f/bin/external/rules_rs++rules_rust+rules_rust/util/process_wrapper/process_wrapper --env-file ... (remaining 275 arguments skipped)
+Error: ProcessWrapperError("compiled Rust output bazel-out/k8-fastbuild/bin/external/rules_rs++crate+crates__topcoat-runtime-0.10.0/libtopcoat_runtime-1785734650.rlib embeds the absolute working directory /buildbuddy-execroot. Do not retain env!(\"CARGO_MANIFEST_DIR\") or env!(\"OUT_DIR\") in compiled code; include_str!() and include_bytes!() may use those values only for compile-time file access")
+Target @@rules_rs++crate+crates__topcoat-0.10.0//:topcoat failed to build
+Use --verbose_failures to see the command lines of failed build steps.
+INFO: Elapsed time: 37.341s, Critical Path: 32.64s
+INFO: 188 processes: 2696 action cache hit, 56 internal, 132 remote.
+ERROR: Build did NOT complete successfully
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/930fdefa-8b94-4cc2-b189-edb4831ef0a6
+
+→ ❌ Failed build task (exit code 1) in 39.5s · Failed to build
+    🔧 Setup    0ms  Prepare the task environment
+    🔨 Build  39.5s  Build bazel targets (failed)

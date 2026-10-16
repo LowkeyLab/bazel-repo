@@ -1,0 +1,104 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff f40b947479c5705e2ad21df9350014cd21d2e7f2..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  .github/actions/install-nix-tool/README.md [+49 / -0] (changed)
+  .github/scripts/BUILD.bazel [+21 / -1] (changed)
+  .github/scripts/nix_cache_failures.py [+272 / -0] (changed)
+  .github/scripts/nix_cache_failures_test.py [+21 / -0] (changed)
+  .github/scripts/publish-nix-tool.sh [+16 / -0] (changed)
+  .github/workflows/nix-cache-acceptance.yml [+29 / -0] (changed)
+  .github/workflows/prepare-nix-tools.yml [+1 / -15] (changed)
+  Cargo.lock [+710 / -16] (changed)
+  Cargo.toml [+6 / -0] (changed)
+  MODULE.bazel [+8 / -0] (changed)
+  MODULE.bazel.lock [+56 / -0] (changed)
+  pnpm-lock.yaml [+121 / -87] (changed)
+  pnpm-workspace.yaml [+2 / -0] (changed)
+  tools/BUILD.bazel [+6 / -0] (changed)
+  tools/format/BUILD.bazel [+1 / -1] (changed)
+  tools/package.json [+4 / -1] (changed)
+  tools/topcoat/BUILD.bazel [+35 / -0] (changed)
+  tools/topcoat/bundle.rs [+65 / -0] (changed)
+  tools/topcoat/compatibility/BUILD.bazel [+139 / -0] (changed)
+  tools/topcoat/compatibility/README.md [+61 / -0] (changed)
+  tools/topcoat/compatibility/app.rs [+107 / -0] (changed)
+  tools/topcoat/compatibility/compatibility_test.rs [+297 / -0] (changed)
+  tools/topcoat/compatibility/evidence/REPORT.md [+46 / -0] (changed)
+  tools/topcoat/compatibility/evidence/artifact.json [+41 / -0] (changed)
+  tools/topcoat/compatibility/evidence/baseline-manifest.toml [+25 / -0] (changed)
+  tools/topcoat/compatibility/evidence/baseline-package.sha256 [+1 / -0] (changed)
+  tools/topcoat/compatibility/evidence/build.txt [+58 / -0] (changed)
+  tools/topcoat/compatibility/evidence/command-status.json [+7 / -0] (changed)
+  tools/topcoat/compatibility/evidence/format.txt [+123 / -0] (changed)
+  tools/topcoat/compatibility/evidence/gazelle.txt [+38 / -0] (changed)
+  tools/topcoat/compatibility/evidence/initial-path-failure.txt [+72 / -0] (changed)
+  tools/topcoat/compatibility/evidence/initial-staging-failure.txt [+111 / -0] (changed)
+  tools/topcoat/compatibility/evidence/log-provenance.json [+47 / -0] (changed)
+  tools/topcoat/compatibility/evidence/manifest.toml [+25 / -0] (changed)
+  tools/topcoat/compatibility/evidence/offline-actions.json [+66 / -0] (changed)
+  tools/topcoat/compatibility/evidence/resolved-features.json [+180 / -0] (changed)
+  tools/topcoat/compatibility/evidence/style-input-change.diff [+11 / -0] (changed)
+  tools/topcoat/compatibility/evidence/test-results.txt [+10 / -0] (changed)
+  tools/topcoat/compatibility/evidence/test.txt [+60 / -0] (changed)
+  tools/topcoat/compatibility/evidence/variant-manifest.toml [+25 / -0] (changed)
+  tools/topcoat/compatibility/evidence/variant-package.sha256 [+1 / -0] (changed)
+  tools/topcoat/compatibility/evidence/variant-test-results.txt [+10 / -0] (changed)
+  tools/topcoat/compatibility/evidence/variant-test.txt [+72 / -0] (changed)
+  tools/topcoat/compatibility/input.css [+3 / -0] (changed)
+  tools/topcoat/compatibility/library.txt [+1 / -0] (changed)
+  tools/topcoat/compatibility/run.rs [+21 / -0] (changed)
+  tools/topcoat/compatibility/views.rs [+31 / -0] (changed)
+  tools/topcoat/defs.bzl [+121 / -0] (changed)
+  tools/topcoat/format.bzl [+25 / -0] (changed)
+  tools/topcoat/format.rs [+81 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+INFO: Invocation ID: 195db29d-dd0c-4607-b54a-0e1eeb7c088e
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/195db29d-dd0c-4607-b54a-0e1eeb7c088e
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+WARNING: Build option --build_runfile_links has changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: 523 targets (0 packages loaded, 0 targets configured)
+Analyzing: 523 targets (1 packages loaded, 174116 targets configured, 58 aspect applications)
+INFO: Analyzed 523 targets (1 packages loaded, 362811 targets configured, 10252 aspect applications).
+ no actions running
+INFO: Found 523 targets...
+[0 / 5] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[12,259 / 12,266] Linting //tools/topcoat/compatibility:markdown with Vale; 1s remote, remote-cache ... (4 actions, 0 running)
+[12,259 / 12,266] Linting //tools/topcoat/compatibility:markdown with KeepSorted; 0s remote, remote-cache ... (4 actions running)
+[12,265 / 12,266] [Sched] Parsing machine-readable report to SARIF for //tools/topcoat/compatibility:markdown
+INFO: Elapsed time: 10.573s, Critical Path: 4.61s
+INFO: 30 processes: 12236 action cache hit, 25 internal, 5 remote.
+INFO: Build completed successfully, 30 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/195db29d-dd0c-4607-b54a-0e1eeb7c088e
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (10): Buf, Checkstyle, Clippy, ESLint, KTLint, KeepSorted, PMD, Ruff, ShellCheck, Vale
+
+→ ✅ Passed lint task in 14.8s · No findings
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  266ms  Detect changed files
+    🔬 Lint    14.6s  Run lint aspects
+    🔎 Filter    5ms  Filter diagnostics

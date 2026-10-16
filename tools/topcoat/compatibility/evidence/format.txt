@@ -1,0 +1,123 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running format task
+
+→ 🔧 Setup · Running setup
+
+→ 🔨 Build · Building formatter (//tools/format:format)
+INFO: Invocation ID: 359ae431-ca0e-4bd2-be11-03aeed8ed4bc
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/359ae431-ca0e-4bd2-be11-03aeed8ed4bc
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+WARNING: Build option --build_runfile_links has changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //tools/format:format (0 packages loaded, 0 targets configured)
+Analyzing: target //tools/format:format (2 packages loaded, 82653 targets configured, 106 aspect applications)
+INFO: Analyzed target //tools/format:format (2 packages loaded, 91617 targets configured, 180 aspect applications).
+INFO: Found 1 target...
+[2 / 8] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,891 / 1,893] Compiling Rust bin //tools/topcoat:format_impl (1 file) [for tool]; 1s remote, remote-cache
+[1,891 / 1,893] Compiling Rust bin //tools/topcoat:format_impl (1 file) [for tool]; 0s remote, remote-cache
+[1,891 / 1,893] Compiling Rust bin //tools/topcoat:format_impl (1 file) [for tool]; Downloading tools/topcoat/format_impl; 2s remote, remote-cache
+INFO: From Compiling Rust bin //tools/topcoat:format_impl (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[1,892 / 1,893] [Prepa] runfiles for //tools/format:format
+Target //tools/format:format up-to-date:
+  bazel-bin/tools/format/format.bash
+Aspect @@bazel_tools//aspect_68d3d078c4bf34e7:aspect.bzl%runinfo of //tools/format:format up-to-date:
+  bazel-bin/tools/format/format.aspect_runinfo.json
+INFO: Elapsed time: 9.219s, Critical Path: 5.67s
+INFO: 27 processes: 1866 action cache hit, 26 internal, 1 remote.
+INFO: Build completed successfully, 27 total actions
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/359ae431-ca0e-4bd2-be11-03aeed8ed4bc
+
+→ ✨ Format · Formatting all files
+Formatted JavaScript in 0m0.108s
+Formatted JSON in 0m0.201s
+Formatted JSON with Comments in 0m0.095s
+Formatted TypeScript in 0m1.205s
+Formatted Markdown in 0m1.166s
+Formatted CSS in 0m0.179s
+Formatted HTML in 0m0.460s
+10 files left unchanged
+Formatted Python in 0m0.007s
+Formatted Starlark in 0m0.026s
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by org.jetbrains.kotlin.com.intellij.util.containers.Unsafe (file:/home/tacascer/.cache/bazel/_bazel_tacascer/cache/repos/v1/contents/5867dbe097a6b659163a1d378176201acdefc0e053a6749da7364ff42080c2cb/a937217f-ae19-49f1-9284-3fad69d3e536/jar/downloaded.jar)
+WARNING: Please consider reporting this to the maintainers of class org.jetbrains.kotlin.com.intellij.util.containers.Unsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+Done formatting ktor_tutorial/src/model/TaskRepository.kt
+Done formatting ktor_tutorial/src/Databases.kt
+Done formatting ktor_tutorial/src/model/Task.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Serialization.kt
+Done formatting ktor_tutorial/src/db/Mapping.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/ApplicationTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Routing.kt
+Done formatting ktor_tutorial/test/model/FakeTaskRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Security.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/Game.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/InMemoryGameRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/Player.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Observability.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/PlayerFactory.kt
+Done formatting ktor_tutorial/src/Serialization.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/GameRepository.kt
+Done formatting ktor_tutorial/test/ApplicationTest.kt
+Done formatting ktor_tutorial/src/Routing.kt
+Done formatting ktor_tutorial/src/Application.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/app/Application.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Sockets.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/GameService.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/ResourcePlayerFactory.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/CalculateAllowedOriginsTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesSummaryTest.kt
+Done formatting ktor_tutorial/src/model/PostgresTaskRepository.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesWebSocketTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/game/GameServiceTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Games.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesHttpTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/game/GameTest.kt
+Formatted Kotlin in 0m0.599s
+Formatted Go in 0m0.013s
+Formatted Shell in 0m0.003s
+Formatted YAML in 0m0.006s
+Formatted Rust in 0m1.941s
+
+→ 📋 Diff · Computing format diff
+1 file was modified:
+  - tools/topcoat/compatibility/README.md
+Formatted 1 file(s). Review and commit the changes.
+
+🛠️ Fix:
+```
+aspect format --severity=info -- tools/topcoat/compatibility/README.md
+```
+
+```
+bazel run //tools/format:format -- tools/topcoat/compatibility/README.md
+```
+
+
+→ ✅ Passed format task in 18.4s · Reformatted 1 file
+    🔧 Setup     1ms  Prepare the task environment
+    🔨 Build   10.7s  Build formatter
+    ✨ Format   7.6s  Format files
+    📋 Diff     53ms  Detect formatter-induced changes

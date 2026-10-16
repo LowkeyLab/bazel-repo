@@ -1,0 +1,60 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running test task
+
+→ 🔧 Setup · Running setup
+
+→ 🧪 Test · Spawning bazel test
+INFO: Invocation ID: fb1f40cd-aac2-4d11-9018-1867e5b02594
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/fb1f40cd-aac2-4d11-9018-1867e5b02594
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/topcoat/compatibility:compatibility_test (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/topcoat/compatibility:compatibility_test (1 packages loaded, 1576 targets configured).
+INFO: Found 1 test target...
+[2 / 24] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[4,030 / 4,032] Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file); 1s remote, remote-cache
+[4,030 / 4,032] Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file); 0s remote, remote-cache
+INFO: From Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[4,031 / 4,032] [Prepa] runfiles for //tools/topcoat/compatibility:compatibility_test
+[4,032 / 4,033] Testing //tools/topcoat/compatibility:compatibility_test; 1s remote, remote-cache
+[4,032 / 4,033] Testing //tools/topcoat/compatibility:compatibility_test; 0s remote, remote-cache
+[4,032 / 4,033] Testing //tools/topcoat/compatibility:compatibility_test; 8s remote, remote-cache
+[4,032 / 4,033] Testing //tools/topcoat/compatibility:compatibility_test; 38s remote, remote-cache
+[4,032 / 4,033] Testing //tools/topcoat/compatibility:compatibility_test; 49s remote, remote-cache
+[4,032 / 4,033] Testing //tools/topcoat/compatibility:compatibility_test; 50s remote, remote-cache
+[4,032 / 4,033] 1 / 1 tests; Testing //tools/topcoat/compatibility:compatibility_test; 55s remote, remote-cache
+Target //tools/topcoat/compatibility:compatibility_test up-to-date:
+  bazel-bin/tools/topcoat/compatibility/compatibility_test
+INFO: Elapsed time: 65.834s, Critical Path: 63.88s
+INFO: 22 processes: 1983 action cache hit, 20 internal, 3 remote.
+INFO: Build completed successfully, 22 total actions
+
+//tools/topcoat/compatibility:compatibility_test                         PASSED in 48.4s
+
+Executed 1 out of 1 test: 1 test passes.
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/fb1f40cd-aac2-4d11-9018-1867e5b02594
+
+→ ✅ Passed test task in 1m 8s · Tests passed
+    🔧 Setup    0ms  Prepare the task environment
+    🧪 Test   1m 8s  Run bazel tests

@@ -1,0 +1,72 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+→ 🎬 Running test task
+
+→ 🔧 Setup · Running setup
+
+→ 🧪 Test · Spawning bazel test
+INFO: Invocation ID: d4e4cb2f-144c-4735-bca3-b9f7cce453bc
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/d4e4cb2f-144c-4735-bca3-b9f7cce453bc
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/topcoat/compatibility:compatibility_test (1 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/topcoat/compatibility:compatibility_test (2 packages loaded, 1357 targets configured).
+INFO: Found 1 test target...
+[2 / 83] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[4,121 / 4,129] Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file); 1s remote, remote-cache ... (3 actions, 0 running)
+[4,123 / 4,129] Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file); 1s remote, remote-cache ... (2 actions, 1 running)
+[4,124 / 4,129] Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file); 2s remote, remote-cache ... (2 actions, 1 running)
+INFO: From Compiling Rust bin //tools/topcoat/compatibility:compatibility_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[4,125 / 4,129] Compiling Rust bin //tools/topcoat/compatibility:app (1 file); 0s remote, remote-cache
+INFO: From Compiling Rust bin //tools/topcoat/compatibility:app (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[4,126 / 4,129] [Prepa] TopcoatBundle tools/topcoat/compatibility/package_layout
+[4,126 / 4,129] [Sched] TopcoatBundle tools/topcoat/compatibility/package_layout
+[4,127 / 4,129] [Prepa] Writing: bazel-out/k8-fastbuild/bin/tools/topcoat/compatibility/package.tar
+[4,127 / 4,129] Writing: bazel-out/k8-fastbuild/bin/tools/topcoat/compatibility/package.tar; 1s remote, remote-cache
+[4,127 / 4,129] Writing: bazel-out/k8-fastbuild/bin/tools/topcoat/compatibility/package.tar; 0s remote, remote-cache
+[4,129 / 4,130] Testing //tools/topcoat/compatibility:compatibility_test; 1s remote, remote-cache
+[4,129 / 4,130] [Sched] Testing //tools/topcoat/compatibility:compatibility_test
+[4,129 / 4,130] Testing //tools/topcoat/compatibility:compatibility_test; 1s remote, remote-cache
+[4,129 / 4,130] Testing //tools/topcoat/compatibility:compatibility_test; 9s remote, remote-cache
+[4,129 / 4,130] Testing //tools/topcoat/compatibility:compatibility_test; 28s remote, remote-cache
+[4,129 / 4,130] Testing //tools/topcoat/compatibility:compatibility_test; 29s remote, remote-cache
+[4,129 / 4,130] Testing //tools/topcoat/compatibility:compatibility_test; Downloading tools/topcoat/compatibility/compatibility_test/test.xml, 899 B / 899 B; 37s remote, remote-cache
+Target //tools/topcoat/compatibility:compatibility_test up-to-date:
+  bazel-bin/tools/topcoat/compatibility/compatibility_test
+INFO: Elapsed time: 56.057s, Critical Path: 54.43s
+INFO: 12 processes: 1947 action cache hit, 4 internal, 9 remote.
+INFO: Build completed successfully, 12 total actions
+
+//tools/topcoat/compatibility:compatibility_test                         PASSED in 27.9s
+  WARNING: //tools/topcoat/compatibility:compatibility_test: Test execution time (27.9s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+
+Executed 1 out of 1 test: 1 test passes.
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/d4e4cb2f-144c-4735-bca3-b9f7cce453bc
+
+→ ✅ Passed test task in 58.2s · Tests passed
+    🔧 Setup    0ms  Prepare the task environment
+    🧪 Test   58.2s  Run bazel tests

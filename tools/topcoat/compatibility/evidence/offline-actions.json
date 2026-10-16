@@ -1,0 +1,66 @@
+[
+  {
+    "mnemonic": "TopcoatBundle",
+    "execution_info": [
+      {
+        "key": "OSFamily",
+        "value": "Linux"
+      },
+      {
+        "key": "Arch",
+        "value": "amd64"
+      },
+      {
+        "key": "container-image",
+        "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+      },
+      {
+        "key": "dockerNetwork",
+        "value": "off"
+      },
+      {
+        "key": "block-network",
+        "value": "1"
+      }
+    ],
+    "arguments": [
+      "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/tools/topcoat/bundle",
+      "bazel-out/k8-fastbuild/bin/tools/topcoat/compatibility/app",
+      "bazel-out/k8-fastbuild/bin/tools/topcoat/compatibility/package_layout",
+      "bazel-out/k8-fastbuild/bin/tools/topcoat/compatibility/package_layout.inputs.json"
+    ]
+  },
+  {
+    "mnemonic": "JsRunBinary",
+    "execution_info": [
+      {
+        "key": "OSFamily",
+        "value": "Linux"
+      },
+      {
+        "key": "Arch",
+        "value": "amd64"
+      },
+      {
+        "key": "container-image",
+        "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+      },
+      {
+        "key": "dockerNetwork",
+        "value": "off"
+      }
+    ],
+    "arguments": [
+      "external/bazel_lib++toolchains+spawn_binary_linux_amd64/spawn_binary",
+      "--silent-on-success",
+      "--",
+      "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/tools/tailwindcss_/tailwindcss",
+      "--bazel-bindir",
+      "bazel-out/k8-fastbuild/bin",
+      "--input",
+      "tools/topcoat/compatibility/styles_sources/input.css",
+      "--output",
+      "tools/topcoat/compatibility/styles.css"
+    ]
+  }
+]

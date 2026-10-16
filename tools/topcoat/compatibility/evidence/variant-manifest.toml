@@ -1,0 +1,25 @@
+version = 1
+
+[[assets]]
+id = 15339575424397311251
+file = "styles-7fa75d91ed8e0109.css"
+hash = "7fa75d91ed8e010996b7b1bd205cdb3965e7ed413411cb0fe0c12cafd44afefb"
+content_type = "text/css"
+
+[[assets]]
+id = 12584162010018762912
+file = "library-e72b8cd58157fe09.txt"
+hash = "e72b8cd58157fe09f36b4d89933d3d3e178db6b0839285f9ffa35f59e78e5f0e"
+content_type = "text/plain"
+
+[[assets]]
+id = 7851620127462742096
+file = "fixture-425c0713a8176f92.woff2"
+hash = "425c0713a8176f92273d378599c7eac57de7fafabd4bd0ed457b70eb8f80d371"
+content_type = "font/woff2"
+
+[[assets]]
+id = 13841003147100245686
+file = "topcoat-a85ca5b0b8314af5.js"
+hash = "a85ca5b0b8314af5da862c1a16bf94e5b1705ef618a1ecbb944ad4c5a4998e39"
+content_type = "text/javascript"

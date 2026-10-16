@@ -1,0 +1,10 @@
+{
+  "verified-format": 0,
+  "verified-gazelle": 0,
+  "verified-test": 0,
+  "verified-build": 0,
+  "variant-http-test": 0,
+  "lint": 0,
+  "lint_findings": 0,
+  "diff_check": 0
+}
