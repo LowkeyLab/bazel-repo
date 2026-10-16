@@ -1,6 +1,12 @@
-"""Regression check for the flag redaction used by the delivery header."""
+"""Regression checks for delivery flag redaction and remote cache selection."""
 
+load("@aspect//bazel.axl", "BazelTrait", bzl = "bazel")
 load("@aspect//private/lib/bazel_results.axl", "redact_flags")
+load("./repo_config.axl", configure_repo = "config")
+
+def config(ctx):
+    configure_repo(ctx)
+    ctx.tasks["delivery-flags"].args.bazel_flags = ctx.tasks["delivery"].args.bazel_flags
 
 def _impl(ctx):
     # CI injects version-gated flags as (flag, condition) tuples. Preserve
@@ -23,11 +29,23 @@ def _impl(ctx):
     if redact_flags([]) != [] or redact_flags(None) != []:
         fail("empty flag lists must stay empty")
     print("PASS: delivery handles version-gated flags and masks credentials")
+
+    # Model the CI deployment default, then exercise the same rc composition
+    # used by delivery with the actual repository task arguments.
+    ctx.traits[BazelTrait] = BazelTrait(base_flags = ["--remote_cache=grpcs://cache.aspect.build"])
+    rc = bzl.setup_command(ctx, "build")
+    for command in ["query", "build"]:
+        actual_cache = rc.flag_value("--remote_cache", command = command)
+        if actual_cache != "grpcs://remote.buildbuddy.io":
+            fail("delivery %s uses %r instead of BuildBuddy" % (command, actual_cache))
+    if rc.flag_value("--compilation_mode", command = "build") != "opt":
+        fail("delivery must retain optimized compilation")
+    print("PASS: delivery query and build preserve the BuildBuddy cache on CI")
     return 0
 
 delivery_flags = task(
     kind = "delivery-flags",
     summary = "Check delivery header redaction without builds or network access.",
     implementation = _impl,
-    args = {},
+    args = bzl.core_args("delivery checks"),
 )

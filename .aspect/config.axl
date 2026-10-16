@@ -20,7 +20,11 @@ def config(ctx):
     ]
 
     ctx.tasks["delivery"].args.query = "kind(\"oci_push rule\", //...)"
-    ctx.tasks["delivery"].args.bazel_flags = ["--compilation_mode=opt"]
+    ctx.tasks["delivery"].args.bazel_flags = [
+        "--compilation_mode=opt",
+        # Override the Aspect cache selected automatically on CI.
+        "--remote_cache=grpcs://remote.buildbuddy.io",
+    ]
     ctx.tasks["delivery"].args.release_bazel_flags = ["--nostamp"]
     ctx.tasks["delivery"].args.max_parallelization = 8
 
