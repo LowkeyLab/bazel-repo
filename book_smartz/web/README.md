@@ -6,7 +6,7 @@ explicitly search Open Library, page through work-level results, and select a
 validated work. Add saves the validated work and display metadata independently,
 then applies the existing Start decision. The first book appears at rank 1 only
 after the database confirms the ranking event. Later books remain pending while the reader chooses either displayed book.
-Pause/Resume controls belong to the following ticket.
+Pause for now preserves the unfinished comparison. Resume restores it after reload, restart, or another browser login.
 
 Build the relocatable archive with `aspect build //book_smartz/web:package`.
 It contains `book-smartz`, adjacent `assets`, and `integrity.json`. Run it from
@@ -115,7 +115,14 @@ The main workspace shows the pending candidate and either-book preference contro
 Saved ranks stay beside it on desktop and below it on small screens. Progress counts
 saved preferences without predicting a comparison total. The Add control waits until the reader completes the placement and confirms any
 uncertain save. The server independently enforces this gate.
-New web actions accept only candidate/opponent preference, preserving historical Skip replay.
+New preference actions accept only candidate/opponent answers, preserving historical Skip replay.
+Pause and Resume each require an independently authorized POST with session-bound
+cross-site request forgery protection and canonical Origin validation. Their signed
+offers bind the pending identity, operation, and revision. They use the same frozen
+intent and exact-envelope recovery pipeline as preferences, without assigning a rank
+or permitting a replacement candidate. Resume retains prior preferences and insertion
+bounds. Expired sessions require sign-in and a deliberate submission. Sign-in never
+executes an earlier command.
 
 Each offer binds the reader, action, candidate, displayed opponent, and revision.
 The first submission freezes its choice, command time, and event identity in immutable
@@ -128,13 +135,14 @@ Ranking/comparison reads and recovery use retained data without consulting Open 
 
 `//book_smartz/web:browser_test` runs Chromium against the delivered package,
 isolated PostgreSQL, and controlled Google/Open Library endpoints. The journey
-covers sign-in, search, first/later Add, keyboard preference, submitting feedback,
-a stale tab, responsive layout, and reload. The browser retains the canonical HTTPS
+covers sign-in, search, first/later Add, keyboard preference, Pause/Resume,
+submitting feedback, a stale tab, responsive layout, reload, missing covers, search
+failure, checking recovery, and explicit Resume after session expiry. The browser retains the canonical HTTPS
 origin and secure cookies while the fixture redirects transport to loopback.
 The app suite covers ordering, action/security boundaries, expiry, and real
 lost-commit-acknowledgement and process-cancellation recovery. These checks provide
-controlled acceptance evidence. Live-provider, deployment, and Pause/Resume acceptance
-remain separate delivery work.
+controlled acceptance evidence. Live-provider and deployment acceptance remain
+separate delivery work.
 
 The browser target runs on the test host with Docker and a browser supplied through
 `CHROMIUM_EXECUTABLE` (the configured Nix shell) or `CHROME_BIN` (the GitHub runner).

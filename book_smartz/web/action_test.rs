@@ -1042,21 +1042,42 @@ async fn uncertain_preference_blocks_answers_and_restores_original_after_restart
 
 #[googletest::test]
 #[tokio::test]
-async fn real_preference_commit_ack_loss_and_process_cancellation_preserve_frozen_answer()
+async fn real_ranking_commit_ack_loss_and_cancellation_preserve_frozen_commands()
 -> anyhow::Result<()> {
-    for cancel in [false, true] {
+    for (route, choice, cancel) in [
+        ("/answer", "opponent", false),
+        ("/answer", "opponent", true),
+        ("/pause", "pause", false),
+        ("/pause", "pause", true),
+        ("/resume", "resume", false),
+        ("/resume", "resume", true),
+    ] {
         let mut app = Fixture::new().await?;
         let cookie = app.login("preference-ack").await?;
         let id = reader(&app, "preference-ack").await?;
         add_work(&app, &cookie, id, "OL601W", "One").await?;
         add_work(&app, &cookie, id, "OL602W", "Candidate").await?;
-        let values = preference(&app, &cookie, "opponent").await?;
+        if route == "/resume" {
+            let pause = placement_form(&app.ranking(&cookie).await?.text().await?, "/pause")?;
+            assert_that!(
+                post(&app, &cookie, "/pause", &pause)
+                    .await?
+                    .status()
+                    .as_u16(),
+                eq(303)
+            );
+        }
+        let values = if route == "/answer" {
+            preference(&app, &cookie, choice).await?
+        } else {
+            placement_form(&app.ranking(&cookie).await?.text().await?, route)?
+        };
         let direct = app.database.clone();
         let proxy = commit_proxy::CommitProxy::new(&app.pool, id).await?;
         app.database = proxy.database(&direct)?;
         app.restart().await?;
         let client = app.client.clone();
-        let target = format!("{}/answer", app.base);
+        let target = format!("{}{route}", app.base);
         let auth = cookie.clone();
         let body = url::form_urlencoded::Serializer::new(String::new())
             .extend_pairs(values.iter().map(|(k, v)| (k, v)))
@@ -1074,7 +1095,7 @@ async fn real_preference_commit_ack_loss_and_process_cancellation_preserve_froze
         proxy.commit_reached().await?;
         let history = store(&app).load_application_history(id).await?;
         let committed = store(&app).load_ranking_documents(id).await?;
-        assert_that!(committed.len(), eq(3));
+        assert_that!(committed.len(), eq(if route == "/resume" { 4 } else { 3 }));
         if cancel {
             request.abort();
             app.process.0.kill()?;
@@ -1090,10 +1111,7 @@ async fn real_preference_commit_ack_loss_and_process_cancellation_preserve_froze
         app.database = direct;
         app.restart().await?;
         assert_that!(
-            post(&app, &cookie, "/answer", &values)
-                .await?
-                .status()
-                .as_u16(),
+            post(&app, &cookie, route, &values).await?.status().as_u16(),
             eq(303)
         );
         assert_that!(
@@ -1105,5 +1123,248 @@ async fn real_preference_commit_ack_loss_and_process_cancellation_preserve_froze
             eq(&committed)
         );
     }
+    Ok(())
+}
+
+fn placement_form(html: &str, route: &str) -> anyhow::Result<Vec<(String, String)>> {
+    let form = html
+        .split(&format!("action=\"{route}\""))
+        .nth(1)
+        .ok_or_else(|| anyhow::anyhow!("missing {route} form"))?
+        .split("</form>")
+        .next()
+        .unwrap();
+    [
+        "csrf",
+        "action",
+        "candidate",
+        "opponent",
+        "choice",
+        "revision",
+        "offer",
+    ]
+    .into_iter()
+    .map(|name| Ok((name.to_owned(), field(form, name)?)))
+    .collect()
+}
+#[googletest::test]
+#[tokio::test]
+async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
+-> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("pause-reader").await?;
+    let id = reader(&app, "pause-reader").await?;
+    for (work_id, title) in [("OL701W", "One"), ("OL702W", "Two"), ("OL703W", "Three")] {
+        add_work(&app, &cookie, id, work_id, title).await?;
+        while app
+            .ranking(&cookie)
+            .await?
+            .text()
+            .await?
+            .contains("Which book do you prefer?")
+        {
+            let answer = preference(&app, &cookie, "opponent").await?;
+            assert_that!(
+                post(&app, &cookie, "/answer", &answer)
+                    .await?
+                    .status()
+                    .as_u16(),
+                eq(303)
+            );
+        }
+    }
+    add_work(&app, &cookie, id, "OL704W", "Candidate").await?;
+    let answer = preference(&app, &cookie, "opponent").await?;
+    assert_that!(
+        post(&app, &cookie, "/answer", &answer)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let before = preference(&app, &cookie, "candidate").await?;
+    let html = app.ranking(&cookie).await?.text().await?;
+    let pause = placement_form(&html, "/pause")?;
+    for _ in 0..2 {
+        assert_that!(
+            post(&app, &cookie, "/pause", &pause)
+                .await?
+                .status()
+                .as_u16(),
+            eq(303)
+        );
+    }
+    let html = app.ranking(&cookie).await?.text().await?;
+    assert_that!(html.as_str(), contains_substring("comparison is paused"));
+    assert_that!(
+        html.as_str(),
+        not(contains_substring("Which book do you prefer?"))
+    );
+    assert_that!(html.as_str(), contains_substring("1 preferences saved"));
+    app.restart().await?;
+    let other = app.login("pause-reader").await?;
+    let resume = placement_form(&app.ranking(&other).await?.text().await?, "/resume")?;
+    for _ in 0..2 {
+        assert_that!(
+            post(&app, &other, "/resume", &resume)
+                .await?
+                .status()
+                .as_u16(),
+            eq(303)
+        );
+    }
+    let restored = preference(&app, &other, "candidate").await?;
+    assert_that!(
+        value(&restored, "candidate"),
+        eq(value(&before, "candidate"))
+    );
+    assert_that!(value(&restored, "opponent"), eq(value(&before, "opponent")));
+    let documents = store(&app).load_ranking_documents(id).await?;
+    let response = post(&app, &cookie, "/answer", &before)
+        .await?
+        .text()
+        .await?;
+    assert_that!(response.as_str(), contains_substring("comparison changed"));
+    assert_that!(
+        store(&app).load_ranking_documents(id).await?,
+        eq(&documents)
+    );
+    assert_that!(
+        app.ranking(&other).await?.text().await?.as_str(),
+        contains_substring("1 preferences saved")
+    );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn placement_actions_authorize_each_post_and_reconcile_before_expired_session_resume()
+-> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("placement-security").await?;
+    let id = reader(&app, "placement-security").await?;
+    add_work(&app, &cookie, id, "OL801W", "One").await?;
+    add_work(&app, &cookie, id, "OL802W", "Pending").await?;
+    let other = app.login("other-placement").await?;
+    for route in ["/pause", "/resume"] {
+        let values = placement_form(&app.ranking(&cookie).await?.text().await?, route)?;
+        let before = store(&app).load_ranking_documents(id).await?;
+        assert_that!(
+            app.client
+                .get(format!("{}{route}", app.base))
+                .send()
+                .await?
+                .status()
+                .as_u16(),
+            eq(405)
+        );
+        assert_that!(
+            post(&app, "", route, &values).await?.status().as_u16(),
+            eq(401)
+        );
+        let mut invalid = values.clone();
+        invalid[0].1 = "wrong".into();
+        assert_that!(
+            post(&app, &cookie, route, &invalid)
+                .await?
+                .status()
+                .as_u16(),
+            eq(403)
+        );
+        invalid[0].1 = field(&app.ranking(&other).await?.text().await?, "csrf")?;
+        assert_that!(
+            post(&app, &other, route, &invalid).await?.status().as_u16(),
+            eq(403)
+        );
+        let body = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(values.iter().map(|(k, v)| (k, v)))
+            .finish();
+        assert_that!(
+            app.client
+                .post(format!("{}{route}", app.base))
+                .header("cookie", &cookie)
+                .header("origin", "https://attacker.example")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(body)
+                .send()
+                .await?
+                .status()
+                .as_u16(),
+            eq(403)
+        );
+        let mut skip = values.clone();
+        skip.iter_mut().find(|(k, _)| k == "choice").unwrap().1 = "skip".into();
+        assert_that!(
+            post(&app, &cookie, route, &skip)
+                .await?
+                .status()
+                .is_client_error(),
+            eq(true)
+        );
+        assert_that!(store(&app).load_ranking_documents(id).await?, eq(&before));
+        reject_ranking(&app).await?;
+        assert_that!(
+            post(&app, &cookie, route, &values)
+                .await?
+                .text()
+                .await?
+                .as_str(),
+            contains_substring("Checking")
+        );
+        let history = store(&app).load_application_history(id).await?;
+        let html = app.ranking(&cookie).await?.text().await?;
+        assert_that!(html.as_str(), contains_substring("disabled"));
+        let blocked = placement_form(&html, route)?;
+        assert_that!(
+            post(&app, &cookie, route, &blocked)
+                .await?
+                .text()
+                .await?
+                .as_str(),
+            contains_substring("Checking")
+        );
+        assert_that!(
+            store(&app).load_application_history(id).await?,
+            eq(&history)
+        );
+        sqlx::raw_sql("DROP TRIGGER reject_web_ranking ON book_smartz.ranking_events; DROP FUNCTION reject_web_ranking()")
+            .execute(&app.pool).await?;
+        app.restart().await?;
+        assert_that!(
+            post(&app, &cookie, "/recover", &values)
+                .await?
+                .status()
+                .as_u16(),
+            eq(303)
+        );
+        assert_that!(
+            store(&app).load_application_history(id).await?,
+            eq(&history)
+        );
+    }
+    let pause = placement_form(&app.ranking(&cookie).await?.text().await?, "/pause")?;
+    assert_that!(
+        post(&app, &cookie, "/pause", &pause)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let resume = placement_form(&app.ranking(&cookie).await?.text().await?, "/resume")?;
+    let before = store(&app).load_ranking_documents(id).await?;
+    sqlx::query("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second' WHERE reader_id=$1").bind(id.as_uuid()).execute(&app.pool).await?;
+    assert_that!(
+        post(&app, &cookie, "/resume", &resume)
+            .await?
+            .status()
+            .as_u16(),
+        eq(401)
+    );
+    let fresh = app.login("placement-security").await?;
+    assert_that!(
+        app.ranking(&fresh).await?.text().await?.as_str(),
+        contains_substring("comparison is paused")
+    );
+    assert_that!(store(&app).load_ranking_documents(id).await?, eq(&before));
     Ok(())
 }
