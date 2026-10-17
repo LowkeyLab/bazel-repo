@@ -1,4 +1,5 @@
 /* global process, URL, getComputedStyle, document, console, window */
+import { createInterface } from "node:readline";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
@@ -8,6 +9,12 @@ import { connect } from "node:net";
 
 // Real TLS transport preserves native redirects, secure cookies, and form Origin.
 // The CONNECT proxy routes only the fixture hostname to this package's loopback app.
+const controls = createInterface({ input: process.stdin });
+const acknowledgements = controls[Symbol.asyncIterator]();
+async function fixture(command) {
+  console.log(`fixture:${command}`);
+  assert.equal((await acknowledgements.next()).value, "ack");
+}
 const sockets = new Set();
 const upstreamOrigin = new URL(process.argv[2]);
 const transport = httpsServer(
@@ -96,6 +103,7 @@ try {
     .getByRole("textbox", { name: "Title or author" })
     .fill("First book");
   await page.getByRole("button", { name: "Search books", exact: true }).click();
+  assert.equal(await page.getByAltText("Cover unavailable").count(), 1);
   await page.getByRole("button", { name: "Select this work" }).click();
   await page.getByRole("button", { name: "Add to your ranking" }).click();
   await page.waitForURL("https://reader.example/ranking");
@@ -123,6 +131,57 @@ try {
   stale.setDefaultTimeout(10000);
   stale.setDefaultNavigationTimeout(10000);
   await stale.goto("https://reader.example/ranking");
+  await fixture("reject");
+  const pause = page.getByRole("button", {
+    name: "Pause for now",
+    exact: true,
+  });
+  await pause.focus();
+  await pause.press("Enter");
+  assert.equal(
+    await page.getByRole("status").filter({ hasText: "Checking" }).isVisible(),
+    true,
+  );
+  await page.getByRole("link", { name: "Return to your ranking" }).click();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Pause for now", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Prefer Later book", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await fixture("allow");
+  await page.getByRole("button", { name: "Check original save" }).click();
+  await page.waitForURL("https://reader.example/ranking");
+  assert.equal(
+    await page.getByText("Your unfinished comparison is paused.").isVisible(),
+    true,
+  );
+  await page.reload();
+  await fixture("expire");
+  const expired = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/resume") &&
+      response.request().method() === "POST",
+  );
+  await page.getByRole("button", { name: "Resume", exact: true }).click();
+  assert.equal((await expired).status(), 401);
+  await page.goto("https://reader.example/");
+  await page.getByRole("link", { name: "Sign in with Google" }).click();
+  await page.waitForURL("https://reader.example/ranking");
+  assert.equal(
+    await page.getByText("Your unfinished comparison is paused.").isVisible(),
+    true,
+  );
+  await page.getByRole("button", { name: "Resume", exact: true }).click();
+  await page.waitForURL("https://reader.example/ranking");
+  assert.equal(await page.locator("ol li").count(), 1);
+  await stale.reload();
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await columns(), 1);
   const prefer = page.getByRole("button", {
@@ -178,11 +237,21 @@ try {
   );
   await page.reload();
   assert.deepEqual(await page.locator("ol li a").allTextContents(), titles);
+  await page.waitForTimeout(1100);
+  await page
+    .getByRole("textbox", { name: "Title or author" })
+    .fill("Unavailable");
+  await page.getByRole("button", { name: "Search books", exact: true }).click();
+  assert.equal(
+    await page.getByRole("button", { name: /Retry/ }).isVisible(),
+    true,
+  );
   console.log("Browser version:", browser.version());
   console.log(
     "Browser journey passed: sign-in, search, first/later Add, keyboard preference, stale tab, mobile layout, reload.",
   );
 } finally {
+  controls.close();
   await browser.close();
   for (const socket of sockets) socket.destroy();
   proxy.close();

@@ -97,6 +97,8 @@ async fn main() -> anyhow::Result<()> {
         .page(actions::add)
         .page(actions::recover)
         .page(actions::submit_preference)
+        .page(actions::pause)
+        .page(actions::resume)
         .origin_policy(topcoat::router::OriginPolicy::new().trust_origins([origin.clone()]))
         .layer(PrivateResponses)
         .runtime()

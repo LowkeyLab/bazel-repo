@@ -59,6 +59,8 @@ struct Intent {
 enum Choice {
     Candidate,
     Opponent,
+    Pause,
+    Resume,
 }
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -69,7 +71,12 @@ struct Preference {
 }
 impl Preference {
     fn binding(&self) -> String {
-        format!("answer:{}:{}", self.candidate, self.opponent)
+        let kind = match self.choice {
+            Choice::Candidate | Choice::Opponent => "answer",
+            Choice::Pause => "pause",
+            Choice::Resume => "resume",
+        };
+        format!("{kind}:{}:{}", self.candidate, self.opponent)
     }
 }
 #[derive(Deserialize)]
@@ -355,6 +362,26 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
 }
 #[page(POST "/answer")]
 pub async fn submit_preference(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
+    if !matches!(input.choice, Choice::Candidate | Choice::Opponent) {
+        return Err(forbidden().into());
+    }
+    submit_ranking_command(cx, input).await
+}
+#[page(POST "/pause")]
+pub async fn pause(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
+    if input.choice != Choice::Pause {
+        return Err(forbidden().into());
+    }
+    submit_ranking_command(cx, input).await
+}
+#[page(POST "/resume")]
+pub async fn resume(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
+    if input.choice != Choice::Resume {
+        return Err(forbidden().into());
+    }
+    submit_ranking_command(cx, input).await
+}
+async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'_>> {
     let session = authorize(cx).await?;
     crate::require_post(cx, &session, &input.csrf)?;
     let app: &Application = app_context(cx);
@@ -628,12 +655,17 @@ async fn prepare_preference(
                 event_id: EventId::new(original.event),
                 time: original.time,
             },
-            Command::Answer {
-                opponent: BookId::new(answer.opponent),
-                choice: match answer.choice {
-                    Choice::Candidate => ComparisonChoice::PreferCandidate,
-                    Choice::Opponent => ComparisonChoice::PreferOpponent,
+            match answer.choice {
+                Choice::Candidate | Choice::Opponent => Command::Answer {
+                    opponent: BookId::new(answer.opponent),
+                    choice: if answer.choice == Choice::Candidate {
+                        ComparisonChoice::PreferCandidate
+                    } else {
+                        ComparisonChoice::PreferOpponent
+                    },
                 },
+                Choice::Pause => Command::Pause,
+                Choice::Resume => Command::Resume,
             },
         )
     } else {
@@ -828,6 +860,43 @@ struct ComparisonState {
     disabled: bool,
     action: ActionId,
     offered: Option<(BookId, String, String)>,
+    placement_control: PlacementControl,
+}
+struct PlacementControl {
+    route: &'static str,
+    choice: &'static str,
+    label: &'static str,
+    offer: String,
+}
+fn placement_control(
+    app: &Application,
+    reader: ReaderId,
+    action: ActionId,
+    candidate: BookId,
+    revision: u64,
+    paused: bool,
+) -> Result<PlacementControl> {
+    let (route, choice, value, label) = if paused {
+        ("/resume", Choice::Resume, "resume", "Resume")
+    } else {
+        ("/pause", Choice::Pause, "pause", "Pause for now")
+    };
+    // Placement transitions bind only the pending identity, never a new opponent.
+    let binding = Preference {
+        candidate: *candidate.as_uuid(),
+        opponent: *candidate.as_uuid(),
+        choice,
+    }
+    .binding();
+    Ok(PlacementControl {
+        route,
+        choice: value,
+        label,
+        offer: app
+            .catalog
+            .offer(reader, action, &binding, revision)
+            .map_err(|_| topcoat::Error::msg("Action data unavailable"))?,
+    })
 }
 async fn comparison_state(app: &Application, reader: ReaderId) -> Result<Option<ComparisonState>> {
     let ranking = app
@@ -905,6 +974,14 @@ async fn comparison_state(app: &Application, reader: ReaderId) -> Result<Option<
     } else {
         None
     };
+    let placement_control = placement_control(
+        app,
+        reader,
+        action,
+        candidate,
+        revision,
+        pending.is_paused(),
+    )?;
     Ok(Some(ComparisonState {
         candidate,
         candidate_title,
@@ -914,6 +991,7 @@ async fn comparison_state(app: &Application, reader: ReaderId) -> Result<Option<
         disabled,
         action,
         offered,
+        placement_control,
     }))
 }
 #[topcoat::view::component]
@@ -928,6 +1006,13 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
         disabled,
         action,
         offered,
+        placement_control:
+            PlacementControl {
+                route,
+                choice,
+                label,
+                offer: placement_offer,
+            },
     }) = comparison_state(app, reader).await?
     else {
         return Ok(view! {}.boxed());
@@ -975,6 +1060,27 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
             } else {
                 <p>"Your unfinished comparison is paused."</p>
             }
+            <form method="post" action=(route) data-ranking-action="">
+                <input type="hidden" name="csrf" value=(&csrf)>
+                <input type="hidden" name="action" value=(action.text())>
+                <input
+                    type="hidden"
+                    name="candidate"
+                    value=(candidate.as_uuid().to_string())
+                >
+                <input
+                    type="hidden"
+                    name="opponent"
+                    value=(candidate.as_uuid().to_string())
+                >
+                <input type="hidden" name="choice" value=(choice)>
+                <input type="hidden" name="revision" value=(revision.to_string())>
+                <input type="hidden" name="offer" value=(placement_offer)>
+                <button type="submit" disabled=(disabled)>(label)</button>
+                <p role="status" data-submitting="" hidden="">
+                    "Saving your placement…"
+                </p>
+            </form>
         </aside>
     }
     .boxed())

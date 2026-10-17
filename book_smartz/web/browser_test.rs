@@ -6,6 +6,8 @@
 mod test_support;
 use runfiles::{Runfiles, rlocation};
 use serde_json::json;
+use std::io::{BufRead, Write};
+use std::process::Stdio;
 use test_support::Fixture;
 use wiremock::{
     Mock, ResponseTemplate,
@@ -38,6 +40,9 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         .mount(&app.provider)
         .await;
     Mock::given(method("GET")).and(path("/search.json")).respond_with(|request: &wiremock::Request| {
+        if request.url.query_pairs().any(|(key,value)|key=="q" && value=="Unavailable") {
+            return ResponseTemplate::new(503);
+        }
         let first=request.url.query_pairs().any(|(key,value)|key=="q" && value=="First book");
         let (id,title)=if first {("OL501W","First book")} else {("OL502W","Later book")};
         ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":id,"title":title,"author_name":["Fixture Author"]}]}))
@@ -50,14 +55,34 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
     let certificate = rlocation!(files, std::env::var("BROWSER_CERTIFICATE")?)
         .ok_or_else(|| anyhow::anyhow!("Missing fixture certificate"))?;
     let base = app.base.clone();
-    let status = tokio::task::spawn_blocking(move || {
-        std::process::Command::new(runner)
+    let pool = app.pool.clone();
+    let runtime = tokio::runtime::Handle::current();
+    let status = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let mut child = std::process::Command::new(runner)
             .args([
                 base.as_str(),
                 key.to_str().unwrap(),
                 certificate.to_str().unwrap(),
             ])
-            .status()
+            .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
+        let mut input = child.stdin.take().unwrap();
+        for line in std::io::BufReader::new(child.stdout.take().unwrap()).lines() {
+            let line = line?;
+            let sql = match line.as_str() {
+                "fixture:reject" => Some("CREATE FUNCTION browser_reject() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'controlled failure'; END $$; CREATE TRIGGER browser_reject BEFORE INSERT ON book_smartz.ranking_events FOR EACH ROW EXECUTE FUNCTION browser_reject()"),
+                "fixture:allow" => Some("DROP TRIGGER browser_reject ON book_smartz.ranking_events; DROP FUNCTION browser_reject()"),
+                "fixture:expire" => Some("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second'"),
+                _ => None,
+            };
+            if let Some(sql) = sql {
+                runtime.block_on(sqlx::raw_sql(sql).execute(&pool))?;
+                writeln!(input, "ack")?;
+                input.flush()?;
+            } else {
+                println!("{line}");
+            }
+        }
+        Ok(child.wait()?)
     })
     .await??;
     anyhow::ensure!(status.success(), "browser journey failed");
