@@ -312,38 +312,48 @@ func (s *Service) Predict(ctx context.Context, circleID circle.ID, contestID con
 
 // ResolveAndDistributeContestClout resolves a contest and distributes winnings to the circle members.
 func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID circle.ID, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
-	cont, err := s.GetContest(ctx, contestID)
-	if err != nil {
-		return fmt.Errorf("failed to get contest: %w", err)
-	}
+	var events []circle.DomainEvent
+	err := s.txm.RunInTx(ctx, func(ctx context.Context) error {
+		cont, err := s.GetContest(ctx, contestID)
+		if err != nil {
+			return fmt.Errorf("failed to get contest: %w", err)
+		}
 
-	if cont.CircleID != circleID {
-		return ErrContestNotFound
-	}
+		if cont.CircleID != circleID {
+			return ErrContestNotFound
+		}
 
-	// Resolve the contest and get winner payouts
-	payouts, err := s.ResolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
-	if err != nil {
-		return fmt.Errorf("failed to resolve contest: %w", err)
-	}
+		// Resolve the contest and get winner payouts
+		resolved, payouts, err := s.resolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
+		if err != nil {
+			return fmt.Errorf("failed to resolve contest: %w", err)
+		}
 
-	// Load circle to update member clout
-	circ, err := s.circleRepo.FindByID(ctx, circleID)
-	if err != nil {
-		return fmt.Errorf("failed to get circle: %w", err)
-	}
+		// Load circle to update member clout
+		circ, err := s.circleRepo.FindByID(ctx, circleID)
+		if err != nil {
+			return fmt.Errorf("failed to get circle: %w", err)
+		}
 
-	// Update clout for each winner
-	for winnerID, payout := range payouts {
-		if member, exists := circ.Members[winnerID]; exists {
-			newClout := member.Clout + payout
-			err := s.circleRepo.UpdateMemberClout(ctx, circleID, winnerID, newClout)
-			if err != nil {
-				return fmt.Errorf("failed to update winner clout for user %d: %w", winnerID, err)
+		// Update clout for each winner
+		for winnerID, payout := range payouts {
+			if member, exists := circ.Members[winnerID]; exists {
+				newClout := member.Clout + payout
+				err := s.circleRepo.UpdateMemberClout(ctx, circleID, winnerID, newClout)
+				if err != nil {
+					return fmt.Errorf("failed to update winner clout for user %d: %w", winnerID, err)
+				}
 			}
 		}
+
+		events = resolved.PopEvents()
+		return nil
+	})
+	if err != nil {
+		return err
 	}
 
+	s.dispatchEvents(events)
 	return nil
 }
 
@@ -531,37 +541,44 @@ func (s *Service) ProcessContestExpirations(ctx context.Context) error {
 
 // ResolveContestAndCalculatePayouts resolves a contest and returns winner payouts.
 func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) (map[user.ID]int, error) {
+	c, payouts, err := s.resolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
+	if err != nil {
+		return nil, err
+	}
+	s.dispatchEvents(c.PopEvents())
+	return payouts, nil
+}
+
+func (s *Service) resolveContestAndCalculatePayouts(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) (*contest.Contest, map[user.ID]int, error) {
 	// Load contest from repository
 	c, err := s.contestRepo.FindByID(ctx, contestID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get contest: %w", err)
+		return nil, nil, fmt.Errorf("failed to get contest: %w", err)
 	}
 
 	if c.CreatorID != resolverID {
-		return nil, ErrNotContestCreator
+		return nil, nil, ErrNotContestCreator
 	}
 
 	// Use domain method to resolve
 	err = c.Resolve(winningOptionID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Calculate payouts using domain method
 	payouts, err := c.CalculateWinnerPayouts()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Save updated contest
 	err = s.contestRepo.Save(ctx, c)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save resolved contest: %w", err)
+		return nil, nil, fmt.Errorf("failed to save resolved contest: %w", err)
 	}
 
-	s.dispatchEvents(c.PopEvents())
-
-	return payouts, nil
+	return c, payouts, nil
 }
 
 // ExpireContestAndCalculateRefunds expires a contest without resolution and returns refunds.
