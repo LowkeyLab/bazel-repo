@@ -212,10 +212,12 @@ impl Catalog {
     async fn discover(
         &self,
         pool: &PgPool,
+        diagnostics: &crate::diagnostics::Diagnostics,
         reader: ReaderId,
         query: &str,
         page: u32,
     ) -> Result<Discovery> {
+        let mut diagnostic = diagnostics.scope(crate::diagnostics::Category::Catalog);
         let result = if admit(pool, reader).await? {
             self.search(query, page).await
         } else {
@@ -226,6 +228,7 @@ impl Catalog {
         let mut more = false;
         match result {
             Ok(found) => {
+                diagnostic.outcome(crate::diagnostics::Outcome::Confirmed);
                 more = found.more && page < 1_000_000;
                 if found.works.is_empty() {
                     message = Some(if found.no_matches {
@@ -240,6 +243,14 @@ impl Catalog {
                 }
             }
             Err(error) => {
+                use crate::diagnostics::Outcome;
+                diagnostic.outcome(match error {
+                    Failure::Limited => Outcome::Limited,
+                    Failure::Unavailable => Outcome::Unavailable,
+                    Failure::Timeout => Outcome::Timeout,
+                    Failure::Malformed => Outcome::Malformed,
+                    Failure::Oversized => Outcome::Oversized,
+                });
                 message = Some(error.message());
             }
         }
@@ -420,7 +431,13 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
         more,
     } = app
         .catalog
-        .discover(&app.pool, session.reader, &input.query, input.page)
+        .discover(
+            &app.pool,
+            &app.diagnostics,
+            session.reader,
+            &input.query,
+            input.page,
+        )
         .await?;
     let next_page = input.page + 1;
     Ok(view! {

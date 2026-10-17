@@ -292,6 +292,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
     let session = authorize(cx).await?;
     crate::require_post(cx, &session, &input.csrf)?;
     let app: &Application = app_context(cx);
+    let started = std::time::Instant::now();
     app.catalog
         .verify_offer(
             session.reader,
@@ -302,6 +303,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
         )
         .map_err(|_| forbidden())?;
     let Ok(mut tx) = app.store.begin_command(session.reader).await else {
+        app.diagnostics.unconfirmed_save(started, input.action);
         return Ok(outcome(
             cx,
             "Checking an earlier save. Reload before trying the original action again.",
@@ -350,6 +352,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
         .await
         .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
         if tx.commit().await.is_err() {
+            app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
                 "Checking your save. Reload your ranking to recover the original action.",
@@ -385,6 +388,7 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
     let session = authorize(cx).await?;
     crate::require_post(cx, &session, &input.csrf)?;
     let app: &Application = app_context(cx);
+    let started = std::time::Instant::now();
     let answer = Preference {
         candidate: input.candidate,
         opponent: input.opponent,
@@ -400,6 +404,7 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
         )
         .map_err(|_| forbidden())?;
     let Ok(mut tx) = app.store.begin_command(session.reader).await else {
+        app.diagnostics.unconfirmed_save(started, input.action);
         return Ok(outcome(
             cx,
             "Checking an earlier save. Reload your ranking.",
@@ -441,6 +446,7 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
         .await
         .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
         if tx.commit().await.is_err() {
+            app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
                 "Checking your save. Reload your ranking to recover the original action.",
@@ -472,6 +478,7 @@ fn outcome<'a>(cx: &'a Cx, message: &str) -> BoxView<'a> {
 async fn finish(cx: &Cx, reader: ReaderId, action: ActionId) -> Result<BoxView<'_>> {
     let app: &Application = app_context(cx);
     // Any failure after intent persists is unresolved, including cancellation.
+    let started = std::time::Instant::now();
     match execute(app, reader, action).await {
         Ok(Outcome::Saved) => Err(see_other("/ranking").into()),
         Ok(Outcome::Rejected(reason)) => {
@@ -512,10 +519,13 @@ async fn finish(cx: &Cx, reader: ReaderId, action: ActionId) -> Result<BoxView<'
             .boxed())
         }
         Ok(Outcome::Missing) => Err(forbidden().into()),
-        Err(_) => Ok(outcome(
-            cx,
-            "Checking your save. Reload your ranking to recover the original action.",
-        )),
+        Err(_) => {
+            app.diagnostics.unconfirmed_save(started, action);
+            Ok(outcome(
+                cx,
+                "Checking your save. Reload your ranking to recover the original action.",
+            ))
+        }
     }
 }
 enum Outcome {
@@ -524,6 +534,7 @@ enum Outcome {
     Missing,
 }
 async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyhow::Result<Outcome> {
+    let started = std::time::Instant::now();
     loop {
         // This lock synchronizes with in-flight commits before any safe original retry.
         // A missing unlocked read alone is never used as evidence of rollback.
@@ -562,6 +573,12 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
             }
             tx.append_ranking(&document, original.revision).await?;
             tx.commit().await?;
+            app.diagnostics.record(
+                crate::diagnostics::Category::Persistence,
+                crate::diagnostics::Outcome::Confirmed,
+                started,
+                Some(action),
+            );
             return Ok(Outcome::Saved);
         }
         if let Some(answer) = &original.answer {

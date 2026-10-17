@@ -3,6 +3,7 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Component, Path},
+    time::{Duration, Instant},
 };
 
 use serde::Deserialize;
@@ -52,4 +53,37 @@ pub fn load() -> anyhow::Result<AssetBundle> {
         );
     }
     Ok(bundle)
+}
+
+pub fn release() -> anyhow::Result<String> {
+    digest(&std::env::current_exe()?)
+}
+
+// Readiness only reads the last result. One verifier performs blocking work,
+// regardless of the number of concurrent public probes. Expire stale success
+// if the verifier stalls, rather than continuing to advertise readiness.
+pub struct IntegrityMonitor(tokio::sync::watch::Receiver<Option<Instant>>);
+
+impl IntegrityMonitor {
+    pub fn start() -> anyhow::Result<Self> {
+        let (sender, receiver) = tokio::sync::watch::channel(Some(Instant::now()));
+        // Detach this worker so stalled filesystem I/O cannot extend the HTTP
+        // drain or Tokio runtime shutdown. Only this one thread scans packages.
+        std::thread::Builder::new()
+            .name("package-integrity".into())
+            .spawn(move || {
+                while !sender.is_closed() {
+                    std::thread::sleep(Duration::from_secs(1));
+                    let valid = load().is_ok();
+                    sender.send_replace(valid.then(Instant::now));
+                }
+            })?;
+        Ok(Self(receiver))
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.0
+            .borrow()
+            .is_some_and(|verified| verified.elapsed() < Duration::from_secs(3))
+    }
 }

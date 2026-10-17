@@ -1,6 +1,6 @@
 //! Application version of the storage COMMIT-acknowledgement transport fixture.
 //! Multiplex real pooled connections and interrupt only after the target reader's
-//! ranking is committed. No production hook or synthetic success is involved.
+//! selected ranking or initial intent is committed. No production hook or synthetic success is involved.
 use sqlx::PgPool;
 use std::{
     io,
@@ -27,12 +27,30 @@ pub struct CommitProxy {
 }
 impl CommitProxy {
     pub async fn new(direct: &PgPool, reader: ReaderId) -> anyhow::Result<Self> {
-        let baseline: i64 = sqlx::query_scalar(
+        Self::watch(
+            direct,
+            reader,
             "SELECT count(*) FROM book_smartz.ranking_events WHERE reader_id=$1",
         )
-        .bind(reader.as_uuid())
-        .fetch_one(direct)
-        .await?;
+        .await
+    }
+    pub async fn initial_intent(direct: &PgPool, reader: ReaderId) -> anyhow::Result<Self> {
+        Self::watch(
+            direct,
+            reader,
+            "SELECT count(*) FROM book_smartz.application_events WHERE reader_id=$1",
+        )
+        .await
+    }
+    async fn watch(
+        direct: &PgPool,
+        reader: ReaderId,
+        count_query: &'static str,
+    ) -> anyhow::Result<Self> {
+        let baseline: i64 = sqlx::query_scalar(count_query)
+            .bind(reader.as_uuid())
+            .fetch_one(direct)
+            .await?;
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let port = listener.local_addr()?.port();
         let options = direct.connect_options();
@@ -63,8 +81,8 @@ impl CommitProxy {
                                     if !(4..=16*1024*1024).contains(&length) {return Err(io::Error::new(io::ErrorKind::InvalidData,"invalid PostgreSQL frame"))}
                                     let mut body=vec![0;(length-4) as usize];server_read.read_exact(&mut body).await?;
                                     if tag==b'C' && body==b"COMMIT\0" && !claimed.load(Ordering::SeqCst) {
-                                        let saved: bool=sqlx::query_scalar("SELECT count(*) > $2 FROM book_smartz.ranking_events WHERE reader_id=$1").bind(reader.as_uuid()).bind(baseline).fetch_one(&pool).await.map_err(io::Error::other)?;
-                                        if saved && claimed.compare_exchange(false,true,Ordering::SeqCst,Ordering::SeqCst).is_ok() {
+                                        let count: i64=sqlx::query_scalar(count_query).bind(reader.as_uuid()).fetch_one(&pool).await.map_err(io::Error::other)?;
+                                        if count > baseline && claimed.compare_exchange(false,true,Ordering::SeqCst,Ordering::SeqCst).is_ok() {
                                             seen.notify_one();resume.notified().await;
                                             return Ok(()); // Withhold the real completion and close transport.
                                         }

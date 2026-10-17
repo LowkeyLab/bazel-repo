@@ -242,10 +242,9 @@ try {
     .getByRole("textbox", { name: "Title or author" })
     .fill("Unavailable");
   await page.getByRole("button", { name: "Search books", exact: true }).click();
-  assert.equal(
-    await page.getByRole("button", { name: /Retry/ }).isVisible(),
-    true,
-  );
+  await page
+    .getByRole("button", { name: /Retry/ })
+    .waitFor({ state: "visible", timeout: 5000 });
   console.log("Browser version:", browser.version());
   console.log(
     "Browser journey passed: sign-in, search, first/later Add, keyboard preference, stale tab, mobile layout, reload.",

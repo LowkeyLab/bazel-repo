@@ -275,6 +275,20 @@ async fn failed_save_blocks_new_actions_and_recovers_frozen_expired_intent_after
         response.text().await?.as_str(),
         contains_substring("Checking")
     );
+    let diagnostic = app.diagnostic("checking", "unconfirmed").await?;
+    assert_that!(
+        diagnostic["action"].as_str(),
+        eq(Some(value(&values, "action")))
+    );
+    app.diagnostic("persistence", "unconfirmed").await?;
+    let records = std::fs::read_to_string(app.diagnostics.path())?;
+    for record in records.lines() {
+        let fact: Value = serde_json::from_str(record)?;
+        assert_that!(
+            fact["category"] == "persistence" && fact["outcome"] == "confirmed",
+            eq(false)
+        );
+    }
     let before = store(&app).load_application_history(id).await?;
     assert_that!(before.len(), eq(3));
     assert_that!(store(&app).load_ranking_documents(id).await?.len(), eq(0));
@@ -1366,5 +1380,229 @@ async fn placement_actions_authorize_each_post_and_reconcile_before_expired_sess
         contains_substring("comparison is paused")
     );
     assert_that!(store(&app).load_ranking_documents(id).await?, eq(&before));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn private_diagnostics_confirm_new_commits_without_replaying_activity() -> anyhow::Result<()>
+{
+    let app = Fixture::new().await?;
+    let rejected = app.begin().await?;
+    let mut claims = Fixture::claims(&rejected, "never-log-this-subject");
+    claims["aud"] = json!("wrong-client");
+    assert_that!(
+        app.finish(&rejected, claims).await?.status().as_u16(),
+        eq(401)
+    );
+    let cookie = app.login("never-log-this-subject").await?;
+    let reader = reader(&app, "never-log-this-subject").await?;
+    let values = offer(
+        &app,
+        &cookie,
+        reader,
+        work("OL771W", "Never log this title"),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    assert_that!(
+        post(&app, &cookie, "/add", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let read = || -> anyhow::Result<Vec<Value>> {
+        std::fs::read_to_string(app.diagnostics.path())?
+            .lines()
+            .map(|line| Ok(serde_json::from_str(line)?))
+            .collect()
+    };
+    app.diagnostic("persistence", "confirmed").await?;
+    let facts = read()?;
+    assert_that!(
+        facts
+            .iter()
+            .any(|f| f["category"] == "authentication" && f["outcome"] == "confirmed"),
+        eq(true)
+    );
+    assert_that!(
+        facts
+            .iter()
+            .any(|f| f["category"] == "authentication" && f["outcome"] == "failed"),
+        eq(true)
+    );
+    let text = std::fs::read_to_string(app.diagnostics.path())?;
+    for forbidden in [
+        "never-log-this-subject",
+        "Never log this title",
+        "OL771W",
+        &reader.as_uuid().to_string(),
+        &cookie,
+        "before@example.test",
+        "Saved Author",
+    ] {
+        assert_that!(text.as_str(), not(contains_substring(forbidden)));
+    }
+    for fact in &facts {
+        assert_that!(fact["release"].as_str().unwrap().len(), eq(64));
+        assert_that!(fact["duration_ms"].is_number(), eq(true));
+        let fields = fact.as_object().unwrap();
+        assert_that!(
+            fields.keys().all(
+                |k| ["category", "outcome", "duration_ms", "release", "action"]
+                    .contains(&k.as_str())
+            ),
+            eq(true)
+        );
+    }
+    let before = read()?.len();
+    assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
+    assert_that!(
+        post(&app, &cookie, "/add", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    assert_that!(read()?.len(), eq(before));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn broken_diagnostic_delivery_preserves_confirmed_outcomes_and_durable_history()
+-> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    app.break_diagnostic_delivery().await?;
+    let cookie = app.login("broken-diagnostics-reader").await?;
+    let reader = reader(&app, "broken-diagnostics-reader").await?;
+    let values = offer(
+        &app,
+        &cookie,
+        reader,
+        work("OL772W", "Saved despite broken diagnostics"),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    assert_that!(
+        post(&app, &cookie, "/add", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let ranking = store(&app)
+        .load_ranking(reader, OperationContext::default())
+        .await?;
+    assert_that!(ranking.projection().revision(), eq(1));
+    app.restart().await?;
+    assert_that!(
+        app.ranking(&cookie).await?.text().await?.as_str(),
+        contains_substring("Saved despite broken diagnostics")
+    );
+    assert_that!(
+        post(&app, &cookie, "/add", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    assert_that!(
+        store(&app)
+            .load_ranking(reader, OperationContext::default())
+            .await?
+            .projection()
+            .revision(),
+        eq(1)
+    );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn initial_intent_ack_loss_reports_checking_before_original_action_recovery()
+-> anyhow::Result<()> {
+    for route in ["/add", "/answer"] {
+        let mut app = Fixture::new().await?;
+        let cookie = app.login("initial-intent-reader").await?;
+        let id = reader(&app, "initial-intent-reader").await?;
+        let values = if route == "/add" {
+            offer(
+                &app,
+                &cookie,
+                id,
+                work("OL881W", "Private initial intent"),
+                chrono::Utc::now().timestamp() + 900,
+            )
+            .await?
+        } else {
+            add_work(&app, &cookie, id, "OL882W", "First book").await?;
+            add_work(&app, &cookie, id, "OL883W", "Candidate").await?;
+            preference(&app, &cookie, "candidate").await?
+        };
+        let prior = store(&app).load_ranking_documents(id).await?.len();
+        let direct = app.database.clone();
+        let proxy = commit_proxy::CommitProxy::initial_intent(&app.pool, id).await?;
+        app.database = proxy.database(&direct)?;
+        app.restart().await?;
+        let client = app.client.clone();
+        let cookie_copy = cookie.clone();
+        let target = format!("{}{route}", app.base);
+        let body = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(values.iter().map(|(k, v)| (k, v)))
+            .finish();
+        let request = tokio::spawn(async move {
+            client
+                .post(target)
+                .header("cookie", cookie_copy)
+                .header("origin", "https://reader.example")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(body)
+                .send()
+                .await
+        });
+        proxy.commit_reached().await?;
+        let frozen = store(&app).load_application_history(id).await?;
+        assert_that!(
+            frozen.last().unwrap().envelope()["type"]
+                .as_str()
+                .unwrap()
+                .ends_with(".intent.v1"),
+            eq(true)
+        );
+        assert_that!(
+            store(&app).load_ranking_documents(id).await?.len(),
+            eq(prior)
+        );
+        proxy.disconnect();
+        assert_that!(
+            request.await??.text().await?.as_str(),
+            contains_substring("Checking")
+        );
+        let diagnostic = app.diagnostic("checking", "unconfirmed").await?;
+        assert_that!(
+            diagnostic["action"].as_str(),
+            eq(Some(value(&values, "action")))
+        );
+        app.diagnostic("persistence", "unconfirmed").await?;
+        app.database = direct;
+        app.restart().await?;
+        assert_that!(
+            post(&app, &cookie, route, &values).await?.status().as_u16(),
+            eq(303)
+        );
+        assert_that!(
+            store(&app).load_ranking_documents(id).await?.len(),
+            eq(prior + 1)
+        );
+        assert_that!(
+            store(&app)
+                .load_application_history(id)
+                .await?
+                .starts_with(&frozen),
+            eq(true)
+        );
+    }
     Ok(())
 }
