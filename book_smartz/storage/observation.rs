@@ -6,6 +6,7 @@ pub enum Operation {
     Migration,
     Registration,
     BookById,
+    BooksByIds,
     BookByWorkId,
     RankingLoad,
     RankingCommand,

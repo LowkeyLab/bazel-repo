@@ -55,9 +55,9 @@ async fn concurrent_signup_and_changed_email_restore_one_private_ranking_and_pen
             .execute(
                 reader,
                 CommandContext {
-                    expected_revision: revision as u64,
+                    expected_revision: u64::try_from(revision)?,
                     event_id: EventId::new(Uuid::new_v4()),
-                    time: time + chrono::Duration::seconds(revision as i64),
+                    time: time + chrono::Duration::seconds(i64::try_from(revision)?),
                 },
                 command,
                 operation,
@@ -100,7 +100,7 @@ async fn concurrent_signup_and_changed_email_restore_one_private_ranking_and_pen
     assert_that!(body, contains_substring("Your ranking is empty."));
     assert_that!(body, not(contains_substring("OL111W")));
     let login = app.begin().await?;
-    let mut claims = app.claims(&login, "same-account");
+    let mut claims = Fixture::claims(&login, "same-account");
     claims["email"] = serde_json::json!("changed@example.test");
     claims["iss"] = serde_json::json!("accounts.google.com");
     let response = app.finish(&login, claims).await?;

@@ -169,22 +169,30 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
         .store
         .load_ranking(session.reader, OperationContext::default())
         .await?;
+    let projection = ranking.projection();
+    let ids: Vec<_> = projection
+        .entries()
+        .iter()
+        .map(|entry| entry.book_id())
+        .chain(projection.pending().map(|placement| placement.candidate()))
+        .collect();
+    let books: std::collections::HashMap<_, _> = db
+        .store
+        .books_by_ids(&ids, OperationContext::default())
+        .await?
+        .into_iter()
+        .map(|book| (book.id(), book))
+        .collect();
     let mut entries = Vec::new();
-    for entry in ranking.projection().entries() {
-        if let Some(book) = db
-            .store
-            .book_by_id(entry.book_id(), OperationContext::default())
-            .await?
-        {
+    for entry in projection.entries() {
+        if let Some(book) = books.get(&entry.book_id()) {
             let work = book.work_id().as_str().to_owned();
             entries.push((format!("https://openlibrary.org/works/{work}"), work));
         }
     }
-    let pending = if let Some(placement) = ranking.projection().pending() {
-        let book = db
-            .store
-            .book_by_id(placement.candidate(), OperationContext::default())
-            .await?
+    let pending = if let Some(placement) = projection.pending() {
+        let book = books
+            .get(&placement.candidate())
             .ok_or_else(topcoat::router::error::not_found)?;
         let work = book.work_id().as_str().to_owned();
         let message = if placement.is_paused() {
@@ -284,10 +292,17 @@ impl topcoat::router::Layer for PrivateResponses {
     ) -> topcoat::router::LayerFuture<'a> {
         Box::pin(async move {
             let headers = topcoat::router::response::response_headers(cx);
-            headers.append(
-                topcoat::router::header::CACHE_CONTROL,
-                topcoat::router::HeaderValue::from_static("no-store"),
-            );
+            // Registered fingerprinted assets retain the framework's immutable
+            // policy. Private HTML/auth responses remain non-cacheable.
+            if !["/_topcoat/assets/", "/_topcoat/fonts/"]
+                .iter()
+                .any(|prefix| request::uri(cx).path().starts_with(prefix))
+            {
+                headers.append(
+                    topcoat::router::header::CACHE_CONTROL,
+                    topcoat::router::HeaderValue::from_static("no-store"),
+                );
+            }
             headers.append(
                 topcoat::router::header::REFERRER_POLICY,
                 topcoat::router::HeaderValue::from_static("no-referrer"),

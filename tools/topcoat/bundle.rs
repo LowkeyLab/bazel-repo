@@ -32,10 +32,25 @@ fn main() -> anyhow::Result<()> {
     let inputs: Vec<Input> = serde_json::from_slice(&fs::read(&args[2])?)?;
     let inputs: Vec<_> = inputs
         .into_iter()
-        .map(|i| Ok((fs::canonicalize(i.path)?, i.relative)))
+        .map(|i| Ok((fs::canonicalize(&i.path)?, i.relative, i.path)))
         .collect::<anyhow::Result<_>>()?;
     let bytes = fs::read(&binary)?;
     let stage = tempfile::tempdir()?;
+    // Topcoat anchors file!() paths by probing source-file existence. Mirror every
+    // declared companion before resolving assets, including coverage-prefixed paths.
+    for (source, relative, original) in &inputs {
+        for destination in [relative, original] {
+            ensure!(
+                !destination.is_absolute()
+                    && !destination.components().any(|p| p == Component::ParentDir),
+                "declared input escapes staging"
+            );
+            let staged = stage.path().join(destination);
+            fs::create_dir_all(staged.parent().context("input parent")?)?;
+            fs::copy(source, staged)?;
+        }
+    }
+    std::env::set_current_dir(stage.path())?;
     for asset in RawAsset::find_in_binary(&bytes) {
         let Source::Path(destination) = asset.source() else {
             anyhow::bail!(
@@ -51,7 +66,7 @@ fn main() -> anyhow::Result<()> {
         );
         let matches: Vec<_> = inputs
             .iter()
-            .filter(|(_, relative)| destination.ends_with(relative))
+            .filter(|(_, relative, _)| destination.ends_with(relative))
             .collect();
         ensure!(
             matches.len() == 1,
@@ -65,27 +80,8 @@ fn main() -> anyhow::Result<()> {
     }
     fs::create_dir_all(&output)?;
     fs::copy(binary, output.join(&executable_name))?;
-    std::env::set_current_dir(stage.path())?;
     Bundler::new(&BundlerConfig::new().cache_dir(stage.path().join("empty-download-cache")))
         .bundle(&bytes, output.join("assets"))?;
-    fn inventory(
-        root: &std::path::Path,
-        directory: &std::path::Path,
-        files: &mut BTreeMap<String, String>,
-    ) -> anyhow::Result<()> {
-        for entry in fs::read_dir(directory)? {
-            let path = entry?.path();
-            if path.is_dir() {
-                inventory(root, &path, files)?;
-            } else {
-                files.insert(
-                    path.strip_prefix(root)?.to_string_lossy().into_owned(),
-                    format!("{:x}", Sha256::digest(fs::read(&path)?)),
-                );
-            }
-        }
-        Ok(())
-    }
     let mut files = BTreeMap::new();
     inventory(&output.join("assets"), &output.join("assets"), &mut files)?;
     fs::write(
@@ -94,5 +90,24 @@ fn main() -> anyhow::Result<()> {
             &serde_json::json!({"binary": format!("{:x}", Sha256::digest(&bytes)), "files": files}),
         )?,
     )?;
+    Ok(())
+}
+
+fn inventory(
+    root: &std::path::Path,
+    directory: &std::path::Path,
+    files: &mut BTreeMap<String, String>,
+) -> anyhow::Result<()> {
+    for entry in fs::read_dir(directory)? {
+        let path = entry?.path();
+        if path.is_dir() {
+            inventory(root, &path, files)?;
+        } else {
+            files.insert(
+                path.strip_prefix(root)?.to_string_lossy().into_owned(),
+                format!("{:x}", Sha256::digest(fs::read(&path)?)),
+            );
+        }
+    }
     Ok(())
 }

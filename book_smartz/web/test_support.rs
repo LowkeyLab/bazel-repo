@@ -84,15 +84,25 @@ impl Fixture {
             _postgres: postgres,
         };
         fixture.wait().await?;
+        fixture
+            .install_keys("fixture", "public, max-age=3600")
+            .await?;
+        Ok(fixture)
+    }
+    pub async fn install_keys(&self, kid: &str, policy: &str) -> anyhow::Result<()> {
         let key = EncodingKey::from_rsa_pem(include_bytes!("fixtures/public-test-key.pem"))?;
         let mut jwk = Jwk::from_encoding_key(&key, Algorithm::RS256)?;
-        jwk.common.key_id = Some("fixture".into());
+        jwk.common.key_id = Some(kid.to_owned());
         Mock::given(method("GET"))
             .and(path("/keys"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"keys": [jwk]})))
-            .mount(&fixture.provider)
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .insert_header("cache-control", policy.to_owned())
+                    .set_body_json(json!({"keys": [jwk]})),
+            )
+            .mount(&self.provider)
             .await;
-        Ok(fixture)
+        Ok(())
     }
     fn spawn(
         package: &tempfile::TempDir,
@@ -131,10 +141,9 @@ impl Fixture {
                     .get(format!("{}/health/ready", self.base))
                     .send()
                     .await
+                    && response.status().is_success()
                 {
-                    if response.status().is_success() {
-                        return Ok::<_, anyhow::Error>(());
-                    }
+                    return Ok::<_, anyhow::Error>(());
                 }
                 tokio::task::yield_now().await;
             }
@@ -184,13 +193,21 @@ impl Fixture {
             challenge: parameters["code_challenge"].clone(),
         })
     }
-    pub fn claims(&self, login: &Login, subject: &str) -> Value {
+    pub fn claims(login: &Login, subject: &str) -> Value {
         json!({"sub": subject, "nonce": login.nonce, "iss": "https://accounts.google.com", "aud": "fixture-client", "azp": "fixture-client", "exp": chrono::Utc::now().timestamp()+300, "email": "before@example.test"})
     }
     pub async fn finish(&self, login: &Login, claims: Value) -> anyhow::Result<Response> {
+        self.finish_with_kid(login, claims, "fixture").await
+    }
+    pub async fn finish_with_kid(
+        &self,
+        login: &Login,
+        claims: Value,
+        kid: &str,
+    ) -> anyhow::Result<Response> {
         let key = EncodingKey::from_rsa_pem(include_bytes!("fixtures/public-test-key.pem"))?;
         let mut header = Header::new(Algorithm::RS256);
-        header.kid = Some("fixture".into());
+        header.kid = Some(kid.to_owned());
         let token = jsonwebtoken::encode(&header, &claims, &key)?;
         self.finish_token(login, &token).await
     }
@@ -249,7 +266,7 @@ impl Fixture {
     }
     pub async fn login(&self, subject: &str) -> anyhow::Result<String> {
         let login = self.begin().await?;
-        let response = self.finish(&login, self.claims(&login, subject)).await?;
+        let response = self.finish(&login, Self::claims(&login, subject)).await?;
         anyhow::ensure!(
             response.status().as_u16() == 303,
             "callback failed: {}",

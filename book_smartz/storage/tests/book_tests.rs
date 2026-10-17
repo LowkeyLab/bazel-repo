@@ -336,3 +336,48 @@ async fn overlapping_registration_preserves_identity_contract_with_stronger_pool
         pool.close().await;
     }
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn batch_lookup_returns_existing_mappings_once_and_reports_completion() {
+    let fixture = Fixture::new().await;
+    let observations = Arc::new(Recorder::default());
+    let store = fixture.store(observations.clone());
+    let context = OperationContext::default();
+    store.migrate(context).await.unwrap();
+    let first = book(1, "OL1W");
+    let second = book(2, "OL2W");
+    store.register_book(&first, context).await.unwrap();
+    store.register_book(&second, context).await.unwrap();
+    let found = store
+        .books_by_ids(
+            &[
+                second.id(),
+                first.id(),
+                second.id(),
+                BookId::new(Uuid::from_u128(9)),
+            ],
+            context,
+        )
+        .await
+        .unwrap();
+    assert_that!(found.len(), eq(2));
+    assert_that!(found.contains(&first), eq(true));
+    assert_that!(found.contains(&second), eq(true));
+    assert_that!(
+        store.books_by_ids(&[], context).await.unwrap().is_empty(),
+        eq(true)
+    );
+    let recorded = observations.0.lock().unwrap().clone();
+    let batches: Vec<_> = recorded
+        .iter()
+        .filter(|entry| entry.operation == Operation::BooksByIds)
+        .collect();
+    assert_that!(batches.len(), eq(2));
+    assert_that!(
+        batches
+            .iter()
+            .all(|entry| entry.outcome == Outcome::Loaded && entry.reader_id.is_none()),
+        eq(true)
+    );
+}

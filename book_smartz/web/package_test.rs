@@ -29,7 +29,7 @@ async fn packaged_pages_deliver_local_css_fonts_runtime_and_icons() -> anyhow::R
         .as_object()
         .unwrap()
         .keys()
-        .filter(|name| name.ends_with(".css"))
+        .filter(|name| std::path::Path::new(name).extension() == Some(std::ffi::OsStr::new("css")))
         .map(|name| fs::read(app.package.path().join("assets").join(name)))
         .collect::<std::io::Result<_>>()?;
     let mut served_styles = vec![false; packaged_styles.len()];
@@ -56,6 +56,17 @@ async fn packaged_pages_deliver_local_css_fonts_runtime_and_icons() -> anyhow::R
             .unwrap()
             .to_str()?
             .to_owned();
+        if content_type.contains("javascript") || content_type.contains("text/css") {
+            let cache = response
+                .headers()
+                .get_all("cache-control")
+                .iter()
+                .map(|value| value.to_str().unwrap())
+                .collect::<Vec<_>>()
+                .join(",");
+            assert_that!(cache.as_str(), contains_substring("immutable"));
+            assert_that!(cache.as_str(), not(contains_substring("no-store")));
+        }
         if content_type.contains("javascript") {
             scripts += 1;
             assert_that!(response.bytes().await?.is_empty(), eq(false));
@@ -128,7 +139,7 @@ async fn startup_rejects_missing_mismatched_assets_and_incomplete_schema() -> an
         .as_object()
         .unwrap()
         .keys()
-        .find(|name| name.ends_with(".css"))
+        .find(|name| std::path::Path::new(name).extension() == Some(std::ffi::OsStr::new("css")))
         .unwrap();
     let path = app.package.path().join("assets").join(name);
     let original = fs::read(&path)?;
@@ -174,5 +185,44 @@ async fn launcher_forwards_explicit_migration_and_propagates_failure_without_era
     assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
     sqlx::query("UPDATE book_smartz_web._sqlx_migrations SET checksum = decode('00', 'hex') WHERE version = 1").execute(&app.pool).await?;
     assert_that!(run()?.success(), eq(false));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn concurrent_fresh_migrations_wait_for_the_schema_lock() -> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    app.process.0.kill()?;
+    app.process.0.wait()?;
+    sqlx::query("DROP SCHEMA book_smartz_web CASCADE")
+        .execute(&app.pool)
+        .await?;
+    let mut lock = app.pool.begin().await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(706165241, 2)")
+        .execute(&mut *lock)
+        .await?;
+    let spawn = || -> anyhow::Result<Process> {
+        Ok(Process(
+            Command::new(app.package.path().join("book-smartz"))
+                .arg("migrate")
+                .env("DATABASE_URL", &app.database)
+                .current_dir(app.cwd.path())
+                .stdout(Stdio::null())
+                .spawn()?,
+        ))
+    };
+    let mut first = spawn()?;
+    let mut second = spawn()?;
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            anyhow::ensure!(first.0.try_wait()?.is_none() && second.0.try_wait()?.is_none(), "migration bypassed the schema lock");
+            let waiting: i64 = sqlx::query_scalar("SELECT count(*) FROM pg_locks WHERE locktype = 'advisory' AND classid = 706165241 AND objid = 2 AND NOT granted").fetch_one(&app.pool).await?;
+            if waiting == 2 { return Ok::<_, anyhow::Error>(()); }
+            tokio::task::yield_now().await;
+        }
+    }).await??;
+    lock.commit().await?;
+    assert_that!(first.0.wait()?.success(), eq(true));
+    assert_that!(second.0.wait()?.success(), eq(true));
     Ok(())
 }

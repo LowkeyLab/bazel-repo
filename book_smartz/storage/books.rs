@@ -163,6 +163,49 @@ impl Store {
         result
     }
 
+    /// Finds existing mappings in one query, omitting absent and duplicate IDs.
+    /// The returned order is unspecified.
+    ///
+    /// # Errors
+    /// Returns a database error or corruption if a stored work ID is malformed.
+    pub async fn books_by_ids(
+        &self,
+        ids: &[BookId],
+        operation: OperationContext,
+    ) -> Result<Vec<Book>, StoreError> {
+        let started = Instant::now();
+        let ids: Vec<_> = ids.iter().map(BookId::as_uuid).collect();
+        let result = async {
+            let rows: Vec<(Uuid, String)> =
+                sqlx::query_as("SELECT id, work_id FROM book_smartz.books WHERE id = ANY($1)")
+                    .bind(&ids)
+                    .fetch_all(&self.pool)
+                    .await?;
+            rows.into_iter()
+                .map(|(id, work)| decode_book(id, &work))
+                .collect::<Result<Vec<_>, StoreError>>()
+        }
+        .await;
+        observation::dispatch(
+            &self.observer,
+            &Observation {
+                operation: Operation::BooksByIds,
+                outcome: match &result {
+                    Ok(_) => Outcome::Loaded,
+                    Err(error) => Outcome::Failed(error.failure()),
+                },
+                command_kind: None,
+                duration: started.elapsed(),
+                correlation_id: operation.correlation_id,
+                reader_id: None,
+                event_id: None,
+                revision: None,
+                event_count: None,
+            },
+        );
+        result
+    }
+
     /// Finds a book by its Open Library work identity.
     ///
     /// # Errors

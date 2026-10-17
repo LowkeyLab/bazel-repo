@@ -1,5 +1,5 @@
 //! Google identity verification and durable browser authentication.
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header, jwk::JwkSet};
 use serde::Deserialize;
@@ -74,6 +74,11 @@ pub struct Google {
     authorization: url::Url,
     token: url::Url,
     keys: url::Url,
+    cached_keys: tokio::sync::Mutex<Option<CachedKeys>>,
+}
+struct CachedKeys {
+    keys: JwkSet,
+    expires: Instant,
 }
 impl Google {
     pub fn from_environment(origin: &str) -> anyhow::Result<Self> {
@@ -98,6 +103,7 @@ impl Google {
             "Google client configuration is empty"
         );
         Ok(Self {
+            cached_keys: tokio::sync::Mutex::new(None),
             client: reqwest::Client::builder()
                 .timeout(Duration::from_secs(5))
                 .redirect(reqwest::redirect::Policy::none())
@@ -118,6 +124,48 @@ impl Google {
                 "https://www.googleapis.com/oauth2/v3/certs",
             )?,
         })
+    }
+    async fn key(&self, kid: &str) -> anyhow::Result<DecodingKey> {
+        let mut cached = self.cached_keys.lock().await;
+        if let Some(cached) = cached.as_ref()
+            && cached.expires > Instant::now()
+            && let Some(key) = cached.keys.find(kid)
+        {
+            return Ok(DecodingKey::from_jwk(key)?);
+        }
+        // Serialize refreshes; an unknown kid triggers rotation discovery even
+        // during a valid cache lifetime. Failed refreshes never extend that lifetime.
+        let response = self.client.get(self.keys.clone()).send().await?;
+        let policy = response
+            .headers()
+            .get("cache-control")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        let directives: Vec<_> = policy.split(',').map(str::trim).collect();
+        let mut seconds = directives
+            .iter()
+            .find_map(|part| {
+                part.split_once('=')
+                    .filter(|(key, _)| key.trim().eq_ignore_ascii_case("max-age"))
+                    .and_then(|(_, value)| value.trim().trim_matches('"').parse::<u64>().ok())
+            })
+            .unwrap_or(0);
+        if directives.iter().any(|part| {
+            part.eq_ignore_ascii_case("no-store") || part.eq_ignore_ascii_case("no-cache")
+        }) {
+            seconds = 0;
+        }
+        let age = response
+            .headers()
+            .get("age")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(0);
+        let expires = Instant::now() + Duration::from_secs(seconds.saturating_sub(age).min(86_400));
+        let keys: JwkSet = bounded(response).await?;
+        let key = keys.find(kid).map(DecodingKey::from_jwk).transpose()?;
+        *cached = Some(CachedKeys { keys, expires });
+        key.ok_or_else(|| anyhow::anyhow!("unknown identity key"))
     }
     async fn claims(&self, code: &str, verifier: &str, nonce: &str) -> anyhow::Result<Claims> {
         let body = url::form_urlencoded::Serializer::new(String::new())
@@ -144,22 +192,20 @@ impl Google {
             header.alg == Algorithm::RS256,
             "unaccepted identity algorithm"
         );
-        let keys: JwkSet = bounded(self.client.get(self.keys.clone()).send().await?).await?;
-        let key = keys
-            .find(
+        let key = self
+            .key(
                 header
                     .kid
                     .as_deref()
                     .ok_or_else(|| anyhow::anyhow!("missing identity key"))?,
             )
-            .ok_or_else(|| anyhow::anyhow!("unknown identity key"))?;
+            .await?;
         let mut validation = Validation::new(Algorithm::RS256);
         validation.leeway = 0;
         validation.set_required_spec_claims(&["exp", "iss", "aud", "sub"]);
         validation.set_audience(&[&self.client_id]);
         validation.set_issuer(&[ISSUER, "accounts.google.com"]);
-        let claims =
-            decode::<Claims>(&tokens.id_token, &DecodingKey::from_jwk(key)?, &validation)?.claims;
+        let claims = decode::<Claims>(&tokens.id_token, &key, &validation)?.claims;
         anyhow::ensure!(
             !claims.sub.is_empty() && claims.sub.len() <= 255 && claims.nonce == nonce,
             "invalid identity claims"
@@ -215,8 +261,16 @@ pub async fn login(cx: &Cx) -> Result<()> {
     let state = Token::random();
     let nonce = Token::random().encode();
     let verifier = Token::random().encode().trim_end_matches('=').to_owned();
+    let mut transaction = app.pool.begin().await?;
+    sqlx::query("DELETE FROM book_smartz_web.login_challenges WHERE expires_at <= now()")
+        .execute(&mut *transaction)
+        .await?;
+    sqlx::query("DELETE FROM book_smartz_web.sessions WHERE expires_at <= now()")
+        .execute(&mut *transaction)
+        .await?;
     sqlx::query("INSERT INTO book_smartz_web.login_challenges (state_hash, nonce, verifier, expires_at) VALUES ($1, $2, $3, now() + interval '10 minutes')")
-        .bind(state.hash().as_slice()).bind(&nonce).bind(&verifier).execute(&app.pool).await?;
+        .bind(state.hash().as_slice()).bind(&nonce).bind(&verifier).execute(&mut *transaction).await?;
+    transaction.commit().await?;
     cookies(cx).add(
         Cookie::build((STATE_COOKIE, state.encode()))
             .secure(true)
@@ -234,7 +288,7 @@ pub async fn login(cx: &Cx) -> Result<()> {
         ("response_type", "code"),
         ("client_id", app.google.client_id.as_str()),
         ("redirect_uri", app.google.redirect.as_str()),
-        ("scope", "openid email"),
+        ("scope", "openid"),
         ("state", state.encode().as_str()),
         ("nonce", nonce.as_str()),
         ("code_challenge", challenge.as_str()),
@@ -281,9 +335,14 @@ pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
 pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
     let mut connection = pool.acquire().await?;
     connection.close_on_drop();
+    sqlx::query("BEGIN").execute(&mut *connection).await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(706165241, 2)")
+        .execute(&mut *connection)
+        .await?;
     sqlx::query("CREATE SCHEMA IF NOT EXISTS book_smartz_web")
         .execute(&mut *connection)
         .await?;
+    sqlx::query("COMMIT").execute(&mut *connection).await?;
     sqlx::query("SET search_path TO book_smartz_web, pg_catalog")
         .execute(&mut *connection)
         .await?;

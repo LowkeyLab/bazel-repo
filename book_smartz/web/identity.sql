@@ -16,3 +16,6 @@ CREATE TABLE login_challenges (
   verifier text NOT NULL,
   expires_at timestamptz NOT NULL
 );
+
+CREATE INDEX login_challenges_expiry ON login_challenges (expires_at);
+CREATE INDEX sessions_expiry ON sessions (expires_at);
