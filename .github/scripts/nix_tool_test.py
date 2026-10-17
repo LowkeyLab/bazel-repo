@@ -3,7 +3,9 @@
 import json
 import os
 import subprocess
+from collections.abc import Iterable
 from pathlib import Path
+from typing import NotRequired, Protocol, TextIO, TypedDict, cast
 
 import _nix_provenance
 import nix_tool
@@ -11,7 +13,9 @@ import pytest
 
 
 @pytest.mark.parametrize("empty", [None, ""])
-def test_fork_reader_uses_verified_public_cache_without_variables(monkeypatch, empty):
+def test_fork_reader_uses_verified_public_cache_without_variables(
+    monkeypatch: pytest.MonkeyPatch, empty: str | None
+) -> None:
     for name in ("CACHIX_CACHE_NAME", "CACHIX_PUBLIC_KEY"):
         if empty is None:
             monkeypatch.delenv(name, raising=False)
@@ -30,7 +34,9 @@ def test_fork_reader_uses_verified_public_cache_without_variables(monkeypatch, e
     assert "require-sigs = true" in os.environ["NIX_CONFIG"]
 
 
-def test_explicit_complete_public_cache_override_is_preserved(monkeypatch):
+def test_explicit_complete_public_cache_override_is_preserved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("CACHIX_CACHE_NAME", "override-cache")
     monkeypatch.setenv(
         "CACHIX_PUBLIC_KEY",
@@ -62,7 +68,9 @@ def test_explicit_complete_public_cache_override_is_preserved(monkeypatch):
         ("override-cache", "invalid-key"),
     ],
 )
-def test_partial_or_invalid_public_override_still_fails(monkeypatch, name, key):
+def test_partial_or_invalid_public_override_still_fails(
+    monkeypatch: pytest.MonkeyPatch, name: str, key: str
+) -> None:
     monkeypatch.setenv("CACHIX_CACHE_NAME", name)
     monkeypatch.setenv("CACHIX_PUBLIC_KEY", key)
     monkeypatch.setenv("NIX_CONFIG", "connect-timeout = 9")
@@ -82,14 +90,48 @@ DEPENDENCY = "/nix/store/" + "b" * 32 + "-dependency"
 UNRELATED = "/nix/store/" + "c" * 32 + "-unrelated"
 
 
-def activity(path=ROOT, source=CACHE, **changes):
-    event = {"action": "start", "type": 108, "fields": [path, source]}
+type Journal = list[nix_tool.CommandRecord]
+
+
+class AcceptanceResult(TypedDict):
+    tool: str
+    status: str
+    output: NotRequired[str]
+    error: NotRequired[str]
+    paths: NotRequired[list[dict[str, str]]]
+
+
+class AcceptanceOptions(TypedDict, total=False):
+    signatures: bool
+    output: str
+    initial: str
+
+
+class Acceptance(Protocol):
+    def __call__(
+        self,
+        tool: str = "aspect",
+        log: str | None = None,
+        closure: list[str] | None = None,
+        initial: str = "",
+        output: str = ROOT,
+        signatures: bool = True,
+        fail: str | None = None,
+    ) -> tuple[int, AcceptanceResult, Journal, Path]: ...
+
+
+def activity(path: str = ROOT, source: str = CACHE, **changes: object) -> str:
+    event: dict[str, object] = {
+        "action": "start",
+        "type": 108,
+        "fields": [path, source],
+    }
     event.update(changes)
     return "@nix " + json.dumps(event) + "\n"
 
 
 @pytest.fixture
-def acceptance(monkeypatch, tmp_path):
+def acceptance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Acceptance:
     """Supply process observations while retaining policy and artifact writing."""
     for key in (
         "CACHIX_AUTH_TOKEN",
@@ -111,15 +153,22 @@ def acceptance(monkeypatch, tmp_path):
     monkeypatch.setattr(nix_tool.os.path, "lexists", lambda path: False)
 
     def execute(
-        tool="aspect",
-        log=None,
-        closure=None,
-        initial="",
-        output=ROOT,
-        signatures=True,
-        fail=None,
-    ):
-        def process(args, *, stdout, stderr, text, check):
+        tool: str = "aspect",
+        log: str | None = None,
+        closure: list[str] | None = None,
+        initial: str = "",
+        output: str = ROOT,
+        signatures: bool = True,
+        fail: str | None = None,
+    ) -> tuple[int, AcceptanceResult, Journal, Path]:
+        def process(
+            args: Iterable[str],
+            *,
+            stdout: TextIO,
+            stderr: TextIO,
+            text: bool,
+            check: bool,
+        ) -> subprocess.CompletedProcess[str]:
             command = list(args)
             if command[:2] == ["nix", "--version"]:
                 label, value = "version", "nix (Nix) test\n"
@@ -210,27 +259,32 @@ def acceptance(monkeypatch, tmp_path):
             stdout.write(value)
             if label == fail:
                 stderr.write("injected command failure\n")
-            return subprocess.CompletedProcess(command, 1 if label == fail else 0)
+            return subprocess.CompletedProcess[str](command, 1 if label == fail else 0)
 
         monkeypatch.setattr(nix_tool.subprocess, "run", process)
         status = nix_tool.accept(tool)
         directory = tmp_path / f"nix-acceptance-{tool}"
-        result = json.loads((directory / "result.json").read_text())
+        # The fixture reads artifacts authored by accept(); assertions below verify their schema and values.
+        result = cast(
+            AcceptanceResult, json.loads((directory / "result.json").read_text())
+        )
         journal = directory / "commands.json"
-        commands = json.loads(journal.read_text()) if journal.exists() else []
+        commands = (
+            cast(Journal, json.loads(journal.read_text())) if journal.exists() else []
+        )
         return status, result, commands, directory
 
     return execute
 
 
-def labels(commands):
+def labels(commands: Journal) -> list[str]:
     return [command["label"] for command in commands]
 
 
 @pytest.mark.parametrize("tool,source", [("aspect", CACHE), ("lcov", UPSTREAM)])
 def test_strict_acceptance_retains_ordered_closure_and_artifacts(
-    acceptance, tool, source
-):
+    acceptance: Acceptance, tool: str, source: str
+) -> None:
     log = (
         "ordinary diagnostic\n"
         + activity(action="stop", type=105)
@@ -297,8 +351,8 @@ def test_strict_acceptance_retains_ordered_closure_and_artifacts(
 
 
 def test_preexisting_dependency_keeps_classification_despite_ambiguous_sources(
-    acceptance,
-):
+    acceptance: Acceptance,
+) -> None:
     status, result, _, _ = acceptance(
         initial=DEPENDENCY + "\n",
         log=activity() + activity(DEPENDENCY) + activity(DEPENDENCY, UPSTREAM),
@@ -332,7 +386,9 @@ def test_preexisting_dependency_keeps_classification_despite_ambiguous_sources(
         (activity(source=UPSTREAM), "exclusively from intended Cachix"),
     ],
 )
-def test_invalid_log_or_root_stops_before_closure(acceptance, log, diagnostic):
+def test_invalid_log_or_root_stops_before_closure(
+    acceptance: Acceptance, log: str, diagnostic: str
+) -> None:
     status, result, commands, directory = acceptance(log=log)
     assert status == 1
     assert result["status"] == "failed"
@@ -352,7 +408,9 @@ def test_invalid_log_or_root_stops_before_closure(acceptance, log, diagnostic):
 @pytest.mark.parametrize(
     "dependency_log", ["", activity(DEPENDENCY) + activity(DEPENDENCY, UPSTREAM)]
 )
-def test_new_closure_path_requires_unambiguous_provenance(acceptance, dependency_log):
+def test_new_closure_path_requires_unambiguous_provenance(
+    acceptance: Acceptance, dependency_log: str
+) -> None:
     status, result, commands, _ = acceptance(
         log=activity() + dependency_log, closure=[ROOT, DEPENDENCY]
     )
@@ -365,8 +423,8 @@ def test_new_closure_path_requires_unambiguous_provenance(acceptance, dependency
 
 @pytest.mark.parametrize("credential", ["CACHIX_AUTH_TOKEN", "CACHIX_SIGNING_KEY"])
 def test_strict_reader_rejects_credentials_before_commands(
-    acceptance, monkeypatch, credential
-):
+    acceptance: Acceptance, monkeypatch: pytest.MonkeyPatch, credential: str
+) -> None:
     monkeypatch.setenv(credential, "synthetic-credential")
     status, result, commands, _ = acceptance()
     assert status == 1
@@ -387,8 +445,8 @@ def test_strict_reader_rejects_credentials_before_commands(
     ],
 )
 def test_acceptance_preconditions_stop_before_realisation(
-    acceptance, options, last, diagnostic
-):
+    acceptance: Acceptance, options: AcceptanceOptions, last: str, diagnostic: str
+) -> None:
     status, result, commands, _ = acceptance(**options)
     assert status == 1
     assert diagnostic in result["error"]
@@ -397,7 +455,9 @@ def test_acceptance_preconditions_stop_before_realisation(
     assert "realise" not in labels(commands)
 
 
-def test_existing_filesystem_output_prevents_realisation(acceptance, monkeypatch):
+def test_existing_filesystem_output_prevents_realisation(
+    acceptance: Acceptance, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(nix_tool.os.path, "lexists", lambda path: path == ROOT)
     status, result, commands, _ = acceptance()
     assert status == 1
@@ -408,7 +468,9 @@ def test_existing_filesystem_output_prevents_realisation(acceptance, monkeypatch
 @pytest.mark.parametrize(
     "failure", ["realise", "valid-output", "remote-availability", "smoke-aspect"]
 )
-def test_failed_commands_retain_evidence_without_publishing_paths(acceptance, failure):
+def test_failed_commands_retain_evidence_without_publishing_paths(
+    acceptance: Acceptance, failure: str
+) -> None:
     status, result, commands, directory = acceptance(fail=failure)
     assert status == 1
     assert result["status"] == "failed"
@@ -424,7 +486,9 @@ def test_failed_commands_retain_evidence_without_publishing_paths(acceptance, fa
 
 
 @pytest.mark.parametrize("record", [None, [], "activity", 42, True])
-def test_non_object_activity_fails_normally_before_closure(acceptance, record):
+def test_non_object_activity_fails_normally_before_closure(
+    acceptance: Acceptance, record: object
+) -> None:
     log = "@nix " + json.dumps(record) + "\n"
     status, result, commands, directory = acceptance(log=log)
     assert status == 1
@@ -438,7 +502,9 @@ def test_non_object_activity_fails_normally_before_closure(acceptance, record):
 @pytest.mark.parametrize(
     "tool,source", [("aspect", CACHE), ("lcov", UPSTREAM), ("lcov", CACHE)]
 )
-def test_policy_classifies_ordered_mixed_closure_from_validated_evidence(tool, source):
+def test_policy_classifies_ordered_mixed_closure_from_validated_evidence(
+    tool: str, source: str
+) -> None:
     log = (
         "ordinary diagnostic\n"
         + activity(action="stop", type=105)
@@ -455,7 +521,9 @@ def test_policy_classifies_ordered_mixed_closure_from_validated_evidence(tool, s
     ]
 
 
-def test_policy_preexisting_path_takes_precedence_over_missing_or_ambiguous_sources():
+def test_policy_preexisting_path_takes_precedence_over_missing_or_ambiguous_sources() -> (
+    None
+):
     downloads = _nix_provenance.ValidatedDownloads(
         "aspect",
         ROOT,
@@ -492,13 +560,13 @@ def test_policy_preexisting_path_takes_precedence_over_missing_or_ambiguous_sour
         (activity(source=UPSTREAM), "exclusively from intended Cachix"),
     ],
 )
-def test_policy_rejects_invalid_activity_or_root(log, diagnostic):
+def test_policy_rejects_invalid_activity_or_root(log: str, diagnostic: str) -> None:
     with pytest.raises(ValueError, match=diagnostic):
         _nix_provenance.ValidatedDownloads("aspect", ROOT, CACHE, log)
 
 
 @pytest.mark.parametrize("record", [None, [], "activity", 42, True])
-def test_policy_rejects_non_object_activity(record):
+def test_policy_rejects_non_object_activity(record: object) -> None:
     with pytest.raises(ValueError, match="activity record must be an object"):
         _nix_provenance.ValidatedDownloads(
             "aspect", ROOT, CACHE, "@nix " + json.dumps(record) + "\n"
@@ -508,7 +576,7 @@ def test_policy_rejects_non_object_activity(record):
 @pytest.mark.parametrize(
     "log", ["", activity(DEPENDENCY) + activity(DEPENDENCY, UPSTREAM)]
 )
-def test_policy_requires_one_source_for_each_new_closure_path(log):
+def test_policy_requires_one_source_for_each_new_closure_path(log: str) -> None:
     downloads = _nix_provenance.ValidatedDownloads(
         "aspect", ROOT, CACHE, activity() + log
     )
@@ -518,7 +586,7 @@ def test_policy_requires_one_source_for_each_new_closure_path(log):
         downloads.classify(set(), [ROOT, DEPENDENCY])
 
 
-def test_policy_uses_requested_output_and_cache_instead_of_default_constants():
+def test_policy_uses_requested_output_and_cache_instead_of_default_constants() -> None:
     cache = "https://other.cachix.org"
     downloads = _nix_provenance.ValidatedDownloads(
         "aspect", UNRELATED, cache, activity(UNRELATED, cache)

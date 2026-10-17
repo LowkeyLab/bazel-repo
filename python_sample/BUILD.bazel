@@ -28,7 +28,10 @@ py_test(
     size = "small",  # keep
     srcs = ["cli_test.py"],
     data = [":python_sample_bin"],  # keep
-    deps = [":python_sample"],
+    deps = [
+        ":python_sample",
+        "@pypi//pytest",
+    ],
 )
 
 py_test(

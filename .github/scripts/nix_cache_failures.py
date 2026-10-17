@@ -13,13 +13,18 @@ from pathlib import Path
 import nix_tool
 
 
+class FaultServer(http.server.ThreadingHTTPServer):
+    mode: str
+
+
 class Cache(http.server.BaseHTTPRequestHandler):
+    server: FaultServer
     status = 404
 
-    def do_HEAD(self):
+    def do_HEAD(self) -> None:
         self.do_GET()
 
-    def do_GET(self):
+    def do_GET(self) -> None:
         if self.path == "/nix-cache-info":
             self.send_response(200)
             self.end_headers()
@@ -34,11 +39,11 @@ class Cache(http.server.BaseHTTPRequestHandler):
         self.send_response(503 if self.server.mode == "unavailable" else 404)
         self.end_headers()
 
-    def log_message(self, *_args):
+    def log_message(self, format: str, *_args: object) -> None:
         pass
 
 
-def require_publication_timeout(status_file, elapsed_seconds):
+def require_publication_timeout(status_file: Path, elapsed_seconds: float) -> None:
     status = int(status_file.read_text())
     if status not in (124, 137) or elapsed_seconds < 10:
         raise ValueError(
@@ -47,13 +52,13 @@ def require_publication_timeout(status_file, elapsed_seconds):
         )
 
 
-def main():
+def main() -> int:
     if os.environ.get("CACHIX_AUTH_TOKEN") or os.environ.get("CACHIX_SIGNING_KEY"):
         raise ValueError("Fault experiments must not receive cache credentials")
     evidence = nix_tool.Evidence("failures")
     results = []
 
-    def command(label, args, succeeds):
+    def command(label: str, args: list[str], succeeds: bool) -> tuple[str, str]:
         try:
             stdout, stderr = evidence.run(label, *args)
             success = True
@@ -91,7 +96,7 @@ def main():
         output = output.strip()
         if os.path.exists(output):
             raise ValueError("Fixture output must initially be absent")
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Cache)
+        server = FaultServer(("127.0.0.1", 0), Cache)
         server.daemon_threads = True
         server.mode = mode
         url = f"http://127.0.0.1:{server.server_port}"

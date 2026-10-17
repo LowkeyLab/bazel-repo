@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-def test_runtime_matches_configured_python_minor():
+def test_runtime_matches_configured_python_minor() -> None:
     module_file = (
         Path(os.environ["TEST_SRCDIR"]) / os.environ["TEST_WORKSPACE"] / "MODULE.bazel"
     )
@@ -20,6 +20,6 @@ def test_runtime_matches_configured_python_minor():
     assert sys.version_info[:2] == expected
 
 
-def test_runtime_ignores_ambient_python_configuration():
+def test_runtime_ignores_ambient_python_configuration() -> None:
     assert sys.flags.isolated == 1
     assert site.ENABLE_USER_SITE is False

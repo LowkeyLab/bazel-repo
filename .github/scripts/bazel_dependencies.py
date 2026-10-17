@@ -9,12 +9,12 @@ import time
 from pathlib import Path
 
 
-def cache_path():
+def cache_path() -> Path:
     """The dedicated dependency directory never includes an output base or secrets."""
     return Path.home() / ".cache" / "bazel-repo"
 
 
-def configure():
+def configure() -> None:
     """Export shared workflow identity and configure Bazel after setup-bazel-ci."""
     cache = cache_path()
     prefix = f"bazel-deps-v1-{os.environ['RUNNER_OS']}-{os.environ['RUNNER_ARCH']}-"
@@ -28,7 +28,7 @@ def configure():
         )
 
 
-def prepare():
+def prepare() -> int:
     """Discard unconfirmed restores, then propagate the real preload exit status."""
     outcome = os.environ.get("RESTORE_OUTCOME", "")
     matched = os.environ.get("CACHE_MATCHED_KEY", "")

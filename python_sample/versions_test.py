@@ -17,10 +17,10 @@ from versions import sort_versions
         ([], []),
     ],
 )
-def test_package_release_order(versions, expected):
+def test_package_release_order(versions: list[str], expected: list[str]) -> None:
     assert sort_versions(versions) == expected
 
 
-def test_invalid_version_is_rejected():
+def test_invalid_version_is_rejected() -> None:
     with pytest.raises(InvalidVersion):
         sort_versions(["not-a-version"])

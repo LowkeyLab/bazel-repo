@@ -5,14 +5,25 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Protocol
 
 import pytest
+
+
+class Preparation(Protocol):
+    def __call__(
+        self, command: str = "prepare", **environment: str
+    ) -> subprocess.CompletedProcess[str]: ...
+
+
+type Runner = tuple[Preparation, Path, Path]
+
 
 SCRIPT = Path(__file__).with_name("bazel_dependencies.py")
 
 
 @pytest.fixture
-def runner(tmp_path):
+def runner(tmp_path: Path) -> Runner:
     home = tmp_path / "home"
     cache = home / ".cache" / "bazel-repo"
     cache.mkdir(parents=True)
@@ -24,7 +35,9 @@ def runner(tmp_path):
     bazel.write_text('#!/bin/sh\nexit "${PREPARATION_STATUS:-0}"\n')
     bazel.chmod(0o755)
 
-    def run(command="prepare", **environment):
+    def run(
+        command: str = "prepare", **environment: str
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(SCRIPT), command],
             env={
@@ -49,7 +62,9 @@ def runner(tmp_path):
     ("outcome", "matched"),
     [("failure", "snapshot"), ("success", ""), ("failure", ""), ("skipped", "")],
 )
-def test_unconfirmed_restore_is_discarded_before_preparation(runner, outcome, matched):
+def test_unconfirmed_restore_is_discarded_before_preparation(
+    runner: Runner, outcome: str, matched: str
+) -> None:
     run, cache, root = runner
     bazel = root / "bazel"
     bazel.write_text('#!/bin/sh\ntest ! -e "$HOME/.cache/bazel-repo/material"\n')
@@ -63,7 +78,9 @@ def test_unconfirmed_restore_is_discarded_before_preparation(runner, outcome, ma
 @pytest.mark.parametrize(
     ("hit", "classification"), [("true", "exact"), ("false", "prefix")]
 )
-def test_confirmed_restore_is_preserved_and_identified(runner, hit, classification):
+def test_confirmed_restore_is_preserved_and_identified(
+    runner: Runner, hit: str, classification: str
+) -> None:
     run, cache, _ = runner
     result = run(RESTORE_OUTCOME="success", CACHE_MATCHED_KEY="snapshot", CACHE_HIT=hit)
     assert result.returncode == 0, result.stderr
@@ -74,7 +91,9 @@ def test_confirmed_restore_is_preserved_and_identified(runner, hit, classificati
 
 
 @pytest.mark.parametrize("outcome", ["success", "failure"])
-def test_preparation_failure_propagates_even_after_transport_failure(runner, outcome):
+def test_preparation_failure_propagates_even_after_transport_failure(
+    runner: Runner, outcome: str
+) -> None:
     run, _, _ = runner
     result = run(
         RESTORE_OUTCOME=outcome, CACHE_MATCHED_KEY="snapshot", PREPARATION_STATUS="42"
@@ -83,7 +102,9 @@ def test_preparation_failure_propagates_even_after_transport_failure(runner, out
     assert json.loads(result.stdout)["preparation_exit_status"] == 42
 
 
-def test_configuration_preserves_existing_flags_and_uses_shared_identity(runner):
+def test_configuration_preserves_existing_flags_and_uses_shared_identity(
+    runner: Runner,
+) -> None:
     run, cache, root = runner
     bazelrc = root / "home" / ".bazelrc"
     bazelrc.write_text("common --keep_going\n")

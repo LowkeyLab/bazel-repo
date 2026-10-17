@@ -34,7 +34,10 @@
             inherit pkgs;
             inputs = { inherit aspect-cli-src; };
           }).overrideAttrs (old: {
-            patches = (old.patches or [ ]) ++ [ ./3rdparty/aspect_cli/delivery_versioned_flags.patch ];
+            patches = (old.patches or [ ]) ++ [
+              ./3rdparty/aspect_cli/delivery_versioned_flags.patch
+              ./3rdparty/aspect_cli/python_typing.patch
+            ];
           });
           agent-browser = llm-agents.packages.${system}.agent-browser;
         in
