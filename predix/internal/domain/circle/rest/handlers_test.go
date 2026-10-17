@@ -494,6 +494,28 @@ func TestCircleHandlers(t *testing.T) {
 			require.NoError(t, svc.AddMember(ctx, circ.ID, winnerID))
 			require.NoError(t, svc.AddMember(ctx, circ.ID, loserID))
 
+			assertBalances := func(router *gin.Engine, winnerClout, loserClout int) {
+				t.Helper()
+				req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d", circ.ID), nil)
+				req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
+				resp := httptest.NewRecorder()
+				router.ServeHTTP(resp, req)
+				require.Equal(t, http.StatusOK, resp.Code)
+
+				var circleResp circleResponseBody
+				require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &circleResp))
+				balances := make(map[string]int)
+				for _, member := range circleResp.Members {
+					balances[member.UserID] = member.Clout
+				}
+				assert.Equal(t, map[string]int{
+					uuid.UUID(creatorID).String(): 1000,
+					uuid.UUID(winnerID).String():  winnerClout,
+					uuid.UUID(loserID).String():   loserClout,
+				}, balances)
+			}
+			assertBalances(router, 1000, 1000)
+
 			// 3. Create Contest
 			cont, err := svc.CreateContest(ctx, circ.ID, creatorID, "Q?", []string{"Win", "Lose"}, contest.Duration1Hour, 10)
 			require.NoError(t, err)
@@ -504,6 +526,8 @@ func TestCircleHandlers(t *testing.T) {
 			// Loser bets 100 on Option 2
 			require.NoError(t, svc.Predict(ctx, circ.ID, cont.ID, loserID, 2, 100))
 
+			assertBalances(router, 900, 900)
+
 			// 5. Resolve Contest (Option 1 wins)
 			resolveBody := `{"winning_option_id": 1}`
 			req := httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/contests/%d/resolve-distribute", circ.ID, cont.ID), bytes.NewBufferString(resolveBody))
@@ -512,6 +536,11 @@ func TestCircleHandlers(t *testing.T) {
 			resp := httptest.NewRecorder()
 			router.ServeHTTP(resp, req)
 			require.Equal(t, http.StatusOK, resp.Code)
+
+			assertBalances(router, 1090, 900)
+			// Reconstruct the router and service over the same database without resetting it.
+			freshRouter, _, _ := setupTestRouter(t, sqlDB)
+			assertBalances(freshRouter, 1090, 900)
 
 			// 6. Verify Contest Detail Response (Check House Rake)
 			req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/protected/circles/%d/contests/%d", circ.ID, cont.ID), nil)
