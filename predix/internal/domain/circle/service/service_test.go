@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse"
@@ -45,6 +46,10 @@ func createTestUserWithRole(t *testing.T, sqlDB *sql.DB, username string, role d
 
 type TestTxManager struct {
 	sqlDB *sql.DB
+}
+
+func (m *TestTxManager) RunInCircleTx(ctx context.Context, circleID circle.ID, fn func(context.Context) error) error {
+	return db.RunInCircleTx(ctx, m.sqlDB, int32(circleID), fn)
 }
 
 func (m *TestTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {

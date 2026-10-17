@@ -30,3 +30,15 @@ func GetTx(ctx context.Context) (*sql.Tx, bool) {
 	tx, ok := ctx.Value(txKey{}).(*sql.Tx)
 	return tx, ok
 }
+
+// RunInCircleTx serializes transactions for the same circle before reading state.
+// The row lock lasts through commit or rollback; different circles remain independent.
+func RunInCircleTx(ctx context.Context, sqlDB *sql.DB, circleID int32, fn func(context.Context) error) error {
+	return RunInTx(ctx, sqlDB, func(ctx context.Context) error {
+		tx, _ := GetTx(ctx)
+		if _, err := tx.ExecContext(ctx, "SELECT id FROM circles WHERE id = $1 FOR NO KEY UPDATE", circleID); err != nil {
+			return err
+		}
+		return fn(ctx)
+	})
+}

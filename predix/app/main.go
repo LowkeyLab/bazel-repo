@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -15,6 +16,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	circlerest "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/rest"
 	circleservice "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
@@ -45,7 +47,18 @@ func (m *PostgresTxManager) RunInTx(ctx context.Context, fn func(ctx context.Con
 	return db.RunInTx(ctx, m.db, fn)
 }
 
-type NoOpTxManager struct{}
+func (m *PostgresTxManager) RunInCircleTx(ctx context.Context, circleID circle.ID, fn func(context.Context) error) error {
+	return db.RunInCircleTx(ctx, m.db, int32(circleID), fn)
+}
+
+// In-memory development storage has no database row locks. Serialize its settlements.
+type NoOpTxManager struct{ settlementMu sync.Mutex }
+
+func (m *NoOpTxManager) RunInCircleTx(ctx context.Context, _ circle.ID, fn func(context.Context) error) error {
+	m.settlementMu.Lock()
+	defer m.settlementMu.Unlock()
+	return fn(ctx)
+}
 
 func (m *NoOpTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	return fn(ctx)
