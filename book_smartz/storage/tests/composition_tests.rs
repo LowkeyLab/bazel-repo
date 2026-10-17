@@ -549,3 +549,84 @@ fn application_history_rejects_duplicate_json_members_before_normalization() {
         book_smartz_storage::ApplicationEvent::decode(reader, &expected.to_string()).unwrap();
     assert_that!(decoded.envelope(), eq(&expected));
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn application_command_numbers_preserve_original_precision() {
+    let fixture = Fixture::new().await;
+    let store = fixture.store(recorder());
+    store.migrate(OperationContext::default()).await.unwrap();
+    for number in [
+        "18446744073709551615",
+        "1.25",
+        "0.1",
+        "-9223372036854775808",
+    ] {
+        let reader = ReaderId::new(Uuid::new_v4());
+        let valid = application_event(reader, 1, Uuid::new_v4());
+        let text = valid.envelope().to_string().replacen(
+            "\"expectedRevision\":0",
+            &format!("\"expectedRevision\":0,\"argument\":{number}"),
+            1,
+        );
+        let decoded = book_smartz_storage::ApplicationEvent::decode(reader, &text).unwrap();
+        assert_that!(
+            decoded.envelope()["data"]["argument"].to_string(),
+            eq(number)
+        );
+        let mut transaction = store.begin_command(reader).await.unwrap();
+        transaction.append_application(&decoded).await.unwrap();
+        transaction.commit().await.unwrap();
+        let reconnected = Store::new(fixture.pool().clone(), recorder());
+        let recovered = reconnected.load_application_history(reader).await.unwrap();
+        assert_that!(
+            recovered[0].envelope()["data"]["argument"].to_string(),
+            eq(number)
+        );
+    }
+}
+
+#[googletest::test]
+fn application_command_rejects_numbers_that_would_round() {
+    let reader = ReaderId::new(Uuid::new_v4());
+    let valid = application_event(reader, 1, Uuid::new_v4());
+    for number in [
+        "18446744073709551616",
+        "1.234567890123456789",
+        "-18446744073709551617",
+        "1e-999",
+    ] {
+        for argument in [
+            number.to_string(),
+            format!("[{number}]"),
+            format!("{{\"nested\":{number}}}"),
+        ] {
+            let text = valid.envelope().to_string().replacen(
+                "\"expectedRevision\":0",
+                &format!("\"expectedRevision\":0,\"argument\":{argument}"),
+                1,
+            );
+            assert_that!(
+                book_smartz_storage::ApplicationEvent::decode(reader, &text).is_err(),
+                eq(true)
+            );
+        }
+    }
+}
+
+#[googletest::test]
+fn application_command_accepts_equivalent_decimal_spellings() {
+    let reader = ReaderId::new(Uuid::new_v4());
+    let valid = application_event(reader, 1, Uuid::new_v4());
+    for number in ["1e0", "10e-1", "0.10", "-0", "-0.0", "0e999", "1.25e+0"] {
+        let text = valid.envelope().to_string().replacen(
+            "\"expectedRevision\":0",
+            &format!("\"expectedRevision\":0,\"argument\":[{{\"value\":{number}}}]"),
+            1,
+        );
+        assert_that!(
+            book_smartz_storage::ApplicationEvent::decode(reader, &text).is_ok(),
+            eq(true)
+        );
+    }
+}

@@ -50,8 +50,10 @@ accepts at most one ranking decision. Book registration stays independent.
 App facts use `ApplicationEvent::decode` with source
 `urn:book-smartz:application:<reader UUID>`, a canonical `Uuid` event ID, JSON object
 data, occurrence time, and a positive padded 20-digit `sequence` extension.
-Parsing rejects duplicate JSON members at every nesting level before normalization. The
-app owns the data schema and reconstruction of frozen intent, prepared
+Parsing rejects duplicate JSON members at every nesting level before normalization.
+It also rejects JSON numbers whose decimal value would change during storage,
+including rounded large integers, precise fractions, and underflow. Equivalent
+exponent spellings and signed zero retain their numeric meaning. The app owns the data schema and reconstruction of frozen intent, prepared
 facts, and rejection. `load_application_history(reader)` returns these immutable
 facts in a contiguous stream with its own sequence, independent of ranking
 revision. Source plus ID distinguishes app and ranking identities.

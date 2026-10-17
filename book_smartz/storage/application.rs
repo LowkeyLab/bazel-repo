@@ -28,8 +28,12 @@ impl ApplicationEvent {
     /// Rejects invalid `CloudEvents`, identities, context, or sequence values.
     pub fn decode(reader: ReaderId, text: &str) -> Result<Self, StoreError> {
         let invalid = || StoreError::InvalidEnvelope;
-        let StrictValue(envelope) =
-            serde_json::from_str::<StrictValue>(text).map_err(|_| invalid())?;
+        // Validate duplicate keys separately; rebuilding visitor numbers can lose precision.
+        let StrictValue(_) = serde_json::from_str::<StrictValue>(text).map_err(|_| invalid())?;
+        let envelope: Value = serde_json::from_str(text).map_err(|_| invalid())?;
+        if !numbers_preserved(text, &envelope).map_err(|_| invalid())? {
+            return Err(invalid());
+        }
         let sdk: Event = serde_json::from_str(text).map_err(|_| invalid())?;
         if sdk
             .time()
@@ -251,5 +255,54 @@ impl<'de> Deserialize<'de> for StrictValue {
             }
         }
         deserializer.deserialize_any(StrictVisitor)
+    }
+}
+
+// Compare decimal values, rather than binary floating-point approximations.
+// JSONB may normalize spelling; every accepted number must keep its numeric value.
+fn normalized_number(text: &str) -> Option<(bool, String, i64)> {
+    let (mantissa, exponent) = text.split_once(['e', 'E']).unwrap_or((text, "0"));
+    let fraction = mantissa
+        .split_once('.')
+        .map_or(0, |(_, fraction)| fraction.len());
+    let digits = mantissa.trim_start_matches('-').replace('.', "");
+    let significant = digits.trim_start_matches('0');
+    if significant.is_empty() {
+        return Some((false, "0".into(), 0));
+    }
+    let trimmed = significant.trim_end_matches('0');
+    let exponent = exponent
+        .parse::<i64>()
+        .ok()?
+        .checked_sub(i64::try_from(fraction).ok()?)?
+        .checked_add(i64::try_from(significant.len() - trimmed.len()).ok()?)?;
+    Some((mantissa.starts_with('-'), trimmed.into(), exponent))
+}
+
+fn numbers_preserved(text: &str, value: &Value) -> Result<bool, serde_json::Error> {
+    match value {
+        Value::Number(number) => Ok(normalized_number(text)
+            .zip(normalized_number(&number.to_string()))
+            .is_some_and(|(original, stored)| original == stored)),
+        Value::Array(values) => {
+            let originals: Vec<&serde_json::value::RawValue> = serde_json::from_str(text)?;
+            for (original, stored) in originals.iter().zip(values) {
+                if !numbers_preserved(original.get(), stored)? {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        }
+        Value::Object(values) => {
+            let originals: std::collections::BTreeMap<String, &serde_json::value::RawValue> =
+                serde_json::from_str(text)?;
+            for (name, original) in originals {
+                if !numbers_preserved(original.get(), &values[&name])? {
+                    return Ok(false);
+                }
+            }
+            Ok(true)
+        }
+        _ => Ok(true),
     }
 }
