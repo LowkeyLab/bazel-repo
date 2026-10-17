@@ -103,6 +103,9 @@ try {
     .getByRole("textbox", { name: "Title or author" })
     .fill("First book");
   await page.getByRole("button", { name: "Search books", exact: true }).click();
+  await page
+    .getByAltText("Cover unavailable")
+    .waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await page.getByAltText("Cover unavailable").count(), 1);
   await page.getByRole("button", { name: "Select this work" }).click();
   await page.getByRole("button", { name: "Add to your ranking" }).click();
@@ -228,13 +231,10 @@ try {
   await stale
     .getByRole("button", { name: "Prefer First book", exact: true })
     .click();
-  assert.equal(
-    await stale
-      .getByRole("status")
-      .filter({ hasText: "comparison changed" })
-      .isVisible(),
-    true,
-  );
+  await stale
+    .getByRole("status")
+    .filter({ hasText: "comparison changed" })
+    .waitFor({ state: "visible", timeout: 5000 });
   await page.reload();
   assert.deepEqual(await page.locator("ol li a").allTextContents(), titles);
   await page.waitForTimeout(1100);

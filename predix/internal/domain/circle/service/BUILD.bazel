@@ -17,7 +17,10 @@ go_library(
 go_test(
     name = "service_test",
     timeout = "short",
-    srcs = ["service_test.go"],
+    srcs = [
+        "service_test.go",
+        "settlement_test.go",
+    ],
     data = image_data("postgres_18") + image_data("ryuk"),  # keep
     env = image_env("postgres_18") | image_env(
         "ryuk",
@@ -36,6 +39,7 @@ go_test(
         ":service",
         "//predix/internal/clock",
         "//predix/internal/db",
+        "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/circle/sse",
         "//predix/internal/domain/contest",
