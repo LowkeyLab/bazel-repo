@@ -641,3 +641,469 @@ async fn five_concurrent_readers_save_with_the_production_connection_limit() -> 
     }
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn later_add_offers_either_book_and_saves_one_preference() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let cookie = app.login("preference-reader").await?;
+    let id = reader(&app, "preference-reader").await?;
+    for (work_id, title) in [
+        ("OL101W", "First saved book"),
+        ("OL102W", "Pending candidate"),
+    ] {
+        let values = offer(
+            &app,
+            &cookie,
+            id,
+            work(work_id, title),
+            chrono::Utc::now().timestamp() + 900,
+        )
+        .await?;
+        assert_that!(
+            post(&app, &cookie, "/add", &values)
+                .await?
+                .status()
+                .as_u16(),
+            eq(303)
+        );
+    }
+    let body = app.ranking(&cookie).await?.text().await?;
+    assert_that!(
+        body.as_str(),
+        contains_substring("Which book do you prefer?")
+    );
+    let values = [
+        "csrf",
+        "action",
+        "candidate",
+        "opponent",
+        "revision",
+        "offer",
+    ]
+    .into_iter()
+    .map(|name| Ok((name.to_owned(), field(&body, name)?)))
+    .collect::<anyhow::Result<Vec<_>>>()?;
+    let mut values = values;
+    values.push(("choice".into(), "candidate".into()));
+    let (first, retry) = tokio::join!(
+        post(&app, &cookie, "/answer", &values),
+        post(&app, &cookie, "/answer", &values)
+    );
+    assert_that!(first?.status().as_u16(), eq(303));
+    assert_that!(retry?.status().as_u16(), eq(303));
+    let body = app.ranking(&cookie).await?.text().await?;
+    let saved = body
+        .split("<ol>")
+        .nth(1)
+        .unwrap()
+        .split("</ol>")
+        .next()
+        .unwrap();
+    assert_that!(
+        saved.find("Pending candidate").unwrap() < saved.find("First saved book").unwrap(),
+        eq(true)
+    );
+    assert_that!(
+        body.as_str(),
+        not(contains_substring("Which book do you prefer?"))
+    );
+    assert_that!(store(&app).load_ranking_documents(id).await?.len(), eq(3));
+    Ok(())
+}
+
+async fn preference(
+    app: &Fixture,
+    cookie: &str,
+    choice: &str,
+) -> anyhow::Result<Vec<(String, String)>> {
+    let html = app.ranking(cookie).await?.text().await?;
+    let mut values = [
+        "csrf",
+        "action",
+        "candidate",
+        "opponent",
+        "revision",
+        "offer",
+    ]
+    .into_iter()
+    .map(|name| Ok((name.to_owned(), field(&html, name)?)))
+    .collect::<anyhow::Result<Vec<_>>>()?;
+    values.push(("choice".into(), choice.into()));
+    Ok(values)
+}
+async fn add_work(
+    app: &Fixture,
+    cookie: &str,
+    id: ReaderId,
+    work_id: &str,
+    title: &str,
+) -> anyhow::Result<()> {
+    let values = offer(
+        app,
+        cookie,
+        id,
+        work(work_id, title),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    assert_that!(
+        post(app, cookie, "/add", &values).await?.status().as_u16(),
+        eq(303)
+    );
+    Ok(())
+}
+#[googletest::test]
+#[tokio::test]
+async fn top_middle_bottom_insertions_preserve_order_and_pending_add_gates() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    for (position, choices, expected) in [
+        (
+            "top",
+            ["candidate", "candidate"],
+            ["Candidate", "One", "Two", "Three"],
+        ),
+        (
+            "middle",
+            ["opponent", "candidate"],
+            ["One", "Two", "Candidate", "Three"],
+        ),
+        (
+            "bottom",
+            ["opponent", "opponent"],
+            ["One", "Two", "Three", "Candidate"],
+        ),
+    ] {
+        let cookie = app.login(position).await?;
+        let id = reader(&app, position).await?;
+        add_work(&app, &cookie, id, "OL201W", "One").await?;
+        add_work(&app, &cookie, id, "OL202W", "Two").await?;
+        let answer = preference(&app, &cookie, "opponent").await?;
+        assert_that!(
+            post(&app, &cookie, "/answer", &answer)
+                .await?
+                .status()
+                .as_u16(),
+            eq(303)
+        );
+        add_work(&app, &cookie, id, "OL203W", "Three").await?;
+        while store(&app)
+            .load_ranking(id, OperationContext::default())
+            .await?
+            .projection()
+            .pending()
+            .is_some()
+        {
+            let answer = preference(&app, &cookie, "opponent").await?;
+            assert_that!(
+                post(&app, &cookie, "/answer", &answer)
+                    .await?
+                    .status()
+                    .as_u16(),
+                eq(303)
+            );
+        }
+        add_work(&app, &cookie, id, "OL204W", "Candidate").await?;
+        let before = app.ranking(&cookie).await?.text().await?;
+        let saved = before
+            .split("<ol>")
+            .nth(1)
+            .unwrap()
+            .split("</ol>")
+            .next()
+            .unwrap();
+        assert_that!(saved, not(contains_substring("Candidate")));
+        let blocked = offer(
+            &app,
+            &cookie,
+            id,
+            work("OL205W", "Blocked candidate"),
+            chrono::Utc::now().timestamp() + 900,
+        )
+        .await?;
+        assert_that!(
+            post(&app, &cookie, "/add", &blocked)
+                .await?
+                .text()
+                .await?
+                .as_str(),
+            contains_substring("unfinished comparison")
+        );
+        for choice in choices {
+            let values = preference(&app, &cookie, choice).await?;
+            assert_that!(
+                post(&app, &cookie, "/answer", &values)
+                    .await?
+                    .status()
+                    .as_u16(),
+                eq(303)
+            );
+        }
+        let body = app.ranking(&cookie).await?.text().await?;
+        let saved = body
+            .split("<ol>")
+            .nth(1)
+            .unwrap()
+            .split("</ol>")
+            .next()
+            .unwrap();
+        let offsets = expected.map(|name| saved.find(&format!(">{name}</a>")).unwrap());
+        assert_that!(offsets.windows(2).all(|pair| pair[0] < pair[1]), eq(true));
+        assert_that!(
+            body.as_str(),
+            not(contains_substring("Which book do you prefer?"))
+        );
+    }
+    Ok(())
+}
+#[googletest::test]
+#[tokio::test]
+async fn preference_security_and_stale_offers_require_fresh_confirmation() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let cookie = app.login("stale-preference").await?;
+    let id = reader(&app, "stale-preference").await?;
+    for (work_id, title) in [("OL301W", "One"), ("OL302W", "Two")] {
+        add_work(&app, &cookie, id, work_id, title).await?;
+        if title == "Two" {
+            let values = preference(&app, &cookie, "opponent").await?;
+            assert_that!(
+                post(&app, &cookie, "/answer", &values)
+                    .await?
+                    .status()
+                    .as_u16(),
+                eq(303)
+            );
+        }
+    }
+    add_work(&app, &cookie, id, "OL303W", "Candidate").await?;
+    let original = preference(&app, &cookie, "opponent").await?;
+    let stale = preference(&app, &cookie, "candidate").await?;
+    let before = store(&app).load_application_history(id).await?;
+    assert_that!(
+        post(&app, "", "/answer", &original)
+            .await?
+            .status()
+            .as_u16(),
+        eq(401)
+    );
+    for key in [
+        "csrf",
+        "offer",
+        "action",
+        "candidate",
+        "opponent",
+        "revision",
+        "choice",
+    ] {
+        let mut invalid = original.clone();
+        invalid.iter_mut().find(|(k, _)| k == key).unwrap().1 = match key {
+            "action" | "candidate" | "opponent" => Uuid::new_v4().to_string(),
+            "revision" => "999".into(),
+            "choice" => "skip".into(),
+            _ => "wrong".into(),
+        };
+        assert_that!(
+            post(&app, &cookie, "/answer", &invalid)
+                .await?
+                .status()
+                .is_client_error(),
+            eq(true)
+        );
+    }
+    let other = app.login("isolated-preference").await?;
+    let mut wrong_reader = original.clone();
+    wrong_reader[0].1 = field(&app.ranking(&other).await?.text().await?, "csrf")?;
+    assert_that!(
+        post(&app, &other, "/answer", &wrong_reader)
+            .await?
+            .status()
+            .as_u16(),
+        eq(403)
+    );
+    assert_that!(store(&app).load_application_history(id).await?, eq(&before));
+    assert_that!(
+        post(&app, &cookie, "/answer", &original)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let after = store(&app).load_ranking_documents(id).await?;
+    assert_that!(
+        post(&app, &cookie, "/answer", &stale)
+            .await?
+            .text()
+            .await?
+            .as_str(),
+        contains_substring("comparison changed")
+    );
+    assert_that!(store(&app).load_ranking_documents(id).await?, eq(&after));
+    assert_that!(
+        post(&app, &cookie, "/answer", &original)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let mut changed = original.clone();
+    changed.iter_mut().find(|(k, _)| k == "choice").unwrap().1 = "candidate".into();
+    assert_that!(
+        post(&app, &cookie, "/answer", &changed)
+            .await?
+            .status()
+            .as_u16(),
+        eq(403)
+    );
+    // Expiry rejects an old browser; login restores the next comparison without submitting it.
+    sqlx::query("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second' WHERE reader_id=$1").bind(id.as_uuid()).execute(&app.pool).await?;
+    assert_that!(
+        post(&app, &cookie, "/answer", &original)
+            .await?
+            .status()
+            .as_u16(),
+        eq(401)
+    );
+    let reauthenticated = app.login("stale-preference").await?;
+    assert_that!(
+        app.ranking(&reauthenticated).await?.text().await?.as_str(),
+        contains_substring("Which book do you prefer?")
+    );
+    assert_that!(store(&app).load_ranking_documents(id).await?, eq(&after));
+    let fresh = preference(&app, &reauthenticated, "candidate").await?;
+    assert_that!(
+        post(&app, &reauthenticated, "/answer", &fresh)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    Ok(())
+}
+#[googletest::test]
+#[tokio::test]
+async fn uncertain_preference_blocks_answers_and_restores_original_after_restart()
+-> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("uncertain-preference").await?;
+    let id = reader(&app, "uncertain-preference").await?;
+    add_work(&app, &cookie, id, "OL401W", "One").await?;
+    add_work(&app, &cookie, id, "OL402W", "Candidate").await?;
+    let values = preference(&app, &cookie, "candidate").await?;
+    let other = preference(&app, &cookie, "opponent").await?;
+    reject_ranking(&app).await?;
+    assert_that!(
+        post(&app, &cookie, "/answer", &values)
+            .await?
+            .text()
+            .await?
+            .as_str(),
+        contains_substring("Checking")
+    );
+    let history = store(&app).load_application_history(id).await?;
+    assert_that!(
+        post(&app, &cookie, "/answer", &other)
+            .await?
+            .text()
+            .await?
+            .as_str(),
+        contains_substring("Checking")
+    );
+    assert_that!(
+        store(&app).load_application_history(id).await?,
+        eq(&history)
+    );
+    app.provider.reset().await;
+    app.restart().await?;
+    let body = app.ranking(&cookie).await?.text().await?;
+    assert_that!(body.as_str(), contains_substring("Check original save"));
+    assert_that!(body.as_str(), contains_substring("disabled"));
+    sqlx::query("DROP TRIGGER reject_web_ranking ON book_smartz.ranking_events")
+        .execute(&app.pool)
+        .await?;
+    assert_that!(
+        post(&app, &cookie, "/recover", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    assert_that!(
+        store(&app).load_application_history(id).await?,
+        eq(&history)
+    );
+    let docs = store(&app).load_ranking_documents(id).await?;
+    assert_that!(docs.len(), eq(3));
+    assert_that!(
+        serde_json::from_str::<Value>(&book_smartz_domain::encode_document(&docs[2])?)?,
+        eq(&history.last().unwrap().envelope()["data"]["document"])
+    );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn real_preference_commit_ack_loss_and_process_cancellation_preserve_frozen_answer()
+-> anyhow::Result<()> {
+    for cancel in [false, true] {
+        let mut app = Fixture::new().await?;
+        let cookie = app.login("preference-ack").await?;
+        let id = reader(&app, "preference-ack").await?;
+        add_work(&app, &cookie, id, "OL601W", "One").await?;
+        add_work(&app, &cookie, id, "OL602W", "Candidate").await?;
+        let values = preference(&app, &cookie, "opponent").await?;
+        let direct = app.database.clone();
+        let proxy = commit_proxy::CommitProxy::new(&app.pool, id).await?;
+        app.database = proxy.database(&direct)?;
+        app.restart().await?;
+        let client = app.client.clone();
+        let target = format!("{}/answer", app.base);
+        let auth = cookie.clone();
+        let body = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(values.iter().map(|(k, v)| (k, v)))
+            .finish();
+        let request = tokio::spawn(async move {
+            client
+                .post(target)
+                .header("cookie", auth)
+                .header("origin", "https://reader.example")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(body)
+                .send()
+                .await
+        });
+        proxy.commit_reached().await?;
+        let history = store(&app).load_application_history(id).await?;
+        let committed = store(&app).load_ranking_documents(id).await?;
+        assert_that!(committed.len(), eq(3));
+        if cancel {
+            request.abort();
+            app.process.0.kill()?;
+            app.process.0.wait()?;
+            proxy.disconnect();
+        } else {
+            proxy.disconnect();
+            assert_that!(
+                request.await??.text().await?.as_str(),
+                contains_substring("Checking")
+            );
+        }
+        app.database = direct;
+        app.restart().await?;
+        assert_that!(
+            post(&app, &cookie, "/answer", &values)
+                .await?
+                .status()
+                .as_u16(),
+            eq(303)
+        );
+        assert_that!(
+            store(&app).load_application_history(id).await?,
+            eq(&history)
+        );
+        assert_that!(
+            store(&app).load_ranking_documents(id).await?,
+            eq(&committed)
+        );
+    }
+    Ok(())
+}

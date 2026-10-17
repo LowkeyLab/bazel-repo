@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
 @source "./main.rs";
+@source "./actions.rs";
 @source "./catalog.rs";
 @source "./views.rs";
 @layer base {
@@ -9,5 +10,51 @@
   button,
   a {
     outline-offset: 4px;
+  }
+}
+
+@layer base {
+  button,
+  input {
+    padding: 0.65rem;
+    border: 1px solid #78716c;
+    border-radius: 0.35rem;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible {
+    outline: 3px solid #0369a1;
+  }
+  button:disabled,
+  fieldset:disabled button {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  fieldset {
+    display: grid;
+    gap: 0.75rem;
+    margin-block: 1rem;
+  }
+  aside {
+    padding: 1rem;
+    margin-block: 1rem;
+    border: 1px solid #a8a29e;
+    border-radius: 0.5rem;
+  }
+  ol {
+    list-style: decimal;
+    padding-inline-start: 1.5rem;
+  }
+  li {
+    margin-block: 1rem;
+  }
+  h1,
+  h2,
+  h3 {
+    font-weight: 600;
+    margin-block: 0.75rem;
   }
 }

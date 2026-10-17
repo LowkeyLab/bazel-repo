@@ -1,4 +1,4 @@
-//! Frozen Add commands and recovery derived solely from immutable histories.
+//! Frozen ranking commands and recovery derived solely from immutable histories.
 //!
 //! Correlation extension: cloudevents/spec at
 //! 472f0e1d856e335c30fa204f36fd6428c2bfd732 (experimental, explicitly accepted).
@@ -24,8 +24,8 @@ use topcoat::{
 use uuid::Uuid;
 
 use book_smartz_domain::{
-    Book, BookId, BookRegistry, CloudEventDocument, Command, CommandContext, EventId,
-    OpenLibraryWorkId, ReaderId, decode_event, encode_document, encode_event,
+    Book, BookId, BookRegistry, CloudEventDocument, Command, CommandContext, ComparisonChoice,
+    EventId, OpenLibraryWorkId, ReaderId, decode_event, encode_document, encode_event,
 };
 use book_smartz_storage::{ApplicationEvent, CommandTransaction, OperationContext};
 
@@ -47,10 +47,40 @@ impl ActionId {
 struct Intent {
     action: ActionId,
     selection: String,
-    work: CatalogWork,
+    work: Option<CatalogWork>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    answer: Option<Preference>,
     revision: u64,
     event: Uuid,
     time: DateTime<Utc>,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Choice {
+    Candidate,
+    Opponent,
+}
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Preference {
+    candidate: Uuid,
+    opponent: Uuid,
+    choice: Choice,
+}
+impl Preference {
+    fn binding(&self) -> String {
+        format!("answer:{}:{}", self.candidate, self.opponent)
+    }
+}
+#[derive(Deserialize)]
+pub struct AnswerInput {
+    csrf: String,
+    action: ActionId,
+    candidate: Uuid,
+    opponent: Uuid,
+    choice: Choice,
+    revision: u64,
+    offer: String,
 }
 #[derive(Deserialize)]
 pub struct AddInput {
@@ -113,17 +143,21 @@ fn facts(history: &[ApplicationEvent], action: ActionId) -> Vec<&Value> {
         .filter(|event| event["correlationid"] == action.text())
         .collect()
 }
+fn stage(event: &Value, kind: &str) -> bool {
+    event["type"] == format!("booksmartz.add.{kind}.v1")
+        || event["type"] == format!("booksmartz.preference.{kind}.v1")
+}
 fn intent(tx: &CommandTransaction, action: ActionId) -> anyhow::Result<Option<Intent>> {
     facts(tx.application_history(), action)
         .iter()
-        .find(|e| e["type"] == "booksmartz.add.intent.v1")
+        .find(|e| stage(e, "intent"))
         .map(|e| serde_json::from_value(e["data"].clone()).map_err(Into::into))
         .transpose()
 }
 fn prepared(history: &[ApplicationEvent], action: ActionId) -> Option<&Value> {
     facts(history, action)
         .into_iter()
-        .find(|e| e["type"] == "booksmartz.add.rankingprepared.v1")
+        .find(|e| stage(e, "rankingprepared"))
 }
 fn saved(
     history: &[ApplicationEvent],
@@ -146,7 +180,7 @@ fn saved(
 fn rejected(history: &[ApplicationEvent], action: ActionId) -> Option<String> {
     facts(history, action)
         .into_iter()
-        .find(|e| e["type"] == "booksmartz.add.rejected.v1")
+        .find(|e| stage(e, "rejected"))
         .and_then(|e| e["data"]["reason"].as_str())
         .map(str::to_owned)
 }
@@ -161,17 +195,19 @@ fn unresolved(
     for event in history {
         let envelope = event.envelope();
         match envelope["type"].as_str() {
-            Some("booksmartz.add.intent.v1") => {
+            Some("booksmartz.add.intent.v1" | "booksmartz.preference.intent.v1") => {
                 let original: Intent = serde_json::from_value(envelope["data"].clone())?;
                 intents.push(original.action);
             }
-            Some("booksmartz.add.rejected.v1") => {
+            Some("booksmartz.add.rejected.v1" | "booksmartz.preference.rejected.v1") => {
                 anyhow::ensure!(envelope["data"]["reason"].is_string(), "Invalid rejection");
                 rejections.insert(serde_json::from_value::<ActionId>(
                     envelope["correlationid"].clone(),
                 )?);
             }
-            Some("booksmartz.add.rankingprepared.v1") => {
+            Some(
+                "booksmartz.add.rankingprepared.v1" | "booksmartz.preference.rankingprepared.v1",
+            ) => {
                 let action: ActionId = serde_json::from_value(envelope["correlationid"].clone())?;
                 preparations
                     .entry(action)
@@ -217,7 +253,14 @@ fn application_fact(
         .map_or(0, ApplicationEvent::sequence)
         .checked_add(1)
         .ok_or_else(|| anyhow::anyhow!("Application history exhausted"))?;
-    let mut envelope = json!({"specversion":"1.0","id":id.to_string(),"source":format!("urn:book-smartz:application:{}",reader.as_uuid()),"type":format!("booksmartz.add.{kind}.v1"),"time":Utc::now().to_rfc3339(),"datacontenttype":"application/json","sequence":format!("{sequence:020}"),"correlationid":action.text(),"data":data});
+    let family = if data.get("answer").is_some_and(|a| !a.is_null())
+        || intent(tx, action)?.is_some_and(|i| i.answer.is_some())
+    {
+        "preference"
+    } else {
+        "add"
+    };
+    let mut envelope = json!({"specversion":"1.0","id":id.to_string(),"source":format!("urn:book-smartz:application:{}",reader.as_uuid()),"type":format!("booksmartz.{family}.{kind}.v1"),"time":Utc::now().to_rfc3339(),"datacontenttype":"application/json","sequence":format!("{sequence:020}"),"correlationid":action.text(),"data":data});
     if let Some(cause) = cause {
         envelope["causationid"] = json!(cause);
     }
@@ -260,7 +303,10 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
     if let Some(original) =
         intent(&tx, input.action).map_err(|_| topcoat::Error::msg("Action data unavailable"))?
     {
-        if original.selection != input.selection || original.revision != input.revision {
+        if original.answer.is_some()
+            || original.selection != input.selection
+            || original.revision != input.revision
+        {
             return Err(forbidden().into());
         }
     } else {
@@ -280,7 +326,79 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
         let original = Intent {
             action: input.action,
             selection: input.selection,
-            work,
+            work: Some(work),
+            answer: None,
+            revision: input.revision,
+            event: Uuid::new_v4(),
+            time: Utc::now(),
+        };
+        fact(
+            &mut tx,
+            session.reader,
+            input.action,
+            "intent",
+            None,
+            serde_json::to_value(original)?,
+        )
+        .await
+        .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
+        if tx.commit().await.is_err() {
+            return Ok(outcome(
+                cx,
+                "Checking your save. Reload your ranking to recover the original action.",
+            ));
+        }
+        return finish(cx, session.reader, input.action).await;
+    }
+    drop(tx);
+    finish(cx, session.reader, input.action).await
+}
+#[page(POST "/answer")]
+pub async fn submit_preference(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
+    let session = authorize(cx).await?;
+    crate::require_post(cx, &session, &input.csrf)?;
+    let app: &Application = app_context(cx);
+    let answer = Preference {
+        candidate: input.candidate,
+        opponent: input.opponent,
+        choice: input.choice,
+    };
+    app.catalog
+        .verify_offer(
+            session.reader,
+            input.action,
+            &answer.binding(),
+            input.revision,
+            &input.offer,
+        )
+        .map_err(|_| forbidden())?;
+    let Ok(mut tx) = app.store.begin_command(session.reader).await else {
+        return Ok(outcome(
+            cx,
+            "Checking an earlier save. Reload your ranking.",
+        ));
+    };
+    if let Some(original) =
+        intent(&tx, input.action).map_err(|_| topcoat::Error::msg("Action data unavailable"))?
+    {
+        if original.answer.as_ref() != Some(&answer) || original.revision != input.revision {
+            return Err(forbidden().into());
+        }
+    } else {
+        if !unresolved(tx.application_history(), tx.ranking_documents())
+            .map_err(|_| topcoat::Error::msg("Action data unavailable"))?
+            .is_empty()
+        {
+            return Ok(outcome(
+                cx,
+                "Checking an earlier save. Resolve it before answering another comparison.",
+            ));
+        }
+        let original = Intent {
+            action: input.action,
+            selection: String::new(),
+            work: None,
+            answer: Some(answer),
             revision: input.revision,
             event: Uuid::new_v4(),
             time: Utc::now(),
@@ -329,7 +447,43 @@ async fn finish(cx: &Cx, reader: ReaderId, action: ActionId) -> Result<BoxView<'
     // Any failure after intent persists is unresolved, including cancellation.
     match execute(app, reader, action).await {
         Ok(Outcome::Saved) => Err(see_other("/ranking").into()),
-        Ok(Outcome::Rejected(reason)) => Ok(outcome(cx, &reason)),
+        Ok(Outcome::Rejected(reason)) => {
+            let session = authorize(cx).await?;
+            let __cx = cx;
+            Ok(view! {
+                <!DOCTYPE html>
+                <html lang="en">
+                    <head>
+                        <meta
+                            name="viewport"
+                            content="width=device-width, initial-scale=1"
+                        >
+                        <title>"Confirm your ranking · Book Smartz"</title>
+                        <link
+                            rel="stylesheet"
+                            href=(topcoat::asset::asset!("./styles.css"))
+                        >
+                        <script
+                            type="module"
+                            src=(topcoat::asset::asset!("./submitting.js"))
+                        ></script>
+                    </head>
+                    <body>
+                        book_smartz_views::heading()
+                        <main class="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
+                            <section>
+                                <h1>"Confirm your current ranking"</h1>
+                                <p role="status">(reason)</p>
+                                comparison(reader: reader, csrf: session.csrf)
+                                <a href="/ranking">"Return to your ranking"</a>
+                            </section>
+                            crate::saved_ranking(reader: reader)
+                        </main>
+                    </body>
+                </html>
+            }
+            .boxed())
+        }
         Ok(Outcome::Missing) => Err(forbidden().into()),
         Err(_) => Ok(outcome(
             cx,
@@ -383,6 +537,11 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
             tx.commit().await?;
             return Ok(Outcome::Saved);
         }
+        if let Some(answer) = &original.answer {
+            drop(tx);
+            prepare_preference(app, reader, &original, answer).await?;
+            continue;
+        }
         let allocation = facts(tx.application_history(), action)
             .into_iter()
             .find(|e| e["type"] == "booksmartz.add.registrationprepared.v1")
@@ -394,7 +553,15 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
         };
         let proposed = Uuid::parse_str(allocation["data"]["bookId"].as_str().unwrap())?;
         drop(tx);
-        let id = register(app, &original.work, proposed).await?;
+        let id = register(
+            app,
+            original
+                .work
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Missing work"))?,
+            proposed,
+        )
+        .await?;
         let mut tx = app.store.begin_command(reader).await?;
         // Another retry may have advanced this immutable action while registration ran.
         if prepared(tx.application_history(), action).is_some()
@@ -404,7 +571,14 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
         }
         let book = Book::new(
             BookId::new(id),
-            OpenLibraryWorkId::try_from(original.work.work_id.as_str())?,
+            OpenLibraryWorkId::try_from(
+                original
+                    .work
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("Missing work"))?
+                    .work_id
+                    .as_str(),
+            )?,
         );
         prepare_ranking(
             &mut tx,
@@ -417,13 +591,84 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
         tx.commit().await?;
     }
 }
+async fn prepare_preference(
+    app: &Application,
+    reader: ReaderId,
+    original: &Intent,
+    answer: &Preference,
+) -> anyhow::Result<()> {
+    let action = original.action;
+    let books = app
+        .store
+        .books_by_ids(
+            &[BookId::new(answer.candidate), BookId::new(answer.opponent)],
+            OperationContext::default(),
+        )
+        .await?;
+    let mut registry = BookRegistry::new();
+    for book in books {
+        registry.register(book)?;
+    }
+    let mut tx = app.store.begin_command(reader).await?;
+    if prepared(tx.application_history(), action).is_some()
+        || rejected(tx.application_history(), action).is_some()
+    {
+        return Ok(());
+    }
+    let projection = tx.ranking().projection();
+    let decision = if projection
+        .pending()
+        .is_some_and(|pending| *pending.candidate().as_uuid() == answer.candidate)
+    {
+        book_smartz_domain::decide(
+            projection,
+            &registry,
+            CommandContext {
+                expected_revision: original.revision,
+                event_id: EventId::new(original.event),
+                time: original.time,
+            },
+            Command::Answer {
+                opponent: BookId::new(answer.opponent),
+                choice: match answer.choice {
+                    Choice::Candidate => ComparisonChoice::PreferCandidate,
+                    Choice::Opponent => ComparisonChoice::PreferOpponent,
+                },
+            },
+        )
+    } else {
+        Err(book_smartz_domain::DomainError::UnknownBook)
+    };
+    let cause = facts(tx.application_history(), action)[0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    prepare_decision(
+        &mut tx,
+        reader,
+        original,
+        &cause,
+        decision,
+        "Your comparison changed. Reload your ranking and confirm a fresh preference.",
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(())
+}
 async fn prepare_registration(
     app: &Application,
     reader: ReaderId,
     original: &Intent,
 ) -> anyhow::Result<()> {
     // Catalog reads/effects own a connection independently of reader composition.
-    let work_id = OpenLibraryWorkId::try_from(original.work.work_id.as_str())?;
+    let work_id = OpenLibraryWorkId::try_from(
+        original
+            .work
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Missing work"))?
+            .work_id
+            .as_str(),
+    )?;
     let existing = app
         .store
         .book_by_work_id(&work_id, OperationContext::default())
@@ -471,10 +716,35 @@ async fn prepare_ranking(
         },
         Command::Start { book_id: book.id() },
     );
+    let reason = if tx
+        .ranking()
+        .projection()
+        .entries()
+        .iter()
+        .any(|e| e.book_id() == book.id())
+    {
+        "Already ranked."
+    } else if tx.ranking().projection().pending().is_some() {
+        "Finish your unfinished comparison before adding another book."
+    } else {
+        "Your ranking changed. Reload and confirm a fresh action."
+    };
+    prepare_decision(tx, reader, original, cause, decision, reason).await
+}
+async fn prepare_decision(
+    tx: &mut CommandTransaction,
+    reader: ReaderId,
+    original: &Intent,
+    cause: &str,
+    decision: std::result::Result<
+        book_smartz_domain::RankingEvent,
+        book_smartz_domain::DomainError,
+    >,
+    reason: &str,
+) -> anyhow::Result<()> {
     if let Ok(event) = decision {
         let mut envelope: Value = serde_json::from_str(&encode_event(&event)?)?;
         envelope["correlationid"] = json!(original.action.text());
-        // The recorded preparation directly causes the ranking append.
         let prepared_id = Uuid::new_v4();
         envelope["causationid"] = json!(prepared_id.to_string());
         let event = application_fact(
@@ -488,19 +758,6 @@ async fn prepare_ranking(
         )?;
         tx.append_application(&event).await?;
     } else {
-        let reason = if tx
-            .ranking()
-            .projection()
-            .entries()
-            .iter()
-            .any(|e| e.book_id() == book.id())
-        {
-            "Already ranked."
-        } else if tx.ranking().projection().pending().is_some() {
-            "Finish your unfinished comparison before adding another book."
-        } else {
-            "Your ranking changed. Reload and confirm a fresh action."
-        };
         fact(
             tx,
             reader,
@@ -555,4 +812,170 @@ pub async fn recovery_controls(cx: &Cx, reader: ReaderId, csrf: String) -> Resul
             </aside>
         }
     })
+}
+
+pub async fn checking(app: &Application, reader: ReaderId) -> anyhow::Result<bool> {
+    let history = app.store.load_application_history(reader).await?;
+    let ranking = app.store.load_ranking_documents(reader).await?;
+    Ok(!unresolved(&history, &ranking)?.is_empty())
+}
+struct ComparisonState {
+    candidate: BookId,
+    candidate_title: String,
+    candidate_link: String,
+    revision: u64,
+    preferences: usize,
+    disabled: bool,
+    action: ActionId,
+    offered: Option<(BookId, String, String)>,
+}
+async fn comparison_state(app: &Application, reader: ReaderId) -> Result<Option<ComparisonState>> {
+    let ranking = app
+        .store
+        .load_ranking(reader, OperationContext::default())
+        .await?;
+    let projection = ranking.projection();
+    let Some(pending) = projection.pending() else {
+        return Ok(None);
+    };
+    let candidate = pending.candidate();
+    let opponent = projection.next_opponent();
+    let ids: Vec<_> = std::iter::once(candidate).chain(opponent).collect();
+    let books = app
+        .store
+        .books_by_ids(&ids, OperationContext::default())
+        .await?;
+    let rows: Vec<(Uuid, String)> = sqlx::query_as(
+        "SELECT book_id,title FROM book_smartz_actions.display WHERE book_id=ANY($1)",
+    )
+    .bind(ids.iter().map(|id| *id.as_uuid()).collect::<Vec<_>>())
+    .fetch_all(&app.pool)
+    .await?;
+    let titles: HashMap<_, _> = rows.into_iter().collect();
+    let title = |id: BookId| {
+        titles
+            .get(id.as_uuid())
+            .cloned()
+            .or_else(|| {
+                books
+                    .iter()
+                    .find(|book| book.id() == id)
+                    .map(|book| book.work_id().as_str().to_owned())
+            })
+            .unwrap_or_else(|| "Book unavailable".into())
+    };
+    let revision = projection.revision();
+    let candidate_title = title(candidate);
+    let candidate_link = books
+        .iter()
+        .find(|book| book.id() == candidate)
+        .map_or_else(
+            || "/ranking".into(),
+            |book| format!("https://openlibrary.org/works/{}", book.work_id().as_str()),
+        );
+    let mut preferences = 0;
+    for event in ranking.history().iter().rev() {
+        match event.kind() {
+            book_smartz_domain::EventKind::PlacementStarted => break,
+            book_smartz_domain::EventKind::ComparisonAnswered {
+                choice: ComparisonChoice::PreferCandidate | ComparisonChoice::PreferOpponent,
+                ..
+            } => preferences += 1,
+            _ => {}
+        }
+    }
+    let disabled = checking(app, reader)
+        .await
+        .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
+    let action = ActionId::new();
+    let offered = if let Some(opponent) = opponent {
+        let binding = Preference {
+            candidate: *candidate.as_uuid(),
+            opponent: *opponent.as_uuid(),
+            choice: Choice::Candidate,
+        }
+        .binding();
+        Some((
+            opponent,
+            title(opponent),
+            app.catalog
+                .offer(reader, action, &binding, projection.revision())
+                .map_err(|_| topcoat::Error::msg("Action data unavailable"))?,
+        ))
+    } else {
+        None
+    };
+    Ok(Some(ComparisonState {
+        candidate,
+        candidate_title,
+        candidate_link,
+        revision,
+        preferences,
+        disabled,
+        action,
+        offered,
+    }))
+}
+#[topcoat::view::component]
+pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl View> {
+    let app: &Application = app_context(cx);
+    let Some(ComparisonState {
+        candidate,
+        candidate_title,
+        candidate_link,
+        revision,
+        preferences,
+        disabled,
+        action,
+        offered,
+    }) = comparison_state(app, reader).await?
+    else {
+        return Ok(view! {}.boxed());
+    };
+    Ok(view! {
+        <aside>
+            <h2>"Unfinished comparison"</h2>
+            <p>
+                "Pending book: "
+                <a href=(candidate_link)>(candidate_title.clone())</a>
+            </p>
+            <p role="status">
+                (format!("{preferences} preferences saved for this placement."))
+            </p>
+            if let Some((opponent, opponent_title, offer)) = offered {
+                <h3>"Which book do you prefer?"</h3>
+                <form method="post" action="/answer" data-ranking-action="">
+                    <input type="hidden" name="csrf" value=(&csrf)>
+                    <input type="hidden" name="action" value=(action.text())>
+                    <input
+                        type="hidden"
+                        name="candidate"
+                        value=(candidate.as_uuid().to_string())
+                    >
+                    <input
+                        type="hidden"
+                        name="opponent"
+                        value=(opponent.as_uuid().to_string())
+                    >
+                    <input type="hidden" name="revision" value=(revision.to_string())>
+                    <input type="hidden" name="offer" value=(offer)>
+                    <fieldset disabled=(disabled)>
+                        <legend>"Choose your preferred book"</legend>
+                        <button type="submit" name="choice" value="candidate">
+                            (format!("Prefer {candidate_title}"))
+                        </button>
+                        <button type="submit" name="choice" value="opponent">
+                            (format!("Prefer {opponent_title}"))
+                        </button>
+                    </fieldset>
+                    <p role="status" data-submitting="" hidden="">
+                        "Saving your preference…"
+                    </p>
+                </form>
+            } else {
+                <p>"Your unfinished comparison is paused."</p>
+            }
+        </aside>
+    }
+    .boxed())
 }

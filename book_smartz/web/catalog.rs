@@ -430,6 +430,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"Search · Book Smartz"</title>
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
             </head>
             <body>
                 book_smartz_views::heading()
@@ -520,6 +521,17 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
         )
         .await?;
     let revision = ranking.projection().revision();
+    let blocked = ranking.projection().pending().is_some()
+        || crate::actions::checking(app, session.reader)
+            .await
+            .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
+    let gate = if blocked {
+        Some(
+            "Finish your unfinished comparison or check your earlier save before adding another book.",
+        )
+    } else {
+        None
+    };
     let action = crate::actions::ActionId::new();
     let offer = app
         .catalog
@@ -528,14 +540,22 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en">
-            <head><title>"Selected work · Book Smartz"</title></head>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>"Selected work · Book Smartz"</title>
+                <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
+            </head>
             <body>
                 book_smartz_views::heading()
                 <main>
                     <h1>"Selected work"</h1>
                     <a href=(work.source())>(work.title)</a>
                     <p>"This selection expires 15 minutes after search."</p>
-                    <form method="post" action="/add">
+                    if let Some(message) = gate {
+                        <p role="status">(message)</p>
+                    }
+                    <form method="post" action="/add" data-ranking-action="">
                         <input type="hidden" name="csrf" value=(&session.csrf)>
                         <input type="hidden" name="selection" value=(&input.selection)>
                         <input type="hidden" name="action" value=(action.text())>
@@ -545,7 +565,9 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
                             value=(revision.to_string())
                         >
                         <input type="hidden" name="offer" value=(offer)>
-                        <button type="submit">"Add to your ranking"</button>
+                        <button type="submit" disabled=(blocked)>
+                            "Add to your ranking"
+                        </button>
                     </form>
                     <a href="/ranking">"Return to your ranking"</a>
                 </main>

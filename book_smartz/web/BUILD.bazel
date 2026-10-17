@@ -1,5 +1,6 @@
 # Custom Topcoat metadata and generated assets are maintained through the declared wrapper interface.
 # gazelle:ignore
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load("//tools/test_images:defs.bzl", "image_data", "image_env")
@@ -32,6 +33,7 @@ topcoat_rust_binary(
     asset_inputs = [
         ":styles",
         "cover-placeholder.svg",
+        ":submitting_script",
     ],
     compile_data = [
         "actions.sql",
@@ -79,6 +81,7 @@ genrule(
 topcoat_tailwind(
     name = "styles",
     srcs = [
+        "actions.rs",
         "catalog.rs",
         "main.rs",
         "views.rs",
@@ -262,4 +265,86 @@ filegroup(
     srcs = glob(["**/*.md"]),
     tags = ["markdown"],
     visibility = ["//tools/lint:__pkg__"],
+)
+
+js_binary(
+    name = "browser_runner",
+    testonly = True,
+    data = [
+        "browser.journey.mjs",
+        "//:node_modules/playwright",
+    ],
+    entry_point = "browser.journey.mjs",
+)
+
+rust_test(
+    name = "browser_test",
+    size = "medium",
+    srcs = [
+        "browser_test.rs",
+        "test_support.rs",
+    ],
+    compile_data = ["fixtures/public-test-key.pem"],
+    crate_root = "browser_test.rs",
+    data = [
+        "fixtures/browser-test-certificate.pem",
+        "fixtures/public-test-key.pem",
+        ":browser_runner",
+        ":package",
+    ] + image_data("postgres_18"),
+    env = image_env("postgres_18") | {
+        "PACKAGE_ARCHIVE": "$(rlocationpath :package)",
+        "BROWSER_RUNNER": "$(rlocationpath :browser_runner)",
+        "BROWSER_KEY": "$(rlocationpath fixtures/public-test-key.pem)",
+        "BROWSER_CERTIFICATE": "$(rlocationpath fixtures/browser-test-certificate.pem)",
+    },
+    env_inherit = [
+        "CHROMIUM_EXECUTABLE",
+        "CHROME_BIN",
+    ],
+    # This integration needs the host's browser and Docker. Always execute it so
+    # changes to the installed browser cannot hide behind a cached test result.
+    tags = [
+        "external",
+        "no-remote-exec",
+        "no-sandbox",
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:base64",
+        "@crates//:chrono",
+        "@crates//:googletest",
+        "@crates//:jsonwebtoken",
+        "@crates//:regex",
+        "@crates//:reqwest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:sqlx",
+        "@crates//:tar",
+        "@crates//:tempfile",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:url",
+        "@crates//:uuid",
+        "@crates//:wiremock",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+js_library(
+    name = "submitting_script",
+    srcs = ["submitting.js"],
+)
+
+js_library(
+    name = "scripts",
+    testonly = True,
+    srcs = ["browser.journey.mjs"],
+    deps = [
+        ":submitting_script",
+        "//:node_modules/playwright",
+    ],
 )

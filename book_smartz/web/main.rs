@@ -96,6 +96,7 @@ async fn main() -> anyhow::Result<()> {
         .page(catalog::select)
         .page(actions::add)
         .page(actions::recover)
+        .page(actions::submit_preference)
         .origin_policy(topcoat::router::OriginPolicy::new().trust_origins([origin.clone()]))
         .layer(PrivateResponses)
         .runtime()
@@ -180,12 +181,17 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"Your ranking · Book Smartz"</title>
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
                 <script type="module" src=(topcoat::runtime::SCRIPT)></script>
             </head>
             <body class="bg-stone-50 text-stone-900">
                 book_smartz_views::heading()
                 <main class="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
-                    <section>
+                    <section aria-label="Book workspace">
+                        actions::comparison(
+                            reader: session.reader,
+                            csrf: session.csrf.clone()
+                        )
                         <h1>"Find your next book"</h1>
                         <form method="post" action="/search">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
@@ -265,24 +271,6 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
             ));
         }
     }
-    let pending = if let Some(placement) = projection.pending() {
-        let book = books
-            .get(&placement.candidate())
-            .ok_or_else(topcoat::router::error::not_found)?;
-        let work = book.work_id().as_str().to_owned();
-        let message = if placement.is_paused() {
-            "Your unfinished comparison is paused."
-        } else {
-            "You have an unfinished comparison."
-        };
-        Some((
-            message,
-            format!("https://openlibrary.org/works/{work}"),
-            work,
-        ))
-    } else {
-        None
-    };
     Ok(view! {
         <section>
             <h2>"Your saved ranking"</h2>
@@ -301,14 +289,6 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
                     </li>
                 }
             </ol>
-            if let Some((message, link, work)) = pending {
-                <aside>
-                    <h2>"Unfinished comparison"</h2>
-                    <p>(message)</p>
-                    <a href=(link)>(work)</a>
-                    <span>" · Author unavailable"</span>
-                </aside>
-            }
         </section>
     })
 }
@@ -397,9 +377,10 @@ impl topcoat::router::Layer for PrivateResponses {
                     topcoat::router::HeaderValue::from_static("no-store"),
                 );
             }
+            // Native form POSTs need a non-null Origin; disclose no path or query.
             headers.append(
                 topcoat::router::header::REFERRER_POLICY,
-                topcoat::router::HeaderValue::from_static("no-referrer"),
+                topcoat::router::HeaderValue::from_static("strict-origin"),
             );
             next.run(cx, body).await
         })
