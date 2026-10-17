@@ -1,3 +1,5 @@
+Current follow-up: [adapter and remote-execution evidence](ADAPTER.md).
+
 # Disposable ty / Bazel feasibility experiment
 
 This branch answers the Wayfinder ticket [Validate ty through Bazel and Aspect lint](https://github.com/LowkeyLab/bazel-repo/issues/2326). It is a throwaway prototype. Do not merge it or use its checker arguments as production policy.

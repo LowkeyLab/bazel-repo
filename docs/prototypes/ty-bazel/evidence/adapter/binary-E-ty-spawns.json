@@ -1,0 +1,1316 @@
+[
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//python_sample/ty_prototype:ty_prototype",
+    "runner": "linux-sandbox",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "10fa252ffb45ee7c81031a0c75d25e239accb91fc3db826aa59671c8d2c26229",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputs": [
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__init__.py",
+        "digest": {
+          "hash": "6e758cdd0028b2cad74c739b9adc9c9f06f054932306280b878bfe59d39219b5",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/__init__.cpython-315.pyc",
+        "digest": {
+          "hash": "b11d5b48a527db7e25447c6bb6b71916d5f3c8800faf2d0d113f465a9fe1f318",
+          "sizeBytes": "627",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_elffile.cpython-315.pyc",
+        "digest": {
+          "hash": "401eee9fb937ce4bc0b053ba7a5d3fc480c230fa711e6fc899a3e7835377d760",
+          "sizeBytes": "5798",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_manylinux.cpython-315.pyc",
+        "digest": {
+          "hash": "11647991b25bdc4852824dcd97f14e63b6d18f97fcfd92f1e9f2cdc014491c1d",
+          "sizeBytes": "13348",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_musllinux.cpython-315.pyc",
+        "digest": {
+          "hash": "52f9c70e32d06e1ed16532eadcafda46a8911c89338c5529e463c2e3d1c4771f",
+          "sizeBytes": "5414",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_parser.cpython-315.pyc",
+        "digest": {
+          "hash": "1afcd9e3bdb72d54def777c49a38eb6cd8f1f94a9cb8d79d6af2c728fb4030ae",
+          "sizeBytes": "21636",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_ranges.cpython-315.pyc",
+        "digest": {
+          "hash": "eafdeadf5230cbf0d56b6d567d57cf025e33b3281bee54e9afbb37488b5846f7",
+          "sizeBytes": "39040",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_structures.cpython-315.pyc",
+        "digest": {
+          "hash": "bc42a5e5fbe3d23d41ceaf4a4bb387ba3fe32c35467c0a42d0f15b314d33346b",
+          "sizeBytes": "2090",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_tokenizer.cpython-315.pyc",
+        "digest": {
+          "hash": "6ba9bd85856b6597e01ef891ac4044073357decdc9a1e771d0133f20e8913ca0",
+          "sizeBytes": "10417",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/dependency_groups.cpython-315.pyc",
+        "digest": {
+          "hash": "8c9d04fee31533a4e2ff32843a5e1917535f7b4351fd81ba8a1bd5b9f6110f80",
+          "sizeBytes": "14747",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/direct_url.cpython-315.pyc",
+        "digest": {
+          "hash": "a4f88817034dcd0a2d9b993a696c019d261a68be56096e143327822dda281dbc",
+          "sizeBytes": "19725",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/errors.cpython-315.pyc",
+        "digest": {
+          "hash": "21b092bdb96699018b789e65169549e807ef24b0fdb035803339c2e6528598c2",
+          "sizeBytes": "5740",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/markers.cpython-315.pyc",
+        "digest": {
+          "hash": "0b9d59a67ecb2840bea64ba348b566e96546b5abc57cde7300681ff6f11125ca",
+          "sizeBytes": "25259",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/metadata.cpython-315.pyc",
+        "digest": {
+          "hash": "2d632346bb96e5838690a7137c51dad97bbeab70ecc540d2a4246ee2bfc53e68",
+          "sizeBytes": "40115",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/pylock.cpython-315.pyc",
+        "digest": {
+          "hash": "b9ab214029f2126e3253525938e333940863339bc6b34beaf12191e86e9e2aa2",
+          "sizeBytes": "47290",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/ranges.cpython-315.pyc",
+        "digest": {
+          "hash": "6d9ec43a230d4f62798791f3e551b2ff872e100305c8685ec2af8e623fd2b0d7",
+          "sizeBytes": "85715",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/requirements.cpython-315.pyc",
+        "digest": {
+          "hash": "7c2e4c4371f6e27b4f4f859cf62480e52912c958e5b596768d5ae964d38545b3",
+          "sizeBytes": "10625",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/specifiers.cpython-315.pyc",
+        "digest": {
+          "hash": "5016384bf27e7339e8d445a63e2ed85c4e4c6792626d45910c4bd4ccf6288ced",
+          "sizeBytes": "66798",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/tags.cpython-315.pyc",
+        "digest": {
+          "hash": "86e09b082b768b7d0a1ce2250875382875c74a9e9525f7d07f5ac561abd3ab11",
+          "sizeBytes": "49179",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/utils.cpython-315.pyc",
+        "digest": {
+          "hash": "2004464eb6f62595ef718dc21726e214116be59952bc44c83993de80d66a3b55",
+          "sizeBytes": "13952",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/version.cpython-315.pyc",
+        "digest": {
+          "hash": "f59d88d6ba398c71e997169acb9e5428ef4222a98fad325e36c1a9417ff06a5e",
+          "sizeBytes": "51785",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_elffile.py",
+        "digest": {
+          "hash": "1f025f54c573f1a85740c4fbd908cc1d1fb0c177c14377ebf5f09d6cd5368780",
+          "sizeBytes": "3236",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_manylinux.py",
+        "digest": {
+          "hash": "5b6e84324c42538ab4cdb148e2430fdba36f04427b0efda55bea083a35fa6136",
+          "sizeBytes": "10000",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_musllinux.py",
+        "digest": {
+          "hash": "0328fb827b1170c77df4c107d49be8df8d37262103490a61e8acad8a2f9cadff",
+          "sizeBytes": "2774",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_parser.py",
+        "digest": {
+          "hash": "88a348115209327497e453b635e5db099fd592f9335d710c7313b29cdb30c50c",
+          "sizeBytes": "12639",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_ranges.py",
+        "digest": {
+          "hash": "b7b595f2e692aeb3697c545b85c24cbbcb4552f2adc6d9059aa82d0877e816b7",
+          "sizeBytes": "30850",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_structures.py",
+        "digest": {
+          "hash": "eb48d16c5efca7ccf930a9cd77a700a6b80e69d0891d5d03966526441a8565cb",
+          "sizeBytes": "1109",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_tokenizer.py",
+        "digest": {
+          "hash": "cc25e57c0d564c89e15073471d6e1c264299ca946fb17c0e1e4af54ef7713ee6",
+          "sizeBytes": "5573",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/dependency_groups.py",
+        "digest": {
+          "hash": "5309cc564ca3022dfb594816e9d593bb09cdf34208c1fb8c5ec9afb6c670278c",
+          "sizeBytes": "11224",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/direct_url.py",
+        "digest": {
+          "hash": "843baa95d04cbb49288de9d9fd77ee946e862cb603123e7e46a69e171fa7d06b",
+          "sizeBytes": "11645",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/errors.py",
+        "digest": {
+          "hash": "ea17c461701ff2ffc817ae7e94569d24e30889e04fdb120ab721178c6d67188b",
+          "sizeBytes": "2680",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/licenses/__init__.py",
+        "digest": {
+          "hash": "590d12eee73ddbec53b4e9ee5bfc64d9cb3aacb4940e8ebcba260757ce56740b",
+          "sizeBytes": "7859",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/licenses/__pycache__/__init__.cpython-315.pyc",
+        "digest": {
+          "hash": "347be7982d40517be12fc5ef19d47db03236b34e9c570e551e059f90c08b50b2",
+          "sizeBytes": "6448",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/licenses/__pycache__/_spdx.cpython-315.pyc",
+        "digest": {
+          "hash": "38945d6dd258d42e24b94ffecd74b340bee1cce38dd30e0ba41e054ea7c06dc7",
+          "sizeBytes": "54783",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/licenses/_spdx.py",
+        "digest": {
+          "hash": "596ec35e2ca0ebcba9fd8343ff0a51625af548786257815f24b41f7e08613314",
+          "sizeBytes": "51122",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/markers.py",
+        "digest": {
+          "hash": "6cbe860d35d98d2b599e7f0ec73feab124e015711b30be9045e678c92940d9cc",
+          "sizeBytes": "20554",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/metadata.py",
+        "digest": {
+          "hash": "934149f420a5449e6f376aa61d6f26a0823eb82cc7c6a1c8cde5aa7be43d0f63",
+          "sizeBytes": "42059",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/py.typed",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/pylock.py",
+        "digest": {
+          "hash": "1bce0a9fe63e42b87e8ced05da272baf16a68aa704b3718405e2735a6112467c",
+          "sizeBytes": "35232",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/ranges.py",
+        "digest": {
+          "hash": "b4781ce913e5dff9e07906f20585c54c3028e1f7ff56341828e79d522ddbfab6",
+          "sizeBytes": "83054",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/requirements.py",
+        "digest": {
+          "hash": "459476eb2107fe30e6b1310051a5bdb44c7d3b7f78e0e87bada268282cba62f5",
+          "sizeBytes": "7040",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/specifiers.py",
+        "digest": {
+          "hash": "661ad31ddf45ffb861d2626734f4e3d66966029b8fdb79586bb105825d8d9d59",
+          "sizeBytes": "52798",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/tags.py",
+        "digest": {
+          "hash": "0e717a082a79620d79cf0321b420df15593c4916fcda03c27cb9d82e07ef5d6e",
+          "sizeBytes": "38302",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/utils.py",
+        "digest": {
+          "hash": "a13742cd9994eeca5adfb0249d126408c478026eb1f48cb97afbf2fe9f28ecc6",
+          "sizeBytes": "12215",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/version.py",
+        "digest": {
+          "hash": "558b2fb50fd198c660a4c082f96b8919c565911b6b4b6e07f34b6b60c074be97",
+          "sizeBytes": "39040",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/INSTALLER",
+        "digest": {
+          "hash": "cde52e3391c0017551639512b7297fcf5083489f2e091c17df342b768361f5f2",
+          "sizeBytes": "14",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/METADATA",
+        "digest": {
+          "hash": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "sizeBytes": "3544",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/RECORD",
+        "digest": {
+          "hash": "07d9c895ee1caba568ba36c863e158cf38f5307118cadeacb2fe0bcb6bc3585a",
+          "sizeBytes": "2516",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/REQUESTED",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/WHEEL",
+        "digest": {
+          "hash": "1b68144734c4b66791f27add5d425f3620775585718a03d0f9b110ba3a4d88db",
+          "sizeBytes": "82",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/licenses/LICENSE",
+        "digest": {
+          "hash": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48",
+          "sizeBytes": "197",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+        "digest": {
+          "hash": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "sizeBytes": "10174",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/licenses/LICENSE.BSD",
+        "digest": {
+          "hash": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5",
+          "sizeBytes": "1344",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.out-0.params",
+        "digest": {
+          "hash": "4afe6d99f408c455572c4fc75560272f49220a344c30c7f8a81319161426c166",
+          "sizeBytes": "668",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/tools/lint/ty_prototype_bin",
+        "digest": {
+          "hash": "708ac310cddcb41a805d19efb9886d0df86460b99d0410e2d66f257a8fa4d136",
+          "sizeBytes": "32022674",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/cli.py",
+        "digest": {
+          "hash": "f1c8b61bc872933132f53219ba720f83565a498511b3942f4083380f460133ac",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/ty_prototype/own_root/local_helper.py",
+        "digest": {
+          "hash": "33cf09b69a55f21055d083a906eb1484b83ffd7b3fa6e6a717b894baccf6aa7c",
+          "sizeBytes": "143",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/ty_prototype/probe.py",
+        "digest": {
+          "hash": "51af71d5a30f1f90ddc499cada0ce0ae7b8f5b1f3b7512bc22f2ac93530a4e00",
+          "sizeBytes": "927",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/ty_prototype/stubs/ty_proto_stub.pyi",
+        "digest": {
+          "hash": "08e6dff3a026a492d76990d5efac4309d8c1d49e3580bf803af01a21743b5536",
+          "sizeBytes": "46",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions.py",
+        "digest": {
+          "hash": "e380c2e3f0be5e86ee4d9ca18234af659cceece7e388cd8adbaa738f7ac6a6c4",
+          "sizeBytes": "311",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/tools/lint/ty_prototype_bin check --force-exclude --color always @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.out\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.out\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.out.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.out-0.params",
+      "--python-version",
+      "3.15",
+      "python_sample/ty_prototype/own_root/local_helper.py",
+      "python_sample/ty_prototype/probe.py",
+      "--project",
+      "."
+    ]
+  },
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//python_sample/ty_prototype:ty_prototype",
+    "runner": "linux-sandbox",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "5e308396f08ced2d80d75c3c1d3f15859de628b505552d5a23fc1cfecedc80e3",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputs": [
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__init__.py",
+        "digest": {
+          "hash": "6e758cdd0028b2cad74c739b9adc9c9f06f054932306280b878bfe59d39219b5",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/__init__.cpython-315.pyc",
+        "digest": {
+          "hash": "b11d5b48a527db7e25447c6bb6b71916d5f3c8800faf2d0d113f465a9fe1f318",
+          "sizeBytes": "627",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_elffile.cpython-315.pyc",
+        "digest": {
+          "hash": "401eee9fb937ce4bc0b053ba7a5d3fc480c230fa711e6fc899a3e7835377d760",
+          "sizeBytes": "5798",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_manylinux.cpython-315.pyc",
+        "digest": {
+          "hash": "11647991b25bdc4852824dcd97f14e63b6d18f97fcfd92f1e9f2cdc014491c1d",
+          "sizeBytes": "13348",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_musllinux.cpython-315.pyc",
+        "digest": {
+          "hash": "52f9c70e32d06e1ed16532eadcafda46a8911c89338c5529e463c2e3d1c4771f",
+          "sizeBytes": "5414",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_parser.cpython-315.pyc",
+        "digest": {
+          "hash": "1afcd9e3bdb72d54def777c49a38eb6cd8f1f94a9cb8d79d6af2c728fb4030ae",
+          "sizeBytes": "21636",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_ranges.cpython-315.pyc",
+        "digest": {
+          "hash": "eafdeadf5230cbf0d56b6d567d57cf025e33b3281bee54e9afbb37488b5846f7",
+          "sizeBytes": "39040",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_structures.cpython-315.pyc",
+        "digest": {
+          "hash": "bc42a5e5fbe3d23d41ceaf4a4bb387ba3fe32c35467c0a42d0f15b314d33346b",
+          "sizeBytes": "2090",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/_tokenizer.cpython-315.pyc",
+        "digest": {
+          "hash": "6ba9bd85856b6597e01ef891ac4044073357decdc9a1e771d0133f20e8913ca0",
+          "sizeBytes": "10417",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/dependency_groups.cpython-315.pyc",
+        "digest": {
+          "hash": "8c9d04fee31533a4e2ff32843a5e1917535f7b4351fd81ba8a1bd5b9f6110f80",
+          "sizeBytes": "14747",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/direct_url.cpython-315.pyc",
+        "digest": {
+          "hash": "a4f88817034dcd0a2d9b993a696c019d261a68be56096e143327822dda281dbc",
+          "sizeBytes": "19725",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/errors.cpython-315.pyc",
+        "digest": {
+          "hash": "21b092bdb96699018b789e65169549e807ef24b0fdb035803339c2e6528598c2",
+          "sizeBytes": "5740",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/markers.cpython-315.pyc",
+        "digest": {
+          "hash": "0b9d59a67ecb2840bea64ba348b566e96546b5abc57cde7300681ff6f11125ca",
+          "sizeBytes": "25259",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/metadata.cpython-315.pyc",
+        "digest": {
+          "hash": "2d632346bb96e5838690a7137c51dad97bbeab70ecc540d2a4246ee2bfc53e68",
+          "sizeBytes": "40115",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/pylock.cpython-315.pyc",
+        "digest": {
+          "hash": "b9ab214029f2126e3253525938e333940863339bc6b34beaf12191e86e9e2aa2",
+          "sizeBytes": "47290",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/ranges.cpython-315.pyc",
+        "digest": {
+          "hash": "6d9ec43a230d4f62798791f3e551b2ff872e100305c8685ec2af8e623fd2b0d7",
+          "sizeBytes": "85715",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/requirements.cpython-315.pyc",
+        "digest": {
+          "hash": "7c2e4c4371f6e27b4f4f859cf62480e52912c958e5b596768d5ae964d38545b3",
+          "sizeBytes": "10625",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/specifiers.cpython-315.pyc",
+        "digest": {
+          "hash": "5016384bf27e7339e8d445a63e2ed85c4e4c6792626d45910c4bd4ccf6288ced",
+          "sizeBytes": "66798",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/tags.cpython-315.pyc",
+        "digest": {
+          "hash": "86e09b082b768b7d0a1ce2250875382875c74a9e9525f7d07f5ac561abd3ab11",
+          "sizeBytes": "49179",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/utils.cpython-315.pyc",
+        "digest": {
+          "hash": "2004464eb6f62595ef718dc21726e214116be59952bc44c83993de80d66a3b55",
+          "sizeBytes": "13952",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__pycache__/version.cpython-315.pyc",
+        "digest": {
+          "hash": "f59d88d6ba398c71e997169acb9e5428ef4222a98fad325e36c1a9417ff06a5e",
+          "sizeBytes": "51785",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_elffile.py",
+        "digest": {
+          "hash": "1f025f54c573f1a85740c4fbd908cc1d1fb0c177c14377ebf5f09d6cd5368780",
+          "sizeBytes": "3236",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_manylinux.py",
+        "digest": {
+          "hash": "5b6e84324c42538ab4cdb148e2430fdba36f04427b0efda55bea083a35fa6136",
+          "sizeBytes": "10000",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_musllinux.py",
+        "digest": {
+          "hash": "0328fb827b1170c77df4c107d49be8df8d37262103490a61e8acad8a2f9cadff",
+          "sizeBytes": "2774",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_parser.py",
+        "digest": {
+          "hash": "88a348115209327497e453b635e5db099fd592f9335d710c7313b29cdb30c50c",
+          "sizeBytes": "12639",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_ranges.py",
+        "digest": {
+          "hash": "b7b595f2e692aeb3697c545b85c24cbbcb4552f2adc6d9059aa82d0877e816b7",
+          "sizeBytes": "30850",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_structures.py",
+        "digest": {
+          "hash": "eb48d16c5efca7ccf930a9cd77a700a6b80e69d0891d5d03966526441a8565cb",
+          "sizeBytes": "1109",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/_tokenizer.py",
+        "digest": {
+          "hash": "cc25e57c0d564c89e15073471d6e1c264299ca946fb17c0e1e4af54ef7713ee6",
+          "sizeBytes": "5573",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/dependency_groups.py",
+        "digest": {
+          "hash": "5309cc564ca3022dfb594816e9d593bb09cdf34208c1fb8c5ec9afb6c670278c",
+          "sizeBytes": "11224",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/direct_url.py",
+        "digest": {
+          "hash": "843baa95d04cbb49288de9d9fd77ee946e862cb603123e7e46a69e171fa7d06b",
+          "sizeBytes": "11645",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/errors.py",
+        "digest": {
+          "hash": "ea17c461701ff2ffc817ae7e94569d24e30889e04fdb120ab721178c6d67188b",
+          "sizeBytes": "2680",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/licenses/__init__.py",
+        "digest": {
+          "hash": "590d12eee73ddbec53b4e9ee5bfc64d9cb3aacb4940e8ebcba260757ce56740b",
+          "sizeBytes": "7859",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/licenses/__pycache__/__init__.cpython-315.pyc",
+        "digest": {
+          "hash": "347be7982d40517be12fc5ef19d47db03236b34e9c570e551e059f90c08b50b2",
+          "sizeBytes": "6448",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/licenses/__pycache__/_spdx.cpython-315.pyc",
+        "digest": {
+          "hash": "38945d6dd258d42e24b94ffecd74b340bee1cce38dd30e0ba41e054ea7c06dc7",
+          "sizeBytes": "54783",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/licenses/_spdx.py",
+        "digest": {
+          "hash": "596ec35e2ca0ebcba9fd8343ff0a51625af548786257815f24b41f7e08613314",
+          "sizeBytes": "51122",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/markers.py",
+        "digest": {
+          "hash": "6cbe860d35d98d2b599e7f0ec73feab124e015711b30be9045e678c92940d9cc",
+          "sizeBytes": "20554",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/metadata.py",
+        "digest": {
+          "hash": "934149f420a5449e6f376aa61d6f26a0823eb82cc7c6a1c8cde5aa7be43d0f63",
+          "sizeBytes": "42059",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/py.typed",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/pylock.py",
+        "digest": {
+          "hash": "1bce0a9fe63e42b87e8ced05da272baf16a68aa704b3718405e2735a6112467c",
+          "sizeBytes": "35232",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/ranges.py",
+        "digest": {
+          "hash": "b4781ce913e5dff9e07906f20585c54c3028e1f7ff56341828e79d522ddbfab6",
+          "sizeBytes": "83054",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/requirements.py",
+        "digest": {
+          "hash": "459476eb2107fe30e6b1310051a5bdb44c7d3b7f78e0e87bada268282cba62f5",
+          "sizeBytes": "7040",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/specifiers.py",
+        "digest": {
+          "hash": "661ad31ddf45ffb861d2626734f4e3d66966029b8fdb79586bb105825d8d9d59",
+          "sizeBytes": "52798",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/tags.py",
+        "digest": {
+          "hash": "0e717a082a79620d79cf0321b420df15593c4916fcda03c27cb9d82e07ef5d6e",
+          "sizeBytes": "38302",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/utils.py",
+        "digest": {
+          "hash": "a13742cd9994eeca5adfb0249d126408c478026eb1f48cb97afbf2fe9f28ecc6",
+          "sizeBytes": "12215",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/version.py",
+        "digest": {
+          "hash": "558b2fb50fd198c660a4c082f96b8919c565911b6b4b6e07f34b6b60c074be97",
+          "sizeBytes": "39040",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/INSTALLER",
+        "digest": {
+          "hash": "cde52e3391c0017551639512b7297fcf5083489f2e091c17df342b768361f5f2",
+          "sizeBytes": "14",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/METADATA",
+        "digest": {
+          "hash": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "sizeBytes": "3544",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/RECORD",
+        "digest": {
+          "hash": "07d9c895ee1caba568ba36c863e158cf38f5307118cadeacb2fe0bcb6bc3585a",
+          "sizeBytes": "2516",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/REQUESTED",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/WHEEL",
+        "digest": {
+          "hash": "1b68144734c4b66791f27add5d425f3620775585718a03d0f9b110ba3a4d88db",
+          "sizeBytes": "82",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/licenses/LICENSE",
+        "digest": {
+          "hash": "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48",
+          "sizeBytes": "197",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+        "digest": {
+          "hash": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+          "sizeBytes": "10174",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/licenses/LICENSE.BSD",
+        "digest": {
+          "hash": "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5",
+          "sizeBytes": "1344",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.raw_machine_report-0.params",
+        "digest": {
+          "hash": "4afe6d99f408c455572c4fc75560272f49220a344c30c7f8a81319161426c166",
+          "sizeBytes": "668",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/tools/lint/ty_prototype_bin",
+        "digest": {
+          "hash": "708ac310cddcb41a805d19efb9886d0df86460b99d0410e2d66f257a8fa4d136",
+          "sizeBytes": "32022674",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/cli.py",
+        "digest": {
+          "hash": "f1c8b61bc872933132f53219ba720f83565a498511b3942f4083380f460133ac",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/ty_prototype/own_root/local_helper.py",
+        "digest": {
+          "hash": "33cf09b69a55f21055d083a906eb1484b83ffd7b3fa6e6a717b894baccf6aa7c",
+          "sizeBytes": "143",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/ty_prototype/probe.py",
+        "digest": {
+          "hash": "51af71d5a30f1f90ddc499cada0ce0ae7b8f5b1f3b7512bc22f2ac93530a4e00",
+          "sizeBytes": "927",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/ty_prototype/stubs/ty_proto_stub.pyi",
+        "digest": {
+          "hash": "08e6dff3a026a492d76990d5efac4309d8c1d49e3580bf803af01a21743b5536",
+          "sizeBytes": "46",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions.py",
+        "digest": {
+          "hash": "e380c2e3f0be5e86ee4d9ca18234af659cceece7e388cd8adbaa738f7ac6a6c4",
+          "sizeBytes": "311",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/tools/lint/ty_prototype_bin check --force-exclude --color never @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.raw_machine_report\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.raw_machine_report\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.report.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild/bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.raw_machine_report-0.params",
+      "--python-version",
+      "3.15",
+      "python_sample/ty_prototype/own_root/local_helper.py",
+      "python_sample/ty_prototype/probe.py",
+      "--project",
+      "."
+    ]
+  }
+]

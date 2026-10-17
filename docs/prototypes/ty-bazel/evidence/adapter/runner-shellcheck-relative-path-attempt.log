@@ -1,0 +1,32 @@
+INFO: Invocation ID: b2abef8d-cd1e-4ec0-a518-68cc6f7d8d9a
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/b2abef8d-cd1e-4ec0-a518-68cc6f7d8d9a
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target @@rules_multitool++multitool+multitool//tools/shellcheck:shellcheck (0 packages loaded, 0 targets configured)
+Analyzing: target @@rules_multitool++multitool+multitool//tools/shellcheck:shellcheck (0 packages loaded, 0 targets configured)
+INFO: Analyzed target @@rules_multitool++multitool+multitool//tools/shellcheck:shellcheck (1 packages loaded, 3 targets configured).
+INFO: Found 1 target...
+[0 / 5] [Prepa] Creating symlink external/rules_multitool++multitool+multitool/tools/shellcheck/shellcheck ... (4 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target @@rules_multitool++multitool+multitool//tools/shellcheck:shellcheck up-to-date:
+  bazel-bin/external/rules_multitool++multitool+multitool/tools/shellcheck/shellcheck
+INFO: Elapsed time: 4.580s, Critical Path: 0.01s
+INFO: 5 processes: 5 internal.
+INFO: Build completed successfully, 5 total actions
+
+INFO: Running command line: bazel-bin/external/rules_multitool++multitool+multitool/tools/shellcheck/shellcheck <args omitted>
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/b2abef8d-cd1e-4ec0-a518-68cc6f7d8d9a
+docs/prototypes/ty-bazel/aspect.sh: docs/prototypes/ty-bazel/aspect.sh: openBinaryFile: does not exist (No such file or directory)

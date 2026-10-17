@@ -1,0 +1,30 @@
+INFO: Invocation ID: a9b42cac-3ad2-4a32-a683-c50f52019d46
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/a9b42cac-3ad2-4a32-a683-c50f52019d46
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target @@rules_multitool++multitool+multitool//tools/shellcheck:shellcheck (0 packages loaded, 0 targets configured)
+INFO: Analyzed target @@rules_multitool++multitool+multitool//tools/shellcheck:shellcheck (0 packages loaded, 1 target configured).
+INFO: Found 1 target...
+[2 / 5] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target @@rules_multitool++multitool+multitool//tools/shellcheck:shellcheck up-to-date:
+  bazel-bin/external/rules_multitool++multitool+multitool/tools/shellcheck/shellcheck
+INFO: Elapsed time: 2.503s, Critical Path: 0.01s
+INFO: 1 process: 4 action cache hit, 1 internal.
+INFO: Build completed successfully, 1 total action
+
+INFO: Running command line: bazel-bin/external/rules_multitool++multitool+multitool/tools/shellcheck/shellcheck <args omitted>
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/a9b42cac-3ad2-4a32-a683-c50f52019d46

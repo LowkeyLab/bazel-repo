@@ -1,0 +1,221 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/b38b41b8-4c08-4f44-9bfe-0040fb5f8928' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running build task
+
+→ 🔧 Setup · Running setup
+
+→ 🔨 Build · Spawning bazel build
+INFO: Invocation ID: fa7e237d-463f-449f-aeed-593def087c2f
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Loading: 0 packages loaded
+    currently loading: 
+Analyzing: 516 targets (1 packages loaded, 0 targets configured)
+INFO: Analyzed 516 targets (2 packages loaded, 2379 targets configured, 8 aspect applications).
+INFO: Found 516 targets...
+[1 / 6] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+INFO: From KotlinCompile //mindreadr/src/main/io/lowkeylab/mindreadr/game:game { kt: 7, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+[11,878 / 13,841] Extracting npm package canvas-confetti@1.9.4; Downloading node_modules/.aspect_rules_js/canvas-confetti@1.9.4/node_modules/canvas-confetti/LICENSE; 0s remote-cache ... (100 actions, 0 running)
+INFO: From KotlinCompile //ktor_tutorial:ktor_tutorial_lib { kt: 8, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+ktor_tutorial/src/db/Mapping.kt:30:5: warning: 'suspend fun <T> newSuspendedTransaction(context: CoroutineContext? = ..., db: Database? = ..., transactionIsolation: Int? = ..., readOnly: Boolean? = ..., statement: suspend JdbcTransaction.() -> T): T' is deprecated. "
+        This function will be removed in future releases.
+
+        Replace with `suspendTransaction()` call. `suspendTransaction()` doesn't allow to pass
+        context as a parameter, use `withContext()` if you need to use transaction with custom context.
+    newSuspendedTransaction(Dispatchers.IO, statement = block)
+    ^^^^^^^^^^^^^^^^^^^^^^^
+ktor_tutorial/src/db/Mapping.kt:30:5: warning: 'suspend fun <T> newSuspendedTransaction(context: CoroutineContext? = ..., db: Database? = ..., transactionIsolation: Int? = ..., readOnly: Boolean? = ..., statement: suspend JdbcTransaction.() -> T): T' is deprecated. "
+        This function will be removed in future releases.
+
+        Replace with `suspendTransaction()` call. `suspendTransaction()` doesn't allow to pass
+        context as a parameter, use `withContext()` if you need to use transaction with custom context.
+    newSuspendedTransaction(Dispatchers.IO, statement = block)
+    ^^^^^^^^^^^^^^^^^^^^^^^
+INFO: From JdepsMerge //mindreadr/src/main/io/lowkeylab/mindreadr/game:game { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From KotlinCompile //mindreadr/src/test/io/lowkeylab/mindreadr/game:game { kt: 2, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+[12,039 / 13,900] Extracting npm package @astrojs/compiler-binding-linux-x64-gnu@0.5.1; Downloading node_modules/.aspect_rules_js/@astrojs+compiler-binding-linux-x64-gnu@0.5.1/node_modules/@astrojs/compiler-binding-linux-x64-gnu/astro.linux-x64-gnu.node, 284.1 KiB / 7.0 MiB; 1s remote-cache ... (100 actions, 0 running)
+INFO: From KotlinCompile //mindreadr/src/main/io/lowkeylab/mindreadr:mindreadr { kt: 6, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From Action gazelle_python_manifest.yaml:
+In /buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/aspect_rules_py+/uv/private/gazelle_manifest/generator.runfiles/aspect_rules_py+/uv/private/gazelle_manifest/.generator/lib/python3.15/site-packages/_aspect.pth: /buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/aspect_rules_py+/uv/private/_main does not exist; skipping sys.path append
+In /buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/aspect_rules_py+/uv/private/gazelle_manifest/generator.runfiles/aspect_rules_py+/uv/private/gazelle_manifest/.generator/lib/python3.15/site-packages/_aspect.pth: /buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/aspect_rules_py+/uv/private/aspect_rules_py+ does not exist; skipping sys.path append
+Successfully wrote Gazelle manifest to: bazel-out/k8-fastbuild/bin/gazelle_python_manifest.yaml
+INFO: From JdepsMerge //mindreadr/src/main/io/lowkeylab/mindreadr:mindreadr { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From JdepsMerge //ktor_tutorial:ktor_tutorial_lib { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+[13,069 / 14,168] Extracting npm package jsdom@30.1.2; Downloading node_modules/.aspect_rules_js/jsdom@30.1.2/node_modules/jsdom/lib/jsdom/browser/parser/html.js; 2s remote-cache ... (100 actions, 0 running)
+INFO: From KotlinCompile //mindreadr/src/test/io/lowkeylab/mindreadr/app:GamesHttpTest { kt: 1, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From JdepsMerge //mindreadr/src/test/io/lowkeylab/mindreadr/game:game { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From KotlinCompile //mindreadr/src/test/io/lowkeylab/mindreadr/app:GamesWebSocketTest { kt: 1, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From KotlinCompile //ktor_tutorial:application_test { kt: 2, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From KotlinCompile //mindreadr/src/test/io/lowkeylab/mindreadr/app:GamesSummaryTest { kt: 1, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From Compiling Rust bin //hearthstone_simulator/core:core_test (23 files):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From KotlinCompile //mindreadr/src/test/io/lowkeylab/mindreadr/app:ApplicationTest { kt: 1, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From KotlinCompile //mindreadr/src/test/io/lowkeylab/mindreadr:CalculateAllowedOriginsTest { kt: 1, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From JdepsMerge //ktor_tutorial:application_test { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From KotlinCompile //mindreadr/src/main/io/lowkeylab/mindreadr/app:ApplicationKt { kt: 1, java: 0, srcjars: 0 } for x86_64:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/build_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From JdepsMerge //mindreadr/src/test/io/lowkeylab/mindreadr/app:GamesHttpTest { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From JdepsMerge //mindreadr/src/test/io/lowkeylab/mindreadr/app:GamesWebSocketTest { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From JdepsMerge //mindreadr/src/main/io/lowkeylab/mindreadr/app:ApplicationKt { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+[13,308 / 14,276] GoLink gazelle_bin_/gazelle_bin; 0s remote-cache, linux-sandbox ... (100 actions, 1 running)
+INFO: From JdepsMerge //mindreadr/src/test/io/lowkeylab/mindreadr/app:GamesSummaryTest { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From JdepsMerge //mindreadr/src/test/io/lowkeylab/mindreadr:CalculateAllowedOriginsTest { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+INFO: From JdepsMerge //mindreadr/src/test/io/lowkeylab/mindreadr/app:ApplicationTest { jdeps: 1 }:
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::arrayBaseOffset has been called by com.google.protobuf.UnsafeUtil (file:/buildbuddy-execroot/bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps.runfiles/rules_kotlin+/src/main/kotlin/io/bazel/kotlin/builder/cmd/merge_jdeps_jarjar.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.protobuf.UnsafeUtil
+WARNING: sun.misc.Unsafe::arrayBaseOffset will be removed in a future release
+[13,563 / 14,411] Extracting npm package graphql@17.0.2; Downloading node_modules/.aspect_rules_js/graphql@17.0.2/node_modules/graphql/__dev__/execution/createSharedExecutionContext.d.mts; 4s remote-cache ... (100 actions, 0 running)
+INFO: From Compiling Rust bin //hearthstone_simulator/simulator:simulator_test (31 files):
+warning: variable does not need to be mutable
+    --> hearthstone_simulator/simulator/simulation_tests_actions.rs:1231:9
+     |
+1231 |     let mut simulation = simulation();
+     |         ----^^^^^^^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+    --> hearthstone_simulator/simulator/simulation_tests_actions.rs:1758:9
+     |
+1758 |     let mut unsupported = Simulation::new([
+     |         ----^^^^^^^^^^^
+     |         |
+     |         help: remove this `mut`
+
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 3 warnings emitted
+
+[13,724 / 14,544] Extracting npm package graphql@17.0.2; Downloading node_modules/.aspect_rules_js/graphql@17.0.2/node_modules/graphql/__dev__/utilities/typeComparators.d.mts; 5s remote-cache ... (100 actions, 0 running)
+INFO: From Compiling Rust bin //hearthstone_simulator/app:app (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[14,070 / 14,741] Extracting npm package @graphql-tools/apollo-engine-loader@8.0.39(graphql@17.0.2); 1s remote-cache ... (99 actions, 0 running)
+[14,660 / 15,010] Extracting npm package shiki@4.5.0; 0s remote-cache ... (97 actions, 0 running)
+[14,904 / 15,189] Extracting npm package common-ancestor-path@2.0.0; Downloading node_modules/.aspect_rules_js/common-ancestor-path@2.0.0/node_modules/common-ancestor-path/dist/commonjs/index.js; 1s remote-cache ... (100 actions, 0 running)
+[15,202 / 15,394] Extracting npm package @rolldown/binding-linux-x64-gnu@1.2.8; Downloading node_modules/.aspect_rules_js/@rolldown+binding-linux-x64-gnu@1.2.8/node_modules/@rolldown/binding-linux-x64-gnu/rolldown-binding.linux-x64-gnu.node, 5.1 MiB / 18.4 MiB; 1s remote-cache ... (81 actions, 0 running)
+[15,251 / 15,394] Extracting npm package @rolldown/binding-linux-x64-gnu@1.2.8; Downloading node_modules/.aspect_rules_js/@rolldown+binding-linux-x64-gnu@1.2.8/node_modules/@rolldown/binding-linux-x64-gnu/rolldown-binding.linux-x64-gnu.node, 11.3 MiB / 18.4 MiB; 3s remote-cache ... (36 actions, 0 running)
+[15,267 / 15,394] Extracting npm package @rolldown/binding-linux-x64-gnu@1.2.8; Downloading node_modules/.aspect_rules_js/@rolldown+binding-linux-x64-gnu@1.2.8/node_modules/@rolldown/binding-linux-x64-gnu/rolldown-binding.linux-x64-gnu.node, 17.3 MiB / 18.4 MiB; 4s remote-cache ... (23 actions, 0 running)
+[15,302 / 15,394] Running lifecycle hooks on npm package esbuild@0.28.2}; Downloading node_modules/.aspect_rules_js/esbuild@0.28.2/node_modules/esbuild/bin/esbuild, 5.8 MiB / 10.9 MiB; 3s remote-cache
+[15,327 / 15,394] Transpiling & type-checking TypeScript project @@//personal_website/src/utils:utils [tsc -p personal_website/src/utils/tsconfig_utils.json]; 0s remote-cache ... (9 actions, 0 running)
+[15,351 / 15,394] AstroTimezoneBuild personal_website/timezone-dist; Downloading personal_website/timezone-dist/rss.xml.etag; 0s remote-cache ... (8 actions, 0 running)
+[15,388 / 15,394] OCITarballManifest angular/projects/pinyin-composer/load_image/tarball.spec; Downloading angular/projects/pinyin-composer/load_image/manifest.json; 0s remote-cache ... (4 actions, 0 running)
+INFO: Elapsed time: 21.707s, Critical Path: 9.62s
+INFO: 4156 processes: 1496 remote cache hit, 2642 internal, 18 linux-sandbox.
+INFO: Build completed successfully, 4156 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ ✅ Passed build task in 23.4s · Successful build
+    🔧 Setup    0ms  Prepare the task environment
+    🔨 Build  23.4s  Build bazel targets

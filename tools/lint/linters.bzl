@@ -41,7 +41,6 @@ stylelint = lint_stylelint_aspect(
 ty = lint_ty_aspect(
     binary = "@multitool//tools/ty",
     config = Label("//:pyproject.toml"),
-    args = ["--python-version", "3.15"],
 )
 
 ruff = lint_ruff_aspect(
@@ -97,3 +96,9 @@ vale = lint_vale_aspect(
 )
 
 vale_test = lint_test(aspect = vale)
+
+# Disposable checker-content invalidation probe.
+ty_binary_probe = lint_ty_aspect(
+    binary = Label("//tools/lint:ty_prototype_binary"),
+    config = Label("//:pyproject.toml"),
+)

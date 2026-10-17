@@ -1,0 +1,157 @@
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff de1b8f8507d476d9c44ef608a1c298bef1b6c055..HEAD (git merge-base HEAD origin/main)
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/scripts/bazel_dependencies.py [+2 / -0] (changed)
+  .github/scripts/ty_prototype/BUILD.bazel [+8 / -0] (changed)
+  .github/scripts/ty_prototype/probe.py [+3 / -0] (changed)
+  MODULE.bazel [+2 / -0] (changed)
+  docs/prototypes/ty-bazel/README.md [+87 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.log [+109 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.log [+70 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/cleanup-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-gazelle.log [+38 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-lint.log [+92 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/fixture-gazelle.log [+837 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.log [+115 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/future-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/import-probe.py.txt [+31 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle-fixed.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle.log [+59 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.log [+82 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-source.diff [+44 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.log [+160 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.log [+152 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.log [+41 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-dependency.py.txt [+10 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-pyproject.toml.txt [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-raw.txt [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-source.py.txt [+43 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-stub.pyi.txt [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.log [+65 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/probes-gazelle.log [+710 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/python_sample.AspectRulesLintTy.out.txt [+9 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/scripts.AspectRulesLintTy.out.txt [+53 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.log [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.log [+20 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/version.log [+31 / -0] (changed)
+  pyproject.toml [+4 / -0] (changed)
+  python_sample/__main__.py [+2 / -0] (changed)
+  python_sample/ty_prototype/BUILD.bazel [+27 / -0] (changed)
+  python_sample/ty_prototype/own_root/local_helper.py [+6 / -0] (changed)
+  python_sample/ty_prototype/probe.py [+36 / -0] (changed)
+  python_sample/ty_prototype/stubs/ty_proto_stub.pyi [+1 / -0] (changed)
+  python_sample/versions.py [+2 / -0] (changed)
+  python_sample/versions_test.py [+2 / -0] (changed)
+  tools/lint/BUILD.bazel [+10 / -0] (changed)
+  tools/lint/linters.bzl [+13 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+(01:45:04) [35mWARNING: [0mOption 'remote_local_fallback_strategy' is deprecated
+(01:45:04) [32mINFO: [0mInvocation ID: dc72c9a5-619c-48b9-8b68-3d84aa99b5b8
+(01:45:04) [32mINFO: [0mStreaming build results to: [36mhttps://app.buildbuddy.io/invocation/dc72c9a5-619c-48b9-8b68-3d84aa99b5b8[0m
+(01:45:04) [32mINFO: [0mOptions provided by the client:
+  Inherited 'common' options: --isatty=0 --terminal_columns=80 --extra_execution_platforms=//platforms:local_gnu_llvm --platforms=//platforms:local_gnu_llvm --host_platform=//platforms:local_gnu_llvm --@llvm//config:experimental_stub_libgcc_s=True --@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols --@rules_go//go/config:linkmode=pie --nobuild_runfile_links --enable_platform_specific_config --noexperimental_check_external_repository_files --experimental_fetch_all_coverage_outputs --heap_dump_on_oom --incompatible_default_to_explicit_init_py --incompatible_enforce_starlark_utf8=error --incompatible_modify_execution_info_additive --module_mirrors=https://bcr.cloudflaremirrors.com --noremote_upload_local_results --repo_env=JAVA_HOME=../bazel_tools/jdk --repo_env=DO_NOT_TRACK=1 --reuse_sandbox_directories --nosandbox_default_allow_network --show_result=20 --test_output=errors --java_language_version=25 --tool_java_language_version=25 --java_runtime_version=remotejdk_25 --tool_java_runtime_version=remotejdk_25 --bes_results_url=https://app.buildbuddy.io/invocation/ --bes_backend=grpcs://remote.buildbuddy.io --remote_cache=grpcs://remote.buildbuddy.io --remote_cache_compression --experimental_remote_cache_chunking --remote_grpc_log=bazel-remote-grpc.log --execution_log_compact_file=execution_log.binpb.zst --noslim_profile --experimental_profile_include_primary_output --experimental_profile_include_target_label --experimental_isolated_extension_usages --workspace_status_command=githooks/check-config.sh --noexperimental_merged_skyframe_analysis_execution --@aspect_rules_ts//ts:skipLibCheck=always --@aspect_rules_ts//ts:default_to_tsc_transpiler --@rules_python//python/config_settings:bootstrap_impl=script --@rules_python//python/config_settings:python_version=3.15 --@pypi//venv=default --noannounce_rc --remote_executor=grpcs://remote.buildbuddy.io --platforms=//platforms:remote_linux_x86_64_gnu_llvm --extra_execution_platforms=//platforms:remote_linux_x86_64_gnu_llvm --jobs=100 --host_platform=//platforms:remote_linux_x86_64_gnu_llvm --remote_header=<REDACTED> --announce_rc --color=yes --curses=yes --grpc_keepalive_time=30s --lockfile_mode=error --remote_download_outputs=minimal --remote_local_fallback --remote_timeout=3600 --remote_upload_local_results --show_progress_rate_limit=60 --show_timestamps --terminal_columns=143 --remote_executor=grpcs://remote.buildbuddy.io --platforms=//platforms:remote_linux_x86_64_gnu_llvm --extra_execution_platforms=//platforms:remote_linux_x86_64_gnu_llvm --jobs=100 --host_platform=//platforms:remote_linux_x86_64_gnu_llvm --remote_timeout=3600 --incompatible_strict_action_env --remote_local_fallback_strategy=sandboxed --remote_download_toplevel
+(01:45:06) [32mINFO: [0mChecking for file changes...
+(01:45:06) [32mINFO: [0mCurrent date is 2026-10-17
+(01:45:06) [0m no actions running
+[1A[K(01:45:06) [32mComputing main repo mapping:[0m 
+[1A[K(01:45:06) [32mLoading:[0m 
+[1A[K(01:45:06) [32mLoading:[0m 0 packages loaded
+[1A[K(01:45:06) [32mAnalyzing:[0m 4 targets (1 packages loaded, 0 targets configured)
+[1A[K(01:45:08) [32mINFO: [0mAnalyzed 4 targets (15 packages loaded, 101811 targets configured, 216 aspect applications).
+(01:45:08) [0m no actions running
+[1A[K(01:45:08) [32mINFO: [0mFound 4 targets...
+(01:45:08) [0m no actions running
+[1A[K(01:45:09) [32m[0 / 13][0m [Prepa] BazelWorkspaceStatusAction stable-status.txt
+[1A[K(01:45:09) [32mINFO: [0mFrom BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+(01:45:09) [32m[484 / 1,816][0m [Prepa] BazelWorkspaceStatusAction stable-status.txt
+[1A[KTarget //python_sample:python_sample up-to-date (nothing to build)
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[KTarget //python_sample:versions_test up-to-date (nothing to build)
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[KTarget //.github/scripts:bazel_dependencies up-to-date (nothing to build)
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[KTarget //python_sample:python_sample_bin up-to-date (nothing to build)
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[KAspect //tools/lint:linters.bzl%ty of //.github/scripts:bazel_dependencies up-to-date:
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.report
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.report.exit_code
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[KAspect //tools/lint:linters.bzl%ty of //python_sample:python_sample_bin up-to-date:
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.report
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.report.exit_code
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[KAspect //tools/lint:linters.bzl%ty of //python_sample:versions_test up-to-date:
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.report
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.report.exit_code
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[KAspect //tools/lint:linters.bzl%ty of //python_sample:python_sample up-to-date:
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K  bazel-bin/python_sample/python_sample.AspectRulesLintTy.report
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K  bazel-bin/python_sample/python_sample.AspectRulesLintTy.report.exit_code
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K(01:45:23) [32mINFO: [0mElapsed time: 18.495s, Critical Path: 14.22s
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K(01:45:23) [32mINFO: [0m115 processes: 1404 action cache hit, 101 remote cache hit, 2 internal, 12 remote.
+(01:45:23) [32m[2,807 / 2,807][0m no actions running
+[1A[K(01:45:23) [32mINFO: [0mBuild completed successfully, 115 total actions
+(01:45:23) 
+[1A[K(01:45:23) 
+[1A[K(01:45:24) [32mINFO: [0mStreaming build results to: [36mhttps://app.buildbuddy.io/invocation/dc72c9a5-619c-48b9-8b68-3d84aa99b5b8[0m
+[0m
+🧹 Linters (1): Ty
+
+Lint findings after hold-the-line (4)
+  🚨 python_sample/__main__.py:8 · Ty — [invalid-assignment]: Object of type `Literal["remote retry must fail"]` is not assignable to `int`
+  🚨 .github/scripts/bazel_dependencies.py:79 · Ty — [invalid-assignment]: Object of type `Literal["remote retry must fail"]` is not assignable to `int`
+  🚨 python_sample/versions_test.py:28 · Ty — [invalid-assignment]: Object of type `Literal["remote retry must fail"]` is not assignable to `int`
+  🚨 python_sample/versions.py:12 · Ty — [invalid-assignment]: Object of type `Literal["remote retry must fail"]` is not assignable to `int`
+
+→ ❌ Failed lint task (exit code 1) in 20.2s · Build failed
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  214ms  Detect changed files
+    🔬 Lint    20.0s  Run lint aspects (failed)

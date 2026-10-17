@@ -1,0 +1,16 @@
+//.github/scripts:bazel_dependencies
+//.github/scripts:bazel_dependencies_test
+//.github/scripts:bazel_dependency_faults
+//.github/scripts:nix_cache_failures
+//.github/scripts:nix_cache_failures_test
+//.github/scripts:nix_tool
+//.github/scripts:nix_tool_test
+//.github/scripts:scripts
+//.github/scripts/ty_prototype:ty_prototype
+//python_sample:cli_test
+//python_sample:python_sample
+//python_sample:python_sample_bin
+//python_sample:runtime_test
+//python_sample:versions_test
+//python_sample/ty_prototype:stub
+//python_sample/ty_prototype:ty_prototype

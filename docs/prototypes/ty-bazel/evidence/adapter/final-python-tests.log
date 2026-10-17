@@ -1,0 +1,122 @@
+→ 🎬 Running test task
+
+→ 🔧 Setup · Running setup
+
+→ 🧪 Test · Spawning bazel test
+(01:58:33) [35mWARNING: [0mOption 'remote_local_fallback_strategy' is deprecated
+(01:58:33) [32mINFO: [0mInvocation ID: 2a15e1f0-0ac3-4e24-ba1d-e1e994bbefdf
+(01:58:33) [32mINFO: [0mStreaming build results to: [36mhttps://app.buildbuddy.io/invocation/2a15e1f0-0ac3-4e24-ba1d-e1e994bbefdf[0m
+(01:58:34) [32mINFO: [0mChecking for file changes...
+(01:58:35) [32mINFO: [0mCurrent date is 2026-10-17
+(01:58:35) [0m no actions running
+[1A[K(01:58:35) [32mComputing main repo mapping:[0m 
+[1A[K(01:58:35) [32mLoading:[0m 
+[1A[K(01:58:35) [32mLoading:[0m 0 packages loaded
+[1A[K(01:58:35) [32mAnalyzing:[0m 23 targets (0 packages loaded, 0 targets configured)
+[1A[K(01:58:36) [32mINFO: [0mAnalyzed 23 targets (1 packages loaded, 27 targets configured).
+(01:58:36) [0m no actions running
+[1A[K(01:58:36) [32mINFO: [0mFound 17 targets and 6 test targets...
+(01:58:36) [0m no actions running
+[1A[K(01:58:36) [32m[0 / 7][0m [Prepa] BazelWorkspaceStatusAction stable-status.txt
+[1A[K(01:58:36) [32mINFO: [0mFrom BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+(01:58:36) [32m[67 / 74][0m 7 actions, 0 running
+    [Prepa] BazelWorkspaceStatusAction stable-status.txt
+    [Prepa] runfiles for //python_sample:cli_test
+    [Prepa] runfiles for //python_sample:runtime_test
+    [Prepa] runfiles for //.github/scripts:nix_cache_failures_test
+    [Prepa] runfiles for //python_sample:versions_test
+    [Prepa] runfiles for //.github/scripts:bazel_dependencies_test
+    [Prepa] runfiles for //.github/scripts:nix_tool_test
+[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[K[1A[KTarget //.github/scripts:bazel_dependencies_test up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies_test
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:bazel_dependencies_test.pytest_paths up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-bin/.github/scripts/bazel_dependencies_test.pytest_paths
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:bazel_dependency_faults up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependency_faults
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:nix_tool_test up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool_test
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //python_sample:versions_test.pytest_paths up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-bin/python_sample/versions_test.pytest_paths
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:nix_cache_failures_test.pytest_paths up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-bin/.github/scripts/nix_cache_failures_test.pytest_paths
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //python_sample:python_sample_bin up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //python_sample:cli_test.pytest_paths up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-bin/python_sample/cli_test.pytest_paths
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:nix_tool up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //python_sample:runtime_test up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/runtime_test
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //python_sample:versions_test up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //python_sample:cli_test up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/cli_test
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //python_sample:runtime_test.pytest_paths up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-bin/python_sample/runtime_test.pytest_paths
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:nix_tool_test.pytest_paths up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-bin/.github/scripts/nix_tool_test.pytest_paths
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:nix_cache_failures up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:bazel_dependencies up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[KTarget //.github/scripts:nix_cache_failures_test up-to-date:
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures_test
+(01:58:42) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K(01:58:43) [32mINFO: [0mElapsed time: 9.555s, Critical Path: 5.97s
+(01:58:43) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K(01:58:43) [32mINFO: [0m49 processes: 43 internal, 6 remote.
+(01:58:43) [32m[80 / 80][0m 6 / 6 tests;[0m no actions running[0m; last test: [32m//python_sample:runtime_test[0m
+[1A[K(01:58:43) [32mINFO: [0mBuild completed successfully, 49 total actions
+(01:58:43) 
+[1A[K(01:58:43) 
+[1A[K
+Executed 6 out of 6 tests: 6 tests pass.
+(01:58:43) 
+[1A[K(01:58:44) [32mINFO: [0mStreaming build results to: [36mhttps://app.buildbuddy.io/invocation/2a15e1f0-0ac3-4e24-ba1d-e1e994bbefdf[0m
+[0m
+→ ✅ Passed test task in 11.2s · Tests passed
+    🔧 Setup    0ms  Prepare the task environment
+    🧪 Test   11.2s  Run bazel tests

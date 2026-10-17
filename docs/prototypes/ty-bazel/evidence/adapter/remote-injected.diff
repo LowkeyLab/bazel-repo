@@ -1,0 +1,40 @@
+diff --git a/.github/scripts/bazel_dependencies.py b/.github/scripts/bazel_dependencies.py
+index 073d7e78..c409e8cb 100644
+--- a/.github/scripts/bazel_dependencies.py
++++ b/.github/scripts/bazel_dependencies.py
+@@ -75,3 +75,5 @@ if __name__ == "__main__":
+         sys.exit(prepare())
+     else:
+         sys.exit("usage: bazel_dependencies.py configure|prepare")
++
++prototype_remote_type_error: int = "remote must fail"
+diff --git a/python_sample/__main__.py b/python_sample/__main__.py
+index 8640eb6b..01fd7bfe 100644
+--- a/python_sample/__main__.py
++++ b/python_sample/__main__.py
+@@ -4,3 +4,5 @@ from cli import main
+ 
+ if __name__ == "__main__":
+     main()
++
++prototype_remote_type_error: int = "remote must fail"
+diff --git a/python_sample/versions.py b/python_sample/versions.py
+index 6498d27c..688b391d 100644
+--- a/python_sample/versions.py
++++ b/python_sample/versions.py
+@@ -8,3 +8,5 @@ from packaging.version import Version
+ def sort_versions(versions: Iterable[str]) -> list[str]:
+     """Return the supplied version strings in package release order."""
+     return sorted(versions, key=Version)
++
++prototype_remote_type_error: int = "remote must fail"
+diff --git a/python_sample/versions_test.py b/python_sample/versions_test.py
+index b4225c44..364e4f00 100644
+--- a/python_sample/versions_test.py
++++ b/python_sample/versions_test.py
+@@ -24,3 +24,5 @@ def test_package_release_order(versions, expected):
+ def test_invalid_version_is_rejected():
+     with pytest.raises(InvalidVersion):
+         sort_versions(["not-a-version"])
++
++prototype_remote_type_error: int = "remote must fail"

@@ -1,0 +1,180 @@
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff de1b8f8507d476d9c44ef608a1c298bef1b6c055..HEAD (git merge-base HEAD origin/main)
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/scripts/ty_prototype/BUILD.bazel [+8 / -0] (changed)
+  .github/scripts/ty_prototype/probe.py [+3 / -0] (changed)
+  MODULE.bazel [+2 / -0] (changed)
+  docs/prototypes/ty-bazel/README.md [+87 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.log [+109 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.log [+70 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/cleanup-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-gazelle.log [+38 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-lint.log [+92 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/fixture-gazelle.log [+837 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.log [+115 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/future-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/import-probe.py.txt [+31 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle-fixed.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle.log [+59 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.log [+82 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-source.diff [+44 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.log [+160 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.log [+152 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.log [+41 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-dependency.py.txt [+10 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-pyproject.toml.txt [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-raw.txt [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-source.py.txt [+43 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-stub.pyi.txt [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.log [+65 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/probes-gazelle.log [+710 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/python_sample.AspectRulesLintTy.out.txt [+9 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/scripts.AspectRulesLintTy.out.txt [+53 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.log [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.log [+20 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/version.log [+31 / -0] (changed)
+  pyproject.toml [+4 / -0] (changed)
+  python_sample/ty_prototype/BUILD.bazel [+27 / -0] (changed)
+  python_sample/ty_prototype/own_root/local_helper.py [+6 / -0] (changed)
+  python_sample/ty_prototype/probe.py [+36 / -0] (changed)
+  python_sample/ty_prototype/stubs/ty_proto_stub.pyi [+1 / -0] (changed)
+  tools/lint/linters.bzl [+7 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+INFO: Invocation ID: c1f56981-a69d-415a-a851-a7da381a7869
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/c1f56981-a69d-415a-a851-a7da381a7869
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 23 targets (1 packages loaded, 0 targets configured)
+Analyzing: 23 targets (2 packages loaded, 4811 targets configured)
+INFO: Analyzed 23 targets (15 packages loaded, 101921 targets configured, 236 aspect applications).
+ no actions running
+INFO: Found 23 targets...
+[0 / 1] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,736 / 2,760] Copying files to directory external/llvm++llvm+llvm-project/libcxx/libcxx_headers_include_search_directory [for tool]; 0s remote-cache ... (100 actions, 0 running)
+[1,857 / 2,769] Compiling libcxxabi/src/cxa_demangle.cpp [for tool]; 1s remote-cache ... (100 actions, 0 running)
+[2,135 / 2,769] [Sched] Linting //python_sample:runtime_test with ty; Downloading external/aspect_rules_py++uv+whl_install__bazel_repo_python__pytest__9_1_1/install/lib/python3.15/site-packages/_pytest/subtests.py ... (99 actions, 0 running)
+[2,580 / 2,769] Compiling compiler-rt/lib/builtins/fixtfsi.c [for tool]; 0s remote-cache ... (36 actions, 0 running)
+[2,632 / 2,769] Copying files to directory external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory [for tool]; 0s remote-cache ... (8 actions, 0 running)
+[2,678 / 2,769] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/reflect/protoreflect/protoreflect.a [for tool]; 0s remote-cache ... (2 actions, 0 running)
+[2,713 / 2,769] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/internal/filedesc/filedesc.a [for tool]; 0s remote-cache ... (3 actions, 0 running)
+[2,744 / 2,769] [Prepa] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/reflect/protodesc/protodesc.a [for tool]
+[2,752 / 2,769] [Prepa] GoCompilePkg external/gazelle++go_deps+com_github_reviewdog_reviewdog/proto/rdf/rdf.a [for tool]
+[2,758 / 2,769] [Prepa] Parsing machine-readable report to SARIF for //.github/scripts:nix_cache_failures_test ... (6 actions, 0 running)
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:bazel_dependencies up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:nix_tool up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:python_sample_bin up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:bazel_dependencies_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:bazel_dependency_faults up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependency_faults.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependency_faults.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:python_sample up-to-date:
+  bazel-bin/python_sample/python_sample.AspectRulesLintTy.report
+  bazel-bin/python_sample/python_sample.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:nix_tool_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts/ty_prototype:ty_prototype up-to-date:
+  bazel-bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.report
+  bazel-bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:nix_cache_failures up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample/ty_prototype:ty_prototype up-to-date:
+  bazel-bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.report
+  bazel-bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:cli_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/cli_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/cli_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:versions_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:scripts up-to-date:
+  bazel-bin/.github/scripts/scripts.AspectRulesLintTy.report
+  bazel-bin/.github/scripts/scripts.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:nix_cache_failures_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample/ty_prototype:stub up-to-date:
+  bazel-bin/python_sample/ty_prototype/stub.AspectRulesLintTy.report
+  bazel-bin/python_sample/ty_prototype/stub.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:runtime_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/runtime_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/runtime_test.AspectRulesLintTy.report.exit_code
+INFO: Elapsed time: 14.335s, Critical Path: 8.53s
+INFO: 1488 processes: 72 action cache hit, 1146 remote cache hit, 310 internal, 32 linux-sandbox.
+INFO: Build completed successfully, 1488 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/c1f56981-a69d-415a-a851-a7da381a7869
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (1): Ty
+
+Lint findings after hold-the-line (10)
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+ERROR: ty failed; Python type checking is unconditional.
+
+→ ❌ Failed lint task (exit code 1) in 16.7s · 10 errors
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  239ms  Detect changed files
+    🔬 Lint    16.5s  Run lint aspects
+    🔎 Filter    4ms  Filter diagnostics (failed)

@@ -1,0 +1,23 @@
+--- a/lint.axl
++++ b/lint.axl
+@@ -628,7 +628,9 @@
+                 # findings silently.
+                 warn(ctx.std, "Ignoring unparseable SARIF report: %s" % filepath)
+                 return {"interesting": False, "linter_exit_code": 0, "failed_tool": ""}
+-            lint_accumulate(data, strategy.filter(sarif_diagnostics(sarif), changed_files))
++            # Disposable prototype: ty is unconditional; other linters retain their strategy.
++            report_strategy = StrategyHard if detect_lint_tool(file.name) == "Ty" else strategy
++            lint_accumulate(data, report_strategy.filter(sarif_diagnostics(sarif), changed_files))
+             for hook in lint_trait.lint_report:
+                 hook(ctx, filepath)
+             return {"interesting": True, "linter_exit_code": 0, "failed_tool": ""}
+@@ -1085,6 +1087,9 @@
+                 "--aspects=… via a bazelrc --config."
+             ))
+         exit_code = 1
++    elif "Ty" in failed_linters or any([d.get("tool") == "Ty" and d["severity"] == "error" for d in relevant]):
++        error(ctx.std, "ty failed; Python type checking is unconditional.")
++        exit_code = 1
+     elif strategy.fail_on_severity and any([d["severity"] == strategy.fail_on_severity for d in relevant]):
+         exit_code = 1
+     elif strategy.fail_on_linter_error and linter_exit_code != 0:

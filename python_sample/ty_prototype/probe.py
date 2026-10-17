@@ -34,3 +34,5 @@ prototype_future_value: int = 1
 own_root_value: str = typed_helper("ok")
 stub_value: int = external_function("ok")
 math_value: float = math.sqrt(4)
+
+prototype_remote_final_clean: int = 1

@@ -1,0 +1,31 @@
+INFO: Invocation ID: d2f1186f-b78d-43c5-9bd4-6309ab950b9c
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/d2f1186f-b78d-43c5-9bd4-6309ab950b9c
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target @@rules_multitool++multitool+multitool//tools/ty:ty (0 packages loaded, 0 targets configured)
+INFO: Analyzed target @@rules_multitool++multitool+multitool//tools/ty:ty (0 packages loaded, 2 targets configured).
+INFO: Found 1 target...
+[0 / 5] [Prepa] Creating source manifest for @@rules_multitool++multitool+multitool//tools/ty:ty ... (3 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target @@rules_multitool++multitool+multitool//tools/ty:ty up-to-date:
+  bazel-bin/external/rules_multitool++multitool+multitool/tools/ty/ty
+INFO: Elapsed time: 2.546s, Critical Path: 0.01s
+INFO: 5 processes: 5 internal.
+INFO: Build completed successfully, 5 total actions
+
+INFO: Running command line: bazel-bin/external/rules_multitool++multitool+multitool/tools/ty/ty <args omitted>
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/d2f1186f-b78d-43c5-9bd4-6309ab950b9c
+ty 0.0.85

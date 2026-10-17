@@ -1,0 +1,9 @@
+warning[invalid-assignment]: Object of type `Literal["warning parser probe"]` is not assignable to `int`
+  --> python_sample/ty_prototype/probe.py:38:33
+   |
+38 | prototype_warning_report: int = "warning parser probe"
+   |                           ---   ^^^^^^^^^^^^^^^^^^^^^^ Incompatible value of type `Literal["warning parser probe"]`
+   |                           |
+   |                           Declared type
+
+Found 1 diagnostic

@@ -1,0 +1,11 @@
+"""Disposable hidden-directory future target probe."""
+
+prototype_hidden_future_value: int = 1
+
+from typing import TypeForm
+lazy import math
+
+def version_probe(value: TypeForm[int]) -> TypeForm[int]:
+    return value
+
+version_number: float = math.sqrt(4)

@@ -1,0 +1,33 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/b38b41b8-4c08-4f44-9bfe-0040fb5f8928' is dirty
+INFO: Invocation ID: 6cce926d-e139-4b0e-bcaa-2b575e83044c
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/6cce926d-e139-4b0e-bcaa-2b575e83044c
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (1 packages loaded, 0 targets configured)
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (3 packages loaded, 1310 targets configured, 172 aspect applications)
+INFO: Analyzed target //.github/scripts/ty_prototype:ty_prototype (3 packages loaded, 1310 targets configured, 172 aspect applications).
+INFO: Found 1 target...
+INFO: Elapsed time: 3.882s, Critical Path: 0.00s
+INFO: 0 processes.
+INFO: Build completed successfully, 0 total actions
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/6cce926d-e139-4b0e-bcaa-2b575e83044c
+INFO: Invocation ID: 92e016a6-31f1-4e1f-8f29-5e3b65a231be
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/92e016a6-31f1-4e1f-8f29-5e3b65a231be
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build option --@@rules_python+//python/config_settings:python_version has changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (0 packages loaded, 0 targets configured)
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (1 packages loaded, 7923 targets configured)
+INFO: Analyzed target //.github/scripts/ty_prototype:ty_prototype (1 packages loaded, 101551 targets configured, 172 aspect applications).
+ no actions running
+INFO: Found 1 target...
+INFO: Elapsed time: 5.049s, Critical Path: 0.00s
+INFO: 0 processes.
+INFO: Build completed successfully, 0 total actions
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/92e016a6-31f1-4e1f-8f29-5e3b65a231be

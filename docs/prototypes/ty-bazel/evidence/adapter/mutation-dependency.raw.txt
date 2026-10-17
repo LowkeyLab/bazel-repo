@@ -1,0 +1,10 @@
+error[invalid-return-type]: Return type does not match returned value
+  --> python_sample/ty_prototype/probe.py:15:12
+   |
+13 | def compatible(value: str) -> list[str]:
+   |                               --------- Expected `list[str]` because of return type
+14 |     """Exercise typed third-party and transitive first-party imports."""
+15 |     return sort_versions([str(Version(value))])
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `list[str]`, found `list[int]`
+
+Found 1 diagnostic

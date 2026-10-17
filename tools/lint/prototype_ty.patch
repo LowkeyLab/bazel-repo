@@ -1,0 +1,96 @@
+diff --git a/lint/ty.bzl b/lint/ty.bzl
+--- a/lint/ty.bzl
++++ b/lint/ty.bzl
+@@ -15,6 +15,7 @@
+ ```
+ """
+ 
++load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+ load("@rules_python//python:defs.bzl", "PyInfo")
+ load("//lint/private:lint_aspect.bzl", "LintOptionsInfo", "OPTIONAL_SARIF_PARSER_TOOLCHAIN", "OUTFILE_FORMAT", "filter_srcs", "noop_lint_action", "output_files", "parse_to_sarif_action", "should_visit")
+ 
+@@ -105,6 +106,23 @@
+ {extra_search_path_script}
+ readonly TMP_OUT=$(mktemp)
+ 
++if [ -f python_sample/ty_prototype/probe.py ]; then
++  typed_wheel_found=0
++  while IFS= read -r path; do
++    if [ -f "$path/packaging/py.typed" ]; then
++      for metadata in "$path"/packaging-*.dist-info/METADATA; do
++        if [ -f "$metadata" ]; then
++          echo "PROTOTYPE_SANDBOX_TYPED_WHEEL=$path" >&2
++          typed_wheel_found=1
++        fi
++      done
++    fi
++  done < "$PARAM_FILE"
++  test "$typed_wheel_found" -eq 1 || exit 97
++  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98
++  echo "PROTOTYPE_SANDBOX_STUB_PRESENT=yes" >&2
++fi
++
+ {ty} check --force-exclude {color_flag} @"$PARAM_FILE" $@ > "$TMP_OUT" 2>&1
+ RET=$?
+ 
+@@ -185,6 +203,13 @@
+         ctx.bin_dir.path: True,
+     }
+ 
++    # Disposable feasibility patch: include the current target's own import roots.
++    if PyInfo in target:
++        transitive_sources.append(target[PyInfo].transitive_sources)
++        for import_path in target[PyInfo].imports.to_list():
++            for path in _resolve_import_path(import_path, ctx.workspace_name, ctx.bin_dir.path):
++                import_paths[path] = True
++
+     # Collect from deps, pyi_deps, and srcs attributes using PyInfo:
+     # - pyi_deps provides type stub dependencies for rules_python targets.
+     # - When srcs contain labels to other targets (e.g., genrules that produce .py files),
+@@ -205,6 +230,11 @@
+                         import_paths[dep.label.workspace_root] = True
+                         import_paths[ctx.bin_dir.path + "/" + dep.label.workspace_root] = True
+ 
++    python_version = ctx.attr._python_version[BuildSettingInfo].value
++    if not python_version:
++        fail("The ty feasibility prototype requires the repository Python selector")
++    checker_args = ctx.attr._args + ["--python-version", python_version]
++
+     files_to_lint = filter_srcs(ctx.rule)
+     outputs, info = output_files(_MNEMONIC, target, ctx)
+ 
+@@ -217,10 +247,10 @@
+     # Pass transitive sources to ty_action so ty can resolve imports from dependencies
+     transitive_srcs_depset = depset(transitive = transitive_sources)
+     extra_search_paths = import_paths.keys()
+-    ty_action(ctx, ctx.executable._ty, files_to_lint, transitive_srcs_depset, ctx.files._config_file, outputs.human.out, outputs.human.exit_code, env = color_env, extra_search_paths = extra_search_paths, args = ctx.attr._args)
++    ty_action(ctx, ctx.executable._ty, files_to_lint, transitive_srcs_depset, ctx.files._config_file, outputs.human.out, outputs.human.exit_code, env = color_env, extra_search_paths = extra_search_paths, args = checker_args)
+ 
+     raw_machine_report = ctx.actions.declare_file(OUTFILE_FORMAT.format(label = target.label.name, mnemonic = _MNEMONIC, suffix = "raw_machine_report"))
+-    ty_action(ctx, ctx.executable._ty, files_to_lint, transitive_srcs_depset, ctx.files._config_file, raw_machine_report, outputs.machine.exit_code, extra_search_paths = extra_search_paths, color = False, args = ctx.attr._args)
++    ty_action(ctx, ctx.executable._ty, files_to_lint, transitive_srcs_depset, ctx.files._config_file, raw_machine_report, outputs.machine.exit_code, extra_search_paths = extra_search_paths, color = False, args = checker_args)
+ 
+     # Ideally we'd just use {"TY_OUTPUT_FORMAT": "sarif"} however it prints absolute paths; see https://github.com/astral-sh/ruff/issues/14985
+     # This issue should also be resolved when the issue from ruff is fixed.
+@@ -249,6 +279,10 @@
+                 default = "//lint:options",
+                 providers = [LintOptionsInfo],
+             ),
++            "_python_version": attr.label(
++                default = Label("@rules_python//python/config_settings:python_version"),
++                providers = [BuildSettingInfo],
++            ),
+             "_ty": attr.label(
+                 default = binary,
+                 allow_files = True,
+diff --git a/tools/sarif/sarif.go b/tools/sarif/sarif.go
+--- a/tools/sarif/sarif.go
++++ b/tools/sarif/sarif.go
+@@ -145,6 +145,7 @@
+ 	case "AspectRulesLintTy":
+ 		fm = []string{
+ 			`%Eerror%m`,
++			`%Wwarning%m`,
+ 			`%C\\ %#-->\\ %f:%l:%c`,
+ 			`%-G%.%#`,
+ 		}

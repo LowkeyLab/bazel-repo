@@ -1,0 +1,45 @@
+INFO: Invocation ID: 579a8070-e8df-4891-b83c-dc13bb023b60
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/579a8070-e8df-4891-b83c-dc13bb023b60
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build option --@@rules_python+//python/config_settings:python_version has changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //:gazelle (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //:gazelle (0 packages loaded, 189756 targets configured, 634 aspect applications).
+ no actions running
+INFO: Found 1 target...
+[1 / 15] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (2 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[2,564 / 4,551] Copying files to directory external/llvm++llvm+llvm-project/libcxx/libcxx_headers_include_search_directory [for tool]; 0s remote, remote-cache ... (98 actions, 0 running)
+[2,971 / 4,564] Copying files to directory external/llvm+/runtimes/crt_objects_directory_linux [for tool]; 0s remote, remote-cache ... (100 actions, 0 running)
+[3,426 / 4,564] Creating static library external/llvm++llvm+llvm-project/compiler-rt/clang_rt.builtins.static_/libclang_rt.builtins.static.a [for tool]; 0s remote, remote-cache ... (4 actions, 0 running)
+[3,442 / 4,564] Copying files to directory external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory [for tool]; 0s remote, remote-cache ... (7 actions, 0 running)
+[4,495 / 4,564] GoLink external/rules_go+/go/tools/builders/go-protoc-bin_/go-protoc-bin [for tool]; 0s remote, remote-cache ... (2 actions, 0 running)
+[4,510 / 4,564] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/internal/encoding/defval/defval.a [for tool]; 0s remote, remote-cache ... (2 actions, 0 running)
+[4,519 / 4,564] [Prepa] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/runtime/protoimpl/protoimpl.a [for tool]
+[4,544 / 4,564] [Prepa] Creating symlink external/rules_go+/proto/go_proto_reset_plugin_/protoc-gen-go [for tool]
+Target //:gazelle up-to-date:
+  bazel-bin/gazelle-runner.bash
+  bazel-bin/gazelle
+INFO: Elapsed time: 13.100s, Critical Path: 6.25s
+INFO: 1330 processes: 3234 action cache hit, 1068 remote cache hit, 262 internal.
+INFO: Build completed successfully, 1330 total actions
+
+INFO: Running command line: bazel-bin/gazelle
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/579a8070-e8df-4891-b83c-dc13bb023b60
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.PlatformDependent0$4 (file:/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/external/rules_jvm_external++maven+contrib_rules_jvm_deps/io/netty/netty-common/4.1.110.Final/processed_netty-common-4.1.110.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$4
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release

@@ -1,0 +1,920 @@
+[
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//.github/scripts:bazel_dependencies",
+    "runner": "remote",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "4a2fc97ba636e2bc1c1e9579291e72ecf7ea8d824f89814bf272d4ef9559d0e3",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputCount": 7,
+    "inputs": [
+      {
+        "path": ".github/scripts/bazel_dependencies.py",
+        "digest": {
+          "hash": "4100f0e14736c5e8597b987c2ba422b24ea5137df49e31f509654e2cb2322846",
+          "sizeBytes": "2781",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty.runfiles/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color always @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.out\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.out\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.out.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.out-0.params",
+      "--python-version",
+      "3.15",
+      ".github/scripts/bazel_dependencies.py",
+      "--project",
+      "."
+    ]
+  },
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//.github/scripts:bazel_dependencies",
+    "runner": "remote",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "37d6b50af414d8e5196d9373769fc46630877745198103c9d6315c3dbae8a9e4",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputCount": 7,
+    "inputs": [
+      {
+        "path": ".github/scripts/bazel_dependencies.py",
+        "digest": {
+          "hash": "4100f0e14736c5e8597b987c2ba422b24ea5137df49e31f509654e2cb2322846",
+          "sizeBytes": "2781",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty.runfiles/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color never @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.raw_machine_report\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.raw_machine_report\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.report.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.raw_machine_report-0.params",
+      "--python-version",
+      "3.15",
+      ".github/scripts/bazel_dependencies.py",
+      "--project",
+      "."
+    ]
+  },
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//python_sample:python_sample_bin",
+    "runner": "remote",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "5a85227f03e5cadbb7eb36440883b855f46eadc026f804c2bb6ed6455f1e257f",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputCount": 62,
+    "inputs": [
+      {
+        "path": "bazel-out/k8-fastbuild-ST-98618d796211/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/py.typed",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild-ST-98618d796211/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/METADATA",
+        "digest": {
+          "hash": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "sizeBytes": "3544",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty.runfiles/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/__main__.py",
+        "digest": {
+          "hash": "7e680ff111607d9c4d74d1e8887371df8b3b89a07b8c255f0795ee048e1fb729",
+          "sizeBytes": "162",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/cli.py",
+        "digest": {
+          "hash": "f1c8b61bc872933132f53219ba720f83565a498511b3942f4083380f460133ac",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions.py",
+        "digest": {
+          "hash": "9bfc3fa17ddee4a67f080c901e31c7c0e5689cf6feea3895971aa8a38a0cc0cf",
+          "sizeBytes": "372",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color always @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.out\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.out\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.out.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.out-0.params",
+      "--python-version",
+      "3.15",
+      "python_sample/__main__.py",
+      "--project",
+      "."
+    ]
+  },
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//python_sample:python_sample_bin",
+    "runner": "remote",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "69214cc88c86d1475024d284b752315a212927b47402235b575e224337377c6c",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputCount": 62,
+    "inputs": [
+      {
+        "path": "bazel-out/k8-fastbuild-ST-98618d796211/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/py.typed",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild-ST-98618d796211/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/METADATA",
+        "digest": {
+          "hash": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "sizeBytes": "3544",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty.runfiles/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/__main__.py",
+        "digest": {
+          "hash": "7e680ff111607d9c4d74d1e8887371df8b3b89a07b8c255f0795ee048e1fb729",
+          "sizeBytes": "162",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/cli.py",
+        "digest": {
+          "hash": "f1c8b61bc872933132f53219ba720f83565a498511b3942f4083380f460133ac",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions.py",
+        "digest": {
+          "hash": "9bfc3fa17ddee4a67f080c901e31c7c0e5689cf6feea3895971aa8a38a0cc0cf",
+          "sizeBytes": "372",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color never @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.raw_machine_report\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.raw_machine_report\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.report.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.raw_machine_report-0.params",
+      "--python-version",
+      "3.15",
+      "python_sample/__main__.py",
+      "--project",
+      "."
+    ]
+  },
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//python_sample:versions_test",
+    "runner": "remote",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "cde3434c8807c34a9c6238f147dfe4a04006c9392a55585f7dc54f93a2b63c89",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputCount": 974,
+    "inputs": [
+      {
+        "path": "bazel-out/k8-fastbuild-ST-98618d796211/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/py.typed",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild-ST-98618d796211/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/METADATA",
+        "digest": {
+          "hash": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "sizeBytes": "3544",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty.runfiles/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/cli.py",
+        "digest": {
+          "hash": "f1c8b61bc872933132f53219ba720f83565a498511b3942f4083380f460133ac",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions.py",
+        "digest": {
+          "hash": "9bfc3fa17ddee4a67f080c901e31c7c0e5689cf6feea3895971aa8a38a0cc0cf",
+          "sizeBytes": "372",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions_test.py",
+        "digest": {
+          "hash": "52438f49c441058d949551ef04a2e0c3b96c5b63fecb82926da52781f1723c03",
+          "sizeBytes": "733",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color always @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.out\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.out\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.out.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.out-0.params",
+      "--python-version",
+      "3.15",
+      "python_sample/versions_test.py",
+      "--project",
+      "."
+    ]
+  },
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//python_sample:versions_test",
+    "runner": "remote",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "88ff150f228d69feec59d41ead191350c92b78daf805a55d6ce43e89611d5b1c",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputCount": 974,
+    "inputs": [
+      {
+        "path": "bazel-out/k8-fastbuild-ST-98618d796211/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/py.typed",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild-ST-98618d796211/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/METADATA",
+        "digest": {
+          "hash": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "sizeBytes": "3544",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty.runfiles/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/cli.py",
+        "digest": {
+          "hash": "f1c8b61bc872933132f53219ba720f83565a498511b3942f4083380f460133ac",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions.py",
+        "digest": {
+          "hash": "9bfc3fa17ddee4a67f080c901e31c7c0e5689cf6feea3895971aa8a38a0cc0cf",
+          "sizeBytes": "372",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions_test.py",
+        "digest": {
+          "hash": "52438f49c441058d949551ef04a2e0c3b96c5b63fecb82926da52781f1723c03",
+          "sizeBytes": "733",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-98618d796211/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color never @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.raw_machine_report\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.raw_machine_report\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.report.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.raw_machine_report-0.params",
+      "--python-version",
+      "3.15",
+      "python_sample/versions_test.py",
+      "--project",
+      "."
+    ]
+  },
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//python_sample:python_sample",
+    "runner": "remote",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "2d65fa2345ec40674c4bfc9d364fdf12b1364e560f4cfefb8e1cd6d3901cd7f3",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputCount": 61,
+    "inputs": [
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/py.typed",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/METADATA",
+        "digest": {
+          "hash": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "sizeBytes": "3544",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_multitool++multitool+multitool/tools/ty/ty.runfiles/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/cli.py",
+        "digest": {
+          "hash": "f1c8b61bc872933132f53219ba720f83565a498511b3942f4083380f460133ac",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions.py",
+        "digest": {
+          "hash": "9bfc3fa17ddee4a67f080c901e31c7c0e5689cf6feea3895971aa8a38a0cc0cf",
+          "sizeBytes": "372",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color always @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild/bin/python_sample/python_sample.AspectRulesLintTy.out\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild/bin/python_sample/python_sample.AspectRulesLintTy.out\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild/bin/python_sample/python_sample.AspectRulesLintTy.out.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild/bin/python_sample/python_sample.AspectRulesLintTy.out-0.params",
+      "--python-version",
+      "3.15",
+      "python_sample/cli.py",
+      "python_sample/versions.py",
+      "--project",
+      "."
+    ]
+  },
+  {
+    "mnemonic": "AspectRulesLintTy",
+    "targetLabel": "//python_sample:python_sample",
+    "runner": "remote",
+    "cacheHit": false,
+    "exitCode": 0,
+    "digest": {
+      "hash": "a71c405b95fb79990592e855b0f506d390dcdeeb91fe7836759c56d9893c519a",
+      "sizeBytes": "277",
+      "hashFunctionName": "SHA256"
+    },
+    "platform": {
+      "properties": [
+        {
+          "name": "Arch",
+          "value": "amd64"
+        },
+        {
+          "name": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "name": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "name": "dockerNetwork",
+          "value": "off"
+        }
+      ]
+    },
+    "inputCount": 61,
+    "inputs": [
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/py.typed",
+        "digest": {
+          "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sizeBytes": "0",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging-26.3.dist-info/METADATA",
+        "digest": {
+          "hash": "70fdb89fc4d4a9a043bf7372b8972bcc883fddff34ab55e9cf80d73875384763",
+          "sizeBytes": "3544",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_multitool++multitool+multitool/tools/ty/ty.runfiles/rules_multitool++multitool+multitool/tools/ty/ty",
+        "digest": {
+          "hash": "7d3f947c740ab0a16c7afb9d231a17fdcb2d6e838fa0ba2deee2138cbf186f76",
+          "sizeBytes": "32022656",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": true,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "pyproject.toml",
+        "digest": {
+          "hash": "807dd76a750deff10877cbe76de63afd35c4d570a4454c4e115ca018289732b2",
+          "sizeBytes": "300",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/cli.py",
+        "digest": {
+          "hash": "f1c8b61bc872933132f53219ba720f83565a498511b3942f4083380f460133ac",
+          "sizeBytes": "494",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      },
+      {
+        "path": "python_sample/versions.py",
+        "digest": {
+          "hash": "9bfc3fa17ddee4a67f080c901e31c7c0e5689cf6feea3895971aa8a38a0cc0cf",
+          "sizeBytes": "372",
+          "hashFunctionName": "SHA-256"
+        },
+        "isTool": false,
+        "symlinkTargetPath": ""
+      }
+    ],
+    "commandArgs": [
+      "/bin/bash",
+      "-c",
+      "\nreadonly SEARCH_PATHS_FILE=\"$1\"\nshift\n\nreadonly PARAM_FILE=\"$(mktemp)\"\nwhile IFS= read -r path; do\n  if [ -d \"$path\" ]; then\n    printf '%s\n' \"--extra-search-path\" \"$path\" >> \"$PARAM_FILE\"\n  fi\ndone < \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT=$(mktemp)\n\nif [ -f python_sample/ty_prototype/probe.py ]; then\n  typed_wheel_found=0\n  while IFS= read -r path; do\n    if [ -f \"$path/packaging/py.typed\" ]; then\n      for metadata in \"$path\"/packaging-*.dist-info/METADATA; do\n        if [ -f \"$metadata\" ]; then\n          echo \"PROTOTYPE_SANDBOX_TYPED_WHEEL=$path\" >&2\n          typed_wheel_found=1\n        fi\n      done\n    fi\n  done < \"$PARAM_FILE\"\n  test \"$typed_wheel_found\" -eq 1 || exit 97\n  test -f python_sample/ty_prototype/stubs/ty_proto_stub.pyi || exit 98\n  echo \"PROTOTYPE_SANDBOX_STUB_PRESENT=yes\" >&2\nfi\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color never @\"$PARAM_FILE\" $@ > \"$TMP_OUT\" 2>&1\nRET=$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild/bin/python_sample/python_sample.AspectRulesLintTy.raw_machine_report\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild/bin/python_sample/python_sample.AspectRulesLintTy.raw_machine_report\nfi\n\necho \"$RET\" > bazel-out/k8-fastbuild/bin/python_sample/python_sample.AspectRulesLintTy.report.exit_code\n",
+      "",
+      "bazel-out/k8-fastbuild/bin/python_sample/python_sample.AspectRulesLintTy.raw_machine_report-0.params",
+      "--python-version",
+      "3.15",
+      "python_sample/cli.py",
+      "python_sample/versions.py",
+      "--project",
+      "."
+    ]
+  }
+]

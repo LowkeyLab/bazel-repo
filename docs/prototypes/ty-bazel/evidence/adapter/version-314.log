@@ -1,0 +1,127 @@
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff de1b8f8507d476d9c44ef608a1c298bef1b6c055..HEAD (git merge-base HEAD origin/main)
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/scripts/ty_prototype/BUILD.bazel [+8 / -0] (changed)
+  .github/scripts/ty_prototype/probe.py [+11 / -0] (changed)
+  MODULE.bazel [+2 / -0] (changed)
+  docs/prototypes/ty-bazel/README.md [+87 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.log [+109 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.log [+70 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/cleanup-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-gazelle.log [+38 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-lint.log [+92 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/fixture-gazelle.log [+837 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.log [+115 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/future-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/import-probe.py.txt [+31 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle-fixed.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle.log [+59 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.log [+82 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-source.diff [+44 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.log [+160 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.log [+152 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.log [+41 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-dependency.py.txt [+10 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-pyproject.toml.txt [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-raw.txt [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-source.py.txt [+43 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-stub.pyi.txt [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.log [+65 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/probes-gazelle.log [+710 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/python_sample.AspectRulesLintTy.out.txt [+9 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/scripts.AspectRulesLintTy.out.txt [+53 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.log [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.log [+20 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/version.log [+31 / -0] (changed)
+  pyproject.toml [+4 / -0] (changed)
+  python_sample/ty_prototype/BUILD.bazel [+27 / -0] (changed)
+  python_sample/ty_prototype/own_root/local_helper.py [+6 / -0] (changed)
+  python_sample/ty_prototype/probe.py [+36 / -0] (changed)
+  python_sample/ty_prototype/stubs/ty_proto_stub.pyi [+1 / -0] (changed)
+  tools/lint/linters.bzl [+7 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+INFO: Invocation ID: 117e023e-9f01-4f67-8400-2c2b67119266
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/117e023e-9f01-4f67-8400-2c2b67119266
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build option --@@rules_python+//python/config_settings:python_version has changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (0 packages loaded, 0 targets configured)
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (1 packages loaded, 38509 targets configured)
+INFO: Analyzed target //.github/scripts/ty_prototype:ty_prototype (1 packages loaded, 101551 targets configured, 172 aspect applications).
+INFO: Found 1 target...
+[0 / 8] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[362 / 1,270] Copying files to directory external/llvm++llvm+llvm-project/libcxxabi/libcxxabi_headers_include_search_directory [for tool]; 0s remote-cache ... (100 actions, 0 running)
+[790 / 1,401] Compiling libcxx/src/variant.cpp [for tool]; 0s remote-cache ... (100 actions, 0 running)
+[1,127 / 1,401] Copying files to directory external/llvm+/runtimes/glibc/glibc_library_search_directory [for tool]; 0s remote-cache ... (100 actions, 0 running)
+[1,269 / 1,401] Copying files to directory external/llvm+/runtimes/resource_directory_default [for tool]; 0s remote-cache ... (6 actions, 0 running)
+[1,348 / 1,401] [Prepa] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/internal/set/set.a [for tool] ... (7 actions, 0 running)
+[1,362 / 1,401] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/internal/descopts/descopts.a [for tool]; 0s remote-cache ... (6 actions, 0 running)
+[1,375 / 1,401] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/reflect/protopath/protopath.a [for tool]; 0s remote-cache ... (2 actions, 0 running)
+[1,383 / 1,401] [Prepa] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/types/pluginpb/pluginpb.a [for tool] ... (3 actions, 0 running)
+[1,390 / 1,401] [Prepa] GoLink external/gazelle++go_deps+org_golang_google_protobuf/cmd/protoc-gen-go/protoc-gen-go_/protoc-gen-go [for tool]
+Target //.github/scripts/ty_prototype:ty_prototype up-to-date (nothing to build)
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts/ty_prototype:ty_prototype up-to-date:
+  bazel-bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.report
+  bazel-bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.report.exit_code
+INFO: Elapsed time: 14.611s, Critical Path: 7.94s
+INFO: 1287 processes: 114 action cache hit, 1068 remote cache hit, 216 internal, 3 linux-sandbox.
+INFO: Build completed successfully, 1287 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/117e023e-9f01-4f67-8400-2c2b67119266
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (1): Ty
+
+Lint findings after hold-the-line (2)
+  🚨 .github/scripts/ty_prototype/probe.py:5 · Ty — [unresolved-import]: Module `typing` has no member `TypeForm`
+  🚨 .github/scripts/ty_prototype/probe.py:6 · Ty — [invalid-syntax]: Cannot use `lazy` import statement on Python 3.14 (syntax was added in Python 3.15)
+ERROR: ty failed; Python type checking is unconditional.
+
+→ ❌ Failed lint task (exit code 1) in 20.9s · 2 errors
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  215ms  Detect changed files
+    🔬 Lint    20.7s  Run lint aspects
+    🔎 Filter    5ms  Filter diagnostics (failed)

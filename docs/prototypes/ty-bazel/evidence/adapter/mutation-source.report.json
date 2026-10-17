@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python_sample/ty_prototype/probe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startColumn": 34,
+                  "startLine": 38
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "[invalid-assignment]: Object of type `Literal[\"wrong\"]` is not assignable to `int`"
+          }
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Ty"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

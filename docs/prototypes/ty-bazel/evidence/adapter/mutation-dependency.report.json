@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python_sample/ty_prototype/probe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startColumn": 12,
+                  "startLine": 15
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "[invalid-return-type]: Return type does not match returned value"
+          }
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Ty"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

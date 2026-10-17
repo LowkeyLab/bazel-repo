@@ -93,3 +93,13 @@ vale_test(
     ],
     tags = ["manual"],
 )
+
+# Disposable checker-content invalidation probe; append data to the pinned ELF.
+genrule(
+    name = "ty_prototype_binary",
+    srcs = ["@multitool//tools/ty"],
+    outs = ["ty_prototype_bin"],
+    cmd = "cp $(location @multitool//tools/ty) $@ && printf 'prototype-binary-F' >> $@ && chmod +x $@",
+    executable = True,
+    tags = ["manual"],
+)

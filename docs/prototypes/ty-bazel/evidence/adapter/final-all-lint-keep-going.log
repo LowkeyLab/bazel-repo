@@ -1,0 +1,634 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/b38b41b8-4c08-4f44-9bfe-0040fb5f8928' is dirty
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff de1b8f8507d476d9c44ef608a1c298bef1b6c055..HEAD (git merge-base HEAD origin/main)
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/scripts/ty_prototype/BUILD.bazel [+8 / -0] (changed)
+  .github/scripts/ty_prototype/probe.py [+3 / -0] (changed)
+  MODULE.bazel [+2 / -0] (changed)
+  docs/prototypes/ty-bazel/ADAPTER.md [+73 / -0] (changed)
+  docs/prototypes/ty-bazel/README.md [+89 / -0] (changed)
+  docs/prototypes/ty-bazel/aspect-ty-unconditional.patch [+23 / -0] (changed)
+  docs/prototypes/ty-bazel/aspect.sh [+16 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-A-initial-attempt.log [+119 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-A-initial-attempt.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-A.log [+116 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-A.sha256 [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-A.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-B-initial-attempt.log [+116 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-B-initial-attempt.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-B.log [+116 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-B.sha256 [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-B.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-C.log [+119 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-C.sha256 [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-C.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-D.log [+116 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-D.sha256 [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-D.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-E-patch-header-attempt.log [+91 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-E-patch-header-attempt.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-E-ty-spawns.json [+1316 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-E.log [+125 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-E.sha256 [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-E.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-F-patch-header-attempt.log [+91 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-F-patch-header-attempt.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-F-ty-spawns.json [+1316 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-F.log [+119 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-F.sha256 [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/binary-F.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/clean-imports.log [+110 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/clean-imports.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-repeat-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-repeat-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-repeat-restored-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-repeat-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-warning-repeat.checker-status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-warning-repeat.log [+118 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-warning-repeat.raw.txt [+9 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-warning-repeat.report.json [+13 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/config-warning-repeat.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/final-build-local.log [+2029 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/final-format.log [+112 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/final-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/final-gazelle.log [+705 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/final-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-binary-probe.log [+38 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-binary-probe.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-cleanup.log [+37 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-cleanup.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-cli-probe.log [+39 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-cli-probe.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-initial.log [+58 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-initial.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-metadata.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-metadata.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-multifile-patch.log [+45 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-multifile-patch.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-warning-parser.log [+17 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/gazelle-warning-parser.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/injected-four-kinds-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/injected-four-kinds-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/injected-four-kinds.diff [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/injected-four-kinds.log [+136 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/injected-four-kinds.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/injected-restored-gazelle.log [+34 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/injected-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/metadata-sandbox.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/metadata-sandbox.report.json [+13 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/metadata-sandbox.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-config.log [+119 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-config.report.json [+13 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-config.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency-gazelle.log [+34 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency-restored-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency.checker-status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency.log [+122 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency.raw.txt [+10 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency.report.json [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-dependency.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-source-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-source-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-source-restored-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-source-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-source.log [+121 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-source.report.json [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-source.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-stub-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-stub-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-stub-restored-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-stub-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-stub.log [+121 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-stub.report.json [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutation-stub.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutations-restored.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/mutations-restored.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/own-imports.log [+119 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/own-imports.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/patched-baseline-hard.log [+168 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/patched-baseline-hard.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/patched-baseline-soft.log [+168 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/patched-baseline-soft.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/patched-baseline.log [+180 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/patched-baseline.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean-corrected.log [+173 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean-corrected.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean-fixture-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean-fixture-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean-verified-ty-spawns.json [+1042 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean-verified.log [+178 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean-verified.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean.log [+190 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-clean.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-final-fixture-gazelle.log [+34 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-final-fixture-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-corrected-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-corrected-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-corrected.diff [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-corrected.log [+157 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-corrected.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-verified-gazelle.log [+34 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-verified-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-verified-ty-spawns.json [+920 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-verified.diff [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-verified.log [+163 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected-verified.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected.diff [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected.log [+165 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-injected.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-restored-corrected-gazelle.log [+703 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-restored-corrected-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-restored-gazelle.log [+705 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-restored-verified-gazelle.log [+702 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/remote-restored-verified-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/ruff-hard.log [+115 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/ruff-hard.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/ruff-isolation-gazelle.log [+34 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/ruff-isolation-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/ruff-restored-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/ruff-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/ruff-soft.log [+114 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/ruff-soft.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/selector-314.json [+303 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/selector-315.json [+303 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/selector-analysis.log [+33 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/selector-analysis.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-314.log [+127 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-314.report.json [+55 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-314.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-315.log [+110 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-315.report.json [+13 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-315.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-probe-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-probe-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-restored-gazelle.log [+45 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/version-source.txt [+11 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser-restored-gazelle.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser-restored-gazelle.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser.checker-status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser.log [+121 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser.raw.txt [+9 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser.report.json [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/adapter/warning-parser.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.log [+109 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.log [+70 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/cleanup-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-gazelle.log [+38 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-lint.log [+92 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/fixture-gazelle.log [+837 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.log [+115 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/future-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/import-probe.py.txt [+31 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle-fixed.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle.log [+59 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.log [+82 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-source.diff [+44 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.log [+160 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.log [+152 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.log [+41 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-dependency.py.txt [+10 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-pyproject.toml.txt [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-raw.txt [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-source.py.txt [+43 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-stub.pyi.txt [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.log [+65 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/probes-gazelle.log [+710 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/python_sample.AspectRulesLintTy.out.txt [+9 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/scripts.AspectRulesLintTy.out.txt [+53 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.log [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.log [+20 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/version.log [+31 / -0] (changed)
+  pyproject.toml [+4 / -0] (changed)
+  python_sample/ty_prototype/BUILD.bazel [+27 / -0] (changed)
+  python_sample/ty_prototype/own_root/local_helper.py [+6 / -0] (changed)
+  python_sample/ty_prototype/probe.py [+38 / -0] (changed)
+  python_sample/ty_prototype/stubs/ty_proto_stub.pyi [+1 / -0] (changed)
+  tools/lint/BUILD.bazel [+10 / -0] (changed)
+  tools/lint/linters.bzl [+13 / -0] (changed)
+  tools/lint/prototype_ty.patch [+96 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+INFO: Invocation ID: d52000b6-8ef6-4af7-aedb-0217ca94edb6
+INFO: Checking for file changes...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 516 targets (0 packages loaded, 0 targets configured)
+Analyzing: 516 targets (1 packages loaded, 11124 targets configured, 4912 aspect applications)
+ERROR: /home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/external/rules_java+/toolchains/BUILD:91:19: While resolving toolchains for target @@rules_java+//toolchains:current_java_runtime (f3de3d5): No matching toolchains found for types:
+  @@bazel_tools//tools/jdk:runtime_toolchain_type
+To debug, rerun with --toolchain_resolution_debug='@@bazel_tools//tools/jdk:runtime_toolchain_type'
+For more information on platforms or toolchains see https://bazel.build/concepts/platforms-intro.
+WARNING: errors encountered while analyzing target '//pinyin-composer/wasm:wasm_cdylib', it will not be built.
+Loading failed
+INFO: Analyzed 516 targets (2 packages loaded, 14265 targets configured, 13148 aspect applications).
+INFO: Found 516 targets...
+[0 / 24] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,619 / 6,334] Linting //.github/scripts:bazel_dependencies with ty; 0s remote-cache, linux-sandbox ... (99 actions, 1 running)
+INFO: From Linting //python_sample/ty_prototype:ty_prototype with ty:
+PROTOTYPE_SANDBOX_TYPED_WHEEL=bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages
+PROTOTYPE_SANDBOX_STUB_PRESENT=yes
+[2,360 / 8,264] Action 3rdparty/gazelle_rust/upstream/proto/messages_rust_proto.AspectRulesLintKeepSorted.out; Downloading 3rdparty/gazelle_rust/upstream/proto/messages_rust_proto.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (95 actions, 0 running)
+INFO: From Linting //python_sample/ty_prototype:ty_prototype with ty:
+PROTOTYPE_SANDBOX_TYPED_WHEEL=bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages
+PROTOTYPE_SANDBOX_STUB_PRESENT=yes
+[2,540 / 8,331] Linting //3rdparty/gazelle_rust:markdown with Vale; Downloading 3rdparty/gazelle_rust/markdown.AspectRulesLintVale.report.exit_code; 1s remote-cache ... (98 actions, 0 running)
+[2,813 / 8,432] Action tools/format/format_Markdown_with_prettier.AspectRulesLintKeepSorted.out; Downloading tools/format/format_Markdown_with_prettier.AspectRulesLintKeepSorted.report.exit_code; 1s remote-cache ... (100 actions, 0 running)
+[3,232 / 8,885] [Sched] Linting //.github/scripts:nix_tool_test with ty; Downloading external/aspect_rules_py++uv+whl_install__bazel_repo_python__pygments__2_21_0/install/lib/python3.15/site-packages/pygments/lexers/robotframework.py ... (100 actions, 0 running)
+[3,902 / 10,051] Action clojure_sample/test/__clj_files.AspectRulesLintKeepSorted.out; Downloading clojure_sample/test/__clj_files.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (99 actions, 0 running)
+[4,387 / 10,655] Linting //:markdown with Vale; 0s remote-cache, linux-sandbox ... (100 actions, 2 running)
+[5,667 / 11,897] Linting //:markdown with Vale; 1s remote-cache, linux-sandbox ... (100 actions, 2 running)
+[6,124 / 11,952] Linting //:markdown with Vale; 2s remote-cache, linux-sandbox ... (100 actions, 2 running)
+[6,498 / 11,957] Linting //:markdown with Vale; 4s remote-cache, linux-sandbox ... (20 actions, 2 running)
+[6,676 / 11,957] Copying files to directory external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory [for tool]; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Generating Rust bindings for ../rules_rs++crate+crates__aws-lc-sys-0.46.0/include/rust_wrapper.h [for tool]:
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: external/llvm++glibc+glibc_headers_x86_64-linux-gnu.2.28/include/features.h:381:4: warning: _FORTIFY_SOURCE requires compiling with optimization (-O) [-W#warnings]
+INFO: From Compiling Rust (without process_wrapper) bin @@rules_rs++rules_rust+rules_rust//util/process_wrapper:process_wrapper (6 files) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Generating Rust bindings for ../rules_rs++crate+crates__aws-lc-sys-0.46.0/include/rust_wrapper.h:
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+INFO: From Compiling Rust bin @@rules_rs++rules_rust+rules_rust//cargo/private/cargo_build_script_runner:runner (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[7,219 / 11,957] Compiling crypto/refcount_lock.c [for tool]; 0s remote-cache ... (100 actions, 0 running)
+[7,809 / 11,957] Linting //predix/internal/domain/circle/repository:repository_test with KeepSorted; Downloading predix/internal/domain/circle/repository/repository_test.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Action src/main.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/src/main.AspectRulesLintClippy.report
+[8,330 / 11,957] Running Cargo build script @@rules_rs++crate+crates__serde-1.0.229//:_bs [for tool]; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Compiling Rust bin @@rules_rs+//rs/private/prost:protoc_wrapper (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[8,836 / 11,957] Linting //test_images/go:go with KeepSorted; Downloading test_images/go/go.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Compiling Rust proc-macro //3rdparty/gazelle_rust/upstream/macro/src:gazelle (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Compiling Rust rlib @@gazelle_ts+//crates/import_extractor:import_extractor_/import_extractor (4 files):
+warning: crate `import_extractor__import_extractor` should have a snake case name
+  |
+  = help: convert the identifier to snake case: `import_extractor_import_extractor`
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: 1 warning emitted
+
+[9,308 / 11,957] Linting //3rdparty/gazelle_rust/upstream/generation_tests:all_kinds with KeepSorted; Downloading 3rdparty/gazelle_rust/upstream/generation_tests/all_kinds.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Action 3rdparty/gazelle_rust/upstream/macro/src/gazelle.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/3rdparty/gazelle_rust/upstream/macro/src/gazelle.AspectRulesLintClippy.report
+INFO: From Action 3rdparty/gazelle_rust/upstream/macro/tests/ignore_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/3rdparty/gazelle_rust/upstream/macro/tests/ignore_test.AspectRulesLintClippy.report
+[9,675 / 11,957] Linting //3rdparty/gazelle_rust/upstream/generation_tests:crate_tests with KeepSorted; Downloading 3rdparty/gazelle_rust/upstream/generation_tests/crate_tests.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Action nicknamer2/src/lib.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/lib.AspectRulesLintClippy.report
+INFO: From Action 3rdparty/gazelle_rust/upstream/gazelle_rust_parser/src/gazelle_rust_parser.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/3rdparty/gazelle_rust/upstream/gazelle_rust_parser/src/gazelle_rust_parser.AspectRulesLintClippy.report
+[10,048 / 11,957] [Sched] Parsing machine-readable report to SARIF for //.github/scripts:nix_tool_test; Downloading external/aspect_rules_lint+/tools/sarif/cmd/sarif/sarif_/sarif ... (100 actions, 0 running)
+INFO: From Action 3rdparty/gazelle_rust/upstream/gazelle_rust_parser/tests/parse_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/3rdparty/gazelle_rust/upstream/gazelle_rust_parser/tests/parse_test.AspectRulesLintClippy.report
+INFO: From Action prediction_bot/bin/composition_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/prediction_bot/bin/composition_test.AspectRulesLintClippy.report
+INFO: From Action prediction_bot/lib/domain_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/prediction_bot/lib/domain_test.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/name/name.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/name/name.AspectRulesLintClippy.report
+[10,305 / 11,957] Parsing machine-readable report to SARIF for //3rdparty/gazelle_rust/upstream/generation_tests:unified/binary; 0s remote-cache, linux-sandbox ... (97 actions, 9 running)
+INFO: From Action nicknamer2/src/discord_server/discord_server.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/discord_server/discord_server.AspectRulesLintClippy.report
+INFO: From Action prediction_bot/lib/events_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/prediction_bot/lib/events_test.AspectRulesLintClippy.report
+INFO: From Action book_smartz/domain/lib.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/book_smartz/domain/lib.AspectRulesLintClippy.report
+[10,605 / 11,957] Linting //3rdparty/gazelle_rust/upstream/generation_tests:unified/virtual_workspace with KeepSorted; Downloading 3rdparty/gazelle_rust/upstream/generation_tests/unified/virtual_workspace.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Action pinyin-composer/wasm/wasm_lib.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/pinyin-composer/wasm/wasm_lib.AspectRulesLintClippy.report
+INFO: From Action pinyin-composer/wasm/wasm_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/pinyin-composer/wasm/wasm_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/auth/auth_claims.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/auth/auth_claims.AspectRulesLintClippy.report
+[10,972 / 11,957] Linting //angular/projects/pinyin-composer:pinyin-composer with KeepSorted; Downloading angular/projects/pinyin-composer/pinyin-composer.AspectRulesLintKeepSorted.report.exit_code, 2 B / 2 B; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Action test_images/rust/test_images.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/test_images/rust/test_images.AspectRulesLintClippy.report
+INFO: From Action test_images/rust/postgres_probe.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/test_images/rust/postgres_probe.AspectRulesLintClippy.report
+INFO: From Action kafka_calculator/core/core.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/kafka_calculator/core/core.AspectRulesLintClippy.report
+[11,370 / 11,957] Linting //pinyin-composer/wasm:wasm_lib with KeepSorted; Downloading pinyin-composer/wasm/wasm_lib.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (100 actions, 0 running)
+INFO: From Action 3rdparty/gazelle_rust/upstream/rust_parser/rust_parser.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/3rdparty/gazelle_rust/upstream/rust_parser/rust_parser.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/auth/auth.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/auth/auth.AspectRulesLintClippy.report
+INFO: From Action 3rdparty/gazelle_rust/upstream/rust_parser/lockfile_crates.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/3rdparty/gazelle_rust/upstream/rust_parser/lockfile_crates.AspectRulesLintClippy.report
+[11,689 / 11,957] Linting //personal_website:markdown with KeepSorted; Downloading personal_website/markdown.AspectRulesLintKeepSorted.report.exit_code; 0s remote-cache ... (48 actions, 0 running)
+INFO: From Action nicknamer2/src/graphql/graphql_relay.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/graphql/graphql_relay.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/migrations/migrations.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/migrations/migrations.AspectRulesLintClippy.report
+INFO: From Action book_smartz/storage/lib.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/book_smartz/storage/lib.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/name/name_repo.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/name/name_repo.AspectRulesLintClippy.report
+[11,808 / 11,957] Action nicknamer2/src/migrations/migrations.AspectRulesLintClippy.out; Downloading nicknamer2/src/migrations/migrations.AspectRulesLintClippy.report.exit_code; 0s remote-cache ... (27 actions, 0 running)
+INFO: From Action nicknamer2/src/discord_server/discord_server_repo.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/discord_server/discord_server_repo.AspectRulesLintClippy.report
+INFO: From Action prediction_bot/lib/lib.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/prediction_bot/lib/lib.AspectRulesLintClippy.report
+INFO: From Action prediction_bot/lib/announcements_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/prediction_bot/lib/announcements_test.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/name/name_service.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/name/name_service.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/discord_server/discord_server_service.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/discord_server/discord_server_service.AspectRulesLintClippy.report
+INFO: From Action prediction_bot/bin/bin.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/prediction_bot/bin/bin.AspectRulesLintClippy.report
+INFO: From Action prediction_bot/lib/store_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/prediction_bot/lib/store_test.AspectRulesLintClippy.report
+INFO: From Action book_smartz/storage/usage.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/book_smartz/storage/usage.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/graphql/graphql_context.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/graphql/graphql_context.AspectRulesLintClippy.report
+INFO: From Action hearthstone_simulator/core/core.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/hearthstone_simulator/core/core.AspectRulesLintClippy.report
+INFO: From Action hearthstone_simulator/simulator/simulator.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/hearthstone_simulator/simulator/simulator.AspectRulesLintClippy.report
+INFO: From Action book_smartz/storage/storage_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/book_smartz/storage/storage_test.AspectRulesLintClippy.report
+INFO: From Action hearthstone_simulator/app/app.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/hearthstone_simulator/app/app.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/config/nicknamer2_config.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/config/nicknamer2_config.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/graphql/graphql_model.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/graphql/graphql_model.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/graphql/graphql_mutation.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/graphql/graphql_mutation.AspectRulesLintClippy.report
+[11,865 / 11,957] Action nicknamer2/src/graphql/graphql_query.AspectRulesLintClippy.report; Downloading nicknamer2/src/graphql/graphql_query.AspectRulesLintClippy.report; 0s remote-cache ... (13 actions, 0 running)
+INFO: From Action nicknamer2/src/graphql/graphql_query.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/graphql/graphql_query.AspectRulesLintClippy.report
+INFO: From Action nicknamer/migration/lib/lib.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/migration/lib/lib.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/graphql/graphql_schema.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/graphql/graphql_schema.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/server/server.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/server/server.AspectRulesLintClippy.report
+INFO: From Action nicknamer/migration/bin/bin.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/migration/bin/bin.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/graphql/graphql_integration_test.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/graphql/graphql_integration_test.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/graphql/graphql.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/graphql/graphql.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/lib.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/lib.AspectRulesLintClippy.report
+INFO: From Action nicknamer2/src/bin/nicknamer2.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer2/src/bin/nicknamer2.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/web_endpoints_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/web_endpoints_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/bin/bin.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/bin/bin.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/observations_lifecycle_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/observations_lifecycle_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/names_endpoints_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/names_endpoints_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/auth_endpoints_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/auth_endpoints_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/observations_logging_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/observations_logging_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/observations_app_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/observations_app_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/observations_service_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/observations_service_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/observations_telemetry_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/observations_telemetry_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/observations_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/observations_tests.AspectRulesLintClippy.report
+INFO: From Action nicknamer/server/lib/tests/name_service_tests.AspectRulesLintClippy.report:
+Successfully wrote output to bazel-out/k8-fastbuild/bin/nicknamer/server/lib/tests/name_service_tests.AspectRulesLintClippy.report
+ERROR: command succeeded, but not all targets were analyzed
+INFO: Elapsed time: 30.905s, Critical Path: 12.05s
+INFO: 10688 processes: 1269 action cache hit, 8309 remote cache hit, 2000 internal, 379 linux-sandbox.
+ERROR: Build did NOT complete successfully
+
+INFO: Build Event Protocol files produced successfully.
+
+🧹 Linters (11): Buf, Checkstyle, Clippy, ESLint, KTLint, KeepSorted, PMD, Ruff, ShellCheck, Ty, Vale
+
+Lint findings after hold-the-line (149)
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:1 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:3 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is recorded').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:3 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:7 · Vale — Vale.Spelling:Did you really mean 'multitool'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:7 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:11 · Vale — Vale.Spelling:Did you really mean 'rules_lint'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:11 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:12 · Vale — Vale.Spelling:Did you really mean 'rules_lint'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:12 · Vale — Google.Acronyms:Spell out 'SARIF', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:12 · Vale — Google.Contractions:Use 'doesn't' instead of 'does not'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:13 · Vale — Google.WordList:Use 'command-line tool' instead of 'CLI'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:13 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:13 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:13 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:13 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:14 · Vale — Google.Contractions:Use 'doesn't' instead of 'does not'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:14 · Vale — Google.WordList:Use 'command-line tool' instead of 'CLI'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:14 · Vale — Google.Acronyms:Spell out 'AXL', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:14 · Vale — Vale.Spelling:Did you really mean 'builtins'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:14 · Vale — Google.Acronyms:Spell out 'AXL', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:14 · Vale — Google.Passive:In general, use active voice instead of passive voice ('are untouched').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:15 · Vale — Google.Acronyms:Spell out 'ELF', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:15 · Vale — Google.Contractions:Use 'it's' instead of 'it is'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:23 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is gone').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:24 · Vale — Vale.Spelling:Did you really mean 'sandboxed'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:27 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:28 · Vale — Google.WordList:Use 'command-line tool' instead of 'CLI'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:28 · Vale — Google.Passive:In general, use active voice instead of passive voice ('was removed').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:33 · Vale — Google.Acronyms:Spell out 'SARIF', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:33 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:36 · Vale — Google.Passive:In general, use active voice instead of passive voice ('were restored').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:36 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is annotated').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:36 · Vale — Google.WordList:Use 'select' instead of 'check'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:38 · Vale — Google.Colons:': G' should be in lowercase.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:38 · Vale — Google.Passive:In general, use active voice instead of passive voice ('were discovered').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:38 · Vale — Vale.Spelling:Did you really mean 'rules_lint'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:38 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is set').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:42 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:52 · Vale — Google.Contractions:Use 'it's' instead of 'It is'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:54 · Vale — Google.Contractions:Use 'isn't' instead of 'is not'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Google.Contractions:Use 'they're' instead of 'They are'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Google.Passive:In general, use active voice instead of passive voice ('are preserved').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Google.Contractions:Use 'don't' instead of 'do not'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Google.WordList:Use 'app' instead of 'application'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Google.Passive:In general, use active voice instead of passive voice ('are retained').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:56 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:60 · Vale — Google.Acronyms:Spell out 'GNU', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:60 · Vale — Google.Acronyms:Spell out 'LLVM', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:62 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:62 · Vale — Vale.Spelling:Did you really mean 'pytest'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:62 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:65 · Vale — Google.Passive:In general, use active voice instead of passive voice ('are executed').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:65 · Vale — Google.Contractions:Use 'they're' instead of 'They are'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:65 · Vale — Vale.Spelling:Did you really mean 'rc'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:65 · Vale — Google.Passive:In general, use active voice instead of passive voice ('are redacted').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:69 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:69 · Vale — Vale.Spelling:Did you really mean 'multitool'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:69 · Vale — Google.WordList:Use 'command-line tool' instead of 'CLI'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:69 · Vale — Google.Contractions:Use 'doesn't' instead of 'does not'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:71 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:71 · Vale — Google.Passive:In general, use active voice instead of passive voice ('was rejected').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:71 · Vale — Google.Contractions:Use 'isn't' instead of 'is not'.
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:73 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is resolved').
+  ⚠️ docs/prototypes/ty-bazel/ADAPTER.md:73 · Vale — Google.Contractions:Use 'doesn't' instead of 'does not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:3 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:5 · Vale — Vale.Spelling:Did you really mean 'Wayfinder'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:5 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:5 · Vale — Google.Contractions:Use 'it's' instead of 'It is'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:5 · Vale — Google.Contractions:Use 'don't' instead of 'Do not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:7 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:7 · Vale — Vale.Spelling:Did you really mean 'rules_lint'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:7 · Vale — Vale.Spelling:Did you really mean 'musl'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:9 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:9 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:9 · Vale — Google.Contractions:Use 'doesn't' instead of 'does not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:15 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:15 · Vale — Vale.Spelling:Did you really mean 'multitool'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:16 · Vale — Vale.Spelling:Did you really mean 'pytest'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:16 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:18 · Vale — Google.Contractions:Use 'isn't' instead of 'is not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:19 · Vale — Google.Contractions:Use 'didn't' instead of 'did not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:19 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:20 · Vale — Google.Passive:In general, use active voice instead of passive voice ('were migrated').
+  ⚠️ docs/prototypes/ty-bazel/README.md:22 · Vale — Google.Passive:In general, use active voice instead of passive voice ('were restored').
+  ⚠️ docs/prototypes/ty-bazel/README.md:22 · Vale — Google.Acronyms:Spell out 'BUILD', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/README.md:22 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:22 · Vale — Google.Contractions:Use 'isn't' instead of 'is not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:26 · Vale — Google.Acronyms:Spell out 'BUILD', if it's unfamiliar to the audience.
+  ⚠️ docs/prototypes/ty-bazel/README.md:28 · Vale — Google.Passive:In general, use active voice instead of passive voice ('were checked').
+  ⚠️ docs/prototypes/ty-bazel/README.md:28 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:30 · Vale — Google.Contractions:Use 'doesn't' instead of 'does not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:30 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:30 · Vale — Google.Contractions:Use 'isn't' instead of 'is not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:37 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is claimed').
+  ⚠️ docs/prototypes/ty-bazel/README.md:38 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is accepted').
+  ⚠️ docs/prototypes/ty-bazel/README.md:52 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:52 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is expected').
+  ⚠️ docs/prototypes/ty-bazel/README.md:56 · Vale — Google.Passive:In general, use active voice instead of passive voice ('were produced').
+  ⚠️ docs/prototypes/ty-bazel/README.md:56 · Vale — Vale.Spelling:Did you really mean 'aquery'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:56 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:56 · Vale — Google.Passive:In general, use active voice instead of passive voice ('were unchanged').
+  ⚠️ docs/prototypes/ty-bazel/README.md:56 · Vale — Google.Contractions:Use 'it's' instead of 'It is'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:56 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:56 · Vale — Google.Contractions:Use 'doesn't' instead of 'does not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:58 · Vale — Vale.Spelling:Did you really mean 'multitool'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:58 · Vale — Google.Contractions:Use 'hasn't' instead of 'has not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:58 · Vale — Google.Passive:In general, use active voice instead of passive voice ('been executed').
+  ⚠️ docs/prototypes/ty-bazel/README.md:58 · Vale — Google.Contractions:Use 'isn't' instead of 'is not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:64 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:64 · Vale — Vale.Spelling:Did you really mean 'pytest'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:73 · Vale — Google.Passive:In general, use active voice instead of passive voice ('were removed').
+  ⚠️ docs/prototypes/ty-bazel/README.md:73 · Vale — Google.Passive:In general, use active voice instead of passive voice ('was executed').
+  ⚠️ docs/prototypes/ty-bazel/README.md:73 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:73 · Vale — Google.WordList:Use 'preceding' instead of 'above'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:77 · Vale — Google.Contractions:Use 'isn't' instead of 'is not'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:77 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:77 · Vale — Vale.Spelling:Did you really mean 'multitool'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:77 · Vale — Google.Parens:Use parentheses judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:77 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:79 · Vale — Google.WordList:Use 'select' instead of 'check'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:79 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is closed').
+  ⚠️ docs/prototypes/ty-bazel/README.md:83 · Vale — Google.Parens:Use parentheses judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:83 · Vale — Google.Colons:': R' should be in lowercase.
+  ⚠️ docs/prototypes/ty-bazel/README.md:83 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:83 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:85 · Vale — Google.Parens:Use parentheses judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:85 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is expected').
+  ⚠️ docs/prototypes/ty-bazel/README.md:85 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:85 · Vale — Google.Contractions:Use 'it's' instead of 'it is'.
+  ⚠️ docs/prototypes/ty-bazel/README.md:85 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is recorded').
+  ⚠️ docs/prototypes/ty-bazel/README.md:85 · Vale — Google.Passive:In general, use active voice instead of passive voice ('is claimed').
+  ⚠️ docs/prototypes/ty-bazel/README.md:87 · Vale — Google.Passive:In general, use active voice instead of passive voice ('was interrupted').
+  ⚠️ docs/prototypes/ty-bazel/README.md:87 · Vale — Google.Semicolons:Use semicolons judiciously.
+  ⚠️ docs/prototypes/ty-bazel/README.md:87 · Vale — Google.Passive:In general, use active voice instead of passive voice ('are retained').
+  ⚠️ docs/prototypes/ty-bazel/README.md:89 · Vale — Vale.Spelling:Did you really mean 'ty'?
+  ⚠️ docs/prototypes/ty-bazel/README.md:89 · Vale — Google.Parens:Use parentheses judiciously.
+
+→ ❌ Failed lint task (exit code 1) in 33.1s · Build failed
+    🔧 Setup     0ms  Prepare the task environment
+    🔍 Detect  225ms  Detect changed files
+    🔬 Lint    32.9s  Run lint aspects (failed)

@@ -1,0 +1,45 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/b38b41b8-4c08-4f44-9bfe-0040fb5f8928' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+INFO: Invocation ID: d7ac0fd6-a2e1-4584-acac-ea62f1df653e
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/d7ac0fd6-a2e1-4584-acac-ea62f1df653e
+Computing main repo mapping: 
+Loading: 
+Loading: 7 packages loaded
+WARNING: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/b38b41b8-4c08-4f44-9bfe-0040fb5f8928/MODULE.bazel:554:27: The module extension toolchains defined in @rules_rs//rs/toolchains:module_extension.bzl reported incorrect imports of repositories via use_repo():
+
+Imported, but reported as indirect dependencies by the extension:
+    rustfmt_linux_x86_64_1_99_1
+
+Fix the use_repo calls by running 'bazel mod tidy'.
+Analyzing: target //:gazelle (8 packages loaded)
+Analyzing: target //:gazelle (16 packages loaded, 14 targets configured)
+Analyzing: target //:gazelle (1102 packages loaded, 78259 targets configured)
+Analyzing: target //:gazelle (1148 packages loaded, 184317 targets configured, 101 aspect applications)
+INFO: Analyzed target //:gazelle (1151 packages loaded, 222384 targets configured, 634 aspect applications).
+INFO: Found 1 target...
+[0 / 13] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //:gazelle up-to-date:
+  bazel-bin/gazelle-runner.bash
+  bazel-bin/gazelle
+INFO: Elapsed time: 6.370s, Critical Path: 0.15s
+INFO: 3 processes: 4561 action cache hit, 3 internal.
+INFO: Build completed successfully, 3 total actions
+
+INFO: Running command line: bazel-bin/gazelle
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/d7ac0fd6-a2e1-4584-acac-ea62f1df653e
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.PlatformDependent0$4 (file:/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/execroot/_main/bazel-out/k8-fastbuild/bin/external/rules_jvm_external++maven+contrib_rules_jvm_deps/io/netty/netty-common/4.1.110.Final/processed_netty-common-4.1.110.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$4
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release

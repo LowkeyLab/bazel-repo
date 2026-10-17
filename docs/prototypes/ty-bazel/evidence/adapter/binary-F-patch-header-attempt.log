@@ -1,0 +1,91 @@
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff de1b8f8507d476d9c44ef608a1c298bef1b6c055..HEAD (git merge-base HEAD origin/main)
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/scripts/ty_prototype/BUILD.bazel [+8 / -0] (changed)
+  .github/scripts/ty_prototype/probe.py [+3 / -0] (changed)
+  MODULE.bazel [+2 / -0] (changed)
+  docs/prototypes/ty-bazel/README.md [+87 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.log [+109 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline-hard.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.log [+70 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/baseline.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/cleanup-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-gazelle.log [+38 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/final-lint.log [+92 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/fixture-gazelle.log [+837 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.log [+115 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/future-gazelle.log [+36 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/import-probe.py.txt [+31 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle-fixed.log [+35 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/imports-gazelle.log [+59 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.log [+82 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-errors.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/injected-source.diff [+44 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.log [+160 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-future.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.log [+152 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports-fixed.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.log [+41 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/local-imports.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-dependency.py.txt [+10 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-pyproject.toml.txt [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-raw.txt [+40 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-source.py.txt [+43 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations-stub.pyi.txt [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.log [+65 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/mutations.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.log [+97 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-format.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-gazelle.log [+32 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/preservation-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/probes-gazelle.log [+710 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/python_sample.AspectRulesLintTy.out.txt [+9 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.log [+117 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/resumed-final-lint.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/scripts.AspectRulesLintTy.out.txt [+53 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.log [+14 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-314.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.json [+299 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.log [+20 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/selector-315.status [+1 / -0] (changed)
+  docs/prototypes/ty-bazel/evidence/version.log [+31 / -0] (changed)
+  pyproject.toml [+4 / -0] (changed)
+  python_sample/ty_prototype/BUILD.bazel [+27 / -0] (changed)
+  python_sample/ty_prototype/own_root/local_helper.py [+6 / -0] (changed)
+  python_sample/ty_prototype/probe.py [+36 / -0] (changed)
+  python_sample/ty_prototype/stubs/ty_proto_stub.pyi [+1 / -0] (changed)
+  tools/lint/BUILD.bazel [+10 / -0] (changed)
+  tools/lint/linters.bzl [+13 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+INFO: Invocation ID: dcac077d-554c-4e32-a1f9-044207e796b5
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/dcac077d-554c-4e32-a1f9-044207e796b5
+INFO: Checking for file changes...
+Computing main repo mapping: 
+INFO: Repo aspect_rules_lint+ defined by rule git_repository in @@bazel_tools//tools/build_defs/repo:git.bzl
+ERROR: /home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/external/bazel_tools/tools/build_defs/repo/utils.bzl:257:22: An error occurred during the fetch of repository 'aspect_rules_lint+':
+   Traceback (most recent call last):
+	File "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/external/bazel_tools/tools/build_defs/repo/git.bzl", line 222, column 10, in _git_repository_implementation
+		patch(ctx)
+	File "/home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/external/bazel_tools/tools/build_defs/repo/utils.bzl", line 257, column 22, in patch
+		ctx.patch(patchfile, strip, directory = patch_directory or "")
+Error in patch: Error applying patch /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/b38b41b8-4c08-4f44-9bfe-0040fb5f8928/tools/lint/prototype_ty.patch: in patch applied to /home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/external/aspect_rules_lint+/tools/sarif/sarif.go: could not apply patch due to CONTENT_DOES_NOT_MATCH_TARGET, error applying change near line 249
+ERROR: Error computing the main repository mapping: error during computation of main repo mapping: Error applying patch /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/b38b41b8-4c08-4f44-9bfe-0040fb5f8928/tools/lint/prototype_ty.patch: in patch applied to /home/tacascer/.cache/bazel/_bazel_tacascer/d62d93769357982159d2df9368f12631/external/aspect_rules_lint+/tools/sarif/sarif.go: could not apply patch due to CONTENT_DOES_NOT_MATCH_TARGET, error applying change near line 249
+Computing main repo mapping: 
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/dcac077d-554c-4e32-a1f9-044207e796b5
+
+→ ❌ Failed lint task (exit code 1) in 3.4s · Build failed
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  214ms  Detect changed files
+    🔬 Lint     3.2s  Run lint aspects (failed)

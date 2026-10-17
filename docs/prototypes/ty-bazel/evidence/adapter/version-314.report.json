@@ -1,0 +1,55 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/scripts/ty_prototype/probe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startColumn": 20,
+                  "startLine": 5
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "[unresolved-import]: Module `typing` has no member `TypeForm`"
+          }
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".github/scripts/ty_prototype/probe.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startColumn": 1,
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "[invalid-syntax]: Cannot use `lazy` import statement on Python 3.14 (syntax was added in Python 3.15)"
+          }
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Ty"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

@@ -1,0 +1,303 @@
+{
+  "artifacts": [
+    {
+      "id": 1,
+      "pathFragmentId": 1
+    },
+    {
+      "id": 2,
+      "pathFragmentId": 5
+    },
+    {
+      "id": 3,
+      "pathFragmentId": 6
+    },
+    {
+      "id": 4,
+      "pathFragmentId": 14
+    },
+    {
+      "id": 5,
+      "pathFragmentId": 15
+    },
+    {
+      "id": 6,
+      "pathFragmentId": 21
+    },
+    {
+      "id": 7,
+      "pathFragmentId": 22
+    },
+    {
+      "id": 8,
+      "pathFragmentId": 23
+    }
+  ],
+  "actions": [
+    {
+      "targetId": 1,
+      "aspectDescriptorIds": [1],
+      "actionKey": "83d37a43e879aa9221b768baa8034dd0f6f28a59cb8497eb21aa71233a62accf",
+      "mnemonic": "AspectRulesLintTy",
+      "configurationId": 1,
+      "arguments": [
+        "/bin/bash",
+        "-c",
+        "\nreadonly SEARCH_PATHS_FILE\u003d\"$1\"\nshift\n\nreadonly PARAM_FILE\u003d\"$(mktemp)\"\nwhile IFS\u003d read -r path; do\n  if [ -d \"$path\" ]; then\n    printf \u0027%s\n\u0027 \"--extra-search-path\" \"$path\" \u003e\u003e \"$PARAM_FILE\"\n  fi\ndone \u003c \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT\u003d$(mktemp)\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color always @\"$PARAM_FILE\" $@ \u003e \"$TMP_OUT\" 2\u003e\u00261\nRET\u003d$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild/bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.out\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild/bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.out\nfi\n\necho \"$RET\" \u003e bazel-out/k8-fastbuild/bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.out.exit_code\n",
+        "",
+        "bazel-out/k8-fastbuild/bin",
+        ".github/scripts",
+        "bazel-out/k8-fastbuild/bin/.github/scripts",
+        "--python-version",
+        "3.15",
+        ".github/scripts/ty_prototype/probe.py",
+        "--project",
+        "."
+      ],
+      "environmentVariables": [
+        {
+          "key": "FORCE_COLOR",
+          "value": "1"
+        }
+      ],
+      "inputDepSetIds": [1],
+      "outputIds": [5, 6],
+      "executionInfo": [
+        {
+          "key": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "key": "Arch",
+          "value": "amd64"
+        },
+        {
+          "key": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "key": "dockerNetwork",
+          "value": "off"
+        }
+      ],
+      "primaryOutputId": 5,
+      "executionPlatform": "//platforms:remote_linux_x86_64_gnu_llvm"
+    },
+    {
+      "targetId": 1,
+      "aspectDescriptorIds": [1],
+      "actionKey": "5f62ee757dc7390fd1adbf2f9704a801028a55291514d801c1426b394a449fed",
+      "mnemonic": "AspectRulesLintTy",
+      "configurationId": 1,
+      "arguments": [
+        "/bin/bash",
+        "-c",
+        "\nreadonly SEARCH_PATHS_FILE\u003d\"$1\"\nshift\n\nreadonly PARAM_FILE\u003d\"$(mktemp)\"\nwhile IFS\u003d read -r path; do\n  if [ -d \"$path\" ]; then\n    printf \u0027%s\n\u0027 \"--extra-search-path\" \"$path\" \u003e\u003e \"$PARAM_FILE\"\n  fi\ndone \u003c \"$SEARCH_PATHS_FILE\"\n\nreadonly TMP_OUT\u003d$(mktemp)\n\nbazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_multitool++multitool+multitool/tools/ty/ty check --force-exclude --color never @\"$PARAM_FILE\" $@ \u003e \"$TMP_OUT\" 2\u003e\u00261\nRET\u003d$?\n\nif [ \"$RET\" -eq 0 ]; then\n    touch bazel-out/k8-fastbuild/bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.raw_machine_report\nelse\n    cp \"$TMP_OUT\" bazel-out/k8-fastbuild/bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.raw_machine_report\nfi\n\necho \"$RET\" \u003e bazel-out/k8-fastbuild/bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.report.exit_code\n",
+        "",
+        "bazel-out/k8-fastbuild/bin",
+        ".github/scripts",
+        "bazel-out/k8-fastbuild/bin/.github/scripts",
+        "--python-version",
+        "3.15",
+        ".github/scripts/ty_prototype/probe.py",
+        "--project",
+        "."
+      ],
+      "inputDepSetIds": [5],
+      "outputIds": [7, 8],
+      "executionInfo": [
+        {
+          "key": "OSFamily",
+          "value": "Linux"
+        },
+        {
+          "key": "Arch",
+          "value": "amd64"
+        },
+        {
+          "key": "container-image",
+          "value": "docker://gcr.io/flame-public/rbe-ubuntu24-04:latest"
+        },
+        {
+          "key": "dockerNetwork",
+          "value": "off"
+        }
+      ],
+      "primaryOutputId": 7,
+      "executionPlatform": "//platforms:remote_linux_x86_64_gnu_llvm"
+    }
+  ],
+  "targets": [
+    {
+      "id": 1,
+      "label": "//.github/scripts/ty_prototype:ty_prototype",
+      "ruleClassId": 1
+    }
+  ],
+  "depSetOfFiles": [
+    {
+      "id": 2,
+      "directArtifactIds": [1, 2]
+    },
+    {
+      "id": 4,
+      "directArtifactIds": [3, 4]
+    },
+    {
+      "id": 3,
+      "transitiveDepSetIds": [4],
+      "directArtifactIds": [3]
+    },
+    {
+      "id": 1,
+      "transitiveDepSetIds": [2, 3]
+    },
+    {
+      "id": 6,
+      "directArtifactIds": [1, 2]
+    },
+    {
+      "id": 7,
+      "transitiveDepSetIds": [4],
+      "directArtifactIds": [3]
+    },
+    {
+      "id": 5,
+      "transitiveDepSetIds": [6, 7]
+    }
+  ],
+  "configuration": [
+    {
+      "id": 1,
+      "mnemonic": "k8-fastbuild",
+      "platformName": "k8",
+      "checksum": "59122378525791b76593ca9ae2a08e1f9d89a15879fd67c24b8650d23aadd9f3"
+    }
+  ],
+  "aspectDescriptors": [
+    {
+      "id": 1,
+      "name": "//tools/lint:linters.bzl%ty"
+    }
+  ],
+  "ruleClasses": [
+    {
+      "id": 1,
+      "name": "py_library"
+    }
+  ],
+  "pathFragments": [
+    {
+      "id": 4,
+      "label": ".github"
+    },
+    {
+      "id": 3,
+      "label": "scripts",
+      "parentId": 4
+    },
+    {
+      "id": 2,
+      "label": "ty_prototype",
+      "parentId": 3
+    },
+    {
+      "id": 1,
+      "label": "probe.py",
+      "parentId": 2
+    },
+    {
+      "id": 5,
+      "label": "pyproject.toml"
+    },
+    {
+      "id": 13,
+      "label": "bazel-out"
+    },
+    {
+      "id": 12,
+      "label": "remote_linux_x86_64_gnu_llvm-opt-exec",
+      "parentId": 13
+    },
+    {
+      "id": 11,
+      "label": "bin",
+      "parentId": 12
+    },
+    {
+      "id": 10,
+      "label": "external",
+      "parentId": 11
+    },
+    {
+      "id": 9,
+      "label": "rules_multitool++multitool+multitool",
+      "parentId": 10
+    },
+    {
+      "id": 8,
+      "label": "tools",
+      "parentId": 9
+    },
+    {
+      "id": 7,
+      "label": "ty",
+      "parentId": 8
+    },
+    {
+      "id": 6,
+      "label": "ty",
+      "parentId": 7
+    },
+    {
+      "id": 14,
+      "label": "ty.runfiles",
+      "parentId": 7
+    },
+    {
+      "id": 20,
+      "label": "k8-fastbuild",
+      "parentId": 13
+    },
+    {
+      "id": 19,
+      "label": "bin",
+      "parentId": 20
+    },
+    {
+      "id": 18,
+      "label": ".github",
+      "parentId": 19
+    },
+    {
+      "id": 17,
+      "label": "scripts",
+      "parentId": 18
+    },
+    {
+      "id": 16,
+      "label": "ty_prototype",
+      "parentId": 17
+    },
+    {
+      "id": 15,
+      "label": "ty_prototype.AspectRulesLintTy.out",
+      "parentId": 16
+    },
+    {
+      "id": 21,
+      "label": "ty_prototype.AspectRulesLintTy.out.exit_code",
+      "parentId": 16
+    },
+    {
+      "id": 22,
+      "label": "ty_prototype.AspectRulesLintTy.raw_machine_report",
+      "parentId": 16
+    },
+    {
+      "id": 23,
+      "label": "ty_prototype.AspectRulesLintTy.report.exit_code",
+      "parentId": 16
+    }
+  ]
+}
