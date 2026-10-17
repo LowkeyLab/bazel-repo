@@ -499,3 +499,38 @@ async fn application_history_rejects_corrupt_indexes_and_gaps() {
         eq(true)
     );
 }
+
+#[googletest::test]
+fn application_history_rejects_duplicate_json_members_before_normalization() {
+    let reader = ReaderId::new(Uuid::new_v4());
+    let valid = application_event(reader, 1, Uuid::new_v4());
+    let text = valid.envelope().to_string();
+    let duplicates = [
+        text.replacen(
+            "\"id\":",
+            "\"id\":\"00000000-0000-0000-0000-000000000000\",\"id\":",
+            1,
+        ),
+        text.replacen(
+            "\"expectedRevision\":0",
+            "\"expectedRevision\":0,\"expectedRevision\":1",
+            1,
+        ),
+        text.replacen(
+            "\"command\":\"Start\"",
+            "\"command\":{\"arguments\":[{\"bookId\":\"OL1W\",\"bookId\":\"OL2W\"}]}",
+            1,
+        ),
+    ];
+    for duplicate in duplicates {
+        assert_that!(
+            book_smartz_storage::ApplicationEvent::decode(reader, &duplicate).is_err(),
+            eq(true)
+        );
+    }
+    let mut expected = valid.envelope().clone();
+    expected["data"] = json!({"command": {"arguments": [true, null, 1.25, -1, u64::MAX, "book"]}});
+    let decoded =
+        book_smartz_storage::ApplicationEvent::decode(reader, &expected.to_string()).unwrap();
+    assert_that!(decoded.envelope(), eq(&expected));
+}

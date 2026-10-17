@@ -1,7 +1,9 @@
 use book_smartz_domain::ReaderId;
 use chrono::Datelike;
 use cloudevents::{AttributesReader, Event};
-use serde_json::Value;
+use serde::de::{MapAccess, SeqAccess, Visitor};
+use serde::{Deserialize, Deserializer};
+use serde_json::{Map, Value};
 use sqlx::{Postgres, Transaction, types::Json};
 use uuid::Uuid;
 
@@ -26,7 +28,8 @@ impl ApplicationEvent {
     /// Rejects invalid `CloudEvents`, identities, context, or sequence values.
     pub fn decode(reader: ReaderId, text: &str) -> Result<Self, StoreError> {
         let invalid = || StoreError::InvalidEnvelope;
-        let envelope: Value = serde_json::from_str(text).map_err(|_| invalid())?;
+        let StrictValue(envelope) =
+            serde_json::from_str::<StrictValue>(text).map_err(|_| invalid())?;
         let sdk: Event = serde_json::from_str(text).map_err(|_| invalid())?;
         if sdk
             .time()
@@ -187,5 +190,66 @@ impl Store {
         let rows: Vec<Row> = sqlx::query_as("SELECT reader_id, sequence::text, event_id, envelope FROM book_smartz.application_events WHERE reader_id = $1 ORDER BY sequence")
             .bind(reader.as_uuid()).fetch_all(&self.pool).await?;
         decode_rows(reader, rows)
+    }
+}
+
+struct StrictValue(Value);
+
+impl<'de> Deserialize<'de> for StrictValue {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct StrictVisitor;
+        impl<'de> Visitor<'de> for StrictVisitor {
+            type Value = StrictValue;
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("JSON value without duplicate object keys")
+            }
+            fn visit_bool<E: serde::de::Error>(self, value: bool) -> Result<Self::Value, E> {
+                Ok(StrictValue(Value::Bool(value)))
+            }
+            fn visit_i64<E: serde::de::Error>(self, value: i64) -> Result<Self::Value, E> {
+                Ok(StrictValue(Value::from(value)))
+            }
+            fn visit_u64<E: serde::de::Error>(self, value: u64) -> Result<Self::Value, E> {
+                Ok(StrictValue(Value::from(value)))
+            }
+            fn visit_f64<E: serde::de::Error>(self, value: f64) -> Result<Self::Value, E> {
+                serde_json::Number::from_f64(value)
+                    .map(|number| StrictValue(Value::Number(number)))
+                    .ok_or_else(|| E::custom("invalid JSON number"))
+            }
+            fn visit_str<E: serde::de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                Ok(StrictValue(Value::String(value.into())))
+            }
+            fn visit_string<E: serde::de::Error>(self, value: String) -> Result<Self::Value, E> {
+                Ok(StrictValue(Value::String(value)))
+            }
+            fn visit_none<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+                Ok(StrictValue(Value::Null))
+            }
+            fn visit_unit<E: serde::de::Error>(self) -> Result<Self::Value, E> {
+                Ok(StrictValue(Value::Null))
+            }
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut values = Vec::new();
+                while let Some(StrictValue(value)) = seq.next_element()? {
+                    values.push(value);
+                }
+                Ok(StrictValue(Value::Array(values)))
+            }
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut values = Map::new();
+                while let Some((key, StrictValue(value))) =
+                    map.next_entry::<String, StrictValue>()?
+                {
+                    if values.insert(key.clone(), value).is_some() {
+                        return Err(serde::de::Error::custom(format!(
+                            "duplicate JSON key: {key}"
+                        )));
+                    }
+                }
+                Ok(StrictValue(Value::Object(values)))
+            }
+        }
+        deserializer.deserialize_any(StrictVisitor)
     }
 }

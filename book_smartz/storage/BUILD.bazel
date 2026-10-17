@@ -32,6 +32,7 @@ rust_library(
         "//book_smartz/domain:lib",
         "@crates//:chrono",
         "@crates//:cloudevents-sdk",
+        "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:sqlx",
         "@crates//:thiserror",

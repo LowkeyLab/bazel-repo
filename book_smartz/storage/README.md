@@ -20,8 +20,8 @@ Loads and commands take work proportional to a reader's history. There are no pe
 snapshots or constant-time replay guarantees.
 
 Commands use caller-supplied event IDs, expected revisions and instants in Coordinated Universal Time.
-Sequence determines order. Concurrent commands for one revision serialize; one
-can commit and the other is rejected stale. No automatic retry or implicit
+Sequence determines order. Concurrent commands for one revision serialize. One
+can commit and the store rejects the other as stale. No automatic retry or implicit
 conversion of duplicate/stale rejection into success occurs.
 
 After `StoreError::CommitUncertain`, reconnect to the authoritative database and
@@ -49,7 +49,8 @@ accepts at most one ranking decision. Book registration stays independent.
 
 App facts use `ApplicationEvent::decode` with source
 `urn:book-smartz:application:<reader UUID>`, a canonical `Uuid` event ID, JSON object
-data, occurrence time, and a positive padded 20-digit `sequence` extension. The
+data, occurrence time, and a positive padded 20-digit `sequence` extension.
+Parsing rejects duplicate JSON members at every nesting level before normalization. The
 app owns the data schema and reconstruction of frozen intent, prepared
 facts, and rejection. `load_application_history(reader)` returns these immutable
 facts in a contiguous stream with its own sequence, independent of ranking
@@ -95,5 +96,5 @@ connection strings, raw SQL causes and complete book/event payloads. Callers can
 inspect retained error causes deliberately and control other dependencies' logs.
 
 A crash between commit and observation, cancellation, filtering or sink failure
-can lose diagnostics. These records are not a durable audit feed or exact activity
+can lose diagnostics. These records aren't a durable audit feed or exact activity
 counters. The caller owns diagnostic destination, retention, and access.
