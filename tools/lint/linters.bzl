@@ -10,6 +10,7 @@ load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
 load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
 load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
 load("@aspect_rules_lint//lint:stylelint.bzl", "lint_stylelint_aspect")
+load("@aspect_rules_lint//lint:ty.bzl", "lint_ty_aspect")
 load("@aspect_rules_lint//lint:vale.bzl", "lint_vale_aspect")
 load("@aspect_rules_lint_rust//:clippy.bzl", "lint_clippy_aspect")
 
@@ -36,6 +37,11 @@ stylelint = lint_stylelint_aspect(
 )
 
 # Python
+ty = lint_ty_aspect(
+    binary = "@multitool//tools/ty",
+    config = Label("//:pyproject.toml"),
+)
+
 ruff = lint_ruff_aspect(
     binary = "@multitool//tools/ruff",
     configs = [Label("//:.ruff.toml")],

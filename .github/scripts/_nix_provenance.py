@@ -1,10 +1,11 @@
 """Deterministic strict-download provenance policy; callers supply observations."""
 
 import json
+from collections.abc import Collection, Iterable
 
 
-def _downloaded_sources(stderr, allowed):
-    sources = {}
+def _downloaded_sources(stderr: str, allowed: set[str]) -> dict[str, set[str]]:
+    sources: dict[str, set[str]] = {}
     for line in stderr.splitlines():
         if not line.startswith("@nix "):
             continue
@@ -35,7 +36,7 @@ def _downloaded_sources(stderr, allowed):
 class ValidatedDownloads:
     """Root-validated activity evidence used to classify the runtime closure."""
 
-    def __init__(self, tool, output, url, activity_log):
+    def __init__(self, tool: str, output: str, url: str, activity_log: str) -> None:
         sources = _downloaded_sources(activity_log, {url, "https://cache.nixos.org"})
         if output not in sources or len(sources[output]) != 1:
             raise ValueError("Output download provenance is absent or ambiguous")
@@ -45,9 +46,11 @@ class ValidatedDownloads:
             )
         self._sources = sources
 
-    def classify(self, initial, closure):
+    def classify(
+        self, initial: Collection[str], closure: Iterable[str]
+    ) -> list[dict[str, str]]:
         """Return ordered path records, retaining preexisting-path precedence."""
-        records = []
+        records: list[dict[str, str]] = []
         for path in closure:
             if path in initial:
                 records.append({"path": path, "status": "present-before-realisation"})

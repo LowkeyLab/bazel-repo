@@ -13,19 +13,19 @@ from pathlib import Path
 PAYLOAD = b"public dependency fixture\n"
 
 
-def evidence_path():
+def evidence_path() -> Path:
     return Path(os.environ["RUNNER_TEMP"]) / "bazel-dependency-faults"
 
 
-def serve(mode):
+def serve(mode: str) -> None:
     evidence = evidence_path()
     lock = threading.Lock()
 
     class Handler(http.server.BaseHTTPRequestHandler):
-        def log_message(self, *_args):
+        def log_message(self, format: str, *_args: object) -> None:
             pass
 
-        def record(self):
+        def record(self) -> None:
             with lock, (evidence / "requests.jsonl").open("a") as output:
                 output.write(
                     json.dumps(
@@ -34,7 +34,7 @@ def serve(mode):
                     + "\n"
                 )
 
-        def do_GET(self):
+        def do_GET(self) -> None:
             self.record()
             body = b"corrupt material" if self.path == "/corrupt" else PAYLOAD
             self.send_response(200)
@@ -42,7 +42,7 @@ def serve(mode):
             self.end_headers()
             self.wfile.write(body)
 
-        def do_POST(self):
+        def do_POST(self) -> None:
             self.record()
             if mode == "stall":
                 time.sleep(600)
@@ -59,7 +59,7 @@ def serve(mode):
     server.serve_forever()
 
 
-def start(mode):
+def start(mode: str) -> None:
     evidence = evidence_path()
     evidence.mkdir()
     # The runner overwrites runtime endpoint/token environment for Node actions.
@@ -109,7 +109,7 @@ def start(mode):
     (evidence / "started").write_text(str(time.time()))
 
 
-def verify(mode):
+def verify(mode: str) -> None:
     evidence = evidence_path()
     elapsed = float((evidence / "restored").read_text()) - float(
         (evidence / "started").read_text()
@@ -166,7 +166,7 @@ def verify(mode):
     )
 
 
-def restored(_mode):
+def restored(_mode: str) -> None:
     (evidence_path() / "restored").write_text(str(time.time()))
 
 

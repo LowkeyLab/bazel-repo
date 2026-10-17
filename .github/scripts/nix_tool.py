@@ -7,8 +7,23 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import NotRequired, TypedDict, cast
 
 import _nix_provenance
+
+
+class CommandRecord(TypedDict):
+    command: list[str]
+    label: str
+    exit: int | None
+    elapsed_seconds: NotRequired[float]
+
+
+class StoreMetadata(TypedDict):
+    narHash: str
+    references: list[str]
+    signatures: NotRequired[list[str]]
+
 
 DEFAULT_CACHIX_CACHE_NAME = "lowkey-lab"
 DEFAULT_CACHIX_PUBLIC_KEY = (
@@ -16,17 +31,17 @@ DEFAULT_CACHIX_PUBLIC_KEY = (
 )
 
 
-def run(*args, capture=False):
+def run(*args: str, capture: bool = False) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         args, check=True, text=True, stdout=subprocess.PIPE if capture else None
     )
 
 
-def warning(message):
+def warning(message: str) -> None:
     print(f"::warning::{message}", file=sys.stderr)
 
 
-def configure():
+def configure() -> str:
     name = os.environ.get("CACHIX_CACHE_NAME", "")
     key = os.environ.get("CACHIX_PUBLIC_KEY", "")
     if not name and not key:
@@ -47,7 +62,7 @@ def configure():
     return url
 
 
-def diagnose(url, path):
+def diagnose(url: str, path: str) -> str:
     store_hash = Path(path).name.split("-", 1)[0]
     result = subprocess.run(
         [
@@ -78,21 +93,30 @@ def diagnose(url, path):
     return f"remote unavailable (HTTP {result.stdout})"
 
 
-def info(path, store=None):
+def info(path: str, store: str | None = None) -> StoreMetadata:
     args = ["nix", "path-info", "--json"]
     if store:
         args += ["--store", store]
-    metadata = json.loads(run(*args, path, capture=True).stdout).get(path)
+    # Nix owns this external JSON schema; the TypedDict limits its dynamic boundary.
+    metadata = cast(
+        dict[str, StoreMetadata], json.loads(run(*args, path, capture=True).stdout)
+    ).get(path)
     if metadata is None:
         raise ValueError(f"Remote store does not contain {path}")
     return metadata
 
 
-def verify(tool, output, url):
+def verify(tool: str, output: str, url: str) -> bool:
     if not url:
         return False
-    closure = json.loads(
-        run("nix", "path-info", "--recursive", "--json", output, capture=True).stdout
+    # Use the same documented Nix path-info schema for recursive results.
+    closure = cast(
+        dict[str, StoreMetadata],
+        json.loads(
+            run(
+                "nix", "path-info", "--recursive", "--json", output, capture=True
+            ).stdout
+        ),
     )
     available = []
     for path, expected in closure.items():
@@ -138,16 +162,16 @@ def verify(tool, output, url):
 
 
 class Evidence:
-    def __init__(self, tool):
+    def __init__(self, tool: str) -> None:
         self.directory = (
             Path(os.environ.get("RUNNER_TEMP", "/tmp")) / f"nix-acceptance-{tool}"
         )
         self.directory.mkdir(mode=0o700, parents=True, exist_ok=False)
-        self.commands = []
+        self.commands: list[CommandRecord] = []
 
-    def run(self, label, *args):
+    def run(self, label: str, *args: str) -> tuple[str, str]:
         started = time.monotonic()
-        record = {"command": list(args), "label": label, "exit": None}
+        record: CommandRecord = {"command": list(args), "label": label, "exit": None}
         self.commands.append(record)
         journal = self.directory / "commands.json"
         journal.write_text(json.dumps(self.commands, indent=2) + "\n")
@@ -169,9 +193,9 @@ class Evidence:
         return stdout.read_text(), stderr.read_text()
 
 
-def accept(tool):
+def accept(tool: str) -> int:
     evidence = Evidence(tool)
-    result = {"tool": tool, "status": "failed"}
+    result: dict[str, object] = {"tool": tool, "status": "failed"}
     try:
         if any(
             os.environ.get(key) for key in ("CACHIX_AUTH_TOKEN", "CACHIX_SIGNING_KEY")
@@ -207,8 +231,8 @@ def accept(tool):
             raise ValueError("Expected one exact raw non-derivation output path")
         result["output"] = output
         initial, _ = evidence.run("initial-store", "nix", "path-info", "--all")
-        initial = set(initial.splitlines())
-        if output in initial or os.path.lexists(output):
+        initial_paths = set(initial.splitlines())
+        if output in initial_paths or os.path.lexists(output):
             raise ValueError(
                 "Output already present: this runner cannot prove a fresh download"
             )
@@ -240,7 +264,7 @@ def accept(tool):
         closure, _ = evidence.run(
             "closure", "nix", "path-info", "--recursive", "--json", output
         )
-        records = downloads.classify(initial, json.loads(closure))
+        records = downloads.classify(initial_paths, json.loads(closure))
         evidence.run(
             "remote-availability", sys.executable, __file__, "verify", tool, output
         )
@@ -272,7 +296,7 @@ def accept(tool):
     return 0 if result["status"] == "passed" else 1
 
 
-def main():
+def main() -> int:
     command, tool = sys.argv[1:3]
     if tool not in ("aspect", "lcov"):
         raise ValueError("Only repository Aspect and lcov outputs are supported")

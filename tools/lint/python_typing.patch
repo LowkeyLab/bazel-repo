@@ -1,0 +1,148 @@
+diff --git a/lint/ty.bzl b/lint/ty.bzl
+--- a/lint/ty.bzl
++++ b/lint/ty.bzl
+@@ -15,6 +15,7 @@
+ ```
+ """
+ 
++load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+ load("@rules_python//python:defs.bzl", "PyInfo")
+ load("//lint/private:lint_aspect.bzl", "LintOptionsInfo", "OPTIONAL_SARIF_PARSER_TOOLCHAIN", "OUTFILE_FORMAT", "filter_srcs", "noop_lint_action", "output_files", "parse_to_sarif_action", "should_visit")
+ 
+@@ -185,6 +203,13 @@
+         ctx.bin_dir.path: True,
+     }
+ 
++    # Include the current target's own import roots.
++    if PyInfo in target:
++        transitive_sources.append(target[PyInfo].transitive_sources)
++        for import_path in target[PyInfo].imports.to_list():
++            for path in _resolve_import_path(import_path, ctx.workspace_name, ctx.bin_dir.path):
++                import_paths[path] = True
++
+     # Collect from deps, pyi_deps, and srcs attributes using PyInfo:
+     # - pyi_deps provides type stub dependencies for rules_python targets.
+     # - When srcs contain labels to other targets (e.g., genrules that produce .py files),
+@@ -205,6 +230,11 @@
+                         import_paths[dep.label.workspace_root] = True
+                         import_paths[ctx.bin_dir.path + "/" + dep.label.workspace_root] = True
+ 
++    python_version = ctx.attr._python_version[BuildSettingInfo].value
++    if not python_version:
++        fail("ty requires the repository Python selector")
++    checker_args = ctx.attr._args + ["--python-version", python_version]
++
+     files_to_lint = filter_srcs(ctx.rule)
+     outputs, info = output_files(_MNEMONIC, target, ctx)
+ 
+@@ -217,10 +247,10 @@
+     # Pass transitive sources to ty_action so ty can resolve imports from dependencies
+     transitive_srcs_depset = depset(transitive = transitive_sources)
+     extra_search_paths = import_paths.keys()
+-    ty_action(ctx, ctx.executable._ty, files_to_lint, transitive_srcs_depset, ctx.files._config_file, outputs.human.out, outputs.human.exit_code, env = color_env, extra_search_paths = extra_search_paths, args = ctx.attr._args)
++    ty_action(ctx, ctx.executable._ty, files_to_lint, transitive_srcs_depset, ctx.files._config_file, outputs.human.out, outputs.human.exit_code, env = color_env, extra_search_paths = extra_search_paths, args = checker_args)
+ 
+     raw_machine_report = ctx.actions.declare_file(OUTFILE_FORMAT.format(label = target.label.name, mnemonic = _MNEMONIC, suffix = "raw_machine_report"))
+-    ty_action(ctx, ctx.executable._ty, files_to_lint, transitive_srcs_depset, ctx.files._config_file, raw_machine_report, outputs.machine.exit_code, extra_search_paths = extra_search_paths, color = False, args = ctx.attr._args)
++    ty_action(ctx, ctx.executable._ty, files_to_lint, transitive_srcs_depset, ctx.files._config_file, raw_machine_report, outputs.machine.exit_code, extra_search_paths = extra_search_paths, color = False, args = checker_args)
+ 
+     # Ideally we'd just use {"TY_OUTPUT_FORMAT": "sarif"} however it prints absolute paths; see https://github.com/astral-sh/ruff/issues/14985
+     # This issue should also be resolved when the issue from ruff is fixed.
+@@ -249,6 +279,10 @@
+                 default = "//lint:options",
+                 providers = [LintOptionsInfo],
+             ),
++            "_python_version": attr.label(
++                default = Label("@rules_python//python/config_settings:python_version"),
++                providers = [BuildSettingInfo],
++            ),
+             "_ty": attr.label(
+                 default = binary,
+                 allow_files = True,
+diff --git a/tools/sarif/sarif.go b/tools/sarif/sarif.go
+--- a/tools/sarif/sarif.go
++++ b/tools/sarif/sarif.go
+@@ -145,6 +145,7 @@
+ 	case "AspectRulesLintTy":
+ 		fm = []string{
+ 			`%Eerror%m`,
++			`%Wwarning%m`,
+ 			`%C\\ %#-->\\ %f:%l:%c`,
+ 			`%-G%.%#`,
+ 		}
+diff --git a/lint/ruff.bzl b/lint/ruff.bzl
+--- a/lint/ruff.bzl
++++ b/lint/ruff.bzl
+@@ -45,6 +45,7 @@
+ ```
+ """
+ 
++load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+ load("//lint/private:lint_aspect.bzl", "LintOptionsInfo", "OPTIONAL_SARIF_PARSER_TOOLCHAIN", "OUTFILE_FORMAT", "filter_srcs", "noop_lint_action", "output_files", "parse_to_sarif_action", "patch_and_output_files", "should_visit")
+ load("//lint/private:patcher_action.bzl", "patcher_attrs", "run_patcher")
+ 
+@@ -115,7 +116,15 @@
+             action_args.add("--output-format=concise")
+ 
+         if exit_code:
+-            command = "{ruff} $@ >{stdout}; echo $? >" + exit_code.path
++            # Exit 1 reports ordinary findings; exit 2 is a tool/configuration failure.
++            command = """{ruff} "$@" >{stdout}
++result=$?
++echo "$result" >{exit_code}
++if [ "$result" -gt 1 ]; then
++    cat {stdout}
++    exit "$result"
++fi
++"""
+             outputs.append(exit_code)
+         else:
+             # Create empty file on success, as Bazel expects one
+@@ -124,7 +133,7 @@
+         ctx.actions.run_shell(
+             inputs = inputs,
+             outputs = outputs,
+-            command = command.format(ruff = executable.path, stdout = stdout.path),
++            command = command.format(ruff = executable.path, stdout = stdout.path, exit_code = exit_code.path if exit_code else ""),
+             arguments = [action_args],
+             mnemonic = ctx.attr._mnemonic,
+             env = env,
+@@ -146,6 +155,11 @@
+     if len(files_to_lint) == 0:
+         noop_lint_action(ctx, outputs)
+         return [info]
++
++    python_version = ctx.attr._python_version[BuildSettingInfo].value
++    if not python_version:
++        fail("Ruff requires the repository Python selector")
++    checker_args = ctx.attr._args + ["--target-version", "py" + python_version.replace(".", "")]
+ 
+     color_env = {"FORCE_COLOR": "1"} if ctx.attr._options[LintOptionsInfo].color else {}
+ 
+@@ -158,13 +172,13 @@
+         outputs.human.exit_code,
+         env = color_env,
+         patch = getattr(outputs, "patch", None),
+-        args = ctx.attr._args,
++        args = checker_args,
+         mnemonic = ctx.attr._mnemonic,
+     )
+ 
+     # TODO(alex): if we run with --fix, this will report the issues that were fixed. Does a machine reader want to know about them?
+     raw_machine_report = ctx.actions.declare_file(OUTFILE_FORMAT.format(label = target.label.name, mnemonic = ctx.attr._mnemonic, suffix = "raw_machine_report"))
+-    ruff_action(ctx, ctx.executable._ruff, files_to_lint, ctx.files._config_files, raw_machine_report, outputs.machine.exit_code, args = ctx.attr._args)
++    ruff_action(ctx, ctx.executable._ruff, files_to_lint, ctx.files._config_files, raw_machine_report, outputs.machine.exit_code, args = checker_args)
+ 
+     # Ideally we'd just use {"RUFF_OUTPUT_FORMAT": "sarif"} however it prints absolute paths; see https://github.com/astral-sh/ruff/issues/14985
+     parse_to_sarif_action(ctx, ctx.attr._mnemonic, raw_machine_report, outputs.machine.out)
+@@ -193,6 +207,10 @@
+             "_options": attr.label(
+                 default = "//lint:options",
+                 providers = [LintOptionsInfo],
++            ),
++            "_python_version": attr.label(
++                default = Label("@rules_python//python/config_settings:python_version"),
++                providers = [BuildSettingInfo],
+             ),
+             "_ruff": attr.label(
+                 default = binary,

@@ -1,8 +1,15 @@
 [lint]
-extend-select = ["I"]
+extend-select = ["I", "ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ANN206", "ANN401"]
 # Remote execution materializes inputs as 755 even when Git tracks them as 644.
 # Bazel supplies the interpreter for Python sources through its launchers.
 ignore = ["EXE002"]
 
 [lint.isort]
 known-first-party = ["cli", "versions"]
+
+[lint.flake8-annotations]
+allow-star-arg-any = false
+ignore-fully-untyped = false
+mypy-init-return = false
+suppress-dummy-args = false
+suppress-none-returning = false

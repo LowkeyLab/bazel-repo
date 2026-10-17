@@ -1,0 +1,42 @@
+--- a/crates/aspect-cli/src/builtins/aspect/lint.axl
++++ b/crates/aspect-cli/src/builtins/aspect/lint.axl
+@@ -56,6 +56,16 @@
+ _PENDING_READ_WARN_MS = 30000
+ 
+ # Filter functions — (all_diagnostics, changed_files) -> relevant_diagnostics
++def _mandatory_python_diagnostic(diagnostic):
++    # The pinned Ruff SARIF converter puts the code at the start of the message.
++    rule_id = diagnostic.get("rule_id") or diagnostic.get("message", "").split(" ", 1)[0]
++    return diagnostic.get("tool") == "Ty" or (
++        diagnostic.get("tool") == "Ruff" and rule_id in [
++            "ANN001", "ANN002", "ANN003", "ANN201", "ANN202",
++            "ANN204", "ANN205", "ANN206", "ANN401",
++        ]
++    )
++
+ def filter_all(diagnostics, changed_files):
+     return diagnostics
+ 
+@@ -628,7 +638,11 @@
+                 # findings silently.
+                 warn(ctx.std, "Ignoring unparseable SARIF report: %s" % filepath)
+                 return {"interesting": False, "linter_exit_code": 0, "failed_tool": ""}
+-            lint_accumulate(data, strategy.filter(sarif_diagnostics(sarif), changed_files))
++            # Python type/annotation policy applies to every line and strategy.
++            diagnostics = sarif_diagnostics(sarif)
++            mandatory = [d for d in diagnostics if _mandatory_python_diagnostic(d)]
++            advisory = [d for d in diagnostics if not _mandatory_python_diagnostic(d)]
++            lint_accumulate(data, mandatory + strategy.filter(advisory, changed_files))
+             for hook in lint_trait.lint_report:
+                 hook(ctx, filepath)
+             return {"interesting": True, "linter_exit_code": 0, "failed_tool": ""}
+@@ -1084,6 +1098,9 @@
+                 "(e.g. --aspect=//tools/lint:linters.bzl%shellcheck) or add " +
+                 "--aspects=… via a bazelrc --config."
+             ))
++        exit_code = 1
++    elif "Ty" in failed_linters or any([_mandatory_python_diagnostic(d) for d in relevant]):
++        error(ctx.std, "Python type checking and annotation policy are unconditional.")
+         exit_code = 1
+     elif strategy.fail_on_severity and any([d["severity"] == strategy.fail_on_severity for d in relevant]):
+         exit_code = 1
