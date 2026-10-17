@@ -5,8 +5,8 @@ and reads the existing private ranking and pending placement. Signed-in readers 
 explicitly search Open Library, page through work-level results, and select a
 validated work. Add saves the validated work and display metadata independently,
 then applies the existing Start decision. The first book appears at rank 1 only
-after the database confirms the ranking event. Comparison and Pause/Resume controls belong
-to the following tickets.
+after the database confirms the ranking event. Later books remain pending while the reader chooses either displayed book.
+Pause/Resume controls belong to the following ticket.
 
 Build the relocatable archive with `aspect build //book_smartz/web:package`.
 It contains `book-smartz`, adjacent `assets`, and `integrity.json`. Run it from
@@ -30,7 +30,9 @@ timeouts. These are settings, not measured capacity claims.
 Sessions use opaque Topcoat tokens, hashed records, explicit secure HttpOnly
 cookies, a fixed 30-day expiry, and browser-scoped revocation. Ownership follows
 Google issuer/subject rather than email. Logout requires its own session-bound cross-site request forgery
-token and the configured canonical Origin. Ranking GETs derive reader authority
+token and the configured canonical Origin. Responses use a strict-origin referrer policy
+to preserve native form Origin headers without disclosing URL paths or queries.
+Ranking GETs derive reader authority
 from the stored session. Reader identifiers supplied by browsers confer none.
 The app installs a silent storage observer so existing reader-identifying
 storage diagnostics don’t become routine web diagnostics. The operations and
@@ -106,3 +108,30 @@ The app acceptance suite includes real PostgreSQL registration races,
 failed append, expired-selection recovery, conflicting event contents, lost real
 COMMIT acknowledgements, and process interruption. Controlled-provider/local
 results don't establish deployment or live-provider readiness.
+
+## Preference comparisons
+
+The main workspace shows the pending candidate and either-book preference controls.
+Saved ranks stay beside it on desktop and below it on small screens. Progress counts
+saved preferences without predicting a comparison total. The Add control waits until the reader completes the placement and confirms any
+uncertain save. The server independently enforces this gate.
+New web actions accept only candidate/opponent preference, preserving historical Skip replay.
+
+Each offer binds the reader, action, candidate, displayed opponent, and revision.
+The first submission freezes its choice, command time, and event identity in immutable
+preference intent. Preparation and exact-envelope reconciliation use the same
+reader-locked pipeline as Add. Duplicate submissions recover the original outcome.
+A changed choice can't reuse that action. Stale comparisons require a fresh
+confirmation, and sign-in never submits an earlier unconfirmed preference.
+Checking blocks new actions until authorized recovery reconciles the original evidence.
+Ranking/comparison reads and recovery use retained data without consulting Open Library.
+
+`//book_smartz/web:browser_test` runs Chromium against the delivered package,
+isolated PostgreSQL, and controlled Google/Open Library endpoints. The journey
+covers sign-in, search, first/later Add, keyboard preference, submitting feedback,
+a stale tab, responsive layout, and reload. The browser retains the canonical HTTPS
+origin and secure cookies while the fixture redirects transport to loopback.
+The app suite covers ordering, action/security boundaries, expiry, and real
+lost-commit-acknowledgement and process-cancellation recovery. These checks provide
+controlled acceptance evidence. Live-provider, deployment, and Pause/Resume acceptance
+remain separate delivery work.
