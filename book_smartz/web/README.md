@@ -56,6 +56,9 @@ limits queries to 256 characters, provider requests to five seconds and response
 to 1 MiB. Failures offer explicit retry controls. Results have no cache or
 automatic retry. Cover failure falls back to the packaged image in the browser.
 
+Catalog admission uses its own migration schema and ledger. The previous release
+retains its identity schema and readiness contract during overlap.
+
 PostgreSQL coordinates the deployment-wide one-search-per-second budget and a
 rolling ten-searches-per-reader-per-minute budget. All instances, including
 releases in overlap, must share that database. The app rejects excess requests

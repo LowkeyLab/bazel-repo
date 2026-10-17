@@ -233,7 +233,7 @@ async fn provider_failures_are_actionable_and_never_hide_saved_state() -> anyhow
     for (template, message) in cases {
         app.provider.reset().await;
         // Move the deployment gate past the preceding test request without waiting.
-        sqlx::query("UPDATE book_smartz_web.search_gate SET next_search_at='-infinity'")
+        sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at='-infinity'")
             .execute(&app.pool)
             .await?;
         Mock::given(method("GET"))
@@ -261,7 +261,7 @@ async fn provider_failures_are_actionable_and_never_hide_saved_state() -> anyhow
         assert_that!(app.provider.received_requests().await.unwrap().len(), eq(1));
     }
     app.provider.reset().await;
-    sqlx::query("UPDATE book_smartz_web.search_gate SET next_search_at='-infinity'")
+    sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at='-infinity'")
         .execute(&app.pool)
         .await?;
     Mock::given(method("GET"))
@@ -345,7 +345,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
             .as_str(),
         contains_substring("No matches found.")
     );
-    sqlx::query("UPDATE book_smartz_web.search_gate SET next_search_at=clock_timestamp()+interval '1 minute'").execute(&app.pool).await?;
+    sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at=clock_timestamp()+interval '1 minute'").execute(&app.pool).await?;
     assert_that!(
         post(
             &app,
@@ -362,8 +362,8 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
     );
     assert_that!(app.provider.received_requests().await.unwrap().len(), eq(1));
     // Seed nine more recent admissions: the original reader has used all ten.
-    sqlx::query("INSERT INTO book_smartz_web.search_admissions SELECT reader_id, clock_timestamp() FROM book_smartz_web.accounts CROSS JOIN generate_series(1,9) WHERE subject='budget-reader'").execute(&app.pool).await?;
-    sqlx::query("UPDATE book_smartz_web.search_gate SET next_search_at='-infinity'")
+    sqlx::query("INSERT INTO book_smartz_catalog.search_admissions SELECT reader_id, clock_timestamp() FROM book_smartz_web.accounts CROSS JOIN generate_series(1,9) WHERE subject='budget-reader'").execute(&app.pool).await?;
+    sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at='-infinity'")
         .execute(&app.pool)
         .await?;
     assert_that!(
@@ -388,10 +388,10 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
         .as_str(),
         contains_substring("No matches found.")
     );
-    sqlx::query("UPDATE book_smartz_web.search_gate SET next_search_at='-infinity'")
+    sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at='-infinity'")
         .execute(&app.pool)
         .await?;
-    sqlx::query("UPDATE book_smartz_web.search_admissions SET admitted_at=clock_timestamp()-interval '61 seconds'").execute(&app.pool).await?;
+    sqlx::query("UPDATE book_smartz_catalog.search_admissions SET admitted_at=clock_timestamp()-interval '61 seconds'").execute(&app.pool).await?;
     assert_that!(
         post(&app, &second_base, &cookie, "search", &values)
             .await?
@@ -558,7 +558,7 @@ async fn readiness_ignores_provider_outages_but_requires_catalog_schema() -> any
             .as_u16(),
         eq(200)
     );
-    sqlx::query("DROP TABLE book_smartz_web.search_gate")
+    sqlx::query("DROP TABLE book_smartz_catalog.search_gate")
         .execute(&app.pool)
         .await?;
     assert_that!(

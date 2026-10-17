@@ -4,7 +4,7 @@ CREATE TABLE search_gate (
 );
 INSERT INTO search_gate (singleton, next_search_at) VALUES (true, '-infinity');
 CREATE TABLE search_admissions (
-  reader_id uuid NOT NULL REFERENCES accounts(reader_id),
+  reader_id uuid NOT NULL REFERENCES book_smartz_web.accounts(reader_id),
   admitted_at timestamptz NOT NULL
 );
 CREATE INDEX search_admissions_reader ON search_admissions (reader_id);
