@@ -1,5 +1,6 @@
 mod book_tests;
 mod commit_proxy;
+mod composition_tests;
 mod migration_tests;
 mod ranking_tests;
 mod recovery_tests;

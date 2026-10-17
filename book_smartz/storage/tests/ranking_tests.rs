@@ -673,6 +673,13 @@ async fn corrupt_history_is_never_returned_as_partial_state() {
     for who in [gap_reader, invalid_reader] {
         assert_that!(
             matches!(
+                store.load_ranking_documents(who).await,
+                Err(StoreError::CorruptHistory(_))
+            ),
+            eq(true)
+        );
+        assert_that!(
+            matches!(
                 store.load_ranking(who, op).await,
                 Err(StoreError::CorruptHistory(_))
             ),
