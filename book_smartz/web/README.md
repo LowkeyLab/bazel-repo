@@ -35,14 +35,15 @@ to preserve native form Origin headers without disclosing URL paths or queries.
 Ranking GETs derive reader authority
 from the stored session. Reader identifiers supplied by browsers confer none.
 The app installs a silent storage observer so existing reader-identifying
-storage diagnostics don’t become routine web diagnostics. The operations and
-release slice adds its restricted diagnostic listener and operations guide.
+storage diagnostics don't become routine web diagnostics. The web listener emits only allowlisted app facts through a bounded,
+best-effort queue. See [maintainer operations](OPERATIONS.md) for release, health,
+private diagnostics and original-action recovery.
 
 The HTTP and app suites run the actual archive with isolated PostgreSQL
 and controlled Google token/JSON Web Key endpoints. Package acceptance checks delivered
 CSS, local fonts, icons and runtime JavaScript from unrelated directories, plus
 startup rejection of missing/mismatched assets and incompatible schema. These
-checks don’t establish live Google compatibility or launch readiness.
+checks don't establish live Google compatibility or launch readiness.
 
 Run `aspect test //book_smartz/web:http_test
 //book_smartz/web:application_test //book_smartz/web:package_test` on one shell line.
@@ -148,3 +149,25 @@ The browser target runs on the test host with Docker and a browser supplied thro
 `CHROMIUM_EXECUTABLE` (the configured Nix shell) or `CHROME_BIN` (the GitHub runner).
 It always executes because the host browser can change independently of source.
 The app, HTTP, and package targets retain their remote PostgreSQL fixtures.
+
+Build `//book_smartz/web:image` for the Open Container Initiative image. Its default command is
+`/book-smartz serve`. The pre-deploy command is `/book-smartz migrate`.
+`//book_smartz/web:push_image` uses the existing GitHub Container Registry/latest convention.
+Image construction and local package acceptance don't establish publication,
+Railway configuration, live diagnostic retention or launch readiness.
+
+Readiness rechecks packaged assets and schema without provider calls. Explicit
+migration uses a separate pool capped at one connection. The two-minute bound
+includes connection establishment. SIGTERM stops admission and drains requests
+for twenty seconds, followed by at most five seconds for pool closure.
+
+Diagnostic records contain typed category/outcome, elapsed milliseconds, an executable
+release fingerprint, and an optional opaque action ID. Authentication and
+catalog records report operation outcomes. Ranking confirmation requires a newly
+acknowledged commit. Recovering an already saved action and replaying state emit
+no new ranking activity. Failed or uncertain writes remain unconfirmed/checking.
+The 256-record queue drops on saturation or destination failure. Delivery has no
+retries and doesn't extend process shutdown. The queue may drop buffered records.
+The app installs no traces or metrics. The platform collects stderr. Configure its
+private access and retention separately. The app turns off dependency SQL statement logging and avoids raw
+process-error formatting to protect private payloads.

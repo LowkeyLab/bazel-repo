@@ -301,6 +301,10 @@ pub async fn login(cx: &Cx) -> Result<()> {
 
 #[route(GET "/auth/google/callback")]
 pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
+    let app: &Application = app_context(cx);
+    let mut diagnostic = app
+        .diagnostics
+        .scope(crate::diagnostics::Category::Authentication);
     let state = Token::decode(&input.state).map_err(|_| unauthorized())?;
     let cookie = cookies(cx).get(STATE_COOKIE).ok_or_else(unauthorized)?;
     let browser = Token::decode(cookie.value()).map_err(|_| unauthorized())?;
@@ -325,6 +329,7 @@ pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
     sqlx::query("INSERT INTO book_smartz_web.sessions (token_hash, reader_id, csrf, expires_at) VALUES ($1, $2, $3, $4)")
         .bind(issued.token_hash.as_slice()).bind(reader).bind(csrf).bind(expires).execute(&mut *transaction).await?;
     transaction.commit().await?;
+    diagnostic.outcome(crate::diagnostics::Outcome::Confirmed);
     cookies(cx).remove(
         Cookie::build((STATE_COOKIE, ""))
             .path("/")
@@ -374,6 +379,7 @@ pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
     )])
     .run(&mut *connection)
     .await?;
+    drop(connection);
     crate::actions::migrate(pool).await?;
     Ok(())
 }

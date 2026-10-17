@@ -1,6 +1,7 @@
 # Custom Topcoat metadata and generated assets are maintained through the declared wrapper interface.
 # gazelle:ignore
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load("//tools/test_images:defs.bzl", "image_data", "image_env")
@@ -26,6 +27,7 @@ topcoat_rust_binary(
     srcs = [
         "actions.rs",
         "catalog.rs",
+        "diagnostics.rs",
         "identity.rs",
         "main.rs",
         "package.rs",
@@ -347,4 +349,26 @@ js_library(
         ":submitting_script",
         "//:node_modules/playwright",
     ],
+)
+
+oci_image(
+    name = "image",
+    base = "@distroless_cc",
+    cmd = ["serve"],
+    entrypoint = ["/book-smartz"],
+    env = {"HOST": "0.0.0.0"},
+    tars = [":package"],
+)
+
+oci_push(
+    name = "push_image",
+    image = ":image",
+    remote_tags = ["latest"],
+    repository = "ghcr.io/lowkeylab/book_smartz",
+)
+
+oci_load(
+    name = "load_image",
+    image = ":image",
+    repo_tags = ["local/book-smartz:latest"],
 )

@@ -231,3 +231,133 @@ async fn concurrent_fresh_migrations_wait_for_the_schema_lock() -> anyhow::Resul
     assert_that!(second.0.wait()?.success(), eq(true));
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn readiness_rechecks_assets_without_contacting_providers() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    app.provider.reset().await;
+    let ready = || app.client.get(format!("{}/health/ready", app.base)).send();
+    assert_that!(ready().await?.status().as_u16(), eq(200));
+    let manifest = app.package.path().join("assets/manifest.toml");
+    let original = fs::read(&manifest)?;
+    fs::write(&manifest, b"mismatched release")?;
+    assert_that!(ready().await?.status().as_u16(), eq(503));
+    fs::write(&manifest, original)?;
+    assert_that!(ready().await?.status().as_u16(), eq(200));
+    fs::remove_file(&manifest)?;
+    assert_that!(ready().await?.status().as_u16(), eq(503));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn graceful_shutdown_drains_an_admitted_request_and_preserves_the_session()
+-> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("shutdown-reader").await?;
+    let mut lock = app.pool.begin().await?;
+    sqlx::query("LOCK book_smartz_web.sessions IN ACCESS EXCLUSIVE MODE")
+        .execute(&mut *lock)
+        .await?;
+    let request = {
+        let client = app.client.clone();
+        let base = app.base.clone();
+        let cookie = cookie.clone();
+        tokio::spawn(async move {
+            client
+                .get(format!("{base}/ranking"))
+                .header("cookie", cookie)
+                .send()
+                .await
+        })
+    };
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let waiting: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND wait_event_type='Lock' AND query LIKE 'SELECT reader_id, csrf%')").fetch_one(&app.pool).await?;
+            if waiting { return Ok::<_, anyhow::Error>(()); }
+            tokio::task::yield_now().await;
+        }
+    }).await??;
+    let start = std::time::Instant::now();
+    assert_that!(
+        Command::new("kill")
+            .args(["-TERM", &app.process.0.id().to_string()])
+            .status()?
+            .success(),
+        eq(true)
+    );
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while std::net::TcpStream::connect(app.base.trim_start_matches("http://")).is_ok() {
+            tokio::task::yield_now().await;
+        }
+    })
+    .await?;
+    assert_that!(app.process.0.try_wait()?.is_none(), eq(true));
+    lock.commit().await?;
+    assert_that!(request.await??.status().as_u16(), eq(200));
+    let status = tokio::time::timeout(Duration::from_secs(25), async {
+        loop {
+            if let Some(status) = app.process.0.try_wait()? {
+                return Ok::<_, anyhow::Error>(status);
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await??;
+    assert_that!(status.success(), eq(true));
+    assert_that!(start.elapsed() < Duration::from_secs(30), eq(true));
+    // Restart the package without another migration or login.
+    app.restart_after_exit().await?;
+    assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn serving_connections_have_bounded_pool_and_database_timeouts() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    sqlx::raw_sql("CREATE TABLE public.runtime_settings(lock_timeout text, statement_timeout text); CREATE FUNCTION public.capture_settings() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN INSERT INTO public.runtime_settings VALUES(current_setting('lock_timeout'), current_setting('statement_timeout')); RETURN NEW; END $$; CREATE TRIGGER capture_settings AFTER INSERT ON book_smartz_web.sessions FOR EACH ROW EXECUTE FUNCTION public.capture_settings();").execute(&app.pool).await?;
+    let cookie = app.login("pool-reader").await?;
+    let settings: (String, String) =
+        sqlx::query_as("SELECT lock_timeout, statement_timeout FROM public.runtime_settings")
+            .fetch_one(&app.pool)
+            .await?;
+    assert_that!(settings.0, eq("5s"));
+    assert_that!(settings.1, eq("15s"));
+    let mut lock = app.pool.begin().await?;
+    sqlx::query("LOCK book_smartz_web.sessions IN ACCESS EXCLUSIVE MODE")
+        .execute(&mut *lock)
+        .await?;
+    let mut requests = Vec::new();
+    for _ in 0..6 {
+        let client = app.client.clone();
+        let base = app.base.clone();
+        let cookie = cookie.clone();
+        requests.push(tokio::spawn(async move {
+            client
+                .get(format!("{base}/ranking"))
+                .header("cookie", cookie)
+                .send()
+                .await
+        }));
+    }
+    tokio::time::timeout(Duration::from_secs(3), async {
+        loop {
+            let waiting: i64 = sqlx::query_scalar("SELECT count(*) FROM pg_stat_activity WHERE application_name='book-smartz' AND wait_event_type='Lock'").fetch_one(&app.pool).await?;
+            if waiting == 5 { return Ok::<_, anyhow::Error>(()); }
+            tokio::task::yield_now().await;
+        }
+    }).await??;
+    let connected: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM pg_stat_activity WHERE application_name='book-smartz'",
+    )
+    .fetch_one(&app.pool)
+    .await?;
+    assert_that!(connected, eq(5));
+    lock.commit().await?;
+    for request in requests {
+        assert_that!(request.await??.status().as_u16(), eq(200));
+    }
+    Ok(())
+}

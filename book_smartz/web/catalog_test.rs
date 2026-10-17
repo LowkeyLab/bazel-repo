@@ -572,3 +572,32 @@ async fn readiness_ignores_provider_outages_but_requires_catalog_schema() -> any
     );
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn catalog_failure_diagnostics_exclude_searches_and_provider_payloads() -> anyhow::Result<()>
+{
+    let app = Fixture::new().await?;
+    let cookie = app.login("diagnostic-catalog-reader").await?;
+    let csrf = csrf(&app, &cookie).await?;
+    Mock::given(method("GET"))
+        .and(path("/search.json"))
+        .respond_with(ResponseTemplate::new(503).set_body_string("Private upstream response"))
+        .mount(&app.provider)
+        .await;
+    let response = post(
+        &app,
+        &app.base,
+        &cookie,
+        "search",
+        &[("csrf", &csrf), ("query", "Private search"), ("page", "1")],
+    )
+    .await?;
+    assert_that!(response.status().as_u16(), eq(200));
+    app.diagnostic("catalog", "unavailable").await?;
+    let records = std::fs::read_to_string(app.diagnostics.path())?;
+    assert_that!(records.contains("Private search"), eq(false));
+    assert_that!(records.contains("Private upstream response"), eq(false));
+    assert_that!(records.contains(&cookie), eq(false));
+    Ok(())
+}

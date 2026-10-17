@@ -34,6 +34,7 @@ pub struct Fixture {
     pub package: tempfile::TempDir,
     pub cwd: tempfile::TempDir,
     pub database: String,
+    pub diagnostics: tempfile::NamedTempFile,
     port: u16,
     _postgres: ContainerAsync<Postgres>,
 }
@@ -70,7 +71,15 @@ impl Fixture {
         let client = Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .build()?;
-        let process = Self::spawn(&package, &cwd, &database, port, &provider)?;
+        let diagnostics = tempfile::NamedTempFile::new()?;
+        let process = Self::spawn(
+            &package,
+            &cwd,
+            &database,
+            port,
+            &provider,
+            diagnostics.as_file(),
+        )?;
         let mut fixture = Self {
             process,
             pool: sqlx::PgPool::connect(&database).await?,
@@ -80,6 +89,7 @@ impl Fixture {
             package,
             cwd,
             database,
+            diagnostics,
             port,
             _postgres: postgres,
         };
@@ -110,6 +120,7 @@ impl Fixture {
         database: &str,
         port: u16,
         provider: &MockServer,
+        diagnostics: &std::fs::File,
     ) -> anyhow::Result<Process> {
         Ok(Process(
             Command::new(package.path().join("book-smartz"))
@@ -136,6 +147,7 @@ impl Fixture {
                 .env("GOOGLE_JWKS_ENDPOINT", format!("{}/keys", provider.uri()))
                 .current_dir(cwd.path())
                 .stdout(Stdio::null())
+                .stderr(diagnostics.try_clone()?)
                 .spawn()?,
         ))
     }
@@ -156,6 +168,7 @@ impl Fixture {
             &self.database,
             port,
             &self.provider,
+            self.diagnostics.as_file(),
         )?;
         let base = format!("http://127.0.0.1:{port}");
         Self::wait_for(&mut process, &self.client, &base).await?;
@@ -181,14 +194,51 @@ impl Fixture {
     pub async fn restart(&mut self) -> anyhow::Result<()> {
         self.process.0.kill()?;
         self.process.0.wait()?;
+        self.restart_after_exit().await
+    }
+    #[allow(
+        dead_code,
+        reason = "Used by package acceptance after graceful shutdown."
+    )]
+    pub async fn restart_after_exit(&mut self) -> anyhow::Result<()> {
         self.process = Self::spawn(
             &self.package,
             &self.cwd,
             &self.database,
             self.port,
             &self.provider,
+            self.diagnostics.as_file(),
         )?;
         self.wait().await
+    }
+    #[allow(dead_code, reason = "Used by diagnostic failure acceptance.")]
+    pub async fn break_diagnostic_delivery(&mut self) -> anyhow::Result<()> {
+        self.process.0.kill()?;
+        self.process.0.wait()?;
+        self.process = Self::spawn(
+            &self.package,
+            &self.cwd,
+            &self.database,
+            self.port,
+            &self.provider,
+            &std::fs::File::options().write(true).open("/dev/full")?,
+        )?;
+        self.wait().await
+    }
+    #[allow(dead_code, reason = "Used by diagnostic composition acceptance.")]
+    pub async fn diagnostic(&self, category: &str, outcome: &str) -> anyhow::Result<Value> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                for line in fs::read_to_string(self.diagnostics.path())?.lines() {
+                    let fact: Value = serde_json::from_str(line)?;
+                    if fact["category"] == category && fact["outcome"] == outcome {
+                        return Ok::<_, anyhow::Error>(fact);
+                    }
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await?
     }
     pub async fn begin(&self) -> anyhow::Result<Login> {
         let response = self

@@ -4,7 +4,10 @@
 use std::{sync::Arc, time::Duration};
 
 use serde::Deserialize;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::{
+    ConnectOptions, PgPool,
+    postgres::{PgConnectOptions, PgPoolOptions},
+};
 use topcoat::{
     Result,
     asset::RouterBuilderAssetExt,
@@ -29,6 +32,7 @@ use book_smartz_storage::{
 
 mod actions;
 mod catalog;
+mod diagnostics;
 mod identity;
 mod package;
 
@@ -45,42 +49,44 @@ struct Application {
     origin: String,
     google: identity::Google,
     catalog: catalog::Catalog,
+    diagnostics: diagnostics::Diagnostics,
 }
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> std::process::ExitCode {
+    if run().await.is_ok() {
+        return std::process::ExitCode::SUCCESS;
+    }
+    // Never format dependency errors: they may contain private SQL or credentials.
+    // Exit without synchronous diagnostic I/O so a broken sink cannot delay shutdown.
+    std::process::ExitCode::FAILURE
+}
+
+async fn run() -> anyhow::Result<()> {
     let command = std::env::args().nth(1).unwrap_or_else(|| "serve".into());
     anyhow::ensure!(
         matches!(command.as_str(), "serve" | "migrate"),
         "expected serve or migrate"
     );
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .acquire_timeout(Duration::from_secs(5))
-        .after_connect(|connection, _| {
-            Box::pin(async move {
-                sqlx::query("SET lock_timeout = '5s'")
-                    .execute(&mut *connection)
-                    .await?;
-                sqlx::query("SET statement_timeout = '15s'")
-                    .execute(&mut *connection)
-                    .await?;
-                Ok(())
-            })
-        })
-        .connect(&std::env::var("DATABASE_URL")?)
-        .await?;
-    let store = Store::new(pool.clone(), Arc::new(QuietObserver));
     if command == "migrate" {
         tokio::time::timeout(Duration::from_secs(120), async {
-            store.migrate(OperationContext::default()).await?;
-            identity::migrate(&pool).await
+            let pool = connect(1).await?;
+            let store = Store::new(pool.clone(), Arc::new(QuietObserver));
+            let result = async {
+                store.migrate(OperationContext::default()).await?;
+                identity::migrate(&pool).await
+            }
+            .await;
+            pool.close().await;
+            result
         })
         .await??;
-        pool.close().await;
         return Ok(());
     }
+    let pool = connect(5).await?;
+    let store = Store::new(pool.clone(), Arc::new(QuietObserver));
     let assets = package::load()?;
+    let diagnostics = diagnostics::Diagnostics::start(package::release()?);
     let origin = std::env::var("BOOK_SMARTZ_ORIGIN")?;
     let parsed = url::Url::parse(&origin)?;
     anyhow::ensure!(
@@ -120,6 +126,7 @@ async fn main() -> anyhow::Result<()> {
             origin,
             google,
             catalog,
+            diagnostics,
         })
         .build();
     let service =
@@ -127,6 +134,31 @@ async fn main() -> anyhow::Result<()> {
     topcoat::start(service).await?;
     tokio::time::timeout(Duration::from_secs(5), pool.close()).await?;
     Ok(())
+}
+
+async fn connect(maximum: u32) -> anyhow::Result<PgPool> {
+    let pool = PgPoolOptions::new()
+        .max_connections(maximum)
+        .acquire_timeout(Duration::from_secs(5))
+        .after_connect(|connection, _| {
+            Box::pin(async move {
+                sqlx::query("SET lock_timeout = '5s'")
+                    .execute(&mut *connection)
+                    .await?;
+                sqlx::query("SET statement_timeout = '15s'")
+                    .execute(&mut *connection)
+                    .await?;
+                Ok(())
+            })
+        })
+        .connect_with(
+            std::env::var("DATABASE_URL")?
+                .parse::<PgConnectOptions>()?
+                .application_name("book-smartz")
+                .disable_statement_logging(),
+        )
+        .await?;
+    Ok(pool)
 }
 
 struct BrowserSession {
@@ -150,6 +182,7 @@ async fn authorize(cx: &Cx) -> Result<BrowserSession> {
 #[route(GET "/health/ready")]
 async fn ready(cx: &Cx) -> Result<&'static str> {
     let db: &Application = app_context(cx);
+    package::load().map_err(|_| topcoat::router::error::service_unavailable(1))?;
     identity::ready(&db.pool)
         .await
         .map_err(|_| topcoat::router::error::service_unavailable(1))?;

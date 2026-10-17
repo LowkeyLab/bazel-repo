@@ -472,6 +472,7 @@ fn outcome<'a>(cx: &'a Cx, message: &str) -> BoxView<'a> {
 async fn finish(cx: &Cx, reader: ReaderId, action: ActionId) -> Result<BoxView<'_>> {
     let app: &Application = app_context(cx);
     // Any failure after intent persists is unresolved, including cancellation.
+    let started = std::time::Instant::now();
     match execute(app, reader, action).await {
         Ok(Outcome::Saved) => Err(see_other("/ranking").into()),
         Ok(Outcome::Rejected(reason)) => {
@@ -512,10 +513,24 @@ async fn finish(cx: &Cx, reader: ReaderId, action: ActionId) -> Result<BoxView<'
             .boxed())
         }
         Ok(Outcome::Missing) => Err(forbidden().into()),
-        Err(_) => Ok(outcome(
-            cx,
-            "Checking your save. Reload your ranking to recover the original action.",
-        )),
+        Err(_) => {
+            app.diagnostics.record(
+                crate::diagnostics::Category::Persistence,
+                crate::diagnostics::Outcome::Unconfirmed,
+                started,
+                Some(action),
+            );
+            app.diagnostics.record(
+                crate::diagnostics::Category::Checking,
+                crate::diagnostics::Outcome::Unconfirmed,
+                started,
+                Some(action),
+            );
+            Ok(outcome(
+                cx,
+                "Checking your save. Reload your ranking to recover the original action.",
+            ))
+        }
     }
 }
 enum Outcome {
@@ -524,6 +539,7 @@ enum Outcome {
     Missing,
 }
 async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyhow::Result<Outcome> {
+    let started = std::time::Instant::now();
     loop {
         // This lock synchronizes with in-flight commits before any safe original retry.
         // A missing unlocked read alone is never used as evidence of rollback.
@@ -562,6 +578,12 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
             }
             tx.append_ranking(&document, original.revision).await?;
             tx.commit().await?;
+            app.diagnostics.record(
+                crate::diagnostics::Category::Persistence,
+                crate::diagnostics::Outcome::Confirmed,
+                started,
+                Some(action),
+            );
             return Ok(Outcome::Saved);
         }
         if let Some(answer) = &original.answer {

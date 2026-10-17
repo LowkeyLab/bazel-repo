@@ -53,3 +53,7 @@ pub fn load() -> anyhow::Result<AssetBundle> {
     }
     Ok(bundle)
 }
+
+pub fn release() -> anyhow::Result<String> {
+    digest(&std::env::current_exe()?)
+}
