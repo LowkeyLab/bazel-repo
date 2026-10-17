@@ -209,7 +209,22 @@ fn malformed_application_context_is_rejected_before_storage() {
     let reader = ReaderId::new(Uuid::new_v4());
     let valid = application_event(reader, 1, Uuid::new_v4());
     for (field, value) in [
+        ("id", json!("ABCDEFAB-CDEF-4ABC-8DEF-ABCDEFABCDEF")),
+        ("id", json!("not-a-uuid")),
+        ("type", json!("")),
+        (
+            "source",
+            json!("urn:book-smartz:application:another-reader"),
+        ),
+        ("datacontenttype", json!("text/plain")),
+        ("data", json!([])),
+        ("data_base64", json!("e30=")),
         ("traceparent", json!(42)),
+        ("traceparent", json!("")),
+        ("InvalidExtension", json!(true)),
+        ("context", json!({"nested": "value"})),
+        ("context", json!(2_147_483_648_i64)),
+        ("sequence", json!(1)),
         ("tracestate", json!("vendor=value")),
         ("type", json!("bad\nvalue")),
         ("correlationid", json!("bad\nvalue")),
