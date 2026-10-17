@@ -1,6 +1,7 @@
 //! Verify that the executable and every adjacent asset belong to one package.
 use std::{
     collections::BTreeMap,
+    fmt::Write as _,
     fs,
     path::{Component, Path},
     time::{Duration, Instant},
@@ -16,7 +17,11 @@ struct Integrity {
     files: BTreeMap<String, String>,
 }
 fn digest(path: &Path) -> anyhow::Result<String> {
-    Ok(format!("{:x}", Sha256::digest(fs::read(path)?)))
+    let mut hash = String::with_capacity(64);
+    for byte in Sha256::digest(fs::read(path)?) {
+        write!(hash, "{byte:02x}")?;
+    }
+    Ok(hash)
 }
 
 pub fn load() -> anyhow::Result<AssetBundle> {

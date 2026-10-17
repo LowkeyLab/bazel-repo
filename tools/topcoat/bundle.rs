@@ -1,5 +1,6 @@
 //! Stage declared local assets and call the published Topcoat bundler offline.
 use std::collections::BTreeMap;
+use std::fmt::Write as _;
 use std::{
     fs,
     path::{Component, PathBuf},
@@ -86,9 +87,7 @@ fn main() -> anyhow::Result<()> {
     inventory(&output.join("assets"), &output.join("assets"), &mut files)?;
     fs::write(
         output.join("integrity.json"),
-        serde_json::to_vec(
-            &serde_json::json!({"binary": format!("{:x}", Sha256::digest(&bytes)), "files": files}),
-        )?,
+        serde_json::to_vec(&serde_json::json!({"binary": digest(&bytes)?, "files": files}))?,
     )?;
     Ok(())
 }
@@ -105,9 +104,17 @@ fn inventory(
         } else {
             files.insert(
                 path.strip_prefix(root)?.to_string_lossy().into_owned(),
-                format!("{:x}", Sha256::digest(fs::read(&path)?)),
+                digest(&fs::read(&path)?)?,
             );
         }
     }
     Ok(())
+}
+
+fn digest(bytes: &[u8]) -> anyhow::Result<String> {
+    let mut hash = String::with_capacity(64);
+    for byte in Sha256::digest(bytes) {
+        write!(hash, "{byte:02x}")?;
+    }
+    Ok(hash)
 }
