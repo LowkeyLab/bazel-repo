@@ -24,7 +24,11 @@ Set `HOST=0.0.0.0`, the exact HTTPS canonical origin, and runtime secrets descri
 in the README. Keep the selection key stable across overlap and restarts. Only
 the app receives public ingress. Use private database references. Readiness at
 `/health/ready` checks database, schema, and package integrity without contacting
-Google or Open Library. A provider outage can affect its own operation while the
+Google or Open Library. One background verifier checks integrity on a blocking
+worker, waits one second between checks, and expires successful verification
+after three seconds. Concurrent probes share that result and do no package
+I/O or hashing. The detached verifier runs outside HTTP drain and runtime
+shutdown. A provider outage can affect its own operation while the
 app remains ready. A database/schema/asset failure requires investigation before
 admitting traffic.
 

@@ -241,12 +241,93 @@ async fn readiness_rechecks_assets_without_contacting_providers() -> anyhow::Res
     assert_that!(ready().await?.status().as_u16(), eq(200));
     let manifest = app.package.path().join("assets/manifest.toml");
     let original = fs::read(&manifest)?;
-    fs::write(&manifest, b"mismatched release")?;
-    assert_that!(ready().await?.status().as_u16(), eq(503));
-    fs::write(&manifest, original)?;
-    assert_that!(ready().await?.status().as_u16(), eq(200));
+    for contents in [
+        Some(b"mismatched release".as_slice()),
+        Some(original.as_slice()),
+        None,
+    ] {
+        if let Some(contents) = contents {
+            fs::write(&manifest, contents)?;
+        } else {
+            fs::remove_file(&manifest)?;
+        }
+        let expected = if contents == Some(original.as_slice()) {
+            200
+        } else {
+            503
+        };
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if ready().await?.status().as_u16() == expected {
+                    return Ok::<_, anyhow::Error>(());
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await??;
+        // Concurrent probes observe the same verification state.
+        let mut probes = tokio::task::JoinSet::new();
+        for _ in 0..32 {
+            let client = app.client.clone();
+            let url = format!("{}/health/ready", app.base);
+            probes.spawn(async move { client.get(url).send().await });
+        }
+        while let Some(response) = probes.join_next().await {
+            assert_that!(response??.status().as_u16(), eq(expected));
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn stalled_integrity_verification_expires_readiness_and_cannot_delay_shutdown()
+-> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let manifest = app.package.path().join("integrity.json");
     fs::remove_file(&manifest)?;
-    assert_that!(ready().await?.status().as_u16(), eq(503));
+    assert_that!(
+        Command::new("mkfifo").arg(&manifest).status()?.success(),
+        eq(true)
+    );
+    // The verifier blocks opening this FIFO. Readiness must remain responsive
+    // and expire its earlier success without starting another verifier.
+    tokio::time::timeout(Duration::from_secs(6), async {
+        loop {
+            if app
+                .client
+                .get(format!("{}/health/ready", app.base))
+                .send()
+                .await?
+                .status()
+                .as_u16()
+                == 503
+            {
+                return Ok::<_, anyhow::Error>(());
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .context("stalled verifier must expire readiness")??;
+    assert_that!(
+        Command::new("kill")
+            .args(["-TERM", &app.process.0.id().to_string()])
+            .status()?
+            .success(),
+        eq(true)
+    );
+    let status = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if let Some(status) = app.process.0.try_wait()? {
+                return Ok::<_, anyhow::Error>(status);
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .context("stalled verifier must not delay process exit")??;
+    assert_that!(status.success(), eq(true));
     Ok(())
 }
 

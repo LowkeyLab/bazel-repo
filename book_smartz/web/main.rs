@@ -50,6 +50,7 @@ struct Application {
     google: identity::Google,
     catalog: catalog::Catalog,
     diagnostics: diagnostics::Diagnostics,
+    integrity: package::IntegrityMonitor,
 }
 
 #[tokio::main]
@@ -85,7 +86,8 @@ async fn run() -> anyhow::Result<()> {
     }
     let pool = connect(5).await?;
     let store = Store::new(pool.clone(), Arc::new(QuietObserver));
-    let assets = package::load()?;
+    let assets = tokio::task::spawn_blocking(package::load).await??;
+    let integrity = package::IntegrityMonitor::start()?;
     let diagnostics = diagnostics::Diagnostics::start(package::release()?);
     let origin = std::env::var("BOOK_SMARTZ_ORIGIN")?;
     let parsed = url::Url::parse(&origin)?;
@@ -127,6 +129,7 @@ async fn run() -> anyhow::Result<()> {
             google,
             catalog,
             diagnostics,
+            integrity,
         })
         .build();
     let service =
@@ -182,7 +185,9 @@ async fn authorize(cx: &Cx) -> Result<BrowserSession> {
 #[route(GET "/health/ready")]
 async fn ready(cx: &Cx) -> Result<&'static str> {
     let db: &Application = app_context(cx);
-    package::load().map_err(|_| topcoat::router::error::service_unavailable(1))?;
+    if !db.integrity.is_ready() {
+        return Err(topcoat::router::error::service_unavailable(1).into());
+    }
     identity::ready(&db.pool)
         .await
         .map_err(|_| topcoat::router::error::service_unavailable(1))?;
