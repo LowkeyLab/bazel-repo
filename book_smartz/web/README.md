@@ -135,3 +135,8 @@ The app suite covers ordering, action/security boundaries, expiry, and real
 lost-commit-acknowledgement and process-cancellation recovery. These checks provide
 controlled acceptance evidence. Live-provider, deployment, and Pause/Resume acceptance
 remain separate delivery work.
+
+The browser target runs on the test host with Docker and a browser supplied through
+`CHROMIUM_EXECUTABLE` (the configured Nix shell) or `CHROME_BIN` (the GitHub runner).
+It always executes because the host browser can change independently of source.
+The app, HTTP, and package targets retain their remote PostgreSQL fixtures.

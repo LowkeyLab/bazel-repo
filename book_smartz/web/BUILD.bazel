@@ -298,12 +298,16 @@ rust_test(
         "BROWSER_KEY": "$(rlocationpath fixtures/public-test-key.pem)",
         "BROWSER_CERTIFICATE": "$(rlocationpath fixtures/browser-test-certificate.pem)",
     },
-    exec_properties = {
-        "container-image": "docker://mcr.microsoft.com/playwright@sha256:06a9939e57531807f8d5fd76ce44b53165ffb7d7501d87ab10e285c20b1e971f",
-        "test.workload-isolation-type": "firecracker",
-        "test.init-dockerd": "true",
-    },
+    env_inherit = [
+        "CHROMIUM_EXECUTABLE",
+        "CHROME_BIN",
+    ],
+    # This integration needs the host's browser and Docker. Always execute it so
+    # changes to the installed browser cannot hide behind a cached test result.
     tags = [
+        "external",
+        "no-remote-exec",
+        "no-sandbox",
         "requires-docker",
         "requires-network",
     ],

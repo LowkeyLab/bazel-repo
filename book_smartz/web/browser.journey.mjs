@@ -9,6 +9,7 @@ import { connect } from "node:net";
 // Real TLS transport preserves native redirects, secure cookies, and form Origin.
 // The CONNECT proxy routes only the fixture hostname to this package's loopback app.
 const sockets = new Set();
+const upstreamOrigin = new URL(process.argv[2]);
 const transport = httpsServer(
   { key: readFileSync(process.argv[3]), cert: readFileSync(process.argv[4]) },
   (incoming, outgoing) => {
@@ -19,8 +20,14 @@ const transport = httpsServer(
         "Native forms must retain the canonical Origin",
       );
     const upstream = request(
-      new URL(incoming.url, process.argv[2]),
-      { method: incoming.method, headers: incoming.headers },
+      {
+        protocol: upstreamOrigin.protocol,
+        hostname: upstreamOrigin.hostname,
+        port: upstreamOrigin.port,
+        path: incoming.url,
+        method: incoming.method,
+        headers: incoming.headers,
+      },
       (response) => {
         outgoing.writeHead(response.statusCode, response.headers);
         response.pipe(outgoing);
@@ -57,8 +64,14 @@ for (const server of [transport, proxy])
   });
 await new Promise((resolve) => proxy.listen(0, "127.0.0.1", resolve));
 
+const executablePath =
+  process.env.CHROMIUM_EXECUTABLE || process.env.CHROME_BIN;
+assert.ok(
+  executablePath,
+  "Use the Nix shell or set CHROMIUM_EXECUTABLE/CHROME_BIN",
+);
 const browser = await chromium.launch({
-  executablePath: process.env.CHROMIUM_EXECUTABLE || undefined,
+  executablePath,
   args: ["--no-sandbox"],
   proxy: {
     server: `http://127.0.0.1:${proxy.address().port}`,
@@ -165,6 +178,7 @@ try {
   );
   await page.reload();
   assert.deepEqual(await page.locator("ol li a").allTextContents(), titles);
+  console.log("Browser version:", browser.version());
   console.log(
     "Browser journey passed: sign-in, search, first/later Add, keyboard preference, stale tab, mobile layout, reload.",
   );
