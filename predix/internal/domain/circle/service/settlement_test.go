@@ -36,7 +36,7 @@ func (s *settlementSubscriber) OnEvent(event circle.DomainEvent) {
 
 func TestSettlement(t *testing.T) {
 	testutil.WithTestDB(t, func(t *testing.T, sqlDB *sql.DB) {
-		for _, scenario := range []string{"statement failure after first winner credit", "deferred commit failure", "disconnected subscriber", "full subscriber buffer"} {
+		for _, scenario := range []string{"statement failure after first winner credit", "deferred commit failure", "disconnected subscriber", "full subscriber buffer", "missing contest", "wrong circle", "unauthorized resolver"} {
 			t.Run(scenario, func(t *testing.T) {
 				testutil.ResetTables(t, sqlDB)
 				ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -96,6 +96,31 @@ func TestSettlement(t *testing.T) {
 				if scenario == "full subscriber buffer" {
 					for range cap(notifications) {
 						events.Broadcast(cont.ID, sse.Event{Type: sse.EventContestUpdated})
+					}
+					require.NoError(t, svc.ResolveAndDistributeContestClout(ctx, circ.ID, cont.ID, creator, 1))
+					assertSettled()
+					return
+				}
+				if scenario == "missing contest" || scenario == "wrong circle" || scenario == "unauthorized resolver" {
+					switch scenario {
+					case "missing contest":
+						err = svc.ResolveAndDistributeContestClout(ctx, circ.ID, cont.ID+1, creator, 1)
+						require.ErrorContains(t, err, "failed to get contest")
+					case "wrong circle":
+						err = svc.ResolveAndDistributeContestClout(ctx, circ.ID+1, cont.ID, creator, 1)
+						require.ErrorIs(t, err, service.ErrContestNotFound)
+					case "unauthorized resolver":
+						err = svc.ResolveAndDistributeContestClout(ctx, circ.ID, cont.ID, loser, 1)
+						require.ErrorIs(t, err, service.ErrNotContestCreator)
+					}
+					after, err := reader.GetContest(ctx, cont.ID)
+					require.NoError(t, err)
+					assert.Equal(t, before, after, "rejected request preserves contest")
+					assertBalances(map[user.ID]int{creator: 1000, winnerA: 900, winnerB: 900, loser: 800})
+					select {
+					case event := <-notifications:
+						t.Errorf("rejected request notified consumer: %+v", event)
+					default:
 					}
 					require.NoError(t, svc.ResolveAndDistributeContestClout(ctx, circ.ID, cont.ID, creator, 1))
 					assertSettled()
