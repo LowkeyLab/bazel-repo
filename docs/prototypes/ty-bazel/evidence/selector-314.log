@@ -1,0 +1,14 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+Another command (pid=927568) is running. Waiting for it to complete on the server (server_pid=856619)...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build option --@@rules_python+//python/config_settings:python_version has changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (0 packages loaded, 0 targets configured)
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (2 packages loaded, 40361 targets configured)
+INFO: Analyzed target //.github/scripts/ty_prototype:ty_prototype (2 packages loaded, 101551 targets configured, 172 aspect applications).
+ no actions running
+INFO: Found 1 target...
+INFO: Elapsed time: 131.677s, Critical Path: 0.00s
+INFO: 0 processes.
+INFO: Build completed successfully, 0 total actions

@@ -1,0 +1,65 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 3ad8feccded03a6e02c838cb5a02ec79816501d3..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/BAZEL_DEPENDENCIES.md [+48 / -0] (changed)
+  .github/actions/setup-bazel-ci/action.yml [+1 / -0] (changed)
+  .github/scripts/BUILD.bazel [+21 / -0] (changed)
+  .github/scripts/bazel_dependencies.py [+77 / -0] (changed)
+  .github/scripts/bazel_dependencies_test.py [+98 / -0] (changed)
+  .github/scripts/bazel_dependency_faults.py [+177 / -0] (changed)
+  .github/workflows/bazel-dependency-acceptance.yml [+71 / -0] (changed)
+  .github/workflows/run-tests.yml [+17 / -0] (changed)
+  pyproject.toml [+4 / -0] (changed)
+  python_sample/versions.py [+1 / -1] (changed)
+  tools/lint/linters.bzl [+8 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target //python_sample/ty_prototype:ty_prototype (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //python_sample/ty_prototype:ty_prototype (8 packages loaded, 88 targets configured, 9 aspect applications).
+ no actions running
+INFO: Found 1 target...
+[0 / 8] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //python_sample/ty_prototype:ty_prototype up-to-date (nothing to build)
+Aspect //tools/lint:linters.bzl%ty of //python_sample/ty_prototype:ty_prototype up-to-date:
+  bazel-bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.report
+  bazel-bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.report.exit_code
+INFO: Elapsed time: 2.824s, Critical Path: 0.08s
+INFO: 4 processes: 65 action cache hit, 1 internal, 3 linux-sandbox.
+INFO: Build completed successfully, 4 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (1): Ty
+
+Lint findings after hard (2)
+  🚨 python_sample/ty_prototype/probe.py:12 · Ty — [invalid-return-type]: Return type does not match returned value
+  🚨 python_sample/ty_prototype/probe.py:27 · Ty — [unresolved-import]: Cannot resolve imported module `local_helper`
+
+→ ❌ Failed lint task (exit code 1) in 3.3s · 2 errors
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  266ms  Detect changed files
+    🔬 Lint     3.1s  Run lint aspects
+    🔎 Filter    1ms  Filter diagnostics (failed)

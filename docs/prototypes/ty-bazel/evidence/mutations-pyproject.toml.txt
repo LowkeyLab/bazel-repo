@@ -1,0 +1,14 @@
+[project]
+name = "bazel-repo-python"
+version = "0.1.0"
+requires-python = ">=3.14,<4"
+
+[dependency-groups]
+default = ["packaging>=25", "pytest>=8"]
+
+[tool.uv]
+package = false
+
+# Disposable Wayfinder probe policy, not the accepted strictness configuration.
+[tool.ty.rules]
+invalid-assignment = "warn"

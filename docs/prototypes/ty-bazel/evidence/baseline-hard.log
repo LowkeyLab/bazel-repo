@@ -1,0 +1,109 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 3ad8feccded03a6e02c838cb5a02ec79816501d3..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/BAZEL_DEPENDENCIES.md [+48 / -0] (changed)
+  .github/actions/setup-bazel-ci/action.yml [+1 / -0] (changed)
+  .github/scripts/BUILD.bazel [+21 / -0] (changed)
+  .github/scripts/bazel_dependencies.py [+77 / -0] (changed)
+  .github/scripts/bazel_dependencies_test.py [+98 / -0] (changed)
+  .github/scripts/bazel_dependency_faults.py [+177 / -0] (changed)
+  .github/workflows/bazel-dependency-acceptance.yml [+71 / -0] (changed)
+  .github/workflows/run-tests.yml [+17 / -0] (changed)
+  tools/lint/linters.bzl [+8 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+INFO: Invocation ID: 8a4611c6-359c-46b6-8ef6-1569d1aa4692
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/8a4611c6-359c-46b6-8ef6-1569d1aa4692
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 20 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 20 targets (1 packages loaded, 4097 targets configured, 646 aspect applications).
+ no actions running
+INFO: Found 20 targets...
+[0 / 1] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[167 / 1,983] WhlInstall external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install; Downloading external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__init__.py; 1s remote, remote-cache ... (98 actions, 0 running)
+[261 / 2,368] WhlInstall external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install; Downloading external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages/packaging/__init__.py; 2s remote, remote-cache ... (100 actions, 0 running)
+[319 / 2,444] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; Downloading external/rules_go++go_sdk+main___download_0_linux_amd64/covdata.exe; 3s remote, remote-cache ... (99 actions, 0 running)
+[362 / 2,466] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; Downloading external/rules_go++go_sdk+main___download_0_linux_amd64/covdata.exe, 1.1 MiB / 4.2 MiB; 4s remote, remote-cache ... (100 actions, 0 running)
+[401 / 2,499] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; Downloading external/rules_go++go_sdk+main___download_0_linux_amd64/builder; 5s remote, remote-cache ... (100 actions, 0 running)
+[492 / 2,589] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; Downloading external/rules_go++go_sdk+main___download_0_linux_amd64/builder, 2.2 MiB / 6.7 MiB; 6s remote, remote-cache ... (100 actions, 0 running)
+[706 / 2,724] Copying files to directory external/llvm++llvm+llvm-project/libcxx/libcxx_headers_include_search_directory [for tool]; Downloading external/llvm++llvm+llvm-project/libcxx/libcxx_headers_include_search_directory/__cxx03/__locale_dir/locale_base_api/ibm.h; 6s remote, remote-cache ... (99 actions, 0 running)
+[939 / 2,771] Compiling libcxx/src/chrono.cpp [for tool]; Downloading external/llvm++llvm+llvm-project/libcxx/_objs/libcxx/chrono.pic.o; 0s remote, remote-cache ... (100 actions, 0 running)
+[1,207 / 2,855] Copying files to directory external/llvm+/runtimes/libcxx/libcxx_library_search_directory [for tool]; Downloading external/llvm+/runtimes/libcxx/libcxx_library_search_directory/libc++abi.a; 0s remote, remote-cache ... (100 actions, 0 running)
+[1,436 / 2,855] Compiling libcxx/src/mutex.cpp [for tool]; Downloading external/llvm++llvm+llvm-project/libcxx/_objs/libcxx/mutex.pic.o; 0s remote, remote-cache ... (100 actions, 0 running)
+[1,554 / 2,855] Copying files to directory external/llvm+/runtimes/glibc/glibc_library_search_directory [for tool]; Downloading external/llvm+/runtimes/glibc/glibc_library_search_directory/libpthread.so; 1s remote, remote-cache ... (100 actions, 0 running)
+[1,682 / 2,855] Copying files to directory external/llvm+/runtimes/glibc/glibc_library_search_directory [for tool]; Downloading external/llvm+/runtimes/glibc/glibc_library_search_directory/libpthread.so; 2s remote, remote-cache ... (100 actions, 0 running)
+[1,776 / 2,855] Linking external/llvm+/runtimes/glibc/libresolv.so.2 [for tool]; Downloading external/llvm+/runtimes/glibc/libresolv.so.2; 2s remote, remote-cache ... (99 actions, 0 running)
+[1,909 / 2,855] Compiling compiler-rt/lib/builtins/fixdfti.c [for tool]; Downloading external/llvm++llvm+llvm-project/compiler-rt/_objs/builtins/fixdfti.pic.o; 2s remote, remote-cache ... (100 actions, 0 running)
+[2,048 / 2,855] Compiling compiler-rt/lib/builtins/fixdfti.c [for tool]; Downloading external/llvm++llvm+llvm-project/compiler-rt/_objs/builtins/fixdfti.pic.o; 3s remote, remote-cache ... (100 actions, 0 running)
+[2,253 / 2,855] Compiling compiler-rt/lib/builtins/trampoline_setup.c [for tool]; Downloading external/llvm++llvm+llvm-project/compiler-rt/_objs/builtins/trampoline_setup.pic.o; 0s remote, remote-cache ... (100 actions, 0 running)
+[2,427 / 2,855] Compiling compiler-rt/lib/builtins/fixtfsi.c [for tool]; Downloading external/llvm++llvm+llvm-project/compiler-rt/_objs/builtins/fixtfsi.pic.o, 1.1 KiB / 1.1 KiB; 0s remote, remote-cache ... (9 actions, 0 running)
+[2,444 / 2,855] Copying file external/llvm++llvm+llvm-project/compiler-rt/clang_rt.builtins.static_/libclang_rt.builtins.static.a [for tool]; Downloading external/llvm+/runtimes/_resource_directory_default_staging/libclang_rt.builtins.a; 0s remote, remote-cache ... (12 actions, 0 running)
+[2,461 / 2,855] Copying files to directory external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory [for tool]; Downloading external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory/include/andes_vector.h; 1s remote, remote-cache ... (11 actions, 0 running)
+[2,464 / 2,855] Copying files to directory external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory [for tool]; Downloading external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory/include/__clang_cuda_texture_intrinsics.h; 2s remote, remote-cache ... (12 actions, 0 running)
+[2,469 / 2,855] Copying files to directory external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory [for tool]; Downloading external/llvm+/toolchain/linux_x86_64_cc_toolchain_resource_directory/include/arm_mve.h; 3s remote, remote-cache ... (13 actions, 0 running)
+[2,490 / 2,855] GoStdlib external/rules_go+/stdlib_/pkg [for tool]; Downloading external/rules_go+/stdlib_/pkg/include/asm_amd64.h; 2s remote, remote-cache ... (12 actions, 0 running)
+[2,504 / 2,855] GoStdlib external/rules_go+/stdlib_/pkg [for tool]; Downloading external/rules_go+/stdlib_/pkg/linux_amd64/runtime.a, 4.4 MiB / 12.7 MiB; 4s remote, remote-cache ... (5 actions, 0 running)
+[2,508 / 2,855] GoStdlib external/rules_go+/stdlib_/pkg [for tool]; Downloading external/rules_go+/stdlib_/pkg/linux_amd64/runtime.a, 12.0 MiB / 12.7 MiB; 5s remote, remote-cache ... (4 actions, 0 running)
+[2,508 / 2,855] GoStdlib external/rules_go+/stdlib_/pkg [for tool]; Downloading external/rules_go+/stdlib_/pkg/tool/linux_amd64/link, 4.0 MiB / 6.4 MiB; 7s remote, remote-cache ... (4 actions, 0 running)
+[2,540 / 2,855] GoCompilePkg external/gazelle++go_deps+com_github_reviewdog_errorformat/writer/writer.a [for tool]; Downloading external/gazelle++go_deps+com_github_reviewdog_errorformat/writer/writer.x; 0s remote, remote-cache ... (27 actions, 0 running)
+[2,566 / 2,855] GoCompilePkg external/gazelle++go_deps+com_github_reviewdog_errorformat/writer/writer.a [for tool]; Downloading external/gazelle++go_deps+com_github_reviewdog_errorformat/writer/writer.x; 1s remote, remote-cache ... (9 actions, 0 running)
+[2,580 / 2,855] GoCompilePkg external/gazelle++_go_deps+++keep_sorted_deps+com_github_rs_zerolog/zerolog.a [for tool]; Downloading external/gazelle++_go_deps+++keep_sorted_deps+com_github_rs_zerolog/zerolog.a, 1.2 MiB / 1.8 MiB; 1s remote, remote-cache ... (12 actions, 0 running)
+[2,597 / 2,855] GoCompilePkg external/gazelle++_go_deps+++keep_sorted_deps+com_github_rs_zerolog/zerolog.a [for tool]; Downloading external/gazelle++_go_deps+++keep_sorted_deps+com_github_rs_zerolog/zerolog.a, 1.2 MiB / 1.8 MiB; 2s remote, remote-cache ... (16 actions, 0 running)
+[2,619 / 2,855] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/internal/encoding/text/text.a [for tool]; Downloading external/gazelle++go_deps+org_golang_google_protobuf/internal/encoding/text/text.a; 1s remote, remote-cache ... (13 actions, 0 running)
+[2,635 / 2,855] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/internal/encoding/text/text.a [for tool]; Downloading external/gazelle++go_deps+org_golang_google_protobuf/internal/encoding/text/text.a; 2s remote, remote-cache ... (8 actions, 0 running)
+[2,677 / 2,855] GoLink external/gazelle++_go_deps+++keep_sorted_deps+com_github_google_keep_sorted/keep-sorted_/keep-sorted [for tool]; Downloading external/gazelle++_go_deps+++keep_sorted_deps+com_github_google_keep_sorted/keep-sorted_/keep-sorted, 2.0 MiB / 3.3 MiB; 0s remote, remote-cache ... (17 actions, 0 running)
+[2,738 / 2,855] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/internal/impl/impl.a [for tool]; Downloading external/gazelle++go_deps+org_golang_google_protobuf/internal/impl/impl.a, 4.4 MiB / 6.0 MiB; 0s remote, remote-cache ... (12 actions, 0 running)
+[2,773 / 2,855] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/types/known/typepb/typepb.a [for tool]; Downloading external/gazelle++go_deps+org_golang_google_protobuf/types/known/typepb/typepb.a; 0s remote, remote-cache ... (6 actions, 0 running)
+[2,790 / 2,855] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/compiler/protogen/protogen.a [for tool]; Downloading external/gazelle++go_deps+org_golang_google_protobuf/compiler/protogen/protogen.x; 0s remote, remote-cache ... (2 actions, 0 running)
+[2,794 / 2,855] GoCompilePkg external/gazelle++go_deps+com_github_reviewdog_reviewdog/parser/parser.a [for tool]; Downloading external/gazelle++go_deps+com_github_reviewdog_reviewdog/parser/parser.a; 0s remote, remote-cache ... (2 actions, 0 running)
+[2,799 / 2,855] GoCompilePkg external/aspect_rules_lint+/tools/sarif/cmd/sarif/sarif.a [for tool]; Downloading external/aspect_rules_lint+/tools/sarif/cmd/sarif/sarif.a; 0s remote, remote-cache ... (2 actions, 0 running)
+[2,801 / 2,855] GoLink external/aspect_rules_lint+/tools/sarif/cmd/sarif/sarif_/sarif [for tool]; Downloading external/aspect_rules_lint+/tools/sarif/cmd/sarif/sarif_/sarif; 0s remote, remote-cache ... (2 actions, 0 running)
+[2,819 / 2,855] [Prepa] GoCompilePkg external/aspect_rules_lint+/tools/sarif/sarif.a [for tool]
+[2,821 / 2,855] [Prepa] GoLink external/aspect_rules_lint+/tools/sarif/cmd/sarif/sarif_/sarif [for tool]
+INFO: Elapsed time: 49.624s, Critical Path: 33.69s
+INFO: 2398 processes: 457 action cache hit, 2397 remote cache hit, 1 internal.
+INFO: Build completed successfully, 2398 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/8a4611c6-359c-46b6-8ef6-1569d1aa4692
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (4): KeepSorted, Ruff, Ty, Vale
+
+Lint findings after hard (10)
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+
+→ ❌ Failed lint task (exit code 1) in 52.3s · 10 errors
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  265ms  Detect changed files
+    🔬 Lint    52.1s  Run lint aspects
+    🔎 Filter    3ms  Filter diagnostics (failed)

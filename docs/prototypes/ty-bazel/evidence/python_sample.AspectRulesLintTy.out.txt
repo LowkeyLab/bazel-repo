@@ -1,0 +1,9 @@
+[1m[91merror[invalid-assignment][0m[1m: Object of type `Literal["wrong"]` is not assignable to `int`[0m
+  [1m[94m--> [0mpython_sample/versions.py:13:32
+   [1m[94m|[0m
+[1m[94m13[0m [1m[94m|[0m prototype_library_error: int = "wrong"
+   [1m[94m|[0m                          [1m[94m---[0m   [1m[91m^^^^^^^[0m [1m[91mIncompatible value of type `Literal["wrong"]`[0m
+   [1m[94m|[0m                          [1m[94m|[0m
+   [1m[94m|[0m                          [1m[94mDeclared type[0m
+
+Found 1 diagnostic

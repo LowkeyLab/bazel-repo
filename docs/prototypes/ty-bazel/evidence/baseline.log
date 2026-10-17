@@ -1,0 +1,70 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 3ad8feccded03a6e02c838cb5a02ec79816501d3..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/BAZEL_DEPENDENCIES.md [+48 / -0] (changed)
+  .github/actions/setup-bazel-ci/action.yml [+1 / -0] (changed)
+  .github/scripts/BUILD.bazel [+21 / -0] (changed)
+  .github/scripts/bazel_dependencies.py [+77 / -0] (changed)
+  .github/scripts/bazel_dependencies_test.py [+98 / -0] (changed)
+  .github/scripts/bazel_dependency_faults.py [+177 / -0] (changed)
+  .github/workflows/bazel-dependency-acceptance.yml [+71 / -0] (changed)
+  .github/workflows/run-tests.yml [+17 / -0] (changed)
+  tools/lint/linters.bzl [+8 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+INFO: Invocation ID: 7b4e76da-9430-4925-8fb1-8e62beb065d6
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/7b4e76da-9430-4925-8fb1-8e62beb065d6
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 20 targets (2 packages loaded, 0 targets configured)
+Analyzing: 20 targets (44 packages loaded, 2014 targets configured)
+Analyzing: 20 targets (302 packages loaded, 85619 targets configured, 149 aspect applications)
+INFO: Analyzed 20 targets (302 packages loaded, 109601 targets configured, 475 aspect applications).
+INFO: Found 20 targets...
+[0 / 1] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[2,888 / 2,937] Linting //.github/scripts:nix_tool with ty; 0s remote, remote-cache ... (33 actions, 0 running)
+[2,893 / 2,937] Linting //.github/scripts:nix_tool with ty; 1s remote, remote-cache ... (30 actions, 0 running)
+[2,893 / 2,937] Linting //.github/scripts:nix_tool with ty; 3s remote, remote-cache ... (30 actions, 0 running)
+[2,898 / 2,937] Linting //.github/scripts:bazel_dependencies with ty; 0s remote, remote-cache ... (27 actions, 17 running)
+[2,921 / 2,937] Linting //python_sample:versions_test with ty; 0s remote, remote-cache ... (14 actions, 3 running)
+[2,927 / 2,937] Parsing machine-readable report to SARIF for //.github/scripts:bazel_dependencies_test; 0s remote, remote-cache ... (9 actions, 7 running)
+[2,935 / 2,937] Parsing machine-readable report to SARIF for //.github/scripts:nix_tool_test; 0s remote, remote-cache ... (2 actions, 1 running)
+[2,936 / 2,937] Parsing machine-readable report to SARIF for //python_sample:runtime_test; Downloading python_sample/runtime_test.AspectRulesLintTy.report; 0s remote, remote-cache
+INFO: Elapsed time: 13.859s, Critical Path: 8.62s
+INFO: 77 processes: 1651 action cache hit, 29 remote cache hit, 9 internal, 39 remote.
+INFO: Build completed successfully, 77 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/7b4e76da-9430-4925-8fb1-8e62beb065d6
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (4): KeepSorted, Ruff, Ty, Vale
+
+Lint findings after hold-the-line (2)
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+
+→ ❌ Failed lint task (exit code 1) in 17.1s · 2 errors
+    🔧 Setup     4ms  Prepare the task environment
+    🔍 Detect  316ms  Detect changed files
+    🔬 Lint    16.7s  Run lint aspects
+    🔎 Filter    2ms  Filter diagnostics (failed)

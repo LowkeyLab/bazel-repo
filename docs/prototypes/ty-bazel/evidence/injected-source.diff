@@ -1,0 +1,44 @@
+diff --git a/.github/scripts/nix_tool.py b/.github/scripts/nix_tool.py
+index 7235021c..901524d2 100644
+--- a/.github/scripts/nix_tool.py
++++ b/.github/scripts/nix_tool.py
+@@ -378,3 +378,6 @@ def main():
+ 
+ if __name__ == "__main__":
+     sys.exit(main())
++
++# Disposable type-error probe; removed after the experiment.
++prototype_hidden_error: int = "wrong"
+diff --git a/python_sample/__main__.py b/python_sample/__main__.py
+index 8640eb6b..4963240c 100644
+--- a/python_sample/__main__.py
++++ b/python_sample/__main__.py
+@@ -4,3 +4,6 @@ from cli import main
+ 
+ if __name__ == "__main__":
+     main()
++
++# Disposable type-error probe; removed after the experiment.
++prototype_binary_error: int = "wrong"
+diff --git a/python_sample/versions.py b/python_sample/versions.py
+index 6498d27c..53f0d333 100644
+--- a/python_sample/versions.py
++++ b/python_sample/versions.py
+@@ -8,3 +8,6 @@ from packaging.version import Version
+ def sort_versions(versions: Iterable[str]) -> list[str]:
+     """Return the supplied version strings in package release order."""
+     return sorted(versions, key=Version)
++
++# Disposable type-error probe; removed after the experiment.
++prototype_library_error: int = "wrong"
+diff --git a/python_sample/versions_test.py b/python_sample/versions_test.py
+index b4225c44..8a83c67c 100644
+--- a/python_sample/versions_test.py
++++ b/python_sample/versions_test.py
+@@ -24,3 +24,6 @@ def test_package_release_order(versions, expected):
+ def test_invalid_version_is_rejected():
+     with pytest.raises(InvalidVersion):
+         sort_versions(["not-a-version"])
++
++# Disposable type-error probe; removed after the experiment.
++prototype_test_error: int = "wrong"

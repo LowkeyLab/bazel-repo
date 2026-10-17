@@ -1,0 +1,53 @@
+[1m[91merror[invalid-method-override][0m[1m: Invalid override of method `log_message`[0m
+   [1m[94m--> [0m.github/scripts/bazel_dependency_faults.py:25:13
+    [1m[94m|[0m
+[1m[94m 25[0m [1m[94m|[0m         def log_message(self, *_args):
+    [1m[94m|[0m             [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mDefinition is incompatible with `BaseHTTPRequestHandler.log_message`[0m
+    [1m[94m|[0m
+   [1m[94m::: [0mstdlib/http/server.pyi:275:9
+    [1m[94m|[0m
+[1m[94m275[0m [1m[94m|[0m     def log_message(self, format: str, *args: Any) -> None:
+    [1m[94m|[0m         [1m[94m--------------------------------------------------[0m [1m[94m`BaseHTTPRequestHandler.log_message` defined here[0m
+[1m[94minfo[0m[1m: parameter `format` is missing[0m
+[1m[94minfo[0m[1m: This violates the Liskov Substitution Principle[0m
+
+[1m[91merror[unresolved-attribute][0m[1m: Object of type `BaseServer` has no attribute `mode`[0m
+  [1m[94m--> [0m.github/scripts/nix_cache_failures.py:31:12
+   [1m[94m|[0m
+[1m[94m31[0m [1m[94m|[0m         if self.server.mode == "stall":
+   [1m[94m|[0m            [1m[91m^^^^^^^^^^^^^^^^[0m
+
+[1m[91merror[unresolved-attribute][0m[1m: Object of type `BaseServer` has no attribute `mode`[0m
+  [1m[94m--> [0m.github/scripts/nix_cache_failures.py:34:35
+   [1m[94m|[0m
+[1m[94m34[0m [1m[94m|[0m         self.send_response(503 if self.server.mode == "unavailable" else 404)
+   [1m[94m|[0m                                   [1m[91m^^^^^^^^^^^^^^^^[0m
+
+[1m[91merror[invalid-method-override][0m[1m: Invalid override of method `log_message`[0m
+   [1m[94m--> [0m.github/scripts/nix_cache_failures.py:37:9
+    [1m[94m|[0m
+[1m[94m 37[0m [1m[94m|[0m     def log_message(self, *_args):
+    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mDefinition is incompatible with `BaseHTTPRequestHandler.log_message`[0m
+    [1m[94m|[0m
+   [1m[94m::: [0mstdlib/http/server.pyi:275:9
+    [1m[94m|[0m
+[1m[94m275[0m [1m[94m|[0m     def log_message(self, format: str, *args: Any) -> None:
+    [1m[94m|[0m         [1m[94m--------------------------------------------------[0m [1m[94m`BaseHTTPRequestHandler.log_message` defined here[0m
+[1m[94minfo[0m[1m: parameter `format` is missing[0m
+[1m[94minfo[0m[1m: This violates the Liskov Substitution Principle[0m
+
+[1m[91merror[unresolved-attribute][0m[1m: Unresolved attribute `mode` on type `ThreadingHTTPServer`[0m
+  [1m[94m--> [0m.github/scripts/nix_cache_failures.py:96:9
+   [1m[94m|[0m
+[1m[94m96[0m [1m[94m|[0m         server.mode = mode
+   [1m[94m|[0m         [1m[91m^^^^^^^^^^^[0m
+
+[1m[91merror[invalid-assignment][0m[1m: Object of type `Literal["wrong"]` is not assignable to `int`[0m
+   [1m[94m--> [0m.github/scripts/nix_tool.py:383:31
+    [1m[94m|[0m
+[1m[94m383[0m [1m[94m|[0m prototype_hidden_error: int = "wrong"
+    [1m[94m|[0m                         [1m[94m---[0m   [1m[91m^^^^^^^[0m [1m[91mIncompatible value of type `Literal["wrong"]`[0m
+    [1m[94m|[0m                         [1m[94m|[0m
+    [1m[94m|[0m                         [1m[94mDeclared type[0m
+
+Found 6 diagnostics

@@ -1,0 +1,20 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (3 packages loaded, 6 targets configured)
+WARNING: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038/MODULE.bazel:552:27: The module extension toolchains defined in @rules_rs//rs/toolchains:module_extension.bzl reported incorrect imports of repositories via use_repo():
+
+Imported, but reported as indirect dependencies by the extension:
+    rustfmt_linux_x86_64_1_99_1
+
+Fix the use_repo calls by running 'bazel mod tidy'.
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (104 packages loaded, 13 targets configured)
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (205 packages loaded, 18402 targets configured)
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (342 packages loaded, 50019 targets configured)
+Analyzing: target //.github/scripts/ty_prototype:ty_prototype (342 packages loaded, 114105 targets configured, 171 aspect applications)
+INFO: Analyzed target //.github/scripts/ty_prototype:ty_prototype (343 packages loaded, 114108 targets configured, 172 aspect applications).
+INFO: Found 1 target...
+INFO: Elapsed time: 9.496s, Critical Path: 0.00s
+INFO: 0 processes.
+INFO: Build completed successfully, 0 total actions

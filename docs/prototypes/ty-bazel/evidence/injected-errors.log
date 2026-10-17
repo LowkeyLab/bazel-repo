@@ -1,0 +1,82 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 3ad8feccded03a6e02c838cb5a02ec79816501d3..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/BAZEL_DEPENDENCIES.md [+48 / -0] (changed)
+  .github/actions/setup-bazel-ci/action.yml [+1 / -0] (changed)
+  .github/scripts/BUILD.bazel [+21 / -0] (changed)
+  .github/scripts/bazel_dependencies.py [+77 / -0] (changed)
+  .github/scripts/bazel_dependencies_test.py [+98 / -0] (changed)
+  .github/scripts/bazel_dependency_faults.py [+177 / -0] (changed)
+  .github/scripts/nix_tool.py [+3 / -0] (changed)
+  .github/workflows/bazel-dependency-acceptance.yml [+71 / -0] (changed)
+  .github/workflows/run-tests.yml [+17 / -0] (changed)
+  python_sample/__main__.py [+3 / -0] (changed)
+  python_sample/versions.py [+3 / -0] (changed)
+  python_sample/versions_test.py [+3 / -0] (changed)
+  tools/lint/linters.bzl [+8 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+INFO: Invocation ID: 67b51d2c-a9cb-4ab0-99dc-5a15eea0f524
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/67b51d2c-a9cb-4ab0-99dc-5a15eea0f524
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 20 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 20 targets (1 packages loaded, 2848 targets configured, 475 aspect applications).
+ no actions running
+INFO: Found 20 targets...
+[0 / 1] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[2,783 / 2,849] Linting //python_sample:python_sample_bin with Ruff; 1s remote, remote-cache ... (40 actions, 0 running)
+[2,795 / 2,849] Linting //python_sample:versions_test with Ruff; 0s remote, remote-cache ... (32 actions, 15 running)
+[2,843 / 2,849] Linting //python_sample:versions_test with Ruff; 1s remote, remote-cache ... (6 actions, 3 running)
+INFO: Elapsed time: 6.371s, Critical Path: 3.83s
+INFO: 46 processes: 1548 action cache hit, 1 internal, 45 remote.
+INFO: Build completed successfully, 46 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/67b51d2c-a9cb-4ab0-99dc-5a15eea0f524
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (4): KeepSorted, Ruff, Ty, Vale
+
+Lint findings after hard (15)
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  🚨 python_sample/__main__.py:9 · Ty — [invalid-assignment]: Object of type `Literal["wrong"]` is not assignable to `int`
+  🚨 .github/scripts/nix_tool.py:383 · Ty — [invalid-assignment]: Object of type `Literal["wrong"]` is not assignable to `int`
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  🚨 .github/scripts/nix_tool.py:383 · Ty — [invalid-assignment]: Object of type `Literal["wrong"]` is not assignable to `int`
+  🚨 python_sample/versions_test.py:29 · Ty — [invalid-assignment]: Object of type `Literal["wrong"]` is not assignable to `int`
+  🚨 python_sample/versions.py:13 · Ty — [invalid-assignment]: Object of type `Literal["wrong"]` is not assignable to `int`
+
+→ ❌ Failed lint task (exit code 1) in 11.1s · 15 errors
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  266ms  Detect changed files
+    🔬 Lint    10.8s  Run lint aspects
+    🔎 Filter    2ms  Filter diagnostics (failed)

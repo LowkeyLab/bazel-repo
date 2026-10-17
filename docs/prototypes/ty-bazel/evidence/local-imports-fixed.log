@@ -1,0 +1,152 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 3ad8feccded03a6e02c838cb5a02ec79816501d3..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/BAZEL_DEPENDENCIES.md [+48 / -0] (changed)
+  .github/actions/setup-bazel-ci/action.yml [+1 / -0] (changed)
+  .github/scripts/BUILD.bazel [+21 / -0] (changed)
+  .github/scripts/bazel_dependencies.py [+77 / -0] (changed)
+  .github/scripts/bazel_dependencies_test.py [+98 / -0] (changed)
+  .github/scripts/bazel_dependency_faults.py [+177 / -0] (changed)
+  .github/workflows/bazel-dependency-acceptance.yml [+71 / -0] (changed)
+  .github/workflows/run-tests.yml [+17 / -0] (changed)
+  pyproject.toml [+4 / -0] (changed)
+  tools/lint/linters.bzl [+8 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+Another command (pid=933729) is running. Waiting for it to complete on the server (server_pid=856619)...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build option --@@rules_python+//python/config_settings:python_version has changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: 23 targets (1 packages loaded, 0 targets configured)
+Analyzing: 23 targets (24 packages loaded, 42338 targets configured)
+INFO: Analyzed 23 targets (24 packages loaded, 203431 targets configured, 407 aspect applications).
+ no actions running
+INFO: Found 23 targets...
+[0 / 8] [Prepa] Creating symlink external/rules_multitool++multitool+multitool/tools/ty/ty [for tool]
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,554 / 2,791] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 0s linux-sandbox ... (98 actions, 16 running)
+[1,628 / 2,796] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 1s linux-sandbox ... (99 actions, 17 running)
+[1,689 / 2,796] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 2s linux-sandbox ... (100 actions, 16 running)
+[1,728 / 2,796] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 3s linux-sandbox ... (100 actions, 16 running)
+[1,753 / 2,800] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 4s linux-sandbox ... (100 actions, 16 running)
+[1,816 / 2,806] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 5s linux-sandbox ... (99 actions, 17 running)
+[1,892 / 2,825] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 6s linux-sandbox ... (100 actions, 16 running)
+[1,929 / 2,825] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 7s linux-sandbox ... (100 actions, 17 running)
+[1,970 / 2,825] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 9s linux-sandbox ... (100 actions, 17 running)
+[2,028 / 2,841] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 10s linux-sandbox ... (100 actions, 17 running)
+[2,075 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 11s linux-sandbox ... (99 actions, 16 running)
+[2,119 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 12s linux-sandbox ... (99 actions, 17 running)
+[2,159 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 13s linux-sandbox ... (99 actions, 15 running)
+[2,214 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 14s linux-sandbox ... (99 actions, 16 running)
+[2,252 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 15s linux-sandbox ... (99 actions, 16 running)
+[2,277 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 16s linux-sandbox ... (100 actions, 17 running)
+[2,306 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 17s linux-sandbox ... (100 actions, 17 running)
+[2,325 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 18s linux-sandbox ... (100 actions, 16 running)
+[2,346 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 19s linux-sandbox ... (100 actions, 17 running)
+[2,425 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 20s linux-sandbox ... (99 actions, 16 running)
+[2,590 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 21s linux-sandbox ... (60 actions, 17 running)
+[2,689 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 22s linux-sandbox ... (3 actions, 2 running)
+[2,712 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 23s linux-sandbox ... (2 actions, 1 running)
+[2,720 / 2,843] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 24s linux-sandbox
+[2,721 / 2,843] [Prepa] Creating symlink external/rules_go++go_sdk+main___download_0_linux_amd64/builder_reset/builder [for tool]
+[2,726 / 2,843] GoStdlib external/rules_go+/stdlib_/pkg [for tool]; 1s linux-sandbox ... (2 actions running)
+[2,726 / 2,843] GoStdlib external/rules_go+/stdlib_/pkg [for tool]; 11s linux-sandbox ... (2 actions running)
+[2,727 / 2,843] GoStdlib external/rules_go+/stdlib_/pkg [for tool]; 14s linux-sandbox ... (2 actions, 1 running)
+[2,786 / 2,843] [Prepa] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/encoding/prototext/prototext.a [for tool]
+[2,795 / 2,843] GoCompilePkg external/gazelle++go_deps+org_golang_google_protobuf/types/dynamicpb/dynamicpb.a [for tool]; 0s linux-sandbox ... (3 actions, 2 running)
+[2,823 / 2,843] [Prepa] Creating symlink external/rules_go+/proto/go_proto_reset_plugin_/protoc-gen-go [for tool]
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:bazel_dependencies up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:nix_tool up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:python_sample_bin up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/python_sample_bin.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:bazel_dependencies_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependencies_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:bazel_dependency_faults up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependency_faults.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/bazel_dependency_faults.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:python_sample up-to-date:
+  bazel-bin/python_sample/python_sample.AspectRulesLintTy.report
+  bazel-bin/python_sample/python_sample.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:nix_tool_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_tool_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts/ty_prototype:ty_prototype up-to-date:
+  bazel-bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.report
+  bazel-bin/.github/scripts/ty_prototype/ty_prototype.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:nix_cache_failures up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample/ty_prototype:ty_prototype up-to-date:
+  bazel-bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.report
+  bazel-bin/python_sample/ty_prototype/ty_prototype.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:cli_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/cli_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/cli_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:versions_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/versions_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:scripts up-to-date:
+  bazel-bin/.github/scripts/scripts.AspectRulesLintTy.report
+  bazel-bin/.github/scripts/scripts.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //.github/scripts:nix_cache_failures_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/.github/scripts/nix_cache_failures_test.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample/ty_prototype:stub up-to-date:
+  bazel-bin/python_sample/ty_prototype/stub.AspectRulesLintTy.report
+  bazel-bin/python_sample/ty_prototype/stub.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //python_sample:runtime_test up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/runtime_test.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/python_sample/runtime_test.AspectRulesLintTy.report.exit_code
+INFO: Elapsed time: 60.928s, Critical Path: 49.48s
+INFO: 1514 processes: 1329 action cache hit, 272 internal, 1242 linux-sandbox.
+INFO: Build completed successfully, 1514 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (1): Ty
+
+Lint findings after hard (13)
+  🚨 python_sample/ty_prototype/probe.py:25 · Ty — [invalid-assignment]: Object of type `Literal["wrong"]` is not assignable to `int`
+  🚨 python_sample/ty_prototype/probe.py:27 · Ty — [unresolved-import]: Cannot resolve imported module `local_helper`
+  🚨 .github/scripts/ty_prototype/probe.py:3 · Ty — [invalid-assignment]: Object of type `Literal["wrong"]` is not assignable to `int`
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+  🚨 .github/scripts/bazel_dependency_faults.py:25 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:31 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:34 · Ty — [unresolved-attribute]: Object of type `BaseServer` has no attribute `mode`
+  🚨 .github/scripts/nix_cache_failures.py:37 · Ty — [invalid-method-override]: Invalid override of method `log_message`
+  🚨 .github/scripts/nix_cache_failures.py:96 · Ty — [unresolved-attribute]: Unresolved attribute `mode` on type `ThreadingHTTPServer`
+
+→ ❌ Failed lint task (exit code 1) in 3m 26s · 13 errors
+    🔧 Setup     10ms  Prepare the task environment
+    🔍 Detect   417ms  Detect changed files
+    🔬 Lint    3m 25s  Run lint aspects
+    🔎 Filter     3ms  Filter diagnostics (failed)

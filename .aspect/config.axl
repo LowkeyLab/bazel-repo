@@ -10,6 +10,7 @@ def config(ctx):
         "//tools/lint:linters.bzl%eslint",
         "//tools/lint:linters.bzl%stylelint",
         "//tools/lint:linters.bzl%ruff",
+        "//tools/lint:linters.bzl%ty",
         "//tools/lint:linters.bzl%shellcheck",
         "//tools/lint:linters.bzl%pmd",
         "//tools/lint:linters.bzl%checkstyle",

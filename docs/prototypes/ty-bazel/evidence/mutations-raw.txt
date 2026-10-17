@@ -1,0 +1,40 @@
+[1m[91merror[invalid-return-type][0m[1m: Return type does not match returned value[0m
+  [1m[94m--> [0mpython_sample/ty_prototype/probe.py:12:12
+   [1m[94m|[0m
+[1m[94m10[0m [1m[94m|[0m def compatible(value: str) -> list[str]:
+   [1m[94m|[0m                               [1m[94m---------[0m [1m[94mExpected `list[str]` because of return type[0m
+[1m[94m11[0m [1m[94m|[0m     """Exercise typed third-party and transitive first-party imports."""
+[1m[94m12[0m [1m[94m|[0m     return sort_versions([str(Version(value))])
+   [1m[94m|[0m            [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[91mexpected `list[str]`, found `list[int]`[0m
+
+[1m[33mwarning[invalid-assignment][0m[1m: Object of type `Literal["wrong"]` is not assignable to `int`[0m
+  [1m[94m--> [0mpython_sample/ty_prototype/probe.py:25:31
+   [1m[94m|[0m
+[1m[94m25[0m [1m[94m|[0m prototype_future_error: int = "wrong"
+   [1m[94m|[0m                         [1m[94m---[0m   [1m[33m^^^^^^^[0m [1m[33mIncompatible value of type `Literal["wrong"]`[0m
+   [1m[94m|[0m                         [1m[94m|[0m
+   [1m[94m|[0m                         [1m[94mDeclared type[0m
+
+[1m[91merror[unresolved-import][0m[1m: Cannot resolve imported module `local_helper`[0m
+  [1m[94m--> [0mpython_sample/ty_prototype/probe.py:27:6
+   [1m[94m|[0m
+[1m[94m27[0m [1m[94m|[0m from local_helper import typed_helper
+   [1m[94m|[0m      [1m[91m^^^^^^^^^^^^[0m
+[1m[94minfo[0m[1m: Searched in the following paths during module resolution:[0m
+[1m[94minfo[0m[1m:   1. /home/tacascer/.cache/bazel/_bazel_tacascer/3d53d73e516c96571eb7ab48db4d63d2/sandbox/linux-sandbox/10462/execroot/_main/bazel-out/k8-fastbuild/bin (extra search path specified on the CLI or in your config file)[0m
+[1m[94minfo[0m[1m:   2. /home/tacascer/.cache/bazel/_bazel_tacascer/3d53d73e516c96571eb7ab48db4d63d2/sandbox/linux-sandbox/10462/execroot/_main/python_sample/ty_prototype/stubs (extra search path specified on the CLI or in your config file)[0m
+[1m[94minfo[0m[1m:   3. /home/tacascer/.cache/bazel/_bazel_tacascer/3d53d73e516c96571eb7ab48db4d63d2/sandbox/linux-sandbox/10462/execroot/_main/bazel-out/k8-fastbuild/bin/external/aspect_rules_py++uv+whl_install__bazel_repo_python__packaging__26_3/install/lib/python3.15/site-packages (extra search path specified on the CLI or in your config file)[0m
+[1m[94minfo[0m[1m:   4. /home/tacascer/.cache/bazel/_bazel_tacascer/3d53d73e516c96571eb7ab48db4d63d2/sandbox/linux-sandbox/10462/execroot/_main/python_sample (extra search path specified on the CLI or in your config file)[0m
+[1m[94minfo[0m[1m:   5. /home/tacascer/.cache/bazel/_bazel_tacascer/3d53d73e516c96571eb7ab48db4d63d2/sandbox/linux-sandbox/10462/execroot/_main/bazel-out/k8-fastbuild/bin/python_sample (extra search path specified on the CLI or in your config file)[0m
+[1m[94minfo[0m[1m:   ... and 2 more paths. Run with `-v` to see all paths.[0m
+[1m[94minfo[0m[1m: make sure your Python environment is properly configured: https://docs.astral.sh/ty/modules/#python-environment[0m
+
+[1m[33mwarning[invalid-assignment][0m[1m: Object of type `str` is not assignable to `int`[0m
+  [1m[94m--> [0mpython_sample/ty_prototype/probe.py:31:19
+   [1m[94m|[0m
+[1m[94m31[0m [1m[94m|[0m stub_value: int = external_function("ok")
+   [1m[94m|[0m             [1m[94m---[0m   [1m[33m^^^^^^^^^^^^^^^^^^^^^^^[0m [1m[33mIncompatible value of type `str`[0m
+   [1m[94m|[0m             [1m[94m|[0m
+   [1m[94m|[0m             [1m[94mDeclared type[0m
+
+Found 4 diagnostics

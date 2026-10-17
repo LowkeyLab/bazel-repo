@@ -1,0 +1,31 @@
+"""Disposable probes for future-target discovery, annotations, and imports."""
+
+from typing import Any
+
+from packaging.version import Version
+
+from versions import sort_versions
+
+
+def compatible(value: str) -> list[str]:
+    """Exercise typed third-party and transitive first-party imports."""
+    return sort_versions([str(Version(value))])
+
+
+def unannotated(value):
+    """Probe whether missing annotations are rejected."""
+    return value
+
+
+def explicit_any(value: Any) -> Any:
+    """Probe whether explicit Any is rejected."""
+    return value
+
+
+prototype_future_error: int = "wrong"
+
+from local_helper import typed_helper
+from ty_proto_stub import external_function
+
+own_root_value: str = typed_helper("ok")
+stub_value: int = external_function("ok")

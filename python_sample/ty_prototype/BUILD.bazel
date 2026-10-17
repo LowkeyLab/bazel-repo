@@ -1,0 +1,27 @@
+# Disposable own-import-root and stub fixture; the first version was Gazelle-generated.
+# gazelle:ignore
+# gazelle:exclude own_root
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+
+py_library(
+    name = "stub",
+    srcs = ["stubs/ty_proto_stub.pyi"],
+    imports = ["stubs"],
+)
+
+py_library(
+    name = "ty_prototype",
+    srcs = [
+        "own_root/local_helper.py",
+        "probe.py",
+    ],
+    imports = [
+        "..",
+        "own_root",
+    ],
+    deps = [
+        ":stub",
+        "//python_sample",
+        "@pypi//packaging",
+    ],
+)

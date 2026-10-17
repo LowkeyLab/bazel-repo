@@ -1,0 +1,41 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 3ad8feccded03a6e02c838cb5a02ec79816501d3..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  .aspect/config.axl [+1 / -0] (changed)
+  .github/BAZEL_DEPENDENCIES.md [+48 / -0] (changed)
+  .github/actions/setup-bazel-ci/action.yml [+1 / -0] (changed)
+  .github/scripts/BUILD.bazel [+21 / -0] (changed)
+  .github/scripts/bazel_dependencies.py [+77 / -0] (changed)
+  .github/scripts/bazel_dependencies_test.py [+98 / -0] (changed)
+  .github/scripts/bazel_dependency_faults.py [+177 / -0] (changed)
+  .github/workflows/bazel-dependency-acceptance.yml [+71 / -0] (changed)
+  .github/workflows/run-tests.yml [+17 / -0] (changed)
+  pyproject.toml [+4 / -0] (changed)
+  tools/lint/linters.bzl [+8 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038/python_sample/ty_prototype/BUILD.bazel:11:11: Label '//python_sample/ty_prototype:own_root/local_helper.py' is invalid because 'python_sample/ty_prototype/own_root' is a subpackage; perhaps you meant to put the colon here: '//python_sample/ty_prototype/own_root:local_helper.py'?
+ERROR: package contains errors: python_sample/ty_prototype
+ERROR: package contains errors: python_sample/ty_prototype: Label '//python_sample/ty_prototype:own_root/local_helper.py' is invalid because 'python_sample/ty_prototype/own_root' is a subpackage; perhaps you meant to put the colon here: '//python_sample/ty_prototype/own_root:local_helper.py'?
+WARNING: Target pattern parsing failed.
+ERROR: Skipping '//python_sample/...': Error evaluating '//python_sample/...': error loading package 'python_sample/ty_prototype': Package 'python_sample/ty_prototype' contains errors
+ERROR: Error evaluating '//python_sample/...': error loading package 'python_sample/ty_prototype': Package 'python_sample/ty_prototype' contains errors
+INFO: Elapsed time: 1.638s
+INFO: 0 processes.
+ERROR: Build did NOT complete successfully
+Loading: 2 packages loaded
+INFO: Build Event Protocol files produced successfully.
+
+→ ❌ Failed lint task (exit code 1) in 2.0s · Build failed
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  267ms  Detect changed files
+    🔬 Lint     1.8s  Run lint aspects (failed)

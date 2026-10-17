@@ -1,0 +1,837 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/adcd97c4-1aaa-44a7-b845-7638fa9ac038' is dirty
+Another command (pid=926883) is running. Waiting for it to complete on the server (server_pid=856619)...
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target //:gazelle (0 packages loaded, 0 targets configured)
+Analyzing: target //:gazelle (603 packages loaded, 31805 targets configured)
+Analyzing: target //:gazelle (710 packages loaded, 65941 targets configured, 39 aspect applications)
+Analyzing: target //:gazelle (710 packages loaded, 108120 targets configured, 392 aspect applications)
+INFO: Analyzed target //:gazelle (711 packages loaded, 108145 targets configured, 463 aspect applications).
+INFO: Found 1 target...
+[0 / 15] [Prepa] Expanding template gazelle-runner.bash
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,079 / 4,564] Action external/llvm+/runtimes/glibc/build/c.s [for tool]; 0s linux-sandbox ... (100 actions, 16 running)
+[1,215 / 4,564] JavaToolchainCompileBootClasspath external/rules_java+/toolchains/platformclasspath_unstripped.jar [for tool]; 0s linux-sandbox ... (99 actions, 16 running)
+[1,354 / 4,564] JavaToolchainCompileBootClasspath external/rules_java+/toolchains/platformclasspath_unstripped.jar [for tool]; 1s linux-sandbox ... (99 actions, 17 running)
+[1,413 / 4,564] JavaToolchainCompileBootClasspath external/rules_java+/toolchains/platformclasspath_unstripped.jar [for tool]; 2s linux-sandbox ... (100 actions, 16 running)
+[1,465 / 4,564] JavaToolchainCompileBootClasspath external/rules_java+/toolchains/platformclasspath_unstripped.jar [for tool]; 3s linux-sandbox ... (100 actions, 17 running)
+[1,488 / 4,564] JavaToolchainCompileBootClasspath external/rules_java+/toolchains/platformclasspath_unstripped.jar [for tool]; 5s linux-sandbox ... (100 actions, 33 running)
+[1,547 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 5s linux-sandbox ... (100 actions, 16 running)
+[1,586 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 6s linux-sandbox ... (99 actions, 16 running)
+[1,618 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 7s linux-sandbox ... (100 actions, 18 running)
+[1,647 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 8s linux-sandbox ... (100 actions, 17 running)
+[1,673 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 9s linux-sandbox ... (100 actions, 17 running)
+[1,693 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 11s linux-sandbox ... (99 actions, 16 running)
+[1,719 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 12s linux-sandbox ... (100 actions, 17 running)
+[1,737 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 13s linux-sandbox ... (99 actions, 16 running)
+[1,752 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 14s linux-sandbox ... (100 actions, 17 running)
+[1,767 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 15s linux-sandbox ... (100 actions, 16 running)
+[1,785 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 16s linux-sandbox ... (100 actions, 16 running)
+[1,801 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 17s linux-sandbox ... (100 actions, 17 running)
+[1,816 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 18s linux-sandbox ... (100 actions, 17 running)
+[1,833 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 19s linux-sandbox ... (100 actions, 17 running)
+[1,853 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 20s linux-sandbox ... (100 actions, 17 running)
+[1,866 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 21s linux-sandbox ... (100 actions, 17 running)
+[1,880 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 22s linux-sandbox ... (100 actions, 17 running)
+[1,903 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 23s linux-sandbox ... (100 actions, 17 running)
+[1,928 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 24s linux-sandbox ... (100 actions, 17 running)
+[1,950 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 25s linux-sandbox ... (100 actions, 17 running)
+[1,968 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 26s linux-sandbox ... (100 actions, 17 running)
+[1,977 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 28s linux-sandbox ... (100 actions, 17 running)
+[1,992 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 29s linux-sandbox ... (100 actions, 17 running)
+INFO: From Building external/protobuf+/java/core/liblite_runtime_only.jar (94 source files):
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:491: warning: [removal] objectFieldOffset(Field) in Unsafe has been deprecated and marked for removal
+        fieldOffset = (int) unsafe.objectFieldOffset(oneofField);
+                                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:503: warning: [removal] objectFieldOffset(Field) in Unsafe has been deprecated and marked for removal
+        presenceFieldOffset = (int) unsafe.objectFieldOffset(oneofCaseField);
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:529: warning: [removal] objectFieldOffset(Field) in Unsafe has been deprecated and marked for removal
+        fieldOffset = (int) unsafe.objectFieldOffset(field);
+                                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:554: warning: [removal] objectFieldOffset(Field) in Unsafe has been deprecated and marked for removal
+          presenceFieldOffset = (int) unsafe.objectFieldOffset(hasBitsField);
+                                            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1394: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+    final Object source = UNSAFE.getObject(sourceParent, offset);
+                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1404: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+        UNSAFE.putObject(targetParent, offset, source);
+              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1409: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+        UNSAFE.putObject(targetParent, offset, copyOfSource);
+              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1416: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+    Object target = UNSAFE.getObject(targetParent, offset);
+                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1420: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+      UNSAFE.putObject(targetParent, offset, newInstance);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1433: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+    final Object source = UNSAFE.getObject(sourceParent, offset);
+                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1443: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+        UNSAFE.putObject(targetParent, offset, source);
+              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1448: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+        UNSAFE.putObject(targetParent, offset, copyOfSource);
+              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1455: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+    Object target = UNSAFE.getObject(targetParent, offset);
+                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1459: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+      UNSAFE.putObject(targetParent, offset, newInstance);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1490: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+                  : unsafe.getInt(message, (long) currentPresenceFieldOffset);
+                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1519: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+            size += CodedOutputStream.computeInt64Size(number, unsafe.getLong(message, offset));
+                                                                     ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1525: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+            size += CodedOutputStream.computeUInt64Size(number, unsafe.getLong(message, offset));
+                                                                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1531: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            size += CodedOutputStream.computeInt32Size(number, unsafe.getInt(message, offset));
+                                                                     ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1555: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            Object value = unsafe.getObject(message, offset);
+                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1566: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            Object value = unsafe.getObject(message, offset);
+                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1573: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            ByteString value = (ByteString) unsafe.getObject(message, offset);
+                                                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1580: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            size += CodedOutputStream.computeUInt32Size(number, unsafe.getInt(message, offset));
+                                                                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1586: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            size += CodedOutputStream.computeEnumSize(number, unsafe.getInt(message, offset));
+                                                                    ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1604: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            size += CodedOutputStream.computeSInt32Size(number, unsafe.getInt(message, offset));
+                                                                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1610: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+            size += CodedOutputStream.computeSInt64Size(number, unsafe.getLong(message, offset));
+                                                                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1619: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (MessageLite) unsafe.getObject(message, offset),
+                                        ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1626: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<?>) unsafe.getObject(message, offset), false);
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1631: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<?>) unsafe.getObject(message, offset), false);
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1636: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Long>) unsafe.getObject(message, offset), false);
+                                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1641: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Long>) unsafe.getObject(message, offset), false);
+                                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1646: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Integer>) unsafe.getObject(message, offset), false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1651: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<?>) unsafe.getObject(message, offset), false);
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1656: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<?>) unsafe.getObject(message, offset), false);
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1661: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<?>) unsafe.getObject(message, offset), false);
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1665: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              SchemaUtil.computeSizeStringList(number, (List<?>) unsafe.getObject(message, offset));
+                                                                       ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1670: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<?>) unsafe.getObject(message, offset), getMessageFieldSchema(i));
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1675: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<ByteString>) unsafe.getObject(message, offset));
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1680: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Integer>) unsafe.getObject(message, offset), false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1685: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Integer>) unsafe.getObject(message, offset), false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1690: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Integer>) unsafe.getObject(message, offset), false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1695: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Long>) unsafe.getObject(message, offset), false);
+                                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1700: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Integer>) unsafe.getObject(message, offset), false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1705: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, (List<Long>) unsafe.getObject(message, offset), false);
+                                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1711: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Double>) unsafe.getObject(message, offset));
+                                         ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1714: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1727: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Float>) unsafe.getObject(message, offset));
+                                        ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1730: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1743: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Long>) unsafe.getObject(message, offset));
+                                       ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1746: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1759: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Long>) unsafe.getObject(message, offset));
+                                       ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1762: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1775: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Integer>) unsafe.getObject(message, offset));
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1778: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1791: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Long>) unsafe.getObject(message, offset));
+                                       ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1794: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1807: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Integer>) unsafe.getObject(message, offset));
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1810: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1823: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Boolean>) unsafe.getObject(message, offset));
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1826: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1839: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Integer>) unsafe.getObject(message, offset));
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1842: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1855: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Integer>) unsafe.getObject(message, offset));
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1858: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1871: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Integer>) unsafe.getObject(message, offset));
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1874: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1887: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Long>) unsafe.getObject(message, offset));
+                                       ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1890: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1903: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Integer>) unsafe.getObject(message, offset));
+                                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1906: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1919: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (List<Long>) unsafe.getObject(message, offset));
+                                       ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1922: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, (long) cachedSizeOffset, fieldSize);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1935: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  (List<MessageLite>) unsafe.getObject(message, offset),
+                                            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1942: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                  number, unsafe.getObject(message, offset), getMapFieldDefaultEntry(i));
+                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1986: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            Object value = unsafe.getObject(message, offset);
+                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:1996: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            Object value = unsafe.getObject(message, offset);
+                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2004: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    number, (ByteString) unsafe.getObject(message, offset));
+                                               ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2042: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                    (MessageLite) unsafe.getObject(message, offset),
+                                        ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2112: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+                  : unsafe.getInt(message, (long) presenceFieldOffset);
+                          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2141: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeInt64(number, unsafe.getLong(message, offset));
+                                            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2147: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeUInt64(number, unsafe.getLong(message, offset));
+                                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2153: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeInt32(number, unsafe.getInt(message, offset));
+                                            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2159: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeFixed64(number, unsafe.getLong(message, offset));
+                                              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2165: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeFixed32(number, unsafe.getInt(message, offset));
+                                              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2177: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            writeString(number, unsafe.getObject(message, offset), writer);
+                                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2183: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            Object value = unsafe.getObject(message, offset);
+                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2190: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeBytes(number, (ByteString) unsafe.getObject(message, offset));
+                                                         ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2196: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeUInt32(number, unsafe.getInt(message, offset));
+                                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2202: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeEnum(number, unsafe.getInt(message, offset));
+                                           ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2208: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeSFixed32(number, unsafe.getInt(message, offset));
+                                               ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2214: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeSFixed64(number, unsafe.getLong(message, offset));
+                                               ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2220: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeSInt32(number, unsafe.getInt(message, offset));
+                                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2226: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeSInt64(number, unsafe.getLong(message, offset));
+                                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2233: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                number, unsafe.getObject(message, offset), getMessageFieldSchema(pos));
+                              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2238: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Double>) unsafe.getObject(message, offset), writer, false);
+                                                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2242: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Float>) unsafe.getObject(message, offset), writer, false);
+                                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2246: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2250: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2254: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, false);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2258: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2262: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, false);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2266: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Boolean>) unsafe.getObject(message, offset), writer, false);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2270: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<String>) unsafe.getObject(message, offset), writer);
+                                                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2275: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              (List<?>) unsafe.getObject(message, offset),
+                              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2281: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<ByteString>) unsafe.getObject(message, offset), writer);
+                                                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2285: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, false);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2289: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, false);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2293: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, false);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2297: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2301: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, false);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2305: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, false);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2310: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Double>) unsafe.getObject(message, offset), writer, true);
+                                                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2314: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Float>) unsafe.getObject(message, offset), writer, true);
+                                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2318: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, true);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2322: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, true);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2326: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, true);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2330: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, true);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2334: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, true);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2339: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Boolean>) unsafe.getObject(message, offset), writer, true);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2343: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, true);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2347: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, true);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2351: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, true);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2355: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, true);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2359: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Integer>) unsafe.getObject(message, offset), writer, true);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2363: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              numberAt(pos), (List<Long>) unsafe.getObject(message, offset), writer, true);
+                                                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2368: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+              (List<?>) unsafe.getObject(message, offset),
+                              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2374: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+          writeMapHelper(writer, number, unsafe.getObject(message, offset), pos);
+                                               ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2418: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            writeString(number, unsafe.getObject(message, offset), writer);
+                                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2423: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            Object value = unsafe.getObject(message, offset);
+                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2429: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            writer.writeBytes(number, (ByteString) unsafe.getObject(message, offset));
+                                                         ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:2465: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+                number, unsafe.getObject(message, offset), getMessageFieldSchema(pos));
+                              ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3572: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+    ProtobufList<?> list = (ProtobufList<?>) UNSAFE.getObject(message, fieldOffset);
+                                                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3576: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+      UNSAFE.putObject(message, fieldOffset, list);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3733: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+    Object mapField = unsafe.getObject(message, fieldOffset);
+                            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3738: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+      unsafe.putObject(message, fieldOffset, mapField);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3768: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, decodeDouble(data, position));
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3770: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3775: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, decodeFloat(data, position));
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3777: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3784: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, registers.long1);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3785: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3792: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, registers.int1);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3793: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3799: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, decodeFixed64(data, position));
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3801: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3807: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, decodeFixed32(data, position));
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3809: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3815: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, registers.long1 != 0);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3816: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3824: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+            unsafe.putObject(message, fieldOffset, "");
+                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3831: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+            unsafe.putObject(message, fieldOffset, value);
+                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3834: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3849: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, registers.object1);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3850: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3859: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+            unsafe.putObject(message, fieldOffset, enumValue);
+                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3860: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+            unsafe.putInt(message, oneofCaseOffset, number);
+                  ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3870: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, CodedInputStream.decodeZigZag32(registers.int1));
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3871: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3877: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+          unsafe.putObject(message, fieldOffset, CodedInputStream.decodeZigZag64(registers.long1));
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3878: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+          unsafe.putInt(message, oneofCaseOffset, number);
+                ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3969: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+              unsafe.putInt(message, (long) currentPresenceFieldOffset, currentPresenceField);
+                    ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:3977: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+                    : unsafe.getInt(message, (long) presenceFieldOffset);
+                            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4000: warning: [removal] putLong(Object,long,long) in Unsafe has been deprecated and marked for removal
+                unsafe.putLong(message, fieldOffset, registers.long1);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4009: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, fieldOffset, registers.int1);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4017: warning: [removal] putLong(Object,long,long) in Unsafe has been deprecated and marked for removal
+                unsafe.putLong(message, fieldOffset, decodeFixed64(data, position));
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4026: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(message, fieldOffset, decodeFixed32(data, position));
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4047: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+                unsafe.putObject(message, fieldOffset, registers.object1);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4066: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+                unsafe.putObject(message, fieldOffset, registers.object1);
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4080: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                  unsafe.putInt(message, fieldOffset, enumValue);
+                        ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4093: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+                unsafe.putInt(
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4102: warning: [removal] putLong(Object,long,long) in Unsafe has been deprecated and marked for removal
+                unsafe.putLong(
+                      ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4133: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            ProtobufList<?> list = (ProtobufList<?>) unsafe.getObject(message, fieldOffset);
+                                                           ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4139: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+              unsafe.putObject(message, fieldOffset, list);
+                    ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4218: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+      unsafe.putInt(message, (long) currentPresenceFieldOffset, currentPresenceField);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4256: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+    final Object current = UNSAFE.getObject(message, offset);
+                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4270: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+    UNSAFE.putObject(message, offset(typeAndOffsetAt(pos)), field);
+          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4283: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+    final Object current = UNSAFE.getObject(message, offset(typeAndOffsetAt(pos)));
+                                 ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4297: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+    UNSAFE.putObject(message, offset(typeAndOffsetAt(pos)), field);
+          ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4330: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            getMessageFieldSchema(pos).makeImmutable(UNSAFE.getObject(message, offset));
+                                                           ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4336: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            getMessageFieldSchema(pos).makeImmutable(UNSAFE.getObject(message, offset));
+                                                           ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4375: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+            Object mapField = UNSAFE.getObject(message, offset);
+                                    ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4377: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+              UNSAFE.putObject(message, offset, mapFieldSchema.toImmutable(mapField));
+                    ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/MessageSchema.java:4495: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+          currentPresenceField = UNSAFE.getInt(message, (long) presenceFieldOffset);
+                                       ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:485: warning: [removal] objectFieldOffset(Field) in Unsafe has been deprecated and marked for removal
+      return unsafe.objectFieldOffset(field);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:489: warning: [removal] arrayBaseOffset(Class<?>) in Unsafe has been deprecated and marked for removal
+      return unsafe.arrayBaseOffset(clazz);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:493: warning: [removal] arrayIndexScale(Class<?>) in Unsafe has been deprecated and marked for removal
+      return unsafe.arrayIndexScale(clazz);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:530: warning: [removal] getInt(Object,long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getInt(target, offset);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:534: warning: [removal] putInt(Object,long,int) in Unsafe has been deprecated and marked for removal
+      unsafe.putInt(target, offset, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:538: warning: [removal] getLong(Object,long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getLong(target, offset);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:542: warning: [removal] putLong(Object,long,long) in Unsafe has been deprecated and marked for removal
+      unsafe.putLong(target, offset, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:558: warning: [removal] getObject(Object,long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getObject(target, offset);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:562: warning: [removal] putObject(Object,long,Object) in Unsafe has been deprecated and marked for removal
+      unsafe.putObject(target, offset, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:615: warning: [removal] staticFieldBase(Field) in Unsafe has been deprecated and marked for removal
+      return getObject(unsafe.staticFieldBase(field), unsafe.staticFieldOffset(field));
+                             ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:615: warning: [removal] staticFieldOffset(Field) in Unsafe has been deprecated and marked for removal
+      return getObject(unsafe.staticFieldBase(field), unsafe.staticFieldOffset(field));
+                                                            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:644: warning: [removal] getByte(Object,long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getByte(target, offset);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:649: warning: [removal] putByte(Object,long,byte) in Unsafe has been deprecated and marked for removal
+      unsafe.putByte(target, offset, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:654: warning: [removal] getBoolean(Object,long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getBoolean(target, offset);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:659: warning: [removal] putBoolean(Object,long,boolean) in Unsafe has been deprecated and marked for removal
+      unsafe.putBoolean(target, offset, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:664: warning: [removal] getFloat(Object,long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getFloat(target, offset);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:669: warning: [removal] putFloat(Object,long,float) in Unsafe has been deprecated and marked for removal
+      unsafe.putFloat(target, offset, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:674: warning: [removal] getDouble(Object,long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getDouble(target, offset);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:679: warning: [removal] putDouble(Object,long,double) in Unsafe has been deprecated and marked for removal
+      unsafe.putDouble(target, offset, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:708: warning: [removal] getByte(long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getByte(address);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:713: warning: [removal] putByte(long,byte) in Unsafe has been deprecated and marked for removal
+      unsafe.putByte(address, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:718: warning: [removal] getInt(long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getInt(address);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:723: warning: [removal] putInt(long,int) in Unsafe has been deprecated and marked for removal
+      unsafe.putInt(address, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:728: warning: [removal] getLong(long) in Unsafe has been deprecated and marked for removal
+      return unsafe.getLong(address);
+                   ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:733: warning: [removal] putLong(long,long) in Unsafe has been deprecated and marked for removal
+      unsafe.putLong(address, value);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:738: warning: [removal] copyMemory(Object,long,Object,long,long) in Unsafe has been deprecated and marked for removal
+      unsafe.copyMemory(null, srcOffset, target, BYTE_ARRAY_BASE_OFFSET + targetIndex, length);
+            ^
+external/protobuf+/java/core/src/main/java/com/google/protobuf/UnsafeUtil.java:743: warning: [removal] copyMemory(Object,long,Object,long,long) in Unsafe has been deprecated and marked for removal
+      unsafe.copyMemory(src, BYTE_ARRAY_BASE_OFFSET + srcIndex, null, targetOffset, length);
+            ^
+[2,010 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 30s linux-sandbox ... (100 actions, 17 running)
+[2,025 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 31s linux-sandbox ... (100 actions, 17 running)
+[2,058 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 32s linux-sandbox ... (100 actions, 17 running)
+[2,079 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 33s linux-sandbox ... (100 actions, 17 running)
+[2,094 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 34s linux-sandbox ... (100 actions, 15 running)
+[2,108 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 35s linux-sandbox ... (100 actions, 17 running)
+[2,131 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 36s linux-sandbox ... (100 actions, 17 running)
+[2,158 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 37s linux-sandbox ... (99 actions, 16 running)
+[2,191 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 38s linux-sandbox ... (99 actions, 16 running)
+[2,199 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 39s linux-sandbox ... (100 actions, 16 running)
+[2,223 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 40s linux-sandbox ... (99 actions, 16 running)
+[2,239 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 41s linux-sandbox ... (100 actions, 17 running)
+[2,267 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 42s linux-sandbox ... (100 actions, 17 running)
+[2,293 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 43s linux-sandbox ... (100 actions, 16 running)
+[2,320 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 44s linux-sandbox ... (99 actions, 16 running)
+[2,355 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 45s linux-sandbox ... (100 actions, 17 running)
+[2,387 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 46s linux-sandbox ... (100 actions, 16 running)
+[2,418 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 47s linux-sandbox ... (100 actions, 17 running)
+[2,430 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 48s linux-sandbox ... (100 actions, 17 running)
+[2,457 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 49s linux-sandbox ... (100 actions, 15 running)
+[2,471 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 50s linux-sandbox ... (100 actions, 17 running)
+[2,511 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 51s linux-sandbox ... (100 actions, 17 running)
+[2,548 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 52s linux-sandbox ... (100 actions, 16 running)
+[2,576 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 53s linux-sandbox ... (100 actions, 17 running)
+[2,650 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 54s linux-sandbox ... (100 actions, 16 running)
+[2,735 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 55s linux-sandbox ... (100 actions, 17 running)
+[2,870 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 56s linux-sandbox ... (100 actions, 15 running)
+[2,996 / 4,564] GoToolchainBinaryBuild external/rules_go++go_sdk+main___download_0_linux_amd64/builder [for tool]; 57s linux-sandbox ... (100 actions, 15 running)
+[3,133 / 4,564] Stamping the manifest of @@rules_jvm_external++maven+contrib_rules_jvm_deps//:org_jetbrains_kotlin_kotlin_compiler; 3s linux-sandbox ... (24 actions, 16 running)
+[3,222 / 4,564] Stamping the manifest of @@rules_jvm_external++maven+contrib_rules_jvm_deps//:org_jetbrains_kotlin_kotlin_compiler; 5s linux-sandbox ... (5 actions, 4 running)
+[3,224 / 4,564] Stamping the manifest of @@rules_jvm_external++maven+contrib_rules_jvm_deps//:org_jetbrains_kotlin_kotlin_compiler; 6s linux-sandbox ... (5 actions running)
+[3,225 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 3s linux-sandbox ... (5 actions, 4 running)
+INFO: From Compiling Rust (without process_wrapper) bin @@rules_rs++rules_rust+rules_rust//util/process_wrapper:process_wrapper (6 files) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[3,264 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 4s linux-sandbox ... (99 actions, 16 running)
+[3,329 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 5s linux-sandbox ... (100 actions, 17 running)
+[3,361 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 6s linux-sandbox ... (100 actions, 15 running)
+[3,380 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 7s linux-sandbox ... (100 actions, 17 running)
+[3,431 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 8s linux-sandbox ... (91 actions, 16 running)
+[3,447 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 9s linux-sandbox ... (81 actions, 17 running)
+[3,465 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 10s linux-sandbox ... (70 actions, 17 running)
+[3,486 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 11s linux-sandbox ... (55 actions, 17 running)
+[3,501 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 12s linux-sandbox ... (44 actions, 17 running)
+[3,513 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 13s linux-sandbox ... (37 actions, 16 running)
+[3,526 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 14s linux-sandbox ... (32 actions, 16 running)
+[3,529 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 16s linux-sandbox ... (30 actions, 16 running)
+[3,540 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 17s linux-sandbox ... (23 actions, 16 running)
+[3,555 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 18s linux-sandbox ... (15 actions, 14 running)
+[3,564 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 20s linux-sandbox ... (9 actions running)
+[3,565 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 21s linux-sandbox ... (8 actions running)
+[3,566 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 22s linux-sandbox ... (8 actions running)
+INFO: From Compiling Rust bin @@rules_rs++rules_rust+rules_rust//cargo/private/cargo_build_script_runner:runner (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[3,567 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 25s linux-sandbox ... (8 actions, 7 running)
+[3,569 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 26s linux-sandbox ... (43 actions, 18 running)
+[3,598 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 27s linux-sandbox ... (54 actions, 17 running)
+[3,608 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 28s linux-sandbox ... (55 actions, 17 running)
+[3,624 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 29s linux-sandbox ... (44 actions, 17 running)
+[3,635 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 30s linux-sandbox ... (36 actions, 16 running)
+[3,646 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 31s linux-sandbox ... (39 actions, 17 running)
+[3,659 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 32s linux-sandbox ... (44 actions, 17 running)
+[3,680 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg; 33s linux-sandbox ... (40 actions, 17 running)
+[3,699 / 4,564] GoStdlib external/rules_go+/stdlib_/pkg [for tool]; 34s linux-sandbox ... (84 actions, 18 running)
+[3,755 / 4,564] Compiling Rust rlib @@rules_rs++crate+rrprd__rustix-1.1.4//:rustix v1.1.4 (318 files) [for tool]; 4s linux-sandbox ... (84 actions, 16 running)
+[3,786 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-3.0.9//:syn v3.0.9 (96 files); 2s linux-sandbox ... (66 actions, 15 running)
+[3,814 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-3.0.9//:syn v3.0.9 (96 files); 3s linux-sandbox ... (49 actions, 16 running)
+[3,838 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-3.0.9//:syn v3.0.9 (96 files); 4s linux-sandbox ... (43 actions, 17 running)
+[3,849 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-3.0.9//:syn v3.0.9 (96 files); 5s linux-sandbox ... (39 actions, 17 running)
+[3,862 / 4,564] GoCompilePkg external/gazelle++go_deps+com_github_smacker_go_tree_sitter/go-tree-sitter.a; 5s linux-sandbox ... (34 actions, 16 running)
+[3,881 / 4,564] GoCompilePkg external/gazelle++go_deps+com_github_smacker_go_tree_sitter/go-tree-sitter.a; 6s linux-sandbox ... (37 actions, 16 running)
+[3,887 / 4,564] GoCompilePkg external/gazelle++go_deps+com_github_smacker_go_tree_sitter/go-tree-sitter.a; 7s linux-sandbox ... (40 actions, 16 running)
+[3,898 / 4,564] GoCompilePkg external/gazelle++go_deps+com_github_smacker_go_tree_sitter/go-tree-sitter.a; 8s linux-sandbox ... (40 actions, 16 running)
+[3,909 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-2.0.119//:syn v2.0.119 (97 files) [for tool]; 9s linux-sandbox ... (39 actions, 16 running)
+[3,918 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-2.0.119//:syn v2.0.119 (97 files) [for tool]; 10s linux-sandbox ... (35 actions, 16 running)
+[3,931 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-2.0.119//:syn v2.0.119 (97 files) [for tool]; 11s linux-sandbox ... (52 actions, 16 running)
+[3,945 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-2.0.119//:syn v2.0.119 (97 files) [for tool]; 12s linux-sandbox ... (43 actions, 16 running)
+[3,966 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-2.0.119//:syn v2.0.119 (97 files) [for tool]; 13s linux-sandbox ... (37 actions, 17 running)
+[3,991 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-2.0.119//:syn v2.0.119 (97 files) [for tool]; 14s linux-sandbox ... (33 actions, 18 running)
+[4,009 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-3.0.9//:syn v3.0.9 (96 files) [for tool]; 15s linux-sandbox ... (28 actions, 16 running)
+[4,019 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__syn-3.0.9//:syn v3.0.9 (96 files) [for tool]; 16s linux-sandbox ... (30 actions, 17 running)
+[4,031 / 4,564] Compiling Rust rlib @@rules_rs++crate+gazelle_ts_crates__syn-2.0.117//:syn v2.0.117 (97 files) [for tool]; 15s linux-sandbox ... (32 actions, 17 running)
+[4,038 / 4,564] Compiling Rust rlib @@rules_rs++crate+gazelle_ts_crates__syn-2.0.117//:syn v2.0.117 (97 files) [for tool]; 16s linux-sandbox ... (35 actions, 17 running)
+[4,044 / 4,564] Compiling Rust rlib @@rules_rs++crate+gazelle_ts_crates__syn-2.0.117//:syn v2.0.117 (97 files) [for tool]; 17s linux-sandbox ... (38 actions, 17 running)
+[4,049 / 4,564] Compiling Rust rlib @@rules_rs++crate+gazelle_ts_crates__syn-2.0.117//:syn v2.0.117 (97 files) [for tool]; 19s linux-sandbox ... (39 actions, 16 running)
+[4,052 / 4,564] Compiling Rust rlib @@rules_rs++crate+gazelle_ts_crates__syn-2.0.117//:syn v2.0.117 (97 files) [for tool]; 20s linux-sandbox ... (37 actions, 17 running)
+[4,062 / 4,564] Compiling Rust rlib @@rules_rs++crate+gazelle_ts_crates__syn-2.0.117//:syn v2.0.117 (97 files) [for tool]; 21s linux-sandbox ... (33 actions, 15 running)
+[4,074 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 11s linux-sandbox ... (30 actions, 17 running)
+[4,082 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 12s linux-sandbox ... (28 actions, 17 running)
+[4,088 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 13s linux-sandbox ... (25 actions, 16 running)
+[4,095 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 14s linux-sandbox ... (24 actions, 16 running)
+[4,104 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 15s linux-sandbox ... (70 actions, 16 running)
+[4,115 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 16s linux-sandbox ... (65 actions, 17 running)
+[4,128 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 17s linux-sandbox ... (56 actions, 17 running)
+[4,151 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 18s linux-sandbox ... (40 actions, 16 running)
+[4,161 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 19s linux-sandbox ... (43 actions, 16 running)
+[4,176 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 20s linux-sandbox ... (46 actions, 17 running)
+[4,197 / 4,564] Compiling Rust proc-macro @@rules_rs++crate+rrprd__async-trait-0.1.89//:async-trait v0.1.89 (27 files) [for tool]; 21s linux-sandbox ... (38 actions, 16 running)
+[4,247 / 4,564] Compiling Rust rlib @@rules_rs++crate+rrprd__tokio-1.50.0//:tokio v1.50.0 (539 files); 12s linux-sandbox ... (38 actions, 18 running)
+[4,296 / 4,564] Compiling Rust rlib @@rules_rs++crate+rrprd__tokio-1.50.0//:tokio v1.50.0 (539 files); 13s linux-sandbox ... (35 actions, 17 running)
+[4,322 / 4,564] Compiling Rust rlib @@rules_rs++crate+rrprd__tokio-1.50.0//:tokio v1.50.0 (539 files); 14s linux-sandbox ... (25 actions, 17 running)
+INFO: From Compiling Rust bin @@rules_rs+//rs/private/prost:protoc_wrapper (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[4,343 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__pest_meta-2.9.3//:pest_meta v2.9.3 (13 files) [for tool]; 4s linux-sandbox ... (25 actions, 17 running)
+[4,369 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__pest_meta-2.9.3//:pest_meta v2.9.3 (13 files) [for tool]; 5s linux-sandbox ... (22 actions, 16 running)
+[4,422 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__toml_edit-0.22.27//:toml_edit v0.22.27 (45 files); 3s linux-sandbox ... (19 actions, 17 running)
+[4,464 / 4,564] Compiling Rust rlib @@rules_rs++crate+rrprd__protoc-gen-prost-0.5.0//:protoc-gen-prost v0.5.0 (5 files) [for tool]; 1s linux-sandbox ... (15 actions, 14 running)
+[4,488 / 4,564] Compiling Rust rlib @@rules_rs++crate+rrprd__h2-0.4.13//:h2 v0.4.13 (56 files); 2s linux-sandbox ... (9 actions, 8 running)
+[4,491 / 4,564] Compiling Rust rlib @@rules_rs++crate+rrprd__h2-0.4.13//:h2 v0.4.13 (56 files); 3s linux-sandbox ... (14 actions running)
+[4,507 / 4,564] Compiling Rust rlib @@rules_rs++crate+gazelle_ts_crates__oxc_ast-0.127.0//:oxc_ast v0.127.0 (36 files); 4s linux-sandbox ... (10 actions running)
+[4,526 / 4,564] Compiling Rust rlib @@rules_rs++crate+gazelle_ts_crates__oxc_ast-0.127.0//:oxc_ast v0.127.0 (36 files); 5s linux-sandbox ... (4 actions, 3 running)
+[4,536 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__gix-0.87.1//:gix v0.87.1 (184 files); 2s linux-sandbox ... (4 actions running)
+[4,550 / 4,564] Compiling Rust rlib @gazelle_ts//crates/import_extractor:import_extractor_/import_extractor (4 files); 0s linux-sandbox ... (2 actions running)
+INFO: From Compiling Rust rlib @@gazelle_ts+//crates/import_extractor:import_extractor_/import_extractor (4 files):
+warning: crate `import_extractor__import_extractor` should have a snake case name
+  |
+  = help: convert the identifier to snake case: `import_extractor_import_extractor`
+  = note: `#[warn(non_snake_case)]` (part of `#[warn(nonstandard_style)]`) on by default
+
+warning: 1 warning emitted
+
+[4,553 / 4,564] GoCompilePkg external/gazelle_ts+/ts/ts.a; 1s linux-sandbox ... (2 actions running)
+[4,559 / 4,564] Compiling Rust rlib @@rules_rs++crate+crates__cargo-bazel-0.18.0//:cargo-bazel v0.18.0 (43 files); 3s linux-sandbox ... (2 actions running)
+[4,561 / 4,564] GoLink gazelle_bin_/gazelle_bin; 2s linux-sandbox ... (2 actions, 1 running)
+INFO: From Compiling Rust bin //3rdparty/gazelle_rust/upstream/rust_parser:rust_parser (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[4,563 / 4,564] [Prepa] runfiles for //:gazelle
+Target //:gazelle up-to-date:
+  bazel-bin/gazelle-runner.bash
+  bazel-bin/gazelle
+INFO: Elapsed time: 160.419s, Critical Path: 143.73s
+INFO: 4564 processes: 1271 internal, 3279 linux-sandbox, 15 worker.
+INFO: Build completed successfully, 4564 total actions
+INFO: Running command line: bazel-bin/gazelle
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.PlatformDependent0$4 (file:/home/tacascer/.cache/bazel/_bazel_tacascer/3d53d73e516c96571eb7ab48db4d63d2/execroot/_main/bazel-out/k8-fastbuild/bin/external/rules_jvm_external++maven+contrib_rules_jvm_deps/io/netty/netty-common/4.1.110.Final/processed_netty-common-4.1.110.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$4
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
