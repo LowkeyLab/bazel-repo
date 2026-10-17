@@ -140,7 +140,9 @@ CREATE CONSTRAINT TRIGGER settlement_commit_fault AFTER UPDATE ON circle_members
 				require.NoError(t, err)
 				removeFault := func() {
 					t.Helper()
-					_, err := sqlDB.Exec(`DROP TRIGGER IF EXISTS settlement_fault ON circle_members;
+					cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+					_, err := sqlDB.ExecContext(cleanupCtx, `DROP TRIGGER IF EXISTS settlement_fault ON circle_members;
 DROP TRIGGER IF EXISTS settlement_commit_fault ON circle_members;
 DROP FUNCTION IF EXISTS record_credit(); DROP FUNCTION IF EXISTS fail_settlement_commit();
 DROP SEQUENCE IF EXISTS settlement_credit_attempt;`)
