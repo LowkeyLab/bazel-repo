@@ -7,7 +7,6 @@ from pathlib import Path
 
 import nix_tool
 import pytest
-from nix_tool import configure
 
 
 @pytest.mark.parametrize("empty", [None, ""])
@@ -19,7 +18,7 @@ def test_fork_reader_uses_verified_public_cache_without_variables(monkeypatch, e
             monkeypatch.setenv(name, empty)
     monkeypatch.setenv("NIX_CONFIG", "")
 
-    assert configure() == "https://lowkey-lab.cachix.org"
+    assert nix_tool.configure() == "https://lowkey-lab.cachix.org"
     assert (
         "extra-substituters = https://lowkey-lab.cachix.org" in os.environ["NIX_CONFIG"]
     )
@@ -38,7 +37,7 @@ def test_explicit_complete_public_cache_override_is_preserved(monkeypatch):
     )
     monkeypatch.setenv("NIX_CONFIG", "connect-timeout = 9")
 
-    assert configure() == "https://override-cache.cachix.org"
+    assert nix_tool.configure() == "https://override-cache.cachix.org"
     assert (
         "extra-substituters = https://override-cache.cachix.org"
         in os.environ["NIX_CONFIG"]
@@ -68,7 +67,7 @@ def test_partial_or_invalid_public_override_still_fails(monkeypatch, name, key):
     monkeypatch.setenv("NIX_CONFIG", "connect-timeout = 9")
 
     with pytest.raises(ValueError, match="Set both CACHIX_CACHE_NAME"):
-        configure()
+        nix_tool.configure()
     assert os.environ["NIX_CONFIG"] == "connect-timeout = 9"
 
 
