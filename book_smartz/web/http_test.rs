@@ -34,3 +34,5 @@ async fn protected_ranking_requires_a_stored_browser_session() -> anyhow::Result
 
 mod identity_test;
 mod test_support;
+
+mod catalog_test;

@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
 @source "./main.rs";
+@source "./catalog.rs";
 @source "./views.rs";
 @layer base {
   body {

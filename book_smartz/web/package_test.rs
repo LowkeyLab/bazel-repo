@@ -105,6 +105,11 @@ async fn rejected(app: &Fixture, origin: &str) -> anyhow::Result<()> {
             .env("PORT", "0")
             .env("HOST", "127.0.0.1")
             .env("BOOK_SMARTZ_ORIGIN", origin)
+            .env("BOOK_SMARTZ_MAINTAINER_CONTACT", "maintainer@example.test")
+            .env(
+                "BOOK_SMARTZ_SELECTION_KEY",
+                "public-fixture-key-at-least-thirty-two-bytes",
+            )
             .env("GOOGLE_CLIENT_ID", "fixture-client")
             .env("GOOGLE_CLIENT_SECRET", "fixture-secret")
             .stdout(Stdio::null())
