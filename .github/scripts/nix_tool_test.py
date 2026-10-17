@@ -139,7 +139,12 @@ def acceptance(monkeypatch, tmp_path):
             elif command[:3] == ["nix", "path-info", "--recursive"]:
                 label, value = (
                     "closure",
-                    json.dumps([ROOT] if closure is None else closure),
+                    json.dumps(
+                        {
+                            path: {"narHash": "sha256-synthetic", "references": []}
+                            for path in ([ROOT] if closure is None else closure)
+                        }
+                    ),
                 )
             elif len(command) > 2 and command[2] == "verify":
                 label, value = "remote-availability", "remote metadata verified\n"
