@@ -292,6 +292,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
     let session = authorize(cx).await?;
     crate::require_post(cx, &session, &input.csrf)?;
     let app: &Application = app_context(cx);
+    let started = std::time::Instant::now();
     app.catalog
         .verify_offer(
             session.reader,
@@ -302,6 +303,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
         )
         .map_err(|_| forbidden())?;
     let Ok(mut tx) = app.store.begin_command(session.reader).await else {
+        app.diagnostics.unconfirmed_save(started, input.action);
         return Ok(outcome(
             cx,
             "Checking an earlier save. Reload before trying the original action again.",
@@ -350,6 +352,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
         .await
         .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
         if tx.commit().await.is_err() {
+            app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
                 "Checking your save. Reload your ranking to recover the original action.",
@@ -385,6 +388,7 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
     let session = authorize(cx).await?;
     crate::require_post(cx, &session, &input.csrf)?;
     let app: &Application = app_context(cx);
+    let started = std::time::Instant::now();
     let answer = Preference {
         candidate: input.candidate,
         opponent: input.opponent,
@@ -400,6 +404,7 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
         )
         .map_err(|_| forbidden())?;
     let Ok(mut tx) = app.store.begin_command(session.reader).await else {
+        app.diagnostics.unconfirmed_save(started, input.action);
         return Ok(outcome(
             cx,
             "Checking an earlier save. Reload your ranking.",
@@ -441,6 +446,7 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
         .await
         .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
         if tx.commit().await.is_err() {
+            app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
                 "Checking your save. Reload your ranking to recover the original action.",
@@ -514,18 +520,7 @@ async fn finish(cx: &Cx, reader: ReaderId, action: ActionId) -> Result<BoxView<'
         }
         Ok(Outcome::Missing) => Err(forbidden().into()),
         Err(_) => {
-            app.diagnostics.record(
-                crate::diagnostics::Category::Persistence,
-                crate::diagnostics::Outcome::Unconfirmed,
-                started,
-                Some(action),
-            );
-            app.diagnostics.record(
-                crate::diagnostics::Category::Checking,
-                crate::diagnostics::Outcome::Unconfirmed,
-                started,
-                Some(action),
-            );
+            app.diagnostics.unconfirmed_save(started, action);
             Ok(outcome(
                 cx,
                 "Checking your save. Reload your ranking to recover the original action.",

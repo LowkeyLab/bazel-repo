@@ -169,6 +169,7 @@ rust_test(
 rust_test(
     name = "application_test",
     size = "medium",
+    timeout = "long",
     srcs = [
         "action_test.rs",
         "application_test.rs",

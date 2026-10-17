@@ -1418,19 +1418,8 @@ async fn private_diagnostics_confirm_new_commits_without_replaying_activity() ->
             .map(|line| Ok(serde_json::from_str(line)?))
             .collect()
     };
-    let facts = tokio::time::timeout(std::time::Duration::from_secs(5), async {
-        loop {
-            let facts = read()?;
-            if facts
-                .iter()
-                .any(|f| f["category"] == "persistence" && f["outcome"] == "confirmed")
-            {
-                return Ok::<_, anyhow::Error>(facts);
-            }
-            tokio::task::yield_now().await;
-        }
-    })
-    .await??;
+    app.diagnostic("persistence", "confirmed").await?;
+    let facts = read()?;
     assert_that!(
         facts
             .iter()
@@ -1527,5 +1516,93 @@ async fn broken_diagnostic_delivery_preserves_confirmed_outcomes_and_durable_his
             .revision(),
         eq(1)
     );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn initial_intent_ack_loss_reports_checking_before_original_action_recovery()
+-> anyhow::Result<()> {
+    for route in ["/add", "/answer"] {
+        let mut app = Fixture::new().await?;
+        let cookie = app.login("initial-intent-reader").await?;
+        let id = reader(&app, "initial-intent-reader").await?;
+        let values = if route == "/add" {
+            offer(
+                &app,
+                &cookie,
+                id,
+                work("OL881W", "Private initial intent"),
+                chrono::Utc::now().timestamp() + 900,
+            )
+            .await?
+        } else {
+            add_work(&app, &cookie, id, "OL882W", "First book").await?;
+            add_work(&app, &cookie, id, "OL883W", "Candidate").await?;
+            preference(&app, &cookie, "candidate").await?
+        };
+        let prior = store(&app).load_ranking_documents(id).await?.len();
+        let direct = app.database.clone();
+        let proxy = commit_proxy::CommitProxy::initial_intent(&app.pool, id).await?;
+        app.database = proxy.database(&direct)?;
+        app.restart().await?;
+        let client = app.client.clone();
+        let cookie_copy = cookie.clone();
+        let target = format!("{}{route}", app.base);
+        let body = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(values.iter().map(|(k, v)| (k, v)))
+            .finish();
+        let request = tokio::spawn(async move {
+            client
+                .post(target)
+                .header("cookie", cookie_copy)
+                .header("origin", "https://reader.example")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(body)
+                .send()
+                .await
+        });
+        proxy.commit_reached().await?;
+        let frozen = store(&app).load_application_history(id).await?;
+        assert_that!(
+            frozen.last().unwrap().envelope()["type"]
+                .as_str()
+                .unwrap()
+                .ends_with(".intent.v1"),
+            eq(true)
+        );
+        assert_that!(
+            store(&app).load_ranking_documents(id).await?.len(),
+            eq(prior)
+        );
+        proxy.disconnect();
+        assert_that!(
+            request.await??.text().await?.as_str(),
+            contains_substring("Checking")
+        );
+        let diagnostic = app.diagnostic("checking", "unconfirmed").await?;
+        assert_that!(
+            diagnostic["action"].as_str(),
+            eq(Some(value(&values, "action")))
+        );
+        app.diagnostic("persistence", "unconfirmed").await?;
+        app.database = direct;
+        app.restart().await?;
+        assert_that!(
+            post(&app, &cookie, route, &values).await?.status().as_u16(),
+            eq(303)
+        );
+        assert_that!(
+            store(&app).load_ranking_documents(id).await?.len(),
+            eq(prior + 1)
+        );
+        assert_that!(
+            store(&app)
+                .load_application_history(id)
+                .await?
+                .starts_with(&frozen),
+            eq(true)
+        );
+    }
     Ok(())
 }

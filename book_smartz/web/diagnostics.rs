@@ -79,6 +79,12 @@ impl Diagnostics {
         });
     }
 
+    pub fn unconfirmed_save(&self, started: Instant, action: ActionId) {
+        for category in [Category::Persistence, Category::Checking] {
+            self.record(category, Outcome::Unconfirmed, started, Some(action));
+        }
+    }
+
     pub fn scope(&self, category: Category) -> Scope<'_> {
         Scope {
             diagnostics: self,
