@@ -3,6 +3,7 @@ load("@bazelrc-preset.bzl", "bazelrc_preset")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//angular:@graphql-codegen/cli/package_json.bzl", graphql_codegen = "bin")
 load("@npm//tools:@angular/cli/package_json.bzl", angular_cli = "bin")
+load("@npm//tools:@tailwindcss/cli/package_json.bzl", tailwind = "bin")
 load("@npm//tools:astro/package_json.bzl", astro = "bin")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load(":cargo_lock.bzl", "cargo_lock")
@@ -35,3 +36,8 @@ sh_binary(
 cargo_lock(name = "cargo_lock")
 
 go_mod_download(name = "go_mod_download")
+
+tailwind.tailwindcss_binary(
+    name = "tailwindcss",
+    visibility = ["//visibility:public"],
+)

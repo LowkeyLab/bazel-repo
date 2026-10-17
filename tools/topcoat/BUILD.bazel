@@ -1,0 +1,52 @@
+"""Hermetic Topcoat compilation, bundling, and formatting tools."""
+
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load(":format.bzl", "format_adapter")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["defs.bzl"])
+
+rust_binary(
+    name = "bundle",
+    srcs = ["bundle.rs"],
+    crate_root = "bundle.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:tempfile",
+        "@crates//:topcoat-asset",
+    ],
+)
+
+rust_binary(
+    name = "format_impl",
+    srcs = ["format.rs"],
+    crate_root = "format.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:topcoat-core-grammar",
+        "@crates//:topcoat-font-grammar",
+        "@crates//:topcoat-view-grammar",
+    ],
+)
+
+format_adapter(name = "format")
+
+rust_test(
+    name = "format_test",
+    size = "small",
+    srcs = ["format_test.rs"],
+    crate_root = "format_test.rs",
+    data = [":format"],
+    env = {"FORMAT_TOOL": "$(rlocationpath :format)"},
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:tempfile",
+        "@rules_rust//tools/runfiles",
+    ],
+)

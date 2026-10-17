@@ -1,0 +1,12 @@
+@import "tailwindcss" source(none);
+@source "./main.rs";
+@source "./views.rs";
+@layer base {
+  body {
+    font-family: "Book Smartz", sans-serif;
+  }
+  button,
+  a {
+    outline-offset: 4px;
+  }
+}
