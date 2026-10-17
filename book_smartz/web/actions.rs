@@ -2,6 +2,8 @@
 //!
 //! Correlation extension: cloudevents/spec at
 //! 472f0e1d856e335c30fa204f36fd6428c2bfd732 (experimental, explicitly accepted).
+use std::collections::{HashMap, HashSet};
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -29,7 +31,7 @@ use book_smartz_storage::{ApplicationEvent, CommandTransaction, OperationContext
 
 use crate::{Application, authorize, catalog::CatalogWork};
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct ActionId(Uuid);
 impl ActionId {
@@ -153,20 +155,75 @@ fn unresolved(
     history: &[ApplicationEvent],
     ranking: &[CloudEventDocument],
 ) -> anyhow::Result<Vec<ActionId>> {
-    let mut result = Vec::new();
+    let mut intents = Vec::new();
+    let mut rejections = HashSet::new();
+    let mut preparations = HashMap::new();
     for event in history {
-        let e = event.envelope();
-        if e["type"] == "booksmartz.add.intent.v1" {
-            let recorded: Intent = serde_json::from_value(e["data"].clone())?;
-            if rejected(history, recorded.action).is_none()
-                && !saved(history, ranking, recorded.action)?
-            {
-                result.push(recorded.action);
+        let envelope = event.envelope();
+        match envelope["type"].as_str() {
+            Some("booksmartz.add.intent.v1") => {
+                let original: Intent = serde_json::from_value(envelope["data"].clone())?;
+                intents.push(original.action);
             }
+            Some("booksmartz.add.rejected.v1") => {
+                anyhow::ensure!(envelope["data"]["reason"].is_string(), "Invalid rejection");
+                rejections.insert(serde_json::from_value::<ActionId>(
+                    envelope["correlationid"].clone(),
+                )?);
+            }
+            Some("booksmartz.add.rankingprepared.v1") => {
+                let action: ActionId = serde_json::from_value(envelope["correlationid"].clone())?;
+                preparations
+                    .entry(action)
+                    .or_insert_with(|| &envelope["data"]["document"]);
+            }
+            _ => {}
         }
     }
-    Ok(result)
+    let documents: HashMap<_, _> = ranking
+        .iter()
+        .map(|document| (*document.event().metadata().id.as_uuid(), document))
+        .collect();
+    let mut checking = Vec::new();
+    for action in intents {
+        if rejections.contains(&action) {
+            continue;
+        }
+        let mut confirmed = false;
+        if let Some(expected) = preparations.get(&action) {
+            let id: Uuid = serde_json::from_value(expected["id"].clone())?;
+            if let Some(actual) = documents.get(&id) {
+                confirmed = serde_json::from_str::<Value>(&encode_document(actual)?)? == **expected;
+            }
+        }
+        if !confirmed {
+            checking.push(action);
+        }
+    }
+    Ok(checking)
 }
+fn application_fact(
+    tx: &CommandTransaction,
+    reader: ReaderId,
+    action: ActionId,
+    kind: &str,
+    cause: Option<&str>,
+    data: &Value,
+    id: Uuid,
+) -> anyhow::Result<ApplicationEvent> {
+    let sequence = tx
+        .application_history()
+        .last()
+        .map_or(0, ApplicationEvent::sequence)
+        .checked_add(1)
+        .ok_or_else(|| anyhow::anyhow!("Application history exhausted"))?;
+    let mut envelope = json!({"specversion":"1.0","id":id.to_string(),"source":format!("urn:book-smartz:application:{}",reader.as_uuid()),"type":format!("booksmartz.add.{kind}.v1"),"time":Utc::now().to_rfc3339(),"datacontenttype":"application/json","sequence":format!("{sequence:020}"),"correlationid":action.text(),"data":data});
+    if let Some(cause) = cause {
+        envelope["causationid"] = json!(cause);
+    }
+    Ok(ApplicationEvent::decode(reader, &envelope.to_string())?)
+}
+
 async fn fact(
     tx: &mut CommandTransaction,
     reader: ReaderId,
@@ -175,16 +232,8 @@ async fn fact(
     cause: Option<&str>,
     data: Value,
 ) -> anyhow::Result<()> {
-    let sequence = tx
-        .application_history()
-        .last()
-        .map_or(1, |e| e.sequence() + 1);
-    let mut envelope = json!({"specversion":"1.0","id":Uuid::new_v4().to_string(),"source":format!("urn:book-smartz:application:{}",reader.as_uuid()),"type":format!("booksmartz.add.{kind}.v1"),"time":Utc::now().to_rfc3339(),"datacontenttype":"application/json","sequence":format!("{sequence:020}"),"correlationid":action.text(),"data":data});
-    if let Some(cause) = cause {
-        envelope["causationid"] = json!(cause);
-    }
-    tx.append_application(&ApplicationEvent::decode(reader, &envelope.to_string())?)
-        .await?;
+    let event = application_fact(tx, reader, action, kind, cause, &data, Uuid::new_v4())?;
+    tx.append_application(&event).await?;
     Ok(())
 }
 
@@ -339,30 +388,20 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
             .find(|e| e["type"] == "booksmartz.add.registrationprepared.v1")
             .cloned();
         let Some(allocation) = allocation else {
-            let work_id = OpenLibraryWorkId::try_from(original.work.work_id.as_str())?;
-            let existing = app
-                .store
-                .book_by_work_id(&work_id, OperationContext::default())
-                .await?;
-            let id = existing.map_or_else(Uuid::new_v4, |b| *b.id().as_uuid());
-            let cause = facts(tx.application_history(), action)[0]["id"]
-                .as_str()
-                .unwrap()
-                .to_owned();
-            fact(
-                &mut tx,
-                reader,
-                action,
-                "registrationprepared",
-                Some(&cause),
-                json!({"bookId":id}),
-            )
-            .await?;
-            tx.commit().await?;
+            drop(tx);
+            prepare_registration(app, reader, &original).await?;
             continue;
         };
         let proposed = Uuid::parse_str(allocation["data"]["bookId"].as_str().unwrap())?;
+        drop(tx);
         let id = register(app, &original.work, proposed).await?;
+        let mut tx = app.store.begin_command(reader).await?;
+        // Another retry may have advanced this immutable action while registration ran.
+        if prepared(tx.application_history(), action).is_some()
+            || rejected(tx.application_history(), action).is_some()
+        {
+            continue;
+        }
         let book = Book::new(
             BookId::new(id),
             OpenLibraryWorkId::try_from(original.work.work_id.as_str())?,
@@ -377,6 +416,41 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
         .await?;
         tx.commit().await?;
     }
+}
+async fn prepare_registration(
+    app: &Application,
+    reader: ReaderId,
+    original: &Intent,
+) -> anyhow::Result<()> {
+    // Catalog reads/effects own a connection independently of reader composition.
+    let work_id = OpenLibraryWorkId::try_from(original.work.work_id.as_str())?;
+    let existing = app
+        .store
+        .book_by_work_id(&work_id, OperationContext::default())
+        .await?;
+    let id = existing.map_or_else(Uuid::new_v4, |book| *book.id().as_uuid());
+    let mut tx = app.store.begin_command(reader).await?;
+    if facts(tx.application_history(), original.action)
+        .iter()
+        .any(|event| event["type"] == "booksmartz.add.registrationprepared.v1")
+    {
+        return Ok(());
+    }
+    let cause = facts(tx.application_history(), original.action)[0]["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    fact(
+        &mut tx,
+        reader,
+        original.action,
+        "registrationprepared",
+        Some(&cause),
+        json!({"bookId":id}),
+    )
+    .await?;
+    tx.commit().await?;
+    Ok(())
 }
 async fn prepare_ranking(
     tx: &mut CommandTransaction,
@@ -403,13 +477,16 @@ async fn prepare_ranking(
         // The recorded preparation directly causes the ranking append.
         let prepared_id = Uuid::new_v4();
         envelope["causationid"] = json!(prepared_id.to_string());
-        let sequence = tx
-            .application_history()
-            .last()
-            .map_or(1, |e| e.sequence() + 1);
-        let prepared = json!({"specversion":"1.0","id":prepared_id.to_string(),"source":format!("urn:book-smartz:application:{}",reader.as_uuid()),"type":"booksmartz.add.rankingprepared.v1","time":Utc::now().to_rfc3339(),"datacontenttype":"application/json","sequence":format!("{sequence:020}"),"correlationid":original.action.text(),"causationid":cause,"data":{"document":envelope}});
-        tx.append_application(&ApplicationEvent::decode(reader, &prepared.to_string())?)
-            .await?;
+        let event = application_fact(
+            tx,
+            reader,
+            original.action,
+            "rankingprepared",
+            Some(cause),
+            &json!({"document":envelope}),
+            prepared_id,
+        )?;
+        tx.append_application(&event).await?;
     } else {
         let reason = if tx
             .ranking()

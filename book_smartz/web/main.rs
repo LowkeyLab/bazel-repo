@@ -233,18 +233,25 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
         .into_iter()
         .map(|book| (book.id(), book))
         .collect();
+    let display_ids: Vec<_> = ids.iter().map(|id| *id.as_uuid()).collect();
+    let display_rows: Vec<(Uuid, String, Vec<String>, Option<i64>)> = sqlx::query_as(
+        "SELECT book_id,title,authors,cover FROM book_smartz_actions.display WHERE book_id=ANY($1)",
+    )
+    .bind(&display_ids)
+    .fetch_all(&db.pool)
+    .await?;
+    let displays: std::collections::HashMap<_, _> = display_rows
+        .into_iter()
+        .map(|(id, title, authors, cover)| (id, (title, authors, cover)))
+        .collect();
     let mut entries = Vec::new();
     for entry in projection.entries() {
         if let Some(book) = books.get(&entry.book_id()) {
             let work = book.work_id().as_str().to_owned();
-            let display: Option<(String, Vec<String>, Option<i64>)> = sqlx::query_as(
-                "SELECT title, authors, cover FROM book_smartz_actions.display WHERE book_id=$1",
-            )
-            .bind(entry.book_id().as_uuid())
-            .fetch_optional(&db.pool)
-            .await?;
-            let (title, authors, cover) =
-                display.unwrap_or_else(|| (work.clone(), Vec::new(), None));
+            let (title, authors, cover) = displays
+                .get(entry.book_id().as_uuid())
+                .cloned()
+                .unwrap_or_else(|| (work.clone(), Vec::new(), None));
             let author = if authors.is_empty() {
                 "Author unavailable".to_owned()
             } else {

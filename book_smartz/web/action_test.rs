@@ -580,3 +580,64 @@ async fn in_flight_absent_ranking_stays_checking_until_original_action_is_recove
     );
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn five_concurrent_readers_save_with_the_production_connection_limit() -> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let mut inputs = Vec::new();
+    for number in 10..15 {
+        let subject = format!("pool-reader-{number}");
+        let cookie = app.login(&subject).await?;
+        let id = reader(&app, &subject).await?;
+        let values = offer(
+            &app,
+            &cookie,
+            id,
+            work(&format!("OL{number}W"), "Concurrent save"),
+            chrono::Utc::now().timestamp() + 900,
+        )
+        .await?;
+        inputs.push((cookie, values));
+    }
+    let mut database = url::Url::parse(&app.database)?;
+    database
+        .query_pairs_mut()
+        .append_pair("application_name", "book-smartz-pressure");
+    app.database = database.to_string();
+    app.restart().await?;
+    sqlx::raw_sql("CREATE FUNCTION hold_prepared_readers() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF EXISTS(SELECT 1 FROM book_smartz.application_events WHERE reader_id=NEW.reader_id AND envelope->>'type'='booksmartz.add.intent.v1') THEN PERFORM pg_advisory_xact_lock_shared(724,50); END IF; RETURN NEW; END $$; CREATE TRIGGER hold_prepared_readers BEFORE INSERT ON book_smartz.reader_streams FOR EACH ROW EXECUTE FUNCTION hold_prepared_readers();").execute(&app.pool).await?;
+    let mut barrier = app.pool.begin().await?;
+    sqlx::query("SELECT pg_advisory_xact_lock(724,50)")
+        .execute(&mut *barrier)
+        .await?;
+    let mut requests = tokio::task::JoinSet::new();
+    for (cookie, values) in inputs {
+        let client = app.client.clone();
+        let target = format!("{}/add", app.base);
+        let body = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(values)
+            .finish();
+        requests.spawn(async move {
+            client
+                .post(target)
+                .header("cookie", cookie)
+                .header("origin", "https://reader.example")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(body)
+                .send()
+                .await
+        });
+    }
+    tokio::time::timeout(std::time::Duration::from_secs(4),async {
+        loop {
+            let active: i64=sqlx::query_scalar("SELECT count(*) FROM pg_locks WHERE locktype='advisory' AND classid=724 AND objid=50 AND NOT granted").fetch_one(&app.pool).await?;
+            if active==5 {return Ok::<_,anyhow::Error>(())}tokio::task::yield_now().await;
+        }
+    }).await??;
+    barrier.rollback().await?;
+    while let Some(result) = requests.join_next().await {
+        assert_that!(result??.status().as_u16(), eq(303));
+    }
+    Ok(())
+}
