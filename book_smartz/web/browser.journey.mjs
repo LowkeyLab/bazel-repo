@@ -228,13 +228,10 @@ try {
   await stale
     .getByRole("button", { name: "Prefer First book", exact: true })
     .click();
-  assert.equal(
-    await stale
-      .getByRole("status")
-      .filter({ hasText: "comparison changed" })
-      .isVisible(),
-    true,
-  );
+  await stale
+    .getByRole("status")
+    .filter({ hasText: "comparison changed" })
+    .waitFor({ state: "visible" });
   await page.reload();
   assert.deepEqual(await page.locator("ol li a").allTextContents(), titles);
   await page.waitForTimeout(1100);
