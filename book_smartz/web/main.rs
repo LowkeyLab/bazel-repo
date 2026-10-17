@@ -22,7 +22,7 @@ use topcoat::{
 };
 use uuid::Uuid;
 
-use book_smartz_domain::ReaderId;
+use book_smartz_domain::{PlacementSession, RankingEntry, ReaderId};
 use book_smartz_storage::{
     Observation, ObservationDeliveryError, Observer, OperationContext, Store,
 };
@@ -173,8 +173,8 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
     let ids: Vec<_> = projection
         .entries()
         .iter()
-        .map(|entry| entry.book_id())
-        .chain(projection.pending().map(|placement| placement.candidate()))
+        .map(RankingEntry::book_id)
+        .chain(projection.pending().map(PlacementSession::candidate))
         .collect();
     let books: std::collections::HashMap<_, _> = db
         .store

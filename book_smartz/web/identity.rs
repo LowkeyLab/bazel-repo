@@ -1,6 +1,7 @@
 //! Google identity verification and durable browser authentication.
 use std::time::{Duration, Instant};
 
+use base64::Engine;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header, jwk::JwkSet};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
@@ -142,19 +143,20 @@ impl Google {
             .and_then(|v| v.to_str().ok())
             .unwrap_or("");
         let directives: Vec<_> = policy.split(',').map(str::trim).collect();
-        let mut seconds = directives
-            .iter()
-            .find_map(|part| {
-                part.split_once('=')
-                    .filter(|(key, _)| key.trim().eq_ignore_ascii_case("max-age"))
-                    .and_then(|(_, value)| value.trim().trim_matches('"').parse::<u64>().ok())
-            })
-            .unwrap_or(0);
-        if directives.iter().any(|part| {
+        let seconds = if directives.iter().any(|part| {
             part.eq_ignore_ascii_case("no-store") || part.eq_ignore_ascii_case("no-cache")
         }) {
-            seconds = 0;
-        }
+            0
+        } else {
+            directives
+                .iter()
+                .find_map(|part| {
+                    part.split_once('=')
+                        .filter(|(key, _)| key.trim().eq_ignore_ascii_case("max-age"))
+                        .and_then(|(_, value)| value.trim().trim_matches('"').parse::<u64>().ok())
+                })
+                .unwrap_or(0)
+        };
         let age = response
             .headers()
             .get("age")
@@ -165,6 +167,7 @@ impl Google {
         let keys: JwkSet = bounded(response).await?;
         let key = keys.find(kid).map(DecodingKey::from_jwk).transpose()?;
         *cached = Some(CachedKeys { keys, expires });
+        drop(cached);
         key.ok_or_else(|| anyhow::anyhow!("unknown identity key"))
     }
     async fn claims(&self, code: &str, verifier: &str, nonce: &str) -> anyhow::Result<Claims> {
@@ -280,7 +283,6 @@ pub async fn login(cx: &Cx) -> Result<()> {
             .max_age(topcoat::cookie::time::Duration::minutes(10))
             .build(),
     );
-    use base64::Engine;
     let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD
         .encode(Sha256::digest(verifier.as_bytes()));
     let mut destination = app.google.authorization.clone();

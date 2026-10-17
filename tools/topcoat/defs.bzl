@@ -49,6 +49,9 @@ def _consumer(rule, name, package_name, macro_dependencies, asset_inputs, topcoa
         name = name,
         compile_data = kwargs.pop("compile_data", []) + asset_inputs + [":" + manifest],
         rustc_env_files = kwargs.pop("rustc_env_files", []) + [":" + name + "_macro_env"],
+        # Generated macro companions make rules_rust compile source symlinks in
+        # BINDIR. Keep file!(), lint diagnostics, patches and coverage at source paths.
+        rustc_flags = kwargs.pop("rustc_flags", []) + ["--remap-path-prefix=$(BINDIR)/="],
         rustc_env = kwargs.pop("rustc_env", {}) | {
             "CARGO_CRATE_NAME": kwargs.get("crate_name", name),
             "CARGO_PKG_NAME": package_name,
