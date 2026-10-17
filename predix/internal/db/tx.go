@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type txKey struct{}
@@ -36,8 +37,8 @@ func GetTx(ctx context.Context) (*sql.Tx, bool) {
 func RunInCircleTx(ctx context.Context, sqlDB *sql.DB, circleID int32, fn func(context.Context) error) error {
 	return RunInTx(ctx, sqlDB, func(ctx context.Context) error {
 		tx, _ := GetTx(ctx)
-		if _, err := tx.ExecContext(ctx, "SELECT id FROM circles WHERE id = $1 FOR NO KEY UPDATE", circleID); err != nil {
-			return err
+		if err := New(tx).LockCircleForSettlement(ctx, circleID); err != nil {
+			return fmt.Errorf("lock circle for settlement: %w", err)
 		}
 		return fn(ctx)
 	})

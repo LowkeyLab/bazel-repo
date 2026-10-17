@@ -20,6 +20,9 @@ RETURNING *;
 SELECT id, name, creator_id, created_at FROM circles
 WHERE id = $1 LIMIT 1;
 
+-- name: LockCircleForSettlement :exec
+SELECT id FROM circles WHERE id = $1 FOR NO KEY UPDATE;
+
 -- name: AddCircleMember :exec
 INSERT INTO circle_members (circle_id, user_id, clout)
 VALUES ($1, $2, $3);
