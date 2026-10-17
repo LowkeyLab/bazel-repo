@@ -11,6 +11,7 @@ go_library(
         "//predix/internal/auth",
         "//predix/internal/clock",
         "//predix/internal/db",
+        "//predix/internal/domain/circle",
         "//predix/internal/domain/circle/repository",
         "//predix/internal/domain/circle/rest",
         "//predix/internal/domain/circle/service",

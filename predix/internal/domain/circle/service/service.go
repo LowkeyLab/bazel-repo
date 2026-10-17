@@ -41,6 +41,7 @@ type ContestRepository interface {
 // TransactionManager defines an interface for executing code within a transaction.
 type TransactionManager interface {
 	RunInTx(ctx context.Context, fn func(ctx context.Context) error) error
+	RunInCircleTx(ctx context.Context, circleID circle.ID, fn func(context.Context) error) error
 }
 
 type Service struct {
@@ -313,7 +314,7 @@ func (s *Service) Predict(ctx context.Context, circleID circle.ID, contestID con
 // ResolveAndDistributeContestClout resolves a contest and distributes winnings to the circle members.
 func (s *Service) ResolveAndDistributeContestClout(ctx context.Context, circleID circle.ID, contestID contest.ID, resolverID user.ID, winningOptionID int) error {
 	var events []circle.DomainEvent
-	err := s.txm.RunInTx(ctx, func(ctx context.Context) error {
+	err := s.txm.RunInCircleTx(ctx, circleID, func(ctx context.Context) error {
 		cont, err := s.GetContest(ctx, contestID)
 		if err != nil {
 			return fmt.Errorf("failed to get contest: %w", err)

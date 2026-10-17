@@ -16,6 +16,7 @@ import (
 	"github.com/lowkeylab/bazel-repo/predix/internal/auth"
 	"github.com/lowkeylab/bazel-repo/predix/internal/clock"
 	"github.com/lowkeylab/bazel-repo/predix/internal/db"
+	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle"
 	circlerepo "github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/repository"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/service"
 	"github.com/lowkeylab/bazel-repo/predix/internal/domain/circle/sse"
@@ -39,6 +40,10 @@ type circleResponseBody struct {
 
 type TestTxManager struct {
 	sqlDB *sql.DB
+}
+
+func (m *TestTxManager) RunInCircleTx(ctx context.Context, circleID circle.ID, fn func(context.Context) error) error {
+	return db.RunInCircleTx(ctx, m.sqlDB, int32(circleID), fn)
 }
 
 func (m *TestTxManager) RunInTx(ctx context.Context, fn func(ctx context.Context) error) error {
@@ -540,6 +545,15 @@ func TestCircleHandlers(t *testing.T) {
 			assertBalances(router, 1090, 900)
 			// Reconstruct the router and service over the same database without resetting it.
 			freshRouter, _, _ := setupTestRouter(t, sqlDB)
+			assertBalances(freshRouter, 1090, 900)
+
+			// Repeating settlement retains HTTP 400 and cannot credit the winner again.
+			req = httptest.NewRequest(http.MethodPost, fmt.Sprintf("/protected/circles/%d/contests/%d/resolve-distribute", circ.ID, cont.ID), bytes.NewBufferString(resolveBody))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(auth.TestUserIDHeader, uuid.UUID(creatorID).String())
+			resp = httptest.NewRecorder()
+			freshRouter.ServeHTTP(resp, req)
+			require.Equal(t, http.StatusBadRequest, resp.Code)
 			assertBalances(freshRouter, 1090, 900)
 
 			// 6. Verify Contest Detail Response (Check House Rake)
