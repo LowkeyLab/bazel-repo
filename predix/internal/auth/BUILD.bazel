@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "auth",
@@ -13,5 +13,18 @@ go_library(
         "@com_github_gin_gonic_gin//:gin",
         "@com_github_golang_jwt_jwt_v5//:jwt",
         "@com_github_google_uuid//:uuid",
+    ],
+)
+
+go_test(
+    name = "auth_test",
+    srcs = ["auth_test.go"],
+    deps = [
+        ":auth",
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_golang_jwt_jwt_v5//:jwt",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
     ],
 )
