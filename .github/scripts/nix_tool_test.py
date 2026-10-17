@@ -5,9 +5,9 @@ import os
 import subprocess
 from pathlib import Path
 
-import nix_tool
-
 import pytest
+
+import nix_tool
 from nix_tool import configure
 
 
