@@ -104,8 +104,15 @@ func TestSettlement(t *testing.T) {
 				if scenario == "missing contest" || scenario == "wrong circle" || scenario == "unauthorized resolver" {
 					switch scenario {
 					case "missing contest":
+						missingNotifications, unsubscribeMissing := events.Subscribe(cont.ID + 1)
+						defer unsubscribeMissing()
 						err = svc.ResolveAndDistributeContestClout(ctx, circ.ID, cont.ID+1, creator, 1)
 						require.ErrorContains(t, err, "failed to get contest")
+						select {
+						case event := <-missingNotifications:
+							t.Errorf("missing contest request notified consumer: %+v", event)
+						default:
+						}
 					case "wrong circle":
 						err = svc.ResolveAndDistributeContestClout(ctx, circ.ID+1, cont.ID, creator, 1)
 						require.ErrorIs(t, err, service.ErrContestNotFound)
