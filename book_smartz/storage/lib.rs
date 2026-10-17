@@ -1,7 +1,11 @@
 //! `PostgreSQL` persistence for Book Smartz.
 #![forbid(unsafe_code)]
 
+mod application;
+pub use application::ApplicationEvent;
 mod books;
+mod composition;
+pub use composition::CommandTransaction;
 mod error;
 mod migration;
 mod observation;

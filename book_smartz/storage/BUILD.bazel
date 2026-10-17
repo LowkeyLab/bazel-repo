@@ -1,3 +1,5 @@
+# gazelle:resolve rust cloudevents @crates//:cloudevents-sdk
+
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
 load("//tools/test_images:defs.bzl", "image_data", "image_env")
@@ -7,7 +9,9 @@ package(default_visibility = ["//visibility:public"])
 rust_library(
     name = "lib",
     srcs = [
+        "application.rs",
         "books.rs",
+        "composition.rs",
         "error.rs",
         "lib.rs",
         "migration.rs",
@@ -18,11 +22,16 @@ rust_library(
         "tracing_listener.rs",
         "wire.rs",
     ],
-    compile_data = ["//book_smartz/migrations:001_initial.sql"],
+    compile_data = [
+        "//book_smartz/migrations:001_initial.sql",
+        "//book_smartz/migrations:002_application_history.sql",
+    ],
     crate_name = "book_smartz_storage",
     crate_root = "lib.rs",
     deps = [
         "//book_smartz/domain:lib",
+        "@crates//:chrono",
+        "@crates//:cloudevents-sdk",
         "@crates//:serde_json",
         "@crates//:sqlx",
         "@crates//:thiserror",
@@ -38,6 +47,7 @@ rust_test(
         "observation_capture.rs",
         "tests/book_tests.rs",
         "tests/commit_proxy.rs",
+        "tests/composition_tests.rs",
         "tests/migration_tests.rs",
         "tests/mod.rs",
         "tests/observation_integration.rs",

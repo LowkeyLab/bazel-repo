@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use book_smartz_domain::{
-    Book, BookId, BookRegistry, Command, CommandContext, DomainError, EventKind, OpenLibraryWorkId,
-    Ranking, RankingEvent, ReaderId, ReplayErrorReason, decode_event, encode_event,
+    Book, BookId, BookRegistry, CloudEventDocument, Command, CommandContext, DomainError,
+    EventKind, OpenLibraryWorkId, Ranking, ReaderId, ReplayErrorReason, decode_event, encode_event,
 };
 use serde_json::Value;
 use sqlx::{PgPool, Postgres, Transaction, types::Json};
@@ -13,10 +13,20 @@ use crate::{
     Store, StoreError, observation, wire,
 };
 
+pub struct RankingHistory {
+    pub ranking: Ranking,
+    pub documents: Vec<CloudEventDocument>,
+}
+
 type EventRow = (Uuid, String, Uuid, Uuid, Option<Uuid>, Json<Value>);
 
-fn decode_row(row: EventRow, reader: ReaderId) -> Result<RankingEvent, StoreError> {
+fn decode_row(row: EventRow, reader: ReaderId) -> Result<CloudEventDocument, StoreError> {
     let (row_reader, sequence, event_id, candidate, opponent, Json(envelope)) = row;
+    if envelope["sequence"].as_str() != Some(sequence.as_str()) {
+        return Err(StoreError::CorruptHistory(
+            "invalid stored sequence extension",
+        ));
+    }
     let sequence = wire::parse_sequence_key(&sequence)?;
     let text = serde_json::to_string(&envelope)
         .map_err(|_| StoreError::CorruptHistory("invalid stored event JSON"))?;
@@ -38,10 +48,10 @@ fn decode_row(row: EventRow, reader: ReaderId) -> Result<RankingEvent, StoreErro
             "stored event index differs from envelope",
         ));
     }
-    Ok(event.clone())
+    Ok(document)
 }
 
-async fn history_from_pool(pool: &PgPool, reader: ReaderId) -> Result<Ranking, StoreError> {
+async fn history_from_pool(pool: &PgPool, reader: ReaderId) -> Result<RankingHistory, StoreError> {
     let rows: Vec<EventRow> = sqlx::query_as(
         "SELECT reader_id, sequence::text, event_id, candidate_book_id, opponent_book_id, envelope \
          FROM book_smartz.ranking_events WHERE reader_id = $1 ORDER BY sequence",
@@ -52,10 +62,10 @@ async fn history_from_pool(pool: &PgPool, reader: ReaderId) -> Result<Ranking, S
     replay_rows(rows, reader)
 }
 
-async fn history_in_transaction(
+pub async fn history_in_transaction(
     transaction: &mut Transaction<'_, Postgres>,
     reader: ReaderId,
-) -> Result<Ranking, StoreError> {
+) -> Result<RankingHistory, StoreError> {
     let rows: Vec<EventRow> = sqlx::query_as(
         "SELECT reader_id, sequence::text, event_id, candidate_book_id, opponent_book_id, envelope \
          FROM book_smartz.ranking_events WHERE reader_id = $1 ORDER BY sequence",
@@ -66,13 +76,20 @@ async fn history_in_transaction(
     replay_rows(rows, reader)
 }
 
-fn replay_rows(rows: Vec<EventRow>, reader: ReaderId) -> Result<Ranking, StoreError> {
-    let events = rows
+fn replay_rows(rows: Vec<EventRow>, reader: ReaderId) -> Result<RankingHistory, StoreError> {
+    let documents = rows
         .into_iter()
         .map(|row| decode_row(row, reader))
         .collect::<Result<Vec<_>, _>>()?;
-    Ranking::from_history(reader, events)
-        .map_err(|_| StoreError::CorruptHistory("invalid ranking transition"))
+    let ranking = Ranking::from_history(
+        reader,
+        documents
+            .iter()
+            .map(|document| document.event().clone())
+            .collect(),
+    )
+    .map_err(|_| StoreError::CorruptHistory("invalid ranking transition"))?;
+    Ok(RankingHistory { ranking, documents })
 }
 
 async fn referenced_books(
@@ -102,12 +119,10 @@ async fn referenced_books(
     Ok(registry)
 }
 
-async fn execute_in_transaction(
+pub async fn locked_transaction(
     pool: &PgPool,
     reader: ReaderId,
-    context: CommandContext,
-    command: Command,
-) -> Result<CommandResult, StoreError> {
+) -> Result<Transaction<'static, Postgres>, StoreError> {
     let mut transaction = pool.begin().await?;
     sqlx::query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")
         .execute(&mut *transaction)
@@ -122,7 +137,49 @@ async fn execute_in_transaction(
         .bind(reader.as_uuid())
         .fetch_one(&mut *transaction)
         .await?;
-    let mut ranking = history_in_transaction(&mut transaction, reader).await?;
+    Ok(transaction)
+}
+
+pub async fn insert_document(
+    transaction: &mut Transaction<'_, Postgres>,
+    document: &CloudEventDocument,
+) -> Result<(), StoreError> {
+    let event = document.event();
+    let envelope: Value = serde_json::from_str(
+        &book_smartz_domain::encode_document(document)
+            .map_err(|_| StoreError::CorruptHistory("invalid proposed event envelope"))?,
+    )
+    .map_err(|_| StoreError::CorruptHistory("invalid proposed event JSON"))?;
+    let opponent = match event.kind() {
+        EventKind::ComparisonAnswered { opponent, .. } => Some(*opponent.as_uuid()),
+        _ => None,
+    };
+    sqlx::query(
+        "INSERT INTO book_smartz.ranking_events \
+         (reader_id, sequence, event_id, candidate_book_id, opponent_book_id, envelope) \
+         VALUES ($1, $2, $3, $4, $5, $6)",
+    )
+    .bind(event.metadata().reader_id.as_uuid())
+    .bind(wire::sequence_key(event.metadata().sequence.value())?)
+    .bind(event.metadata().id.as_uuid())
+    .bind(event.candidate().as_uuid())
+    .bind(opponent)
+    .bind(Json(envelope))
+    .execute(&mut **transaction)
+    .await?;
+    Ok(())
+}
+
+async fn execute_in_transaction(
+    pool: &PgPool,
+    reader: ReaderId,
+    context: CommandContext,
+    command: Command,
+) -> Result<CommandResult, StoreError> {
+    let mut transaction = locked_transaction(pool, reader).await?;
+    let mut ranking = history_in_transaction(&mut transaction, reader)
+        .await?
+        .ranking;
     let registry = referenced_books(&mut transaction, command).await?;
     let event = ranking.execute(&registry, context, command)?;
     let encoded = encode_event(&event)
@@ -134,25 +191,7 @@ async fn execute_in_transaction(
             "proposed event failed roundtrip",
         ));
     }
-    let envelope: Value = serde_json::from_str(&encoded)
-        .map_err(|_| StoreError::CorruptHistory("invalid proposed event JSON"))?;
-    let opponent = match event.kind() {
-        EventKind::ComparisonAnswered { opponent, .. } => Some(*opponent.as_uuid()),
-        _ => None,
-    };
-    sqlx::query(
-        "INSERT INTO book_smartz.ranking_events \
-         (reader_id, sequence, event_id, candidate_book_id, opponent_book_id, envelope) \
-         VALUES ($1, $2, $3, $4, $5, $6)",
-    )
-    .bind(reader.as_uuid())
-    .bind(wire::sequence_key(event.metadata().sequence.value())?)
-    .bind(event.metadata().id.as_uuid())
-    .bind(event.candidate().as_uuid())
-    .bind(opponent)
-    .bind(Json(envelope))
-    .execute(&mut *transaction)
-    .await?;
+    insert_document(&mut transaction, &document).await?;
     transaction
         .commit()
         .await
@@ -180,6 +219,17 @@ const fn command_outcome(result: &Result<CommandResult, StoreError>) -> Outcome 
 }
 
 impl Store {
+    /// Loads complete validated ranking envelopes in stream order without executing commands.
+    ///
+    /// # Errors
+    /// Returns database failure or corruption, including invalid indexed fields or replay.
+    pub async fn load_ranking_documents(
+        &self,
+        reader: ReaderId,
+    ) -> Result<Vec<CloudEventDocument>, StoreError> {
+        Ok(history_from_pool(&self.pool, reader).await?.documents)
+    }
+
     /// Loads one reader's ranking from its ordered, validated event history.
     ///
     /// # Errors
@@ -190,7 +240,9 @@ impl Store {
         operation: OperationContext,
     ) -> Result<Ranking, StoreError> {
         let started = Instant::now();
-        let result = history_from_pool(&self.pool, reader).await;
+        let result = history_from_pool(&self.pool, reader)
+            .await
+            .map(|history| history.ranking);
         observation::dispatch(
             &self.observer,
             &Observation {

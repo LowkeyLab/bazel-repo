@@ -19,13 +19,22 @@ pub async fn migrate(pool: &PgPool) -> Result<(), StoreError> {
     sqlx::query("SET search_path TO book_smartz, pg_catalog")
         .execute(&mut *connection)
         .await?;
-    let migrator = Migrator::with_migrations(vec![Migration::new(
-        1,
-        "initial book smartz storage".into(),
-        MigrationType::Simple,
-        include_str!("../migrations/001_initial.sql").into_sql_str(),
-        false,
-    )]);
+    let migrator = Migrator::with_migrations(vec![
+        Migration::new(
+            1,
+            "initial book smartz storage".into(),
+            MigrationType::Simple,
+            include_str!("../migrations/001_initial.sql").into_sql_str(),
+            false,
+        ),
+        Migration::new(
+            2,
+            "application recovery history".into(),
+            MigrationType::Simple,
+            include_str!("../migrations/002_application_history.sql").into_sql_str(),
+            false,
+        ),
+    ]);
     migrator.run(&mut *connection).await?;
     Ok(())
 }

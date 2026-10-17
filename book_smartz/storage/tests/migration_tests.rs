@@ -33,12 +33,13 @@ async fn migrations_are_isolated_and_repeatable() {
             .await
             .unwrap();
     assert_that!(sentinel, eq("other-app"));
-    let version: i64 =
-        sqlx::query_scalar("SELECT version FROM book_smartz._sqlx_migrations WHERE success")
-            .fetch_one(fixture.pool())
-            .await
-            .unwrap();
-    assert_that!(version, eq(1));
+    let versions: Vec<i64> = sqlx::query_scalar(
+        "SELECT version FROM book_smartz._sqlx_migrations WHERE success ORDER BY version",
+    )
+    .fetch_all(fixture.pool())
+    .await
+    .unwrap();
+    assert_that!(versions, eq(&vec![1, 2]));
     let observed = observations.0.lock().unwrap().clone();
     assert_that!(observed.len(), eq(2));
     assert_that!(
@@ -73,7 +74,7 @@ async fn concurrent_migrations_are_safe() {
             .fetch_one(fixture.pool())
             .await
             .unwrap();
-    assert_that!(count, eq(1));
+    assert_that!(count, eq(2));
 }
 
 async fn insert_event(

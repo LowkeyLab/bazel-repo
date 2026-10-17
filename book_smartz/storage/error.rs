@@ -4,6 +4,10 @@ use sqlx::postgres::{PgDatabaseError, PgSeverity};
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
+    #[error("transaction composition is invalid")]
+    InvalidComposition,
+    #[error("application event envelope is invalid")]
+    InvalidEnvelope,
     #[error(transparent)]
     Identity(#[from] IdentityError),
     #[error(transparent)]
@@ -40,7 +44,10 @@ impl StoreError {
     #[must_use]
     pub const fn failure(&self) -> Failure {
         match self {
-            Self::Identity(_) | Self::Domain(_) => Failure::Rejected,
+            Self::InvalidEnvelope
+            | Self::InvalidComposition
+            | Self::Identity(_)
+            | Self::Domain(_) => Failure::Rejected,
             Self::CorruptHistory(_) => Failure::CorruptHistory,
             Self::Database(_) => Failure::Database,
             Self::Migration(_) => Failure::Migration,
