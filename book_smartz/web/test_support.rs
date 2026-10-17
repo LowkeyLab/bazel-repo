@@ -117,6 +117,15 @@ impl Fixture {
                 .env("DATABASE_URL", database)
                 .env("PORT", port.to_string())
                 .env("BOOK_SMARTZ_ORIGIN", "https://reader.example")
+                .env(
+                    "OPEN_LIBRARY_SEARCH_ENDPOINT",
+                    format!("{}/search.json", provider.uri()),
+                )
+                .env("BOOK_SMARTZ_MAINTAINER_CONTACT", "maintainer@example.test")
+                .env(
+                    "BOOK_SMARTZ_SELECTION_KEY",
+                    "public-fixture-key-at-least-thirty-two-bytes",
+                )
                 .env("GOOGLE_CLIENT_ID", "fixture-client")
                 .env("GOOGLE_CLIENT_SECRET", "fixture-secret")
                 .env(
@@ -131,16 +140,34 @@ impl Fixture {
         ))
     }
     async fn wait(&mut self) -> anyhow::Result<()> {
+        Self::wait_for(&mut self.process, &self.client, &self.base).await
+    }
+    #[allow(
+        dead_code,
+        reason = "Used by the catalog suite in this shared test fixture."
+    )]
+    pub async fn another_instance(&self) -> anyhow::Result<(Process, String)> {
+        let socket = std::net::TcpListener::bind("127.0.0.1:0")?;
+        let port = socket.local_addr()?.port();
+        drop(socket);
+        let mut process = Self::spawn(
+            &self.package,
+            &self.cwd,
+            &self.database,
+            port,
+            &self.provider,
+        )?;
+        let base = format!("http://127.0.0.1:{port}");
+        Self::wait_for(&mut process, &self.client, &base).await?;
+        Ok((process, base))
+    }
+    async fn wait_for(process: &mut Process, client: &Client, base: &str) -> anyhow::Result<()> {
         tokio::time::timeout(Duration::from_secs(20), async {
             loop {
-                if let Some(status) = self.process.0.try_wait()? {
+                if let Some(status) = process.0.try_wait()? {
                     anyhow::bail!("application exited {status}");
                 }
-                if let Ok(response) = self
-                    .client
-                    .get(format!("{}/health/ready", self.base))
-                    .send()
-                    .await
+                if let Ok(response) = client.get(format!("{base}/health/ready")).send().await
                     && response.status().is_success()
                 {
                     return Ok::<_, anyhow::Error>(());

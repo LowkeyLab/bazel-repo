@@ -27,6 +27,7 @@ use book_smartz_storage::{
     Observation, ObservationDeliveryError, Observer, OperationContext, Store,
 };
 
+mod catalog;
 mod identity;
 mod package;
 
@@ -42,6 +43,7 @@ struct Application {
     store: Store,
     origin: String,
     google: identity::Google,
+    catalog: catalog::Catalog,
 }
 
 #[tokio::main]
@@ -85,9 +87,12 @@ async fn main() -> anyhow::Result<()> {
         "canonical origin must be an HTTPS origin without a path"
     );
     let google = identity::Google::from_environment(&origin)?;
+    let catalog = catalog::Catalog::from_environment()?;
     identity::ready(&pool).await?;
     let router = module_router!()
         .page(ranking)
+        .page(catalog::search)
+        .page(catalog::select)
         .origin_policy(topcoat::router::OriginPolicy::new().trust_origins([origin.clone()]))
         .layer(PrivateResponses)
         .runtime()
@@ -108,6 +113,7 @@ async fn main() -> anyhow::Result<()> {
             store,
             origin,
             google,
+            catalog,
         })
         .build();
     let service =
@@ -164,12 +170,49 @@ async fn home() -> Result<impl View> {
 #[page("/ranking")]
 async fn ranking(cx: &Cx) -> Result<impl View> {
     let session = authorize(cx).await?;
+    Ok(view! {
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>"Your ranking · Book Smartz"</title>
+                <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::runtime::SCRIPT)></script>
+            </head>
+            <body class="bg-stone-50 text-stone-900">
+                book_smartz_views::heading()
+                <main class="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
+                    <section>
+                        <h1>"Find your next book"</h1>
+                        <form method="post" action="/search">
+                            <input type="hidden" name="csrf" value=(&session.csrf)>
+                            <label>
+                                "Title or author"
+                                <input name="query" maxlength="256" required="">
+                            </label>
+                            <input type="hidden" name="page" value="1">
+                            <button type="submit">"Search books"</button>
+                        </form>
+                        <form method="post" action="/logout">
+                            <input type="hidden" name="csrf" value=(&session.csrf)>
+                            <button type="submit">"Sign out of this browser"</button>
+                        </form>
+                    </section>
+                    saved_ranking(reader: session.reader)
+                </main>
+            </body>
+        </html>
+    })
+}
+
+#[topcoat::view::component]
+async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
     let db: &Application = app_context(cx);
-    let ranking = db
+    let stored_ranking = db
         .store
-        .load_ranking(session.reader, OperationContext::default())
+        .load_ranking(reader, OperationContext::default())
         .await?;
-    let projection = ranking.projection();
+    let projection = stored_ranking.projection();
     let ids: Vec<_> = projection
         .entries()
         .iter()
@@ -209,50 +252,34 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
         None
     };
     Ok(view! {
-        <!DOCTYPE html>
-        <html lang="en">
-            <head>
-                <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>"Your ranking · Book Smartz"</title>
-                <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
-                <script type="module" src=(topcoat::runtime::SCRIPT)></script>
-            </head>
-            <body class="bg-stone-50 text-stone-900">
-                book_smartz_views::heading()
-                <main class="mx-auto max-w-5xl p-6">
-                    <h1>"Your saved ranking"</h1>
-                    if entries.is_empty() {
-                        <p>"Your ranking is empty."</p>
-                    }
-                    <ol>
-                        for (link, work) in entries {
-                            <li>
-                                <img
-                                    src=(topcoat::asset::asset!("./cover-placeholder.svg"))
-                                    alt="Cover unavailable"
-                                    width="48"
-                                    height="72"
-                                >
-                                <a href=(link)>(work)</a>
-                                <span>" · Author unavailable"</span>
-                            </li>
-                        }
-                    </ol>
-                    if let Some((message, link, work)) = pending {
-                        <aside>
-                            <h2>"Unfinished comparison"</h2>
-                            <p>(message)</p>
-                            <a href=(link)>(work)</a>
-                            <span>" · Author unavailable"</span>
-                        </aside>
-                    }
-                    <form method="post" action="/logout">
-                        <input type="hidden" name="csrf" value=(session.csrf)>
-                        <button type="submit">"Sign out of this browser"</button>
-                    </form>
-                </main>
-            </body>
-        </html>
+        <section>
+            <h2>"Your saved ranking"</h2>
+            if entries.is_empty() {
+                <p>"Your ranking is empty."</p>
+            }
+            <ol>
+                for (link, work) in entries {
+                    <li>
+                        <img
+                            src=(topcoat::asset::asset!("./cover-placeholder.svg"))
+                            alt="Cover unavailable"
+                            width="48"
+                            height="72"
+                        >
+                        <a href=(link)>(work)</a>
+                        <span>" · Author unavailable"</span>
+                    </li>
+                }
+            </ol>
+            if let Some((message, link, work)) = pending {
+                <aside>
+                    <h2>"Unfinished comparison"</h2>
+                    <p>(message)</p>
+                    <a href=(link)>(work)</a>
+                    <span>" · Author unavailable"</span>
+                </aside>
+            }
+        </section>
     })
 }
 
@@ -264,19 +291,25 @@ struct Logout {
 async fn logout(cx: &Cx, Form(input): Form<Logout>) -> Result<()> {
     let session = authorize(cx).await?;
     let db: &Application = app_context(cx);
-    let origins: Vec<_> = request::headers(cx).get_all("origin").iter().collect();
-    if origins.len() != 1
-        || origins[0].to_str().ok() != Some(db.origin.as_str())
-        || input.csrf != session.csrf
-    {
-        return Err(forbidden().into());
-    }
+    require_post(cx, &session, &input.csrf)?;
     sqlx::query("DELETE FROM book_smartz_web.sessions WHERE token_hash = $1")
         .bind(session.hash.as_slice())
         .execute(&db.pool)
         .await?;
     session::stop(cx).await?;
     Err(see_other("/").into())
+}
+
+fn require_post(cx: &Cx, session: &BrowserSession, csrf: &str) -> Result<()> {
+    let db: &Application = app_context(cx);
+    let origins: Vec<_> = request::headers(cx).get_all("origin").iter().collect();
+    if origins.len() != 1
+        || origins[0].to_str().ok() != Some(db.origin.as_str())
+        || csrf != session.csrf
+    {
+        return Err(forbidden().into());
+    }
+    Ok(())
 }
 
 struct PrivateResponses;

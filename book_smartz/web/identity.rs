@@ -348,13 +348,22 @@ pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query("SET search_path TO book_smartz_web, pg_catalog")
         .execute(&mut *connection)
         .await?;
-    Migrator::with_migrations(vec![Migration::new(
-        1,
-        "browser identity and sessions".into(),
-        MigrationType::Simple,
-        include_str!("identity.sql").into_sql_str(),
-        false,
-    )])
+    Migrator::with_migrations(vec![
+        Migration::new(
+            1,
+            "browser identity and sessions".into(),
+            MigrationType::Simple,
+            include_str!("identity.sql").into_sql_str(),
+            false,
+        ),
+        Migration::new(
+            2,
+            "catalog admission".into(),
+            MigrationType::Simple,
+            include_str!("catalog.sql").into_sql_str(),
+            false,
+        ),
+    ])
     .run(&mut *connection)
     .await?;
     Ok(())
@@ -362,8 +371,14 @@ pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
 
 pub async fn ready(pool: &PgPool) -> anyhow::Result<()> {
     let versions: (i64, i64) = sqlx::query_as("SELECT (SELECT max(version) FROM book_smartz._sqlx_migrations WHERE success), (SELECT max(version) FROM book_smartz_web._sqlx_migrations WHERE success)").fetch_one(pool).await?;
-    anyhow::ensure!(versions == (2, 1), "incompatible schema");
+    anyhow::ensure!(versions == (2, 2), "incompatible schema");
     sqlx::query("SELECT a.issuer, a.subject, a.reader_id, s.token_hash, s.reader_id, s.csrf, s.expires_at, c.state_hash, c.nonce, c.verifier, c.expires_at FROM book_smartz_web.accounts a CROSS JOIN book_smartz_web.sessions s CROSS JOIN book_smartz_web.login_challenges c LIMIT 0").execute(pool).await?;
+    sqlx::query("SELECT g.singleton, g.next_search_at, a.reader_id, a.admitted_at FROM book_smartz_web.search_gate g CROSS JOIN book_smartz_web.search_admissions a LIMIT 0").execute(pool).await?;
+    let gate: bool =
+        sqlx::query_scalar("SELECT count(*) = 1 FROM book_smartz_web.search_gate WHERE singleton")
+            .fetch_one(pool)
+            .await?;
+    anyhow::ensure!(gate, "catalog admission gate is missing");
     sqlx::query("SELECT b.id, b.work_id, r.reader_id, e.sequence, e.envelope FROM book_smartz.books b CROSS JOIN book_smartz.reader_streams r CROSS JOIN book_smartz.ranking_events e LIMIT 0").execute(pool).await?;
     Ok(())
 }

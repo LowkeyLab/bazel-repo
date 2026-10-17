@@ -23,6 +23,7 @@ topcoat_rust_binary(
     name = "bin",
     package_name = "book-smartz-web",
     srcs = [
+        "catalog.rs",
         "identity.rs",
         "main.rs",
         "package.rs",
@@ -31,7 +32,10 @@ topcoat_rust_binary(
         ":styles",
         "cover-placeholder.svg",
     ],
-    compile_data = ["identity.sql"],
+    compile_data = [
+        "identity.sql",
+        "catalog.sql",
+    ],
     crate_name = "book_smartz_web",
     crate_root = "main.rs",
     macro_dependencies = {"topcoat": "topcoat"},
@@ -73,6 +77,7 @@ genrule(
 topcoat_tailwind(
     name = "styles",
     srcs = [
+        "catalog.rs",
         "main.rs",
         "views.rs",
     ],
@@ -114,6 +119,7 @@ rust_test(
     name = "http_test",
     size = "medium",
     srcs = [
+        "catalog_test.rs",
         "http_test.rs",
         "identity_test.rs",
         "test_support.rs",
