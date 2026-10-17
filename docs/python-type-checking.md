@@ -31,7 +31,8 @@ the current selector. Neither derives the version from the project's minimum.
 The Nix-delivered Aspect package embeds the Python policy patch before extracting
 its `builtins`. `ty` findings and nonzero checker exits fail lint under every
 strategy. Ruff annotation findings also fail regardless of baseline or soft
-strategy. Other Ruff diagnostics and other linters retain the chosen strategy.
+strategy. Ruff configuration and runtime errors fail the Bazel action. Other
+Ruff diagnostics and other linters retain the chosen strategy.
 Human diagnostics and machine reports in the Static Analysis Results Interchange
 Format remain available through normal lint outputs. The report converter preserves `ty` warnings as well as errors.
 

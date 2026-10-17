@@ -81,19 +81,45 @@ diff --git a/lint/ruff.bzl b/lint/ruff.bzl
  load("//lint/private:lint_aspect.bzl", "LintOptionsInfo", "OPTIONAL_SARIF_PARSER_TOOLCHAIN", "OUTFILE_FORMAT", "filter_srcs", "noop_lint_action", "output_files", "parse_to_sarif_action", "patch_and_output_files", "should_visit")
  load("//lint/private:patcher_action.bzl", "patcher_attrs", "run_patcher")
  
-@@ -147,6 +148,11 @@
+@@ -115,7 +116,15 @@
+             action_args.add("--output-format=concise")
+ 
+         if exit_code:
+-            command = "{ruff} $@ >{stdout}; echo $? >" + exit_code.path
++            # Exit 1 reports ordinary findings; exit 2 is a tool/configuration failure.
++            command = """{ruff} "$@" >{stdout} 2>&1
++result=$?
++echo "$result" >{exit_code}
++if [ "$result" -gt 1 ]; then
++    cat {stdout}
++    exit "$result"
++fi
++"""
+             outputs.append(exit_code)
+         else:
+             # Create empty file on success, as Bazel expects one
+@@ -124,7 +133,7 @@
+         ctx.actions.run_shell(
+             inputs = inputs,
+             outputs = outputs,
+-            command = command.format(ruff = executable.path, stdout = stdout.path),
++            command = command.format(ruff = executable.path, stdout = stdout.path, exit_code = exit_code.path if exit_code else ""),
+             arguments = [action_args],
+             mnemonic = ctx.attr._mnemonic,
+             env = env,
+@@ -146,6 +155,11 @@
+     if len(files_to_lint) == 0:
          noop_lint_action(ctx, outputs)
          return [info]
- 
++
 +    python_version = ctx.attr._python_version[BuildSettingInfo].value
 +    if not python_version:
 +        fail("Ruff requires the repository Python selector")
 +    checker_args = ctx.attr._args + ["--target-version", "py" + python_version.replace(".", "")]
-+
+ 
      color_env = {"FORCE_COLOR": "1"} if ctx.attr._options[LintOptionsInfo].color else {}
  
-     ruff_action(
-@@ -158,13 +164,13 @@
+@@ -158,13 +172,13 @@
          outputs.human.exit_code,
          env = color_env,
          patch = getattr(outputs, "patch", None),
@@ -109,7 +135,7 @@ diff --git a/lint/ruff.bzl b/lint/ruff.bzl
  
      # Ideally we'd just use {"RUFF_OUTPUT_FORMAT": "sarif"} however it prints absolute paths; see https://github.com/astral-sh/ruff/issues/14985
      parse_to_sarif_action(ctx, ctx.attr._mnemonic, raw_machine_report, outputs.machine.out)
-@@ -193,6 +199,10 @@
+@@ -193,6 +207,10 @@
              "_options": attr.label(
                  default = "//lint:options",
                  providers = [LintOptionsInfo],
