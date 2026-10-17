@@ -23,6 +23,7 @@ topcoat_rust_binary(
     name = "bin",
     package_name = "book-smartz-web",
     srcs = [
+        "actions.rs",
         "catalog.rs",
         "identity.rs",
         "main.rs",
@@ -33,6 +34,7 @@ topcoat_rust_binary(
         "cover-placeholder.svg",
     ],
     compile_data = [
+        "actions.sql",
         "identity.sql",
         "catalog.sql",
     ],
@@ -163,7 +165,9 @@ rust_test(
     name = "application_test",
     size = "medium",
     srcs = [
+        "action_test.rs",
         "application_test.rs",
+        "commit_proxy.rs",
         "test_support.rs",
     ],
     compile_data = ["fixtures/public-test-key.pem"],

@@ -374,10 +374,12 @@ pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
     )])
     .run(&mut *connection)
     .await?;
+    crate::actions::migrate(pool).await?;
     Ok(())
 }
 
 pub async fn ready(pool: &PgPool) -> anyhow::Result<()> {
+    crate::actions::ready(pool).await?;
     let versions: (i64, i64, i64) = sqlx::query_as("SELECT (SELECT max(version) FROM book_smartz._sqlx_migrations WHERE success), (SELECT max(version) FROM book_smartz_web._sqlx_migrations WHERE success), (SELECT max(version) FROM book_smartz_catalog._sqlx_migrations WHERE success)").fetch_one(pool).await?;
     anyhow::ensure!(versions == (2, 1, 1), "incompatible schema");
     sqlx::query("SELECT a.issuer, a.subject, a.reader_id, s.token_hash, s.reader_id, s.csrf, s.expires_at, c.state_hash, c.nonce, c.verifier, c.expires_at FROM book_smartz_web.accounts a CROSS JOIN book_smartz_web.sessions s CROSS JOIN book_smartz_web.login_challenges c LIMIT 0").execute(pool).await?;

@@ -3,7 +3,10 @@
 The first web slice signs in with Google, persists browser sessions in PostgreSQL,
 and reads the existing private ranking and pending placement. Signed-in readers can
 explicitly search Open Library, page through work-level results, and select a
-validated work. Ranking submission controls belong to the following tickets.
+validated work. Add saves the validated work and display metadata independently,
+then applies the existing Start decision. The first book appears at rank 1 only
+after the database confirms the ranking event. Comparison and Pause/Resume controls belong
+to the following tickets.
 
 Build the relocatable archive with `aspect build //book_smartz/web:package`.
 It contains `book-smartz`, adjacent `assets`, and `integrity.json`. Run it from
@@ -73,3 +76,33 @@ Selections stay in protected, non-cacheable responses. Never log them.
 `OPEN_LIBRARY_SEARCH_ENDPOINT` defaults to the production search endpoint.
 HTTP overrides accept explicit loopback addresses for controlled acceptance.
 Actual provider registration and live compatibility remain launch acceptance.
+
+## Add and original-action recovery
+
+The selected-work page offers a signed action bound to that reader, selection, and
+displayed revision. The first Add freezes the complete intent, command time in Coordinated Universal Time
+and ranking-event ID in immutable app history before registration. A
+preparation fact precedes registration. A second retains the exact ranking
+envelope before its append. Correlation uses the explicitly accepted experimental
+[Correlation extension at revision 472f0e1](https://github.com/cloudevents/spec/blob/472f0e1d856e335c30fa204f36fd6428c2bfd732/cloudevents/extensions/correlation.md).
+App facts and ranking events have separate sources and sequences.
+
+The accepted ranking event is the sole success evidence. There is no separate
+completion receipt. Repeated submissions recover the original intent even after
+selection expiry. A changed selection, action, or revision can't reuse an offer.
+Registration and shared metadata may remain committed after the domain rejects Start.
+blank author/cover fields preserve previously saved data. Rankings use retained
+metadata and local fallback for older identities without provider requests.
+
+An interrupted or unacknowledged action stays checking and blocks new ranking
+actions. Reload exposes **Check original save**, an authorized, origin and cross-site request forgery protected
+POST. Recovery first reconciles the original event identity and full envelope.
+A missing read is inconclusive. Execution of an unresolved original command
+acquires the same reader-stream lock as storage commands, preserves all frozen
+values, and rechecks evidence before appending. The app retains definitive domain rejection without advancing ranking revision. Conflicting evidence stays blocked.
+Reads never execute recovery.
+
+The app acceptance suite includes real PostgreSQL registration races,
+failed append, expired-selection recovery, conflicting event contents, lost real
+COMMIT acknowledgements, and process interruption. Controlled-provider/local
+results don't establish deployment or live-provider readiness.
