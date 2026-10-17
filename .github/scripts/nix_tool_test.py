@@ -98,7 +98,14 @@ def acceptance(monkeypatch, tmp_path):
     ):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
-    monkeypatch.setenv("NIX_CONFIG", "")
+    monkeypatch.setenv(
+        "NIX_CONFIG",
+        "substituters = https://inherited.invalid\n"
+        "builders = ssh://inherited.invalid\n"
+        "max-jobs = 8\nfallback = true\nrequire-sigs = false\n"
+        "access-tokens = inherited.invalid=synthetic-token\n"
+        "netrc-file = /synthetic/netrc\nsecret-key-files = /synthetic/signing-key\n",
+    )
     # A synthetic path should be absent independent of the host's Nix store.
     monkeypatch.setattr(nix_tool.os.path, "lexists", lambda path: False)
 
@@ -145,6 +152,55 @@ def acceptance(monkeypatch, tmp_path):
                 label, value = "smoke-" + Path(command[0]).name, "tool version\n"
             else:
                 raise AssertionError(f"Unexpected command: {command}")
+            # Commands are an observable acceptance contract, not private
+            # helper calls. Reject stubs that would hide changed targets/options.
+            expected = {
+                "version": ["nix", "--version"],
+                "effective-config": ["nix", "config", "show", "--json"],
+                "evaluate": [
+                    "nix",
+                    "eval",
+                    "--raw",
+                    "--no-update-lock-file",
+                    f".#packages.x86_64-linux.{tool}.outPath",
+                ],
+                "initial-store": ["nix", "path-info", "--all"],
+                "realise": [
+                    "nix-store",
+                    "--realise",
+                    ROOT,
+                    "--log-format",
+                    "internal-json",
+                    "-vv",
+                    "--option",
+                    "max-jobs",
+                    "0",
+                    "--option",
+                    "builders",
+                    "",
+                    "--option",
+                    "fallback",
+                    "false",
+                    "--option",
+                    "require-sigs",
+                    "true",
+                ],
+                "valid-output": ["nix-store", "--check-validity", ROOT],
+                "closure": ["nix", "path-info", "--recursive", "--json", ROOT],
+                "remote-availability": [
+                    nix_tool.sys.executable,
+                    nix_tool.__file__,
+                    "verify",
+                    tool,
+                    ROOT,
+                ],
+            }
+            for executable in ("aspect", "lcov", "genhtml", "geninfo"):
+                expected["smoke-" + executable] = [
+                    ROOT + "/bin/" + executable,
+                    "--version",
+                ]
+            assert command == expected[label]
             stdout.write(value)
             if label == fail:
                 stderr.write("injected command failure\n")
@@ -216,10 +272,22 @@ def test_strict_acceptance_retains_ordered_closure_and_artifacts(
     assert json.loads((directory / "remote-availability.json").read_text()) == {
         "output": "captured remote manifest"
     }
-    assert "require-sigs = true" in os.environ["NIX_CONFIG"]
-    assert f"substituters = {CACHE} {UPSTREAM}" in os.environ["NIX_CONFIG"]
-    assert "fallback = false" in os.environ["NIX_CONFIG"]
-    assert "max-jobs = 0" in os.environ["NIX_CONFIG"]
+    # Nix uses the last assignment of a setting. Check full keys and values,
+    # including overrides of inherited builders and credential providers.
+    settings = {
+        key.strip(): value.strip()
+        for line in os.environ["NIX_CONFIG"].splitlines()
+        if "=" in line
+        for key, value in [line.split("=", 1)]
+    }
+    assert settings["require-sigs"] == "true"
+    assert settings["substituters"] == f"{CACHE} {UPSTREAM}"
+    assert settings["fallback"] == "false"
+    assert settings["max-jobs"] == "0"
+    assert settings["builders"] == ""
+    assert settings["access-tokens"] == ""
+    assert settings["netrc-file"] == "/dev/null"
+    assert settings["secret-key-files"] == ""
 
 
 def test_preexisting_dependency_keeps_classification_despite_ambiguous_sources(
