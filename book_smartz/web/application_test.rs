@@ -130,3 +130,86 @@ async fn concurrent_signup_and_changed_email_restore_one_private_ranking_and_pen
     );
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn first_add_is_saved_once_and_restored_with_display_metadata() -> anyhow::Result<()> {
+    use wiremock::{
+        Mock, ResponseTemplate,
+        matchers::{method, path},
+    };
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("first-add-reader").await?;
+    let ranking = app.ranking(&cookie).await?.text().await?;
+    let field = |html: &str, name: &str| -> anyhow::Result<String> {
+        Ok(
+            regex::Regex::new(&format!(r#"name="{name}" value="([^"]+)"#))?
+                .captures(html)
+                .ok_or_else(|| anyhow::anyhow!("missing {name}"))?[1]
+                .to_owned(),
+        )
+    };
+    let csrf = field(&ranking, "csrf")?;
+    Mock::given(method("GET")).and(path("/search.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"start":0,"numFound":1,"docs":[{"key":"OL27448W","title":"The Lord of the Rings","author_name":["J. R. R. Tolkien"],"cover_i":258_027}]})))
+        .mount(&app.provider).await;
+    let post = |route: &str, values: Vec<(&str, String)>| {
+        app.client
+            .post(format!("{}{route}", app.base))
+            .header("cookie", &cookie)
+            .header("origin", "https://reader.example")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(
+                url::form_urlencoded::Serializer::new(String::new())
+                    .extend_pairs(values)
+                    .finish(),
+            )
+            .send()
+    };
+    let search = post(
+        "/search",
+        vec![
+            ("csrf", csrf.clone()),
+            ("query", "Tolkien".into()),
+            ("page", "1".into()),
+        ],
+    )
+    .await?
+    .text()
+    .await?;
+    let selection = field(&search, "selection")?;
+    let selected = post(
+        "/select",
+        vec![("csrf", csrf.clone()), ("selection", selection.clone())],
+    )
+    .await?
+    .text()
+    .await?;
+    let action = field(&selected, "action")?;
+    let revision = field(&selected, "revision")?;
+    let offer = field(&selected, "offer")?;
+    let values = vec![
+        ("csrf", csrf),
+        ("selection", selection),
+        ("action", action),
+        ("revision", revision),
+        ("offer", offer),
+    ];
+    let (first, duplicate) =
+        tokio::join!(post("/add", values.clone()), post("/add", values.clone()));
+    for response in [first?, duplicate?] {
+        assert_that!(response.status().as_u16(), eq(303));
+    }
+    app.provider.reset().await;
+    app.restart().await?;
+    let body = app.ranking(&cookie).await?.text().await?;
+    assert_that!(body.matches("The Lord of the Rings").count(), eq(1));
+    assert_that!(body.as_str(), contains_substring("J. R. R. Tolkien"));
+    assert_that!(
+        body.as_str(),
+        not(contains_substring("Your ranking is empty."))
+    );
+    Ok(())
+}
+
+mod action_test;

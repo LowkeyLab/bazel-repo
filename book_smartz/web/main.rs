@@ -27,6 +27,7 @@ use book_smartz_storage::{
     Observation, ObservationDeliveryError, Observer, OperationContext, Store,
 };
 
+mod actions;
 mod catalog;
 mod identity;
 mod package;
@@ -93,6 +94,8 @@ async fn main() -> anyhow::Result<()> {
         .page(ranking)
         .page(catalog::search)
         .page(catalog::select)
+        .page(actions::add)
+        .page(actions::recover)
         .origin_policy(topcoat::router::OriginPolicy::new().trust_origins([origin.clone()]))
         .layer(PrivateResponses)
         .runtime()
@@ -193,6 +196,10 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                             <input type="hidden" name="page" value="1">
                             <button type="submit">"Search books"</button>
                         </form>
+                        actions::recovery_controls(
+                            reader: session.reader,
+                            csrf: session.csrf.clone()
+                        )
                         <form method="post" action="/logout">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
                             <button type="submit">"Sign out of this browser"</button>
@@ -230,7 +237,25 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
     for entry in projection.entries() {
         if let Some(book) = books.get(&entry.book_id()) {
             let work = book.work_id().as_str().to_owned();
-            entries.push((format!("https://openlibrary.org/works/{work}"), work));
+            let display: Option<(String, Vec<String>, Option<i64>)> = sqlx::query_as(
+                "SELECT title, authors, cover FROM book_smartz_actions.display WHERE book_id=$1",
+            )
+            .bind(entry.book_id().as_uuid())
+            .fetch_optional(&db.pool)
+            .await?;
+            let (title, authors, cover) =
+                display.unwrap_or_else(|| (work.clone(), Vec::new(), None));
+            let author = if authors.is_empty() {
+                "Author unavailable".to_owned()
+            } else {
+                authors.join(", ")
+            };
+            entries.push((
+                format!("https://openlibrary.org/works/{work}"),
+                title,
+                author,
+                cover,
+            ));
         }
     }
     let pending = if let Some(placement) = projection.pending() {
@@ -258,16 +283,14 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
                 <p>"Your ranking is empty."</p>
             }
             <ol>
-                for (link, work) in entries {
+                for (link, title, author, cover) in entries {
                     <li>
-                        <img
-                            src=(topcoat::asset::asset!("./cover-placeholder.svg"))
-                            alt="Cover unavailable"
-                            width="48"
-                            height="72"
-                        >
-                        <a href=(link)>(work)</a>
-                        <span>" · Author unavailable"</span>
+                        ranked_cover(cover: cover)
+                        <a href=(link)>(title)</a>
+                        <span>
+                            " · "
+                            (author)
+                        </span>
                     </li>
                 }
             </ol>
@@ -280,6 +303,37 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
                 </aside>
             }
         </section>
+    })
+}
+
+#[topcoat::view::component]
+async fn ranked_cover(cover: Option<i64>) -> Result<impl View> {
+    Ok(view! {
+        <div style="width:48px;height:72px;position:relative">
+            <img
+                src=(topcoat::asset::asset!("./cover-placeholder.svg"))
+                alt="Cover unavailable"
+                width="48"
+                height="72"
+            >
+            if let Some(cover) = cover {
+                <object
+                    data=(format!(
+                        "https://covers.openlibrary.org/b/id/{cover}-M.jpg?default=false",
+                    ))
+                    type="image/jpeg"
+                    aria-label="Representative book cover"
+                    style="position:absolute;inset:0;width:48px;height:72px"
+                >
+                    <img
+                        src=(topcoat::asset::asset!("./cover-placeholder.svg"))
+                        alt="Cover unavailable"
+                        width="48"
+                        height="72"
+                    >
+                </object>
+            }
+        </div>
     })
 }
 

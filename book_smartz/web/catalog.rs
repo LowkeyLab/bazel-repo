@@ -27,11 +27,11 @@ pub struct Catalog {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogWork {
-    work_id: String,
-    title: String,
-    authors: Vec<String>,
+    pub work_id: String,
+    pub title: String,
+    pub authors: Vec<String>,
     year: Option<i32>,
-    cover: Option<u64>,
+    pub cover: Option<u64>,
 }
 impl CatalogWork {
     fn valid(&self) -> bool {
@@ -45,14 +45,14 @@ impl CatalogWork {
                 .cover
                 .is_none_or(|cover| cover > 0 && i64::try_from(cover).is_ok())
     }
-    fn source(&self) -> String {
+    pub fn source(&self) -> String {
         format!("https://openlibrary.org/works/{}", self.work_id)
     }
-    fn cover_url(&self) -> Option<String> {
+    pub fn cover_url(&self) -> Option<String> {
         self.cover
             .map(|id| format!("https://covers.openlibrary.org/b/id/{id}-M.jpg?default=false"))
     }
-    fn author_label(&self) -> String {
+    pub fn author_label(&self) -> String {
         if self.authors.is_empty() {
             "Author unavailable".into()
         } else {
@@ -76,7 +76,63 @@ struct Selection {
     work: CatalogWork,
 }
 
+#[derive(Serialize, Deserialize)]
+struct Offer {
+    reader: uuid::Uuid,
+    action: crate::actions::ActionId,
+    selection: String,
+    revision: u64,
+    aud: String,
+}
 impl Catalog {
+    pub fn offer(
+        &self,
+        reader: ReaderId,
+        action: crate::actions::ActionId,
+        selection: &str,
+        revision: u64,
+    ) -> anyhow::Result<String> {
+        Ok(encode(
+            &Header::new(Algorithm::HS256),
+            &Offer {
+                reader: *reader.as_uuid(),
+                action,
+                selection: selection.to_owned(),
+                revision,
+                aud: "book-smartz-offer".into(),
+            },
+            &EncodingKey::from_secret(&self.signing_key),
+        )?)
+    }
+    pub fn verify_offer(
+        &self,
+        reader: ReaderId,
+        action: crate::actions::ActionId,
+        selection: &str,
+        revision: u64,
+        token: &str,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(token.len() <= 131_072, "invalid offer");
+        let mut validation = Validation::new(Algorithm::HS256);
+        validation.validate_exp = false;
+        validation.required_spec_claims.clear();
+        validation.set_audience(&["book-smartz-offer"]);
+        let offer = decode::<Offer>(
+            token,
+            &DecodingKey::from_secret(&self.signing_key),
+            &validation,
+        )?
+        .claims;
+        anyhow::ensure!(
+            offer.reader == *reader.as_uuid()
+                && offer.action == action
+                && offer.selection == selection
+                && offer.revision == revision,
+            "invalid offer"
+        );
+        Ok(())
+    }
+
     pub fn from_environment() -> anyhow::Result<Self> {
         let endpoint = url::Url::parse(
             &std::env::var("OPEN_LIBRARY_SEARCH_ENDPOINT")
@@ -456,6 +512,19 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
         .catalog
         .verify(session.reader, &input.selection)
         .map_err(|_| forbidden())?;
+    let ranking = app
+        .store
+        .load_ranking(
+            session.reader,
+            book_smartz_storage::OperationContext::default(),
+        )
+        .await?;
+    let revision = ranking.projection().revision();
+    let action = crate::actions::ActionId::new();
+    let offer = app
+        .catalog
+        .offer(session.reader, action, &input.selection, revision)
+        .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -466,6 +535,18 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
                     <h1>"Selected work"</h1>
                     <a href=(work.source())>(work.title)</a>
                     <p>"This selection expires 15 minutes after search."</p>
+                    <form method="post" action="/add">
+                        <input type="hidden" name="csrf" value=(&session.csrf)>
+                        <input type="hidden" name="selection" value=(&input.selection)>
+                        <input type="hidden" name="action" value=(action.text())>
+                        <input
+                            type="hidden"
+                            name="revision"
+                            value=(revision.to_string())
+                        >
+                        <input type="hidden" name="offer" value=(offer)>
+                        <button type="submit">"Add to your ranking"</button>
+                    </form>
                     <a href="/ranking">"Return to your ranking"</a>
                 </main>
             </body>
