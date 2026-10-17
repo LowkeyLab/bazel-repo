@@ -2,6 +2,7 @@ load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/python:defs.bzl", "py_test")
 
 # gazelle:python_root
+# gazelle:resolve py _nix_provenance //.github/scripts:scripts
 # gazelle:resolve py nix_cache_failures //.github/scripts:scripts
 # gazelle:resolve py nix_tool //.github/scripts:scripts
 
@@ -9,11 +10,13 @@ py_binary(
     name = "nix_tool",
     srcs = ["nix_tool.py"],
     visibility = ["//:__subpackages__"],
+    deps = ["//.github/scripts"],
 )
 
 py_library(
     name = "scripts",
     srcs = [
+        "_nix_provenance.py",
         "bazel_dependencies.py",
         "bazel_dependency_faults.py",
         "nix_cache_failures.py",

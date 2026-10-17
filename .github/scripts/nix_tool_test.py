@@ -5,6 +5,7 @@ import os
 import subprocess
 from pathlib import Path
 
+import _nix_provenance
 import nix_tool
 import pytest
 
@@ -422,6 +423,106 @@ def test_failed_commands_retain_evidence_without_publishing_paths(acceptance, fa
         assert "smoke-aspect" not in labels(commands)
 
 
-# Follow-up #2328 must reject non-object JSON activity records through the
-# normal failed-result path. Do not freeze the current uncaught AttributeError
-# into this compatibility baseline or require its approved correction here.
+@pytest.mark.parametrize("record", [None, [], "activity", 42, True])
+def test_non_object_activity_fails_normally_before_closure(acceptance, record):
+    log = "@nix " + json.dumps(record) + "\n"
+    status, result, commands, directory = acceptance(log=log)
+    assert status == 1
+    assert result["status"] == "failed"
+    assert "activity record must be an object" in result["error"]
+    assert "paths" not in result
+    assert labels(commands)[-1] == "valid-output"
+    assert (directory / "realise.stderr").read_text() == log
+
+
+@pytest.mark.parametrize(
+    "tool,source", [("aspect", CACHE), ("lcov", UPSTREAM), ("lcov", CACHE)]
+)
+def test_policy_classifies_ordered_mixed_closure_from_validated_evidence(tool, source):
+    log = (
+        "ordinary diagnostic\n"
+        + activity(action="stop", type=105)
+        + activity(type=999, fields=None)
+        + activity(source=source)
+        + activity(source=source)
+        + activity(DEPENDENCY, UPSTREAM)
+        + activity(UNRELATED)
+    )
+    downloads = _nix_provenance.ValidatedDownloads(tool, ROOT, CACHE, log)
+    assert downloads.classify(set(), {DEPENDENCY: {}, ROOT: {}}) == [
+        {"path": DEPENDENCY, "source": UPSTREAM, "status": "downloaded"},
+        {"path": ROOT, "source": source, "status": "downloaded"},
+    ]
+
+
+def test_policy_preexisting_path_takes_precedence_over_missing_or_ambiguous_sources():
+    downloads = _nix_provenance.ValidatedDownloads(
+        "aspect",
+        ROOT,
+        CACHE,
+        activity() + activity(DEPENDENCY) + activity(DEPENDENCY, UPSTREAM),
+    )
+    assert downloads.classify(
+        {DEPENDENCY, UNRELATED}, [DEPENDENCY, ROOT, UNRELATED]
+    ) == [
+        {"path": DEPENDENCY, "status": "present-before-realisation"},
+        {"path": ROOT, "source": CACHE, "status": "downloaded"},
+        {"path": UNRELATED, "status": "present-before-realisation"},
+    ]
+
+
+@pytest.mark.parametrize(
+    "log,diagnostic",
+    [
+        (activity(type=105), "build activity"),
+        ("@nix {broken\n", "Expecting property name"),
+        (activity(fields=None), "substitution log schema"),
+        (activity(fields=[ROOT]), "substitution log schema"),
+        (activity(fields=[ROOT, CACHE, "extra"]), "substitution log schema"),
+        (activity(fields=[17, CACHE]), "substitution path or source"),
+        (activity(fields=[ROOT, 17]), "substitution path or source"),
+        (activity(source="https://untrusted.invalid"), "substitution path or source"),
+        (
+            activity() + activity(UNRELATED, "https://untrusted.invalid"),
+            "substitution path or source",
+        ),
+        (activity() + activity(UNRELATED, fields=[]), "substitution log schema"),
+        ("ordinary diagnostic\n", "absent or ambiguous"),
+        (activity() + activity(source=UPSTREAM), "absent or ambiguous"),
+        (activity(source=UPSTREAM), "exclusively from intended Cachix"),
+    ],
+)
+def test_policy_rejects_invalid_activity_or_root(log, diagnostic):
+    with pytest.raises(ValueError, match=diagnostic):
+        _nix_provenance.ValidatedDownloads("aspect", ROOT, CACHE, log)
+
+
+@pytest.mark.parametrize("record", [None, [], "activity", 42, True])
+def test_policy_rejects_non_object_activity(record):
+    with pytest.raises(ValueError, match="activity record must be an object"):
+        _nix_provenance.ValidatedDownloads(
+            "aspect", ROOT, CACHE, "@nix " + json.dumps(record) + "\n"
+        )
+
+
+@pytest.mark.parametrize(
+    "log", ["", activity(DEPENDENCY) + activity(DEPENDENCY, UPSTREAM)]
+)
+def test_policy_requires_one_source_for_each_new_closure_path(log):
+    downloads = _nix_provenance.ValidatedDownloads(
+        "aspect", ROOT, CACHE, activity() + log
+    )
+    with pytest.raises(
+        ValueError, match="Closure download provenance absent or ambiguous"
+    ):
+        downloads.classify(set(), [ROOT, DEPENDENCY])
+
+
+def test_policy_uses_requested_output_and_cache_instead_of_default_constants():
+    cache = "https://other.cachix.org"
+    downloads = _nix_provenance.ValidatedDownloads(
+        "aspect", UNRELATED, cache, activity(UNRELATED, cache)
+    )
+    assert downloads.classify(set(), [UNRELATED]) == [
+        {"path": UNRELATED, "source": cache, "status": "downloaded"},
+    ]
