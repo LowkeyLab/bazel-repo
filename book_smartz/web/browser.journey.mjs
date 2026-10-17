@@ -103,6 +103,7 @@ try {
     .getByRole("textbox", { name: "Title or author" })
     .fill("First book");
   await page.getByRole("button", { name: "Search books", exact: true }).click();
+  await page.getByAltText("Cover unavailable").waitFor({ state: "visible" });
   assert.equal(await page.getByAltText("Cover unavailable").count(), 1);
   await page.getByRole("button", { name: "Select this work" }).click();
   await page.getByRole("button", { name: "Add to your ranking" }).click();
