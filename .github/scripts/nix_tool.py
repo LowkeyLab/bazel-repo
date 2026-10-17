@@ -8,6 +8,8 @@ import sys
 import time
 from pathlib import Path
 
+import _nix_provenance
+
 DEFAULT_CACHIX_CACHE_NAME = "lowkey-lab"
 DEFAULT_CACHIX_PUBLIC_KEY = (
     "lowkey-lab.cachix.org-1:7YzknrrOt9NRhJp4VIYCqa9Edc/401MuFrtqyPUW3i8="
@@ -167,32 +169,6 @@ class Evidence:
         return stdout.read_text(), stderr.read_text()
 
 
-def downloaded_sources(stderr, allowed):
-    sources = {}
-    for line in stderr.splitlines():
-        if not line.startswith("@nix "):
-            continue
-        event = json.loads(line[5:])
-        if event.get("action") != "start":
-            continue
-        if event.get("type") == 105:
-            raise ValueError("Nix reported a build activity during strict acceptance")
-        if event.get("type") != 108:
-            continue
-        fields = event.get("fields")
-        if not isinstance(fields, list) or len(fields) != 2:
-            raise ValueError("Unknown Nix substitution log schema")
-        path, source = fields
-        if (
-            not isinstance(path, str)
-            or not isinstance(source, str)
-            or source not in allowed
-        ):
-            raise ValueError("Unknown substitution path or source in Nix log")
-        sources.setdefault(path, set()).add(source)
-    return sources
-
-
 def accept(tool):
     evidence = Evidence(tool)
     result = {"tool": tool, "status": "failed"}
@@ -260,32 +236,11 @@ def accept(tool):
             "true",
         )
         evidence.run("valid-output", "nix-store", "--check-validity", output)
-        sources = downloaded_sources(stderr, {url, "https://cache.nixos.org"})
-        if output not in sources or len(sources[output]) != 1:
-            raise ValueError("Output download provenance is absent or ambiguous")
-        if tool == "aspect" and sources[output] != {url}:
-            raise ValueError(
-                "Aspect root was not downloaded exclusively from intended Cachix"
-            )
+        downloads = _nix_provenance.ValidatedDownloads(tool, output, url, stderr)
         closure, _ = evidence.run(
             "closure", "nix", "path-info", "--recursive", "--json", output
         )
-        records = []
-        for path in json.loads(closure):
-            if path in initial:
-                records.append({"path": path, "status": "present-before-realisation"})
-            elif path not in sources or len(sources[path]) != 1:
-                raise ValueError(
-                    f"Closure download provenance absent or ambiguous: {path}"
-                )
-            else:
-                records.append(
-                    {
-                        "path": path,
-                        "source": next(iter(sources[path])),
-                        "status": "downloaded",
-                    }
-                )
+        records = downloads.classify(initial, json.loads(closure))
         evidence.run(
             "remote-availability", sys.executable, __file__, "verify", tool, output
         )
