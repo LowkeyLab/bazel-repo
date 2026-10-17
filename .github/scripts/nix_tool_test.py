@@ -117,7 +117,8 @@ class Acceptance(Protocol):
         output: str = ROOT,
         signatures: bool = True,
         fail: str | None = None,
-    ) -> tuple[int, AcceptanceResult, Journal, Path]: ...
+    ) -> tuple[int, AcceptanceResult, Journal, Path]:
+        pass
 
 
 def activity(path: str = ROOT, source: str = CACHE, **changes: object) -> str:

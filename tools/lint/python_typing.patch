@@ -87,7 +87,7 @@ diff --git a/lint/ruff.bzl b/lint/ruff.bzl
          if exit_code:
 -            command = "{ruff} $@ >{stdout}; echo $? >" + exit_code.path
 +            # Exit 1 reports ordinary findings; exit 2 is a tool/configuration failure.
-+            command = """{ruff} "$@" >{stdout} 2>&1
++            command = """{ruff} "$@" >{stdout}
 +result=$?
 +echo "$result" >{exit_code}
 +if [ "$result" -gt 1 ]; then

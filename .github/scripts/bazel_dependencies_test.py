@@ -13,7 +13,8 @@ import pytest
 class Preparation(Protocol):
     def __call__(
         self, command: str = "prepare", **environment: str
-    ) -> subprocess.CompletedProcess[str]: ...
+    ) -> subprocess.CompletedProcess[str]:
+        pass
 
 
 type Runner = tuple[Preparation, Path, Path]
