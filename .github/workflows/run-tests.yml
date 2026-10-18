@@ -6,6 +6,12 @@ permissions:
   attestations: write
   id-token: write
 on:
+  workflow_dispatch:
+    inputs:
+      browser-acceptance:
+        description: Run fresh remote Book Smartz browser acceptance
+        type: boolean
+        default: false
   push:
     branches: [main]
   pull_request:
@@ -90,3 +96,19 @@ jobs:
       - name: Run Bazel tests
         run: |
           aspect test //...
+      - name: Verify fresh remote browser acceptance
+        if: github.event_name == 'workflow_dispatch' && inputs.browser-acceptance
+        timeout-minutes: 20
+        run: |
+          invocation=$(cat /proc/sys/kernel/random/uuid)
+          {
+            echo "Browser acceptance commit: $(git rev-parse HEAD)"
+            echo "Hosted run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "BuildBuddy: https://app.buildbuddy.io/invocation/$invocation"
+            echo "Inspect the browser TestRunner execution; require remote execution, no cache hit, and the pinned worker."
+          } >> "$GITHUB_STEP_SUMMARY"
+          aspect test //book_smartz/web:browser_test \
+            --invocation_id="$invocation" \
+            --strategy=TestRunner=remote \
+            --nocache_test_results --noremote_accept_cached \
+            --noremote_local_fallback --test_output=all
