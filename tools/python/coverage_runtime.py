@@ -110,12 +110,12 @@ def child() -> None:
             try:
                 collector.stop()
                 _save_child(collector, receipt)
-            except BaseException:  # noqa: BLE001 -- Startup and exit errors must terminate collection.
+            except Exception:  # noqa: BLE001 -- Startup and exit errors must terminate collection.
                 traceback.print_exc()
                 os._exit(1)
 
         atexit.register(save)
-    except BaseException:  # noqa: BLE001 -- Startup and exit errors must terminate collection.
+    except Exception:  # noqa: BLE001 -- Startup and exit errors must terminate collection.
         # Python normally prints .pth errors and continues without collection.
         traceback.print_exc()
         os._exit(1)

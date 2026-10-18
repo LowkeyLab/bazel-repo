@@ -4,6 +4,7 @@ import os
 import subprocess
 from pathlib import Path
 
+import coverage
 import pytest
 
 ROOT = Path(os.environ["TEST_SRCDIR"]) / os.environ["TEST_WORKSPACE"]
@@ -151,50 +152,70 @@ def test_nested_collection_reports_real_execution(
         collector = coverage_runtime.start(
             [str(subject), str(Path(__file__)), str(Path(coverage_runtime.__file__))]
         )
-        if children:
-            result = subprocess.run(
-                [str(ROOT / "python_sample/python_sample_bin"), "2.0", "1.0"],
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=30,
-            )
-            assert result.stdout == "1.0\n2.0\n"
-        if fault:
-            root = directory / "python-processes"
-            if fault == "completion":
-                for receipt in root.glob("*.saved"):
-                    receipt.unlink()
-            else:
-                for data_file in root.glob(".coverage.*"):
-                    if fault == "missing":
-                        data_file.unlink()
-                    else:
-                        data_file.write_bytes(b"invalid coverage data")
-            with pytest.raises((RuntimeError, coverage.exceptions.DataError)):
-                coverage_runtime.finish(collector)
-            assert coverage.Coverage.current() is outer
-            return
-        coverage_runtime.finish(collector)
-        assert coverage.Coverage.current() is outer
-        report = tmp_path / "nested.lcov"
-        collector.lcov_report(outfile=str(report))
-        if children:
-            assert "DA:6,1\n" in report.read_text()
-            assert "BRH:1\n" in report.read_text()
+        _exercise_nested_collection(collector, outer, tmp_path, children, fault)
+
+
+def _exercise_nested_collection(
+    collector: coverage.Coverage,
+    outer: coverage.Coverage | None,
+    tmp_path: Path,
+    children: bool,
+    fault: str,
+) -> None:
+    from tools.python import coverage_runtime
+
+    directory = tmp_path / "nested"
+    subject = ROOT / "python_sample/__main__.py"
+    if children:
+        result = subprocess.run(
+            [str(ROOT / "python_sample/python_sample_bin"), "2.0", "1.0"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+        assert result.stdout == "1.0\n2.0\n"
+    if fault:
+        root = directory / "python-processes"
+        if fault == "completion":
+            for receipt in root.glob("*.saved"):
+                receipt.unlink()
         else:
-            assert str(subject) not in report.read_text()
-        # Preserve measured nested execution in the enclosing Bazel report.
-        if outer is not None:
-            outer.get_data().update(collector.get_data())
+            for data_file in root.glob(".coverage.*"):
+                if fault == "missing":
+                    data_file.unlink()
+                else:
+                    data_file.write_bytes(b"invalid coverage data")
+        with pytest.raises((RuntimeError, coverage.exceptions.DataError)):
+            coverage_runtime.finish(collector)
+        assert coverage.Coverage.current() is outer
+        return
+    coverage_runtime.finish(collector)
+    _check_nested_report(collector, outer, subject, tmp_path / "nested.lcov", children)
+
+
+def _check_nested_report(
+    collector: coverage.Coverage,
+    outer: coverage.Coverage | None,
+    subject: Path,
+    report: Path,
+    children: bool,
+) -> None:
+    assert coverage.Coverage.current() is outer
+    collector.lcov_report(outfile=str(report))
+    if children:
+        assert "DA:6,1\n" in report.read_text()
+        assert "BRH:1\n" in report.read_text()
+    else:
+        assert str(subject) not in report.read_text()
+    if outer is not None:
+        outer.get_data().update(collector.get_data())
 
 
 @pytest.mark.parametrize("fault", ["", "startup", "receipt"])
 def test_child_bootstrap_completes_or_reports_collection_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
-    import sys
-
     import coverage
 
     from tools.python import coverage_runtime
@@ -212,11 +233,25 @@ def test_child_bootstrap_completes_or_reports_collection_failure(
             "BAZEL_PYTHON_COVERAGE_HOOK",
         ):
             environment.setenv(name, os.environ.get(name, ""))
-        collector = coverage_runtime.start([runtime])
-        child_environment = dict(os.environ)
-        child_environment.pop("BAZEL_PYTHON_COVERAGE")
-        # An independent real collector measures the complete startup path.
-        program = """
+        collector = coverage_runtime.start([runtime, str(Path(__file__))])
+        _exercise_child_bootstrap(collector, outer, runtime, observed, fault)
+
+
+def _exercise_child_bootstrap(
+    collector: coverage.Coverage,
+    outer: coverage.Coverage | None,
+    runtime: str,
+    observed: Path,
+    fault: str,
+) -> None:
+    import sys
+
+    from tools.python import coverage_runtime
+
+    child_environment = dict(os.environ)
+    child_environment.pop("BAZEL_PYTHON_COVERAGE")
+    # An independent real collector measures the complete startup path.
+    program = """
 import atexit
 import os
 import runpy
@@ -241,29 +276,38 @@ if fault == "receipt":
         receipt.with_suffix(".saved").mkdir()
 print("application completed", flush=True)
 """
-        result = subprocess.run(
-            [sys.executable, "-c", program, runtime, str(observed), fault],
-            env=child_environment,
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=30,
-        )
-        if fault:
-            assert result.returncode != 0, result.stdout + result.stderr
-            with pytest.raises(
-                RuntimeError, match="Python child coverage did not finish"
-            ):
-                coverage_runtime.finish(collector)
-        else:
-            assert result.returncode == 0, result.stdout + result.stderr
+    result = subprocess.run(
+        [sys.executable, "-c", program, runtime, str(observed), fault],
+        env=child_environment,
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+    if fault:
+        assert result.returncode != 0, result.stdout + result.stderr
+        with pytest.raises(RuntimeError, match="Python child coverage did not finish"):
             coverage_runtime.finish(collector)
-        if fault != "startup":
-            assert "application completed" in result.stdout
-        assert coverage.Coverage.current() is outer
-        measured = coverage.CoverageData(basename=str(observed))
-        measured.read()
-        assert runtime in measured.measured_files()
-        if outer is not None:
-            outer.get_data().update(measured)
-            outer.get_data().update(collector.get_data())
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        coverage_runtime.finish(collector)
+    _check_bootstrap_report(collector, outer, result, fault, observed, runtime)
+
+
+def _check_bootstrap_report(
+    collector: coverage.Coverage,
+    outer: coverage.Coverage | None,
+    result: subprocess.CompletedProcess[str],
+    fault: str,
+    observed: Path,
+    runtime: str,
+) -> None:
+    if fault != "startup":
+        assert "application completed" in result.stdout
+    assert coverage.Coverage.current() is outer
+    measured = coverage.CoverageData(basename=str(observed))
+    measured.read()
+    assert runtime in measured.measured_files()
+    if outer is not None:
+        outer.get_data().update(measured)
+        outer.get_data().update(collector.get_data())

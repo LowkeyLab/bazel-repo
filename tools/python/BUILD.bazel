@@ -43,4 +43,6 @@ py_test(
         "//.github/scripts:bazel_dependencies_test",
         "//python_sample:cli_test",
     ],
+    # The C tracer preserves measurement across the nested collector sessions.
+    env = {"COVERAGE_CORE": "ctrace"},
 )
