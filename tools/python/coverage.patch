@@ -1,0 +1,20 @@
+--- a/py/private/pytest_main.py
++++ b/py/private/pytest_main.py
+@@ -37,14 +37,14 @@
+         # The lines are files that matched the --instrumentation_filter flag
+         with open(os.getenv("COVERAGE_MANIFEST"), "r") as mf:
+             manifest_entries = mf.read().splitlines()
+-            cov = coverage.Coverage(include = manifest_entries)
++            cov = coverage.Coverage(include = manifest_entries, branch = True)
+             # coveragepy incorrectly converts our entries by following symlinks
+             # record a mapping of their conversion so we can undo it later in reporting the coverage
+             coveragepy_absfile_mapping = {coverage.files.abs_file(mfe): mfe for mfe in manifest_entries}
+         cov.start()
+     except ModuleNotFoundError as e:
+-        print("WARNING: python coverage setup failed. Do you need to include the 'coverage' package as a dependency of py_pytest_main?", e)
+-        pass
++        print("ERROR: Include coverage in the Python test dependencies.", e)
++        raise
+ 
+ from pytest_shard import ShardPlugin
+ 
