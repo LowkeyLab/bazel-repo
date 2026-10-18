@@ -59,3 +59,23 @@ Each uses a separate reader and independently specified HTTP expectations.
 The existing HTTP, browser, package, domain, and storage suites remain part of the
 repository acceptance. Controlled identity/catalog providers and local or hosted
 test results don't establish live-provider behavior or deployment readiness.
+
+## Reader-wide interpreter
+
+Issue [#2385](https://github.com/LowkeyLab/bazel-repo/issues/2385) routes reader-wide
+checking through the private `actions::evidence` module. The preceding packaged
+PostgreSQL cases remain the compatibility baseline. Direct tests in
+`//book_smartz/web:evidence_test` exercise the real app crate with supplied
+app events and ranking documents:
+
+- Intent order, duplicate results, payload identity, and unknown stages.
+- First preparation across stage families, missing ranking evidence, and complete
+  envelope equality, including retained trace context and extensions.
+- Rejection exclusion before prepared-document validation, including saved actions.
+- Validation of every recognized intent and rejection, including unrelated and
+  later malformed facts.
+- Deferred prepared-identity validation and history-validation error precedence.
+
+These tests use no database, provider, lock, or retry adapter. Their observations
+can't authorize a retry. Single-action recovery orchestration remains in
+`actions.rs` for the separate follow-up #2386.

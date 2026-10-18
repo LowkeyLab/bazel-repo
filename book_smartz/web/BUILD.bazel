@@ -26,6 +26,7 @@ topcoat_rust_binary(
     package_name = "book-smartz-web",
     srcs = [
         "actions.rs",
+        "actions/evidence.rs",
         "catalog.rs",
         "diagnostics.rs",
         "identity.rs",
@@ -371,4 +372,12 @@ oci_load(
     name = "load_image",
     image = ":image",
     repo_tags = ["local/book-smartz:latest"],
+)
+
+# Exercise the private interpreter in the same application crate and composition.
+rust_test(
+    name = "evidence_test",
+    size = "small",
+    crate = ":bin",
+    deps = ["@crates//:googletest"],
 )

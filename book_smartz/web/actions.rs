@@ -2,7 +2,7 @@
 //!
 //! Correlation extension: cloudevents/spec at
 //! 472f0e1d856e335c30fa204f36fd6428c2bfd732 (experimental, explicitly accepted).
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -25,11 +25,15 @@ use uuid::Uuid;
 
 use book_smartz_domain::{
     Book, BookId, BookRegistry, CloudEventDocument, Command, CommandContext, ComparisonChoice,
-    EventId, OpenLibraryWorkId, ReaderId, decode_event, encode_document, encode_event,
+    EventId, OpenLibraryWorkId, ReaderId, decode_event, encode_event,
 };
 use book_smartz_storage::{ApplicationEvent, CommandTransaction, OperationContext};
 
 use crate::{Application, authorize, catalog::CatalogWork};
+
+mod evidence;
+
+use evidence::{Stage, matches_document, stage, unresolved};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -150,21 +154,17 @@ fn facts(history: &[ApplicationEvent], action: ActionId) -> Vec<&Value> {
         .filter(|event| event["correlationid"] == action.text())
         .collect()
 }
-fn stage(event: &Value, kind: &str) -> bool {
-    event["type"] == format!("booksmartz.add.{kind}.v1")
-        || event["type"] == format!("booksmartz.preference.{kind}.v1")
-}
 fn intent(tx: &CommandTransaction, action: ActionId) -> anyhow::Result<Option<Intent>> {
     facts(tx.application_history(), action)
         .iter()
-        .find(|e| stage(e, "intent"))
+        .find(|e| stage(e) == Some(Stage::Intent))
         .map(|e| serde_json::from_value(e["data"].clone()).map_err(Into::into))
         .transpose()
 }
 fn prepared(history: &[ApplicationEvent], action: ActionId) -> Option<&Value> {
     facts(history, action)
         .into_iter()
-        .find(|e| stage(e, "rankingprepared"))
+        .find(|e| stage(e) == Some(Stage::RankingPrepared))
 }
 fn saved(
     history: &[ApplicationEvent],
@@ -178,8 +178,7 @@ fn saved(
         if doc.event().metadata().id.as_uuid().to_string()
             == expected["data"]["document"]["id"].as_str().unwrap_or("")
         {
-            let actual: Value = serde_json::from_str(&encode_document(doc)?)?;
-            return Ok(actual == expected["data"]["document"]);
+            return matches_document(doc, &expected["data"]["document"]);
         }
     }
     Ok(false)
@@ -187,63 +186,9 @@ fn saved(
 fn rejected(history: &[ApplicationEvent], action: ActionId) -> Option<String> {
     facts(history, action)
         .into_iter()
-        .find(|e| stage(e, "rejected"))
+        .find(|e| stage(e) == Some(Stage::Rejected))
         .and_then(|e| e["data"]["reason"].as_str())
         .map(str::to_owned)
-}
-/// A read only reconstruction. Absence is unresolved, never a rollback verdict.
-fn unresolved(
-    history: &[ApplicationEvent],
-    ranking: &[CloudEventDocument],
-) -> anyhow::Result<Vec<ActionId>> {
-    let mut intents = Vec::new();
-    let mut rejections = HashSet::new();
-    let mut preparations = HashMap::new();
-    for event in history {
-        let envelope = event.envelope();
-        match envelope["type"].as_str() {
-            Some("booksmartz.add.intent.v1" | "booksmartz.preference.intent.v1") => {
-                let original: Intent = serde_json::from_value(envelope["data"].clone())?;
-                intents.push(original.action);
-            }
-            Some("booksmartz.add.rejected.v1" | "booksmartz.preference.rejected.v1") => {
-                anyhow::ensure!(envelope["data"]["reason"].is_string(), "Invalid rejection");
-                rejections.insert(serde_json::from_value::<ActionId>(
-                    envelope["correlationid"].clone(),
-                )?);
-            }
-            Some(
-                "booksmartz.add.rankingprepared.v1" | "booksmartz.preference.rankingprepared.v1",
-            ) => {
-                let action: ActionId = serde_json::from_value(envelope["correlationid"].clone())?;
-                preparations
-                    .entry(action)
-                    .or_insert_with(|| &envelope["data"]["document"]);
-            }
-            _ => {}
-        }
-    }
-    let documents: HashMap<_, _> = ranking
-        .iter()
-        .map(|document| (*document.event().metadata().id.as_uuid(), document))
-        .collect();
-    let mut checking = Vec::new();
-    for action in intents {
-        if rejections.contains(&action) {
-            continue;
-        }
-        let mut confirmed = false;
-        if let Some(expected) = preparations.get(&action) {
-            let id: Uuid = serde_json::from_value(expected["id"].clone())?;
-            if let Some(actual) = documents.get(&id) {
-                confirmed = serde_json::from_str::<Value>(&encode_document(actual)?)? == **expected;
-            }
-        }
-        if !confirmed {
-            checking.push(action);
-        }
-    }
-    Ok(checking)
 }
 fn application_fact(
     tx: &CommandTransaction,
