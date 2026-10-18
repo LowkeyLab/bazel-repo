@@ -16,6 +16,8 @@ def py_test(name, main = None, deps = [], **kwargs):
         deps.append("@pypi//pytest")
     if "@pypi//coverage" not in deps:
         deps.append("@pypi//coverage")
+    if "//tools/python:coverage_runtime" not in deps:
+        deps.append("//tools/python:coverage_runtime")
     _py_test(
         name = name,
         pytest_main = True,

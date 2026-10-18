@@ -56,6 +56,7 @@ py_test(
     name = "bazel_dependencies_test",
     srcs = ["bazel_dependencies_test.py"],
     data = ["bazel_dependencies.py"],  # keep
+    visibility = ["//tools/python:__pkg__"],  # keep
     deps = ["@pypi//pytest"],
 )
 
