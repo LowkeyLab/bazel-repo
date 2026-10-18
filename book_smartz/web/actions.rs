@@ -24,8 +24,8 @@ use topcoat::{
 use uuid::Uuid;
 
 use book_smartz_domain::{
-    Book, BookId, BookRegistry, CloudEventDocument, Command, CommandContext, ComparisonChoice,
-    EventId, OpenLibraryWorkId, ReaderId, decode_event, encode_event,
+    Book, BookId, BookRegistry, Command, CommandContext, ComparisonChoice, EventId,
+    OpenLibraryWorkId, ReaderId, encode_event,
 };
 use book_smartz_storage::{ApplicationEvent, CommandTransaction, OperationContext};
 
@@ -33,7 +33,7 @@ use crate::{Application, authorize, catalog::CatalogWork};
 
 mod evidence;
 
-use evidence::{Stage, matches_document, stage, unresolved};
+use evidence::{Recovery, SingleAction, unresolved};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -147,49 +147,6 @@ pub async fn ready(pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn facts(history: &[ApplicationEvent], action: ActionId) -> Vec<&Value> {
-    history
-        .iter()
-        .map(ApplicationEvent::envelope)
-        .filter(|event| event["correlationid"] == action.text())
-        .collect()
-}
-fn intent(tx: &CommandTransaction, action: ActionId) -> anyhow::Result<Option<Intent>> {
-    facts(tx.application_history(), action)
-        .iter()
-        .find(|e| stage(e) == Some(Stage::Intent))
-        .map(|e| serde_json::from_value(e["data"].clone()).map_err(Into::into))
-        .transpose()
-}
-fn prepared(history: &[ApplicationEvent], action: ActionId) -> Option<&Value> {
-    facts(history, action)
-        .into_iter()
-        .find(|e| stage(e) == Some(Stage::RankingPrepared))
-}
-fn saved(
-    history: &[ApplicationEvent],
-    ranking: &[CloudEventDocument],
-    action: ActionId,
-) -> anyhow::Result<bool> {
-    let Some(expected) = prepared(history, action) else {
-        return Ok(false);
-    };
-    for doc in ranking {
-        if doc.event().metadata().id.as_uuid().to_string()
-            == expected["data"]["document"]["id"].as_str().unwrap_or("")
-        {
-            return matches_document(doc, &expected["data"]["document"]);
-        }
-    }
-    Ok(false)
-}
-fn rejected(history: &[ApplicationEvent], action: ActionId) -> Option<String> {
-    facts(history, action)
-        .into_iter()
-        .find(|e| stage(e) == Some(Stage::Rejected))
-        .and_then(|e| e["data"]["reason"].as_str())
-        .map(str::to_owned)
-}
 fn application_fact(
     tx: &CommandTransaction,
     reader: ReaderId,
@@ -206,7 +163,9 @@ fn application_fact(
         .checked_add(1)
         .ok_or_else(|| anyhow::anyhow!("Application history exhausted"))?;
     let family = if data.get("answer").is_some_and(|a| !a.is_null())
-        || intent(tx, action)?.is_some_and(|i| i.answer.is_some())
+        || SingleAction::new(tx.application_history(), action)
+            .intent()?
+            .is_some_and(|i| i.answer.is_some())
     {
         "preference"
     } else {
@@ -254,8 +213,9 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             "Checking an earlier save. Reload before trying the original action again.",
         ));
     };
-    if let Some(original) =
-        intent(&tx, input.action).map_err(|_| topcoat::Error::msg("Action data unavailable"))?
+    if let Some(original) = SingleAction::new(tx.application_history(), input.action)
+        .intent()
+        .map_err(|_| topcoat::Error::msg("Action data unavailable"))?
     {
         if original.answer.is_some()
             || original.selection != input.selection
@@ -355,8 +315,9 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
             "Checking an earlier save. Reload your ranking.",
         ));
     };
-    if let Some(original) =
-        intent(&tx, input.action).map_err(|_| topcoat::Error::msg("Action data unavailable"))?
+    if let Some(original) = SingleAction::new(tx.application_history(), input.action)
+        .intent()
+        .map_err(|_| topcoat::Error::msg("Action data unavailable"))?
     {
         if original.answer.as_ref() != Some(&answer) || original.revision != input.revision {
             return Err(forbidden().into());
@@ -484,27 +445,20 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
         // This lock synchronizes with in-flight commits before any safe original retry.
         // A missing unlocked read alone is never used as evidence of rollback.
         let mut tx = app.store.begin_command(reader).await?;
-        let Some(original) = intent(&tx, action)? else {
-            return Ok(Outcome::Missing);
-        };
-        if saved(tx.application_history(), tx.ranking_documents(), action)? {
-            return Ok(Outcome::Saved);
-        }
-        if let Some(reason) = rejected(tx.application_history(), action) {
-            return Ok(Outcome::Rejected(reason));
-        }
-        if let Some(event) = prepared(tx.application_history(), action) {
-            let document = decode_event(&event["data"]["document"].to_string())?;
-            // A matching identity with different contents is never success or rejection.
-            anyhow::ensure!(
-                !tx.ranking_documents()
-                    .iter()
-                    .any(|d| d.event().metadata().id == document.event().metadata().id),
-                "conflicting durable evidence"
-            );
-            if tx.ranking().projection().revision() != original.revision {
-                let cause = event["id"].as_str().unwrap().to_owned();
-                fact(
+        let evidence = SingleAction::new(tx.application_history(), action);
+        let original = match evidence.recovery(tx.ranking_documents())? {
+            Recovery::Missing => return Ok(Outcome::Missing),
+            Recovery::Saved => return Ok(Outcome::Saved),
+            Recovery::Rejected(reason) => return Ok(Outcome::Rejected(reason)),
+            Recovery::Pending(original) => original,
+            Recovery::Prepared {
+                original,
+                event,
+                document,
+            } => {
+                if tx.ranking().projection().revision() != original.revision {
+                    let cause = event["id"].as_str().unwrap().to_owned();
+                    fact(
                     &mut tx,
                     reader,
                     action,
@@ -513,28 +467,27 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
                     json!({"reason":"Your ranking changed. Reload and confirm a fresh action."}),
                 )
                 .await?;
+                    tx.commit().await?;
+                    continue;
+                }
+                tx.append_ranking(&document, original.revision).await?;
                 tx.commit().await?;
-                continue;
+                app.diagnostics.record(
+                    crate::diagnostics::Category::Persistence,
+                    crate::diagnostics::Outcome::Confirmed,
+                    started,
+                    Some(action),
+                );
+                return Ok(Outcome::Saved);
             }
-            tx.append_ranking(&document, original.revision).await?;
-            tx.commit().await?;
-            app.diagnostics.record(
-                crate::diagnostics::Category::Persistence,
-                crate::diagnostics::Outcome::Confirmed,
-                started,
-                Some(action),
-            );
-            return Ok(Outcome::Saved);
-        }
+        };
+
         if let Some(answer) = &original.answer {
             drop(tx);
             prepare_preference(app, reader, &original, answer).await?;
             continue;
         }
-        let allocation = facts(tx.application_history(), action)
-            .into_iter()
-            .find(|e| e["type"] == "booksmartz.add.registrationprepared.v1")
-            .cloned();
+        let allocation = evidence.registration_prepared().cloned();
         let Some(allocation) = allocation else {
             drop(tx);
             prepare_registration(app, reader, &original).await?;
@@ -553,9 +506,7 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
         .await?;
         let mut tx = app.store.begin_command(reader).await?;
         // Another retry may have advanced this immutable action while registration ran.
-        if prepared(tx.application_history(), action).is_some()
-            || rejected(tx.application_history(), action).is_some()
-        {
+        if SingleAction::new(tx.application_history(), action).has_ranking_decision() {
             continue;
         }
         let book = Book::new(
@@ -599,9 +550,7 @@ async fn prepare_preference(
         registry.register(book)?;
     }
     let mut tx = app.store.begin_command(reader).await?;
-    if prepared(tx.application_history(), action).is_some()
-        || rejected(tx.application_history(), action).is_some()
-    {
+    if SingleAction::new(tx.application_history(), action).has_ranking_decision() {
         return Ok(());
     }
     let projection = tx.ranking().projection();
@@ -633,10 +582,7 @@ async fn prepare_preference(
     } else {
         Err(book_smartz_domain::DomainError::UnknownBook)
     };
-    let cause = facts(tx.application_history(), action)[0]["id"]
-        .as_str()
-        .unwrap()
-        .to_owned();
+    let cause = SingleAction::new(tx.application_history(), action).first_fact_id();
     prepare_decision(
         &mut tx,
         reader,
@@ -669,16 +615,13 @@ async fn prepare_registration(
         .await?;
     let id = existing.map_or_else(Uuid::new_v4, |book| *book.id().as_uuid());
     let mut tx = app.store.begin_command(reader).await?;
-    if facts(tx.application_history(), original.action)
-        .iter()
-        .any(|event| event["type"] == "booksmartz.add.registrationprepared.v1")
+    if SingleAction::new(tx.application_history(), original.action)
+        .registration_prepared()
+        .is_some()
     {
         return Ok(());
     }
-    let cause = facts(tx.application_history(), original.action)[0]["id"]
-        .as_str()
-        .unwrap()
-        .to_owned();
+    let cause = SingleAction::new(tx.application_history(), original.action).first_fact_id();
     fact(
         &mut tx,
         reader,
