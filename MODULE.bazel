@@ -14,6 +14,12 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 
 # Use released Python APIs with native uv and interpreter provisioning.
 bazel_dep(name = "aspect_rules_py", version = "1.12.1")
+single_version_override(
+    module_name = "aspect_rules_py",
+    patch_strip = 1,
+    patches = ["//tools/python:coverage.patch"],
+)
+
 bazel_dep(name = "aspect_rules_lint")
 git_override(
     module_name = "aspect_rules_lint",

@@ -1,6 +1,7 @@
 manifest:
   modules_mapping:
     colorama: colorama
+    coverage: coverage
     iniconfig: iniconfig
     packaging: packaging
     pluggy: pluggy

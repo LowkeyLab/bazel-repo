@@ -14,6 +14,8 @@ def py_test(name, main = None, deps = [], **kwargs):
     deps = list(deps)
     if "@pypi//pytest" not in deps:
         deps.append("@pypi//pytest")
+    if "@pypi//coverage" not in deps:
+        deps.append("@pypi//coverage")
     _py_test(
         name = name,
         pytest_main = True,
