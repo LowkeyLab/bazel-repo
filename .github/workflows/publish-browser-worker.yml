@@ -17,11 +17,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/install-nix-tool
-        with:
-          install-only: 'true'
-          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
-          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
@@ -31,8 +26,9 @@ jobs:
       - name: Validate worker runtime and resolve artifact
         id: image
         run: |
-          nix develop --command bazel test //tools/book_smartz_browser_worker:runtime_test --nocache_test_results --test_output=errors
-          nix develop --command bazel build //tools/book_smartz_browser_worker:image.digest
+          gpgv --version
+          bazel test //tools/book_smartz_browser_worker:runtime_test --nocache_test_results --test_output=errors
+          bazel build //tools/book_smartz_browser_worker:image.digest
           digest=$(cat bazel-bin/tools/book_smartz_browser_worker/image.json.sha256)
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           {
@@ -46,7 +42,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Publish tooling image
-        run: nix develop --command bazel run //tools/book_smartz_browser_worker:push_image -- --tag "sha-$GITHUB_SHA"
+        run: bazel run //tools/book_smartz_browser_worker:push_image -- --tag "sha-$GITHUB_SHA"
   anonymous-access:
     needs: publish
     runs-on: ubuntu-latest
@@ -55,11 +51,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/install-nix-tool
-        with:
-          install-only: 'true'
-          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
-          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
@@ -74,8 +65,8 @@ jobs:
           DOCKER_CONFIG=$(mktemp -d)
           trap 'rm -rf "$DOCKER_CONFIG"' EXIT
           image="ghcr.io/lowkeylab/book_smartz_browser_worker@$WORKER_DIGEST"
-          nix develop --command bazel run @multitool//tools/crane -- pull "$image" "$RUNNER_TEMP/worker.tar"
-          nix develop --command bazel run @multitool//tools/crane -- validate --tarball "$RUNNER_TEMP/worker.tar"
+          bazel run @multitool//tools/crane -- pull "$image" "$RUNNER_TEMP/worker.tar"
+          bazel run @multitool//tools/crane -- validate --tarball "$RUNNER_TEMP/worker.tar"
           {
             echo "Publishing commit: $GITHUB_SHA"
             echo "Anonymous full-image retrieval and validation passed: $image"
