@@ -32,15 +32,55 @@ diff --git a/py/private/pytest_main.py b/py/private/pytest_main.py
 diff --git a/py/private/py_library.bzl b/py/private/py_library.bzl
 --- a/py/private/py_library.bzl
 +++ b/py/private/py_library.bzl
-@@ -13,7 +13,7 @@
+@@ -11,11 +11,35 @@
+ load("//py/private:pth.bzl", "make_imports_depset")
+
  def _make_instrumented_files_info(ctx, extra_source_attributes = [], extra_dependency_attributes = []):
++    first_party = not ctx.label.workspace_name and not ctx.label.package.startswith("3rdparty/")
++    production = first_party and not ctx.attr.testonly
++    source_attributes = (["srcs"] + extra_source_attributes) if production else []
++    baselines = []
++    if ctx.executable.coverage_baseline and ctx.coverage_instrumented():
++        sources = []
++        for attribute in source_attributes:
++            for source in getattr(ctx.files, attribute, []):
++                if source.is_source and not source.owner.workspace_name and source.extension == "py":
++                    sources.append(source)
++        if sources:
++            baseline = ctx.actions.declare_file(ctx.label.name + ".python-baseline.lcov")
++            arguments = ctx.actions.args()
++            arguments.add(baseline)
++            arguments.add_all(sources)
++            ctx.actions.run(
++                executable = ctx.executable.coverage_baseline,
++                arguments = [arguments],
++                inputs = sources,
++                outputs = [baseline],
++                mnemonic = "PythonCoverageBaseline",
++            )
++            baselines.append(baseline)
      return coverage_common.instrumented_files_info(
          ctx,
 -        source_attributes = ["srcs"] + extra_source_attributes,
-+        source_attributes = ["srcs", "data"] + extra_source_attributes,
++        source_attributes = source_attributes,
          dependency_attributes = ["data", "deps"] + extra_dependency_attributes,
          extensions = ["py"],
++        baseline_coverage_files = baselines,
      )
+
+ def _make_srcs_depset(ctx):
+@@ -151,6 +175,11 @@
+     ]
+
+ _attrs = dict({
++    "coverage_baseline": attr.label(
++        doc = "Hermetic production baseline generator, selected only in coverage mode.",
++        executable = True,
++        cfg = "exec",
++    ),
+     "srcs": attr.label_list(
+         doc = "Python source files.",
+         allow_files = True,
 diff --git a/py/private/run.tmpl.sh b/py/private/run.tmpl.sh
 --- a/py/private/run.tmpl.sh
 +++ b/py/private/run.tmpl.sh

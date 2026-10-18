@@ -89,10 +89,11 @@ test --test_verbose_timeout_warnings
 # Usage: bazel coverage //...
 # Or run: coverage (via the flake dev shell wrapper)
 coverage --combined_report=lcov
-coverage --build_tests_only
+coverage --nobuild_tests_only
+coverage --build_tag_filters=python-coverage
 # Rust integration-test binaries must be instrumented to emit dependency coverage.
 coverage --instrument_test_targets
-coverage --instrumentation_filter="^//nicknamer[:/],^//nicknamer2[:/],^//mindreadr[:/],^//predix[:/],^//prediction_bot[:/],^//cowsay[:/],^//angular[:/],^//kafka_calculator[:/],^//hearthstone_simulator[:/],^//book_smartz[:/],^//3rdparty/gazelle_rust[:/],^//python_sample[:/],^//tools/python[:/],^//[.]github[:/]"
+coverage --instrumentation_filter="^//"
 
 # Coverage with remote execution: download toplevel outputs so coverage data
 # is available locally, and merge coverage reports with a local strategy

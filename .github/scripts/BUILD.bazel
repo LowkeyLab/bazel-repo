@@ -1,5 +1,4 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
-load("//tools/python:defs.bzl", "py_test")
+load("//tools/python:defs.bzl", "py_binary", "py_library", "py_test")
 
 # gazelle:python_root
 # gazelle:resolve py _nix_provenance //.github/scripts:scripts
@@ -55,7 +54,7 @@ py_test(
 py_test(
     name = "bazel_dependencies_test",
     srcs = ["bazel_dependencies_test.py"],
-    data = ["bazel_dependencies.py"],  # keep
+    data = [":bazel_dependencies"],  # keep
     visibility = ["//tools/python:__pkg__"],  # keep
     deps = ["@pypi//pytest"],
 )
