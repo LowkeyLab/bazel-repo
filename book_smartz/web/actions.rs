@@ -24,8 +24,8 @@ use topcoat::{
 use uuid::Uuid;
 
 use book_smartz_domain::{
-    Book, BookId, BookRegistry, CloudEventDocument, Command, CommandContext, ComparisonChoice,
-    EventId, OpenLibraryWorkId, ReaderId, decode_event, encode_event,
+    Book, BookId, BookRegistry, Command, CommandContext, ComparisonChoice, EventId,
+    OpenLibraryWorkId, ReaderId, encode_event,
 };
 use book_smartz_storage::{ApplicationEvent, CommandTransaction, OperationContext};
 
@@ -33,7 +33,9 @@ use crate::{Application, authorize, catalog::CatalogWork};
 
 mod evidence;
 
-use evidence::{Stage, matches_document, stage, unresolved};
+use evidence::{
+    facts, prepared, ranking_document, registration_prepared, rejected, saved, unresolved,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
@@ -147,48 +149,8 @@ pub async fn ready(pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn facts(history: &[ApplicationEvent], action: ActionId) -> Vec<&Value> {
-    history
-        .iter()
-        .map(ApplicationEvent::envelope)
-        .filter(|event| event["correlationid"] == action.text())
-        .collect()
-}
 fn intent(tx: &CommandTransaction, action: ActionId) -> anyhow::Result<Option<Intent>> {
-    facts(tx.application_history(), action)
-        .iter()
-        .find(|e| stage(e) == Some(Stage::Intent))
-        .map(|e| serde_json::from_value(e["data"].clone()).map_err(Into::into))
-        .transpose()
-}
-fn prepared(history: &[ApplicationEvent], action: ActionId) -> Option<&Value> {
-    facts(history, action)
-        .into_iter()
-        .find(|e| stage(e) == Some(Stage::RankingPrepared))
-}
-fn saved(
-    history: &[ApplicationEvent],
-    ranking: &[CloudEventDocument],
-    action: ActionId,
-) -> anyhow::Result<bool> {
-    let Some(expected) = prepared(history, action) else {
-        return Ok(false);
-    };
-    for doc in ranking {
-        if doc.event().metadata().id.as_uuid().to_string()
-            == expected["data"]["document"]["id"].as_str().unwrap_or("")
-        {
-            return matches_document(doc, &expected["data"]["document"]);
-        }
-    }
-    Ok(false)
-}
-fn rejected(history: &[ApplicationEvent], action: ActionId) -> Option<String> {
-    facts(history, action)
-        .into_iter()
-        .find(|e| stage(e) == Some(Stage::Rejected))
-        .and_then(|e| e["data"]["reason"].as_str())
-        .map(str::to_owned)
+    evidence::intent(tx.application_history(), action)
 }
 fn application_fact(
     tx: &CommandTransaction,
@@ -494,14 +456,7 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
             return Ok(Outcome::Rejected(reason));
         }
         if let Some(event) = prepared(tx.application_history(), action) {
-            let document = decode_event(&event["data"]["document"].to_string())?;
-            // A matching identity with different contents is never success or rejection.
-            anyhow::ensure!(
-                !tx.ranking_documents()
-                    .iter()
-                    .any(|d| d.event().metadata().id == document.event().metadata().id),
-                "conflicting durable evidence"
-            );
+            let document = ranking_document(event, tx.ranking_documents())?;
             if tx.ranking().projection().revision() != original.revision {
                 let cause = event["id"].as_str().unwrap().to_owned();
                 fact(
@@ -531,10 +486,7 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
             prepare_preference(app, reader, &original, answer).await?;
             continue;
         }
-        let allocation = facts(tx.application_history(), action)
-            .into_iter()
-            .find(|e| e["type"] == "booksmartz.add.registrationprepared.v1")
-            .cloned();
+        let allocation = registration_prepared(tx.application_history(), action).cloned();
         let Some(allocation) = allocation else {
             drop(tx);
             prepare_registration(app, reader, &original).await?;
@@ -669,10 +621,7 @@ async fn prepare_registration(
         .await?;
     let id = existing.map_or_else(Uuid::new_v4, |book| *book.id().as_uuid());
     let mut tx = app.store.begin_command(reader).await?;
-    if facts(tx.application_history(), original.action)
-        .iter()
-        .any(|event| event["type"] == "booksmartz.add.registrationprepared.v1")
-    {
+    if registration_prepared(tx.application_history(), original.action).is_some() {
         return Ok(());
     }
     let cause = facts(tx.application_history(), original.action)[0]["id"]
