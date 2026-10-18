@@ -1,4 +1,6 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load(":defs.bzl", "py_test")
 load(":uv_lock.bzl", "uv_lock")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -10,3 +12,35 @@ bzl_library(
 )
 
 uv_lock(name = "lock")
+
+# The root Gazelle configuration excludes tools.
+py_library(
+    name = "coverage_runtime",
+    srcs = ["coverage_runtime.py"],
+    deps = ["@pypi//coverage"],
+)
+
+py_test(
+    name = "coverage_fixture_test",
+    srcs = ["coverage_fixture_test.py"],
+    args = [
+        "-o",
+        "python_files=coverage_fixture_test.py",
+    ],
+    tags = ["manual"],
+)
+
+py_test(
+    name = "coverage_runtime_test",
+    size = "small",
+    srcs = ["coverage_runtime_test.py"],
+    args = [
+        "-o",
+        "python_files=coverage_runtime_test.py",
+    ],
+    data = [
+        ":coverage_fixture_test",
+        "//.github/scripts:bazel_dependencies_test",
+        "//python_sample:cli_test",
+    ],
+)

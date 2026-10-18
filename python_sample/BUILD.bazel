@@ -28,6 +28,7 @@ py_test(
     size = "small",  # keep
     srcs = ["cli_test.py"],
     data = [":python_sample_bin"],  # keep
+    visibility = ["//tools/python:__pkg__"],  # keep
     deps = [
         ":python_sample",
         "@pypi//pytest",

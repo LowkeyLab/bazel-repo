@@ -32,13 +32,13 @@ interpreter release date. Interpreter updates refresh build metadata and must pa
 CI. The runtime test compares the running interpreter with `MODULE.bazel`, so
 future minor upgrades exercise the same acceptance checks.
 
-## Coverage for imported modules
+## Coverage for imports and child processes
 
 The shared test wrapper supplies `coverage.py` through the Bazel dependency hub.
 The pinned runner patch enables branch collection and fails if the collector is
 unavailable. Collector and report errors propagate to the coverage command.
 
-Run coverage for imported sample and CI modules:
+Run coverage for sample modules and CI modules:
 
 ```shell
 bazel coverage //python_sample/... //.github/scripts:all
@@ -49,9 +49,32 @@ Read the combined report at `bazel-out/_coverage/_coverage_report.dat`.
 `BRDA:` records contain branch hits. The existing coverage helper and hosted
 workflow consume the same report.
 
-This stage covers imports. Subprocess collection, complete production-source
-membership, and final hosted upload checks remain in the dependent tickets
-under [#2391](https://github.com/LowkeyLab/bazel-repo/issues/2391).
+The runner installs a coverage startup hook in each private test environment.
+Generated Python launchers copy the same hook into their private environments.
+Scripts that tests start through `sys.executable` use the test environment hook.
+Children use the Bazel-managed collector from the parent test action.
+Each child saves a separate data file and a completion record.
+The runner checks completion and data files before combination and LCOV reporting.
+Incomplete child collection and corrupt data fail the coverage run.
+
+The sample CLI test measures the generated executable. The dependency preparation
+test measures its script through `sys.executable`. Repeated observations use one
+workspace-relative source identity. Ordinary tests do not enable the hook.
+The integration checks execute the real Bazel-built test commands:
+
+```shell
+aspect test //tools/python:coverage_runtime_test
+```
+
+The checks use the same coverage environment and LCOV output as Bazel test actions.
+They check child execution, branch results, collection failure, corrupt process
+data, and ordinary execution. The fault fixture permits its underlying test to
+pass so the checks can detect a separate coverage failure.
+
+Children must retain the coverage environment and finish before their parent test.
+Python processes that disable `site` with `-S` do not execute startup hooks.
+Complete production-source membership and final hosted upload checks remain in
+the dependent tickets under [#2391](https://github.com/LowkeyLab/bazel-repo/issues/2391).
 
 For a collector failure test, use this command:
 

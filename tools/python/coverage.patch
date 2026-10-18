@@ -1,3 +1,4 @@
+diff --git a/py/private/pytest_main.py b/py/private/pytest_main.py
 --- a/py/private/pytest_main.py
 +++ b/py/private/pytest_main.py
 @@ -37,14 +37,14 @@
@@ -5,16 +6,55 @@
          with open(os.getenv("COVERAGE_MANIFEST"), "r") as mf:
              manifest_entries = mf.read().splitlines()
 -            cov = coverage.Coverage(include = manifest_entries)
-+            cov = coverage.Coverage(include = manifest_entries, branch = True)
++            from tools.python import coverage_runtime
++            cov = coverage_runtime.start(manifest_entries)
              # coveragepy incorrectly converts our entries by following symlinks
              # record a mapping of their conversion so we can undo it later in reporting the coverage
              coveragepy_absfile_mapping = {coverage.files.abs_file(mfe): mfe for mfe in manifest_entries}
-         cov.start()
+-        cov.start()
      except ModuleNotFoundError as e:
 -        print("WARNING: python coverage setup failed. Do you need to include the 'coverage' package as a dependency of py_pytest_main?", e)
 -        pass
 +        print("ERROR: Include coverage in the Python test dependencies.", e)
 +        raise
- 
+
  from pytest_shard import ShardPlugin
- 
+
+@@ -127,7 +127,7 @@
+         print("Pytest exit code: " + str(exit_code), file=sys.stderr)
+         print("Ran pytest.main with " + str(args), file=sys.stderr)
+     elif cov:
+-        cov.stop()
++        coverage_runtime.finish(cov)
+         # https://bazel.build/configure/coverage
+         coverage_output_file = os.getenv("COVERAGE_OUTPUT_FILE")
+
+diff --git a/py/private/py_library.bzl b/py/private/py_library.bzl
+--- a/py/private/py_library.bzl
++++ b/py/private/py_library.bzl
+@@ -13,7 +13,7 @@
+ def _make_instrumented_files_info(ctx, extra_source_attributes = [], extra_dependency_attributes = []):
+     return coverage_common.instrumented_files_info(
+         ctx,
+-        source_attributes = ["srcs"] + extra_source_attributes,
++        source_attributes = ["srcs", "data"] + extra_source_attributes,
+         dependency_attributes = ["data", "deps"] + extra_dependency_attributes,
+         extensions = ["py"],
+     )
+diff --git a/py/private/run.tmpl.sh b/py/private/run.tmpl.sh
+--- a/py/private/run.tmpl.sh
++++ b/py/private/run.tmpl.sh
+@@ -45,6 +45,13 @@
+     --collision-strategy "{{ARG_COLLISION_STRATEGY}}" \
+     --venv-name "{{ARG_VENV_NAME}}"
+
++# Child processes use the coverage hook from the parent test action.
++if [[ -n "${BAZEL_PYTHON_COVERAGE_HOOK:-}" ]]; then
++    for site_packages in "${VIRTUAL_ENV}"/lib/python*/site-packages; do
++        cp "${BAZEL_PYTHON_COVERAGE_HOOK}" "${site_packages}/bazel_coverage.pth"
++    done
++fi
++
+ PATH="${VIRTUAL_ENV}/bin:${PATH}"
+ export PATH
+
