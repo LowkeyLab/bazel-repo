@@ -2,8 +2,8 @@
 
 This tooling image combines the root Playwright package's Chromium installation
 with Docker, `containerd`, `runc`, and `iptables` for BuildBuddy Firecracker workers.
-It contains no Book Smartz app or credentials. Publication and browser
-acceptance enablement follow in tickets #2372 and #2373.
+It contains no Book Smartz app or credentials. Browser acceptance enablement
+follows publication and anonymous verification in ticket #2373.
 
 ## Build and validate
 
@@ -70,3 +70,53 @@ target against an unavailable worker digest.
 require installed Docker before daemon initialization.
 [Playwright Docker guidance](https://playwright.dev/docs/docker) requires a matching
 package and browser image.
+
+## Publish independently
+
+The manual `Publish Book Smartz browser worker` workflow publishes only
+`ghcr.io/lowkeylab/book_smartz_browser_worker`. It has no app deployment or
+browser-journey dependency. Aspect app delivery excludes its `push_image`
+target, so the ordinary deployment gate can't publish it incidentally.
+
+First merge the workflow and publisher onto `main`, with repository checks and
+review satisfied. A new dispatch workflow must exist on the default branch before
+its first dispatch. Then run:
+
+```bash
+gh workflow run publish-browser-worker.yml --repo LowkeyLab/bazel-repo --ref main
+gh run list --repo LowkeyLab/bazel-repo --workflow publish-browser-worker.yml
+```
+
+Publication uses the workflow's short-lived `GITHUB_TOKEN` with `packages: write`,
+through the existing `oci_push` rule. It needs no new personal access token or registry secret.
+The publisher reruns the isolated Docker/PostgreSQL/Chromium runtime test, builds
+the worker digest, and tags the artifact `sha-<publishing-commit>`. Its summary
+records the publishing commit and validated digest. Consumers must use the digest,
+not the source tag. The runtime probe image is never published.
+
+[GitHub Container Registry creates new packages as private](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
+After first publication, a package administrator must open the
+[worker package settings](https://github.com/orgs/LowkeyLab/packages/container/book_smartz_browser_worker/settings)
+and set its visibility to Public. Keep the package linked to this repository and
+allow its Actions workflows to write. An authenticated push doesn't establish
+anonymous access. If initial anonymous verification fails because the package is
+private, change visibility and rerun the workflow. Don't enable the consumer while
+verification fails.
+
+The separate anonymous-access job has a fresh runner, no registry login, no persisted
+checkout credential, and an empty Docker config. Bazel-managed `crane` retrieves
+the exact digest and all image content to a new archive, then validates its layers
+and configuration. The summary records the commit, digest, and downloaded bytes.
+Keep the successful workflow link alongside the consumer's digest. A manifest
+lookup alone, a publisher credential, or a cached Docker image isn't sufficient.
+
+After an input update, rerun local runtime validation, merge the reviewed inputs,
+dispatch publication on `main`, and require full anonymous verification before
+updating the consumer digest. Keep the root Playwright catalog and lockfile,
+`MODULE.bazel` browser image, signed Docker snapshot and `MODULE.bazel.lock`, and
+consumer digest aligned in the pinned-input instructions. Record the new publishing commit,
+runtime result, immutable digest, and anonymous verification run together.
+
+This publication step doesn't claim the full browser journey ran remotely. The
+focused remote probe and explicit local smoke journey follow in #2373, and hosted
+remote execution evidence follows in #2374.
