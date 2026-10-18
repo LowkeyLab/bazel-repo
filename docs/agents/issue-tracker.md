@@ -46,8 +46,11 @@ Decisions so far, Not yet specified, and Out of scope sections. Not yet specifie
 holds the remaining fog of war. Link child tickets as GitHub sub-issues.
 If unavailable, use a task list in the map and `Part of #<map>` in each child.
 
-Use wayfinder:research, wayfinder:prototype, wayfinder:grilling, or
-wayfinder:task for child tickets.
+Check the parent issue labels before applying a `wayfinder:*` label to a child.
+If the parent has `wayfinder:map`, use `wayfinder:research`,
+`wayfinder:prototype`, `wayfinder:grilling`, or `wayfinder:task` for the child.
+For other parents, apply only the labels required by the invoked skill or
+explicit user instructions.
 
 Record blockers using GitHub native issue dependencies. If unavailable,
 use `Blocked by: #<number>` in the child body. A ticket is unblocked when
