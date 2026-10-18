@@ -125,4 +125,57 @@ runtime result, immutable digest, and anonymous verification run together.
 
 Publication validates worker prerequisites and anonymous availability. The
 [focused remote and local smoke commands](../../book_smartz/web/README.md) exercise
-the full app journey. Hosted remote execution evidence follows in #2374.
+the full app journey. Use the hosted procedure below to establish execution from CI.
+
+## Combined worker decision and hosted verification
+
+Use one combined Chromium and Docker worker on Firecracker. The browser journey,
+packaged app, controlled providers, and real PostgreSQL fixture stay together.
+The consumer pins the public manifest digest in the runtime evidence. It doesn't inherit
+host browser paths. Keep normal CI caching and fallback. The fresh probe below
+is an explicit acceptance operation, rather than a requirement for every run.
+This decision implements [the approved worker specification](https://github.com/LowkeyLab/bazel-repo/issues/2370).
+
+The ordinary [hosted run at the consumer rollout commit](https://github.com/LowkeyLab/bazel-repo/actions/runs/39096595875)
+passed all 155 tests from cache at `d40dac386ac7e33298a5d6d92173ec3e1c0c0839`.
+It establishes CI compatibility, but doesn't establish fresh browser execution.
+For hosted execution evidence, merge the reviewed workflow onto the default
+branch, then dispatch the opt-in probe at the delivered ref:
+
+```bash
+gh workflow run run-tests.yml --repo LowkeyLab/bazel-repo --ref main -f browser-acceptance=true
+gh run list --repo LowkeyLab/bazel-repo --workflow run-tests.yml --event workflow_dispatch
+```
+
+The test job first runs the ordinary suite with its existing policy, then runs
+the complete browser journey with test caching, remote action-cache reuse, and
+local fallback turned off. The overrides apply only to the focused command.
+The job summary records the actual checkout commit, hosted run, and a dedicated
+BuildBuddy invocation. Missing worker prerequisites or failed assertions fail
+the probe. An invocation link alone is insufficient evidence.
+
+Open that invocation's execution list and select the browser test action for
+`//book_smartz/web:browser_test`: mnemonic `TestRunner`, command ending in
+`test-setup.sh book_smartz/web/browser_test`. Ignore the separate XML-generation
+action. Require exit code zero, `runner=remote`, `cacheHit=false`, the exact
+public `container-image` digest, `workload-isolation-type=firecracker`, and
+`init-dockerd=true`. Inspect the completed execution's worker identifier and
+execution timestamps. The execution request must have `skipCacheLookup=true`.
+Record the action/execution link alongside the invocation and hosted run in the
+delivery ticket, with the tested commit and worker digest. If the ordinary run
+used cached results or fell back, its green result can't replace this probe.
+
+Keep these evidence boundaries separate:
+
+| Evidence                                                                                                | Establishes                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Worker runtime target                                                                                   | Fresh nested Docker, declared PostgreSQL archive, and bundled Chromium work together.                                         |
+| [Publication and anonymous full pull](https://github.com/LowkeyLab/bazel-repo/actions/runs/39092168629) | Public digest availability and integrity of every image blob at publishing commit `6f6a80e3e0862535a7aa8f9c782c4a91525bce39`. |
+| [Focused remote journey](https://app.buildbuddy.io/invocation/2add1ffc-8353-4415-81bf-4d606992d949)     | The full app journey executed remotely at source `07ba33931e7032f2ca65c7078de2bd48c1d4b464`.                                  |
+| [Explicit local Nix smoke](https://app.buildbuddy.io/invocation/83a23410-0546-4bfc-8e1e-0728d3de98d7)   | Local browser compatibility for the consumer rollout.                                                                         |
+| Hosted probe and browser execution metadata                                                             | The delivered checkout executed the full journey remotely from GitHub Actions.                                                |
+
+After an input update, repeat publication, anonymous access, local smoke,
+focused remote acceptance, and hosted execution verification for the new digest.
+The controlled journey doesn't establish live provider integration or production
+launch readiness.
