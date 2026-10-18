@@ -145,10 +145,40 @@ lost-commit-acknowledgement and process-cancellation recovery. These checks prov
 controlled acceptance evidence. Live-provider and deployment acceptance remain
 separate delivery work.
 
-The browser target runs on the test host with Docker and a browser supplied through
-`CHROMIUM_EXECUTABLE` (the configured Nix shell) or `CHROME_BIN` (the GitHub runner).
-It always executes because the host browser can change independently of source.
-The app, HTTP, and package targets retain their remote PostgreSQL fixtures.
+The browser target uses the [pinned combined worker](../../tools/book_smartz_browser_worker/README.md)
+on BuildBuddy Firecracker, with Docker initialization and the matching bundled
+Chromium under `/ms-playwright`. The worker's [publication and anonymous full-image verification](https://github.com/LowkeyLab/bazel-repo/actions/runs/39092168629)
+passed before consumer enablement. Normal CI retains its existing remote-to-local
+fallback policy. The app, HTTP, and package targets retain their remote PostgreSQL fixtures.
+
+For the complete local smoke journey, use Docker and the configured Nix browser:
+
+```bash
+nix develop --command aspect test //book_smartz/web:browser_test --strategy=TestRunner=local --test_env=CHROMIUM_EXECUTABLE --nocache_test_results
+```
+
+An explicit `--test_env=CHROME_BIN=/path/to/chrome` also works. Browser overrides
+aren't inherited automatically: pass them only for local execution so remote
+workers never receive a developer's Nix store path. Missing Docker or browser
+prerequisites fail the test.
+
+For a fresh focused remote acceptance probe, keep the cache and fallback overrides
+scoped to this command:
+
+```bash
+nix develop --command aspect test //book_smartz/web:browser_test --config=remote-linux --strategy=TestRunner=remote --nocache_test_results --noremote_accept_cached --noremote_local_fallback --test_output=all
+```
+
+The [fresh remote probe](https://app.buildbuddy.io/invocation/30f93d62-4df3-433d-8498-66f72250dbe7)
+passed the complete journey. Its test action recorded `runner=remote`,
+`cacheHit=false`, Firecracker and Docker initialization with the pinned worker.
+The [explicit local Nix smoke journey](https://app.buildbuddy.io/invocation/83a23410-0546-4bfc-8e1e-0728d3de98d7)
+also passed. These runs used the implementation delivered for #2373. The ticket
+records the final tested commit and execution evidence.
+
+Record the tested commit, immutable worker digest, BuildBuddy invocation and test
+execution alongside the result. Invocation upload or remote compilation alone
+doesn't prove the browser test executed remotely.
 
 Build `//book_smartz/web:image` for the Open Container Initiative image. Its default command is
 `/book-smartz serve`. The pre-deploy command is `/book-smartz migrate`.

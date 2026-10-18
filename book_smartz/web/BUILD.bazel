@@ -300,17 +300,16 @@ rust_test(
         "BROWSER_RUNNER": "$(rlocationpath :browser_runner)",
         "BROWSER_KEY": "$(rlocationpath fixtures/public-test-key.pem)",
         "BROWSER_CERTIFICATE": "$(rlocationpath fixtures/browser-test-certificate.pem)",
+        "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright",
     },
-    env_inherit = [
-        "CHROMIUM_EXECUTABLE",
-        "CHROME_BIN",
-    ],
-    # This integration needs the host's browser and Docker. Always execute it so
-    # changes to the installed browser cannot hide behind a cached test result.
+    exec_properties = {
+        "test.container-image": "docker://ghcr.io/lowkeylab/book_smartz_browser_worker@sha256:6fdbf236c09d41b4bc82d140ea6f5510eb27de20d422f4fa88b64cf59413990f",
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    # Explicit --test_env overrides support host-browser smoke runs. Do not
+    # inherit developer browser paths into the remote worker environment.
     tags = [
-        "external",
-        "no-remote-exec",
-        "no-sandbox",
         "requires-docker",
         "requires-network",
     ],
