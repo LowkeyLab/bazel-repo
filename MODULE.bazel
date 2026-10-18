@@ -149,7 +149,7 @@ git_override(
 bazel_dep(name = "rules_distroless")
 git_override(
     module_name = "rules_distroless",
-    commit = "52bea033ef1eac6de5164efb6c1f9552cf59fb49",
+    commit = "403a8b5dc7fe80d31156d92f9c14789f9f547a50",
     remote = "https://github.com/bazel-contrib/rules_distroless.git",
 )
 
