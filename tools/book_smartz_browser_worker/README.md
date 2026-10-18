@@ -97,7 +97,8 @@ records the publishing commit and validated digest. Consumers must use the diges
 not the source tag. The runtime probe image is never published.
 
 [GitHub Container Registry creates new packages as private](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry).
-After first publication, a package administrator must open the
+Check visibility after first publication. If the package is private, an administrator
+must open the
 [worker package settings](https://github.com/orgs/LowkeyLab/packages/container/book_smartz_browser_worker/settings)
 and set its visibility to Public. Keep the package linked to this repository and
 allow its Actions workflows to write. An authenticated push doesn't establish
@@ -107,8 +108,11 @@ verification fails.
 
 The separate anonymous-access job has a fresh runner, no registry login, no persisted
 checkout credential, and an empty Docker config. Bazel-managed `crane` retrieves
-the exact digest and all image content to a new archive, then validates its layers
-and configuration. The summary records the commit, digest, and downloaded bytes.
+the exact digest and all image content into a fresh image layout in the Open Container Initiative format. The job checks
+that the requested manifest exists and verifies every downloaded blob against its
+`SHA-256` filename, including the manifest, configuration, and layers. This layout
+preserves uncompressed layer media types. The pinned `crane validate` command
+assumes `gzip` layers and can't validate this worker. The summary records the commit, digest, and downloaded bytes.
 Keep the successful workflow link alongside the consumer's digest. A manifest
 lookup alone, a publisher credential, or a cached Docker image isn't sufficient.
 

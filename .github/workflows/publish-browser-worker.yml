@@ -65,11 +65,15 @@ jobs:
           DOCKER_CONFIG=$(mktemp -d)
           trap 'rm -rf "$DOCKER_CONFIG"' EXIT
           image="ghcr.io/lowkeylab/book_smartz_browser_worker@$WORKER_DIGEST"
-          bazel run @multitool//tools/crane -- pull "$image" "$RUNNER_TEMP/worker.tar"
-          bazel run @multitool//tools/crane -- validate --tarball "$RUNNER_TEMP/worker.tar"
+          layout="$RUNNER_TEMP/worker-oci"
+          bazel run @multitool//tools/crane -- pull --format=oci "$image" "$layout"
+          test -f "$layout/blobs/sha256/${WORKER_DIGEST#sha256:}"
+          for blob in "$layout"/blobs/sha256/*; do
+            printf '%s  %s\n' "${blob##*/}" "$blob" | sha256sum --check
+          done
           {
             echo "Publishing commit: $GITHUB_SHA"
             echo "Anonymous full-image retrieval and validation passed: $image"
-            echo "Downloaded archive bytes: $(stat -c %s "$RUNNER_TEMP/worker.tar")"
+            echo "Downloaded OCI layout bytes: $(du -sb "$layout" | cut -f1)"
             echo "Consumer enablement follows in #2373; this run does not prove remote browser execution."
           } >> "$GITHUB_STEP_SUMMARY"
