@@ -9,6 +9,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import cast
 
 import nix_tool
 
@@ -18,7 +19,6 @@ class FaultServer(http.server.ThreadingHTTPServer):
 
 
 class Cache(http.server.BaseHTTPRequestHandler):
-    server: FaultServer
     status = 404
 
     def do_HEAD(self) -> None:
@@ -33,10 +33,11 @@ class Cache(http.server.BaseHTTPRequestHandler):
                     b"StoreDir: /nix/store\nWantMassQuery: 1\nPriority: 1\n"
                 )
             return
-        if self.server.mode == "stall":
+        mode = cast(FaultServer, self.server).mode
+        if mode == "stall":
             time.sleep(70)
             return
-        self.send_response(503 if self.server.mode == "unavailable" else 404)
+        self.send_response(503 if mode == "unavailable" else 404)
         self.end_headers()
 
     def log_message(self, format: str, *_args: object) -> None:
