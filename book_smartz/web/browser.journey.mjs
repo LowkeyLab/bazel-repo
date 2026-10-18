@@ -72,11 +72,9 @@ for (const server of [transport, proxy])
 await new Promise((resolve) => proxy.listen(0, "127.0.0.1", resolve));
 
 const executablePath =
-  process.env.CHROMIUM_EXECUTABLE || process.env.CHROME_BIN;
-assert.ok(
-  executablePath,
-  "Use the Nix shell or set CHROMIUM_EXECUTABLE/CHROME_BIN",
-);
+  process.env.CHROMIUM_EXECUTABLE ||
+  process.env.CHROME_BIN ||
+  chromium.executablePath();
 const browser = await chromium.launch({
   executablePath,
   args: ["--no-sandbox"],

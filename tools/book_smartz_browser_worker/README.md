@@ -2,8 +2,8 @@
 
 This tooling image combines the root Playwright package's Chromium installation
 with Docker, `containerd`, `runc`, and `iptables` for BuildBuddy Firecracker workers.
-It contains no Book Smartz app or credentials. Browser acceptance enablement
-follows publication and anonymous verification in ticket #2373.
+It contains no Book Smartz app or credentials. The [browser acceptance target](../../book_smartz/web/README.md)
+pins the anonymously verified digest and uses the bundled browser on Firecracker.
 
 ## Build and validate
 
@@ -31,7 +31,7 @@ itself contains only tooling. Docker removes the outer container after execution
 
 This validates image prerequisites. It doesn't establish remote execution,
 anonymous GitHub Container Registry access, the full app journey, or production readiness.
-The app browser target and normal fallback policy remain unchanged.
+The app browser target uses this worker. Normal fallback policy remains unchanged.
 
 ## Runtime evidence
 
@@ -123,6 +123,6 @@ updating the consumer digest. Keep the root Playwright catalog and lockfile,
 consumer digest aligned in the pinned-input instructions. Record the new publishing commit,
 runtime result, immutable digest, and anonymous verification run together.
 
-This publication step doesn't claim the full browser journey ran remotely. The
-focused remote probe and explicit local smoke journey follow in #2373, and hosted
-remote execution evidence follows in #2374.
+Publication validates worker prerequisites and anonymous availability. The
+[focused remote and local smoke commands](../../book_smartz/web/README.md) exercise
+the full app journey. Hosted remote execution evidence follows in #2374.
