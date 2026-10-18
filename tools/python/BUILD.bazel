@@ -1,6 +1,5 @@
-load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load(":defs.bzl", "py_test")
+load(":defs.bzl", "py_binary", "py_library", "py_test")
 load(":uv_lock.bzl", "uv_lock")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -45,4 +44,40 @@ py_test(
     ],
     # The C tracer preserves measurement across the nested collector sessions.
     env = {"COVERAGE_CORE": "ctrace"},
+)
+
+py_binary(
+    name = "coverage_baseline",
+    srcs = ["coverage_baseline.py"],
+    deps = ["@pypi//coverage"],
+)
+
+config_setting(
+    name = "coverage_enabled",
+    values = {"collect_code_coverage": "true"},
+)
+
+py_test(
+    name = "coverage_baseline_test",
+    size = "small",
+    srcs = ["coverage_baseline_test.py"],
+    args = [
+        "-o",
+        "python_files=coverage_baseline_test.py",
+    ],
+    data = [":coverage_baseline"],
+    deps = ["@pypi//pytest"],
+)
+
+py_binary(
+    name = "coverage_membership_test",
+    testonly = True,
+    srcs = ["coverage_membership_test.py"],
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = ["README.md"],
+    tags = ["markdown"],
 )

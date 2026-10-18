@@ -1,5 +1,4 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
-load("//tools/python:defs.bzl", "py_test")
+load("//tools/python:defs.bzl", "py_binary", "py_library", "py_test")
 
 # gazelle:python_root
 # gazelle:python_generation_mode package

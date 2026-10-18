@@ -24,7 +24,8 @@ x86_64 development and CI execution environments.
 
 [The upstream Gazelle integration guide](https://github.com/aspect-build/rules_py/blob/v1.12.1/README.md#gazelle-integration)
 documents mappings for `py_library`, `py_binary`, and `py_test`. Libraries and
-executables map directly to `rules_py`, and tests map to the shared wrapper.
+executables map to shared wrappers that call `rules_py`. These wrappers add
+production coverage baselines in coverage mode. Tests use the shared `pytest` wrapper.
 Disable generated `pyi_deps` and `pyi_srcs` attributes for the inspected release,
 which lacks those attributes. [The Gazelle directive reference](https://rules-python.readthedocs.io/en/latest/gazelle/docs/directives.html)
 describes their generation controls.
