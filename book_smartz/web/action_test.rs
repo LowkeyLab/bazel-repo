@@ -1606,3 +1606,407 @@ async fn initial_intent_ack_loss_reports_checking_before_original_action_recover
     }
     Ok(())
 }
+
+// Controlled app-owned payloads, persisted through the concrete composition API.
+// The store validates envelopes; the packaged application interprets their data.
+async fn evidence_fact(
+    app: &Fixture,
+    reader: ReaderId,
+    action: Uuid,
+    kind: &str,
+    data: Value,
+) -> anyhow::Result<()> {
+    let mut tx = store(app).begin_command(reader).await?;
+    let sequence = tx.application_history().len() + 1;
+    let event = book_smartz_storage::ApplicationEvent::decode(
+        reader,
+        &json!({
+            "specversion":"1.0", "id":Uuid::new_v4(),
+            "source":format!("urn:book-smartz:application:{}", reader.as_uuid()),
+            "type":format!("booksmartz.{kind}.v1"), "time":"2026-01-01T12:00:00Z",
+            "datacontenttype":"application/json", "sequence":format!("{sequence:020}"),
+            "correlationid":action, "data":data,
+        })
+        .to_string(),
+    )?;
+    tx.append_application(&event).await?;
+    tx.commit().await?;
+    Ok(())
+}
+fn evidence_intent(action: Uuid) -> Value {
+    json!({"action":action, "selection":"retained-selection", "work":null,
+        "revision":0, "event":Uuid::new_v4(), "time":"2026-01-01T12:00:00Z"})
+}
+async fn recover_evidence(
+    app: &Fixture,
+    cookie: &str,
+    csrf: &str,
+    action: Uuid,
+) -> anyhow::Result<reqwest::Response> {
+    post(
+        app,
+        cookie,
+        "/recover",
+        &[
+            ("csrf".into(), csrf.into()),
+            ("action".into(), action.to_string()),
+        ],
+    )
+    .await
+}
+fn recovery_actions(html: &str) -> anyhow::Result<Vec<String>> {
+    regex::Regex::new(r#"(?s)<form method="post" action="/recover">(.*?)</form>"#)?
+        .captures_iter(html)
+        .map(|capture| field(&capture[1], "action"))
+        .collect()
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn evidence_controls_preserve_intent_order_duplicates_and_payload_identity()
+-> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let cookie = app.login("evidence-order").await?;
+    let id = reader(&app, "evidence-order").await?;
+    let csrf = field(&app.ranking(&cookie).await?.text().await?, "csrf")?;
+    let first = Uuid::from_u128(101);
+    let second = Uuid::from_u128(102);
+    let correlation = Uuid::from_u128(103);
+    for (action, family, payload) in [
+        (correlation, "add.intent", evidence_intent(second)),
+        (first, "preference.intent", evidence_intent(first)),
+        (first, "add.intent", evidence_intent(first)),
+        (first, "add.unknown", json!({"malformed":"ignored"})),
+    ] {
+        evidence_fact(&app, id, action, family, payload).await?;
+    }
+    let before = store(&app).load_application_history(id).await?;
+    let html = app.ranking(&cookie).await?.text().await?;
+    assert_that!(
+        recovery_actions(&html)?,
+        eq(&vec![
+            second.to_string(),
+            first.to_string(),
+            first.to_string()
+        ])
+    );
+    assert_that!(
+        html.as_str(),
+        contains_substring("Further ranking changes are blocked")
+    );
+    // Enumeration uses the payload identity; recovery requires a correlated intent.
+    assert_that!(
+        recover_evidence(&app, &cookie, &csrf, second)
+            .await?
+            .status()
+            .as_u16(),
+        eq(403)
+    );
+    let other = offer(
+        &app,
+        &cookie,
+        id,
+        work("OL901W", "Blocked evidence"),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    assert_that!(
+        post(&app, &cookie, "/add", &other)
+            .await?
+            .text()
+            .await?
+            .as_str(),
+        contains_substring("Checking")
+    );
+    assert_that!(store(&app).load_application_history(id).await?, eq(&before));
+    assert_that!(store(&app).load_ranking_documents(id).await?.len(), eq(0));
+    Ok(())
+}
+
+async fn evidence_saved_document(app: &Fixture, id: ReaderId) -> anyhow::Result<Value> {
+    let book = book_smartz_domain::Book::new(
+        BookId::new(Uuid::from_u128(900)),
+        book_smartz_domain::OpenLibraryWorkId::try_from("OL902W")?,
+    );
+    store(app)
+        .register_book(&book, OperationContext::default())
+        .await?;
+    store(app)
+        .execute(
+            id,
+            CommandContext {
+                expected_revision: 0,
+                event_id: EventId::new(Uuid::new_v4()),
+                time: chrono::DateTime::parse_from_rfc3339("2026-01-01T12:00:00Z")?.to_utc(),
+            },
+            Command::Start { book_id: book.id() },
+            OperationContext::default(),
+        )
+        .await?;
+    let documents = store(app).load_ranking_documents(id).await?;
+    Ok(serde_json::from_str(&book_smartz_domain::encode_document(
+        &documents[0],
+    )?)?)
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn evidence_recovery_preserves_validation_scope_first_facts_and_terminal_precedence()
+-> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    // Each case has an independent reader, a real saved ranking envelope, and
+    // controlled app facts. Expected HTTP outcomes are specified independently.
+    for name in [
+        "saved_before_rejection",
+        "rejected_before_prepared",
+        "later_preparation",
+        "unrelated_intent",
+        "first_intent",
+        "later_intent",
+        "first_rejection",
+        "later_rejection",
+        "missing_document_id",
+        "invalid_document_id",
+        "unrelated_preparation",
+        "unrelated_rejection",
+        "saved_before_bad_rejection",
+        "missing_correlated_intent",
+        "different_payload_identity",
+    ] {
+        let cookie = app.login(name).await?;
+        let id = reader(&app, name).await?;
+        let csrf = field(&app.ranking(&cookie).await?.text().await?, "csrf")?;
+        let document = evidence_saved_document(&app, id).await?;
+        let action = Uuid::from_u128(201);
+        let other = Uuid::from_u128(202);
+        let intent = evidence_intent(action);
+        let prepared = json!({"document":document});
+        let missing = json!({"document":{}});
+        let invalid = json!({"document":{"id":"invalid-uuid"}});
+        let rejected = json!({"reason":"Retained rejection wins before preparation."});
+        let malformed = json!({"reason":false});
+        let mut facts = vec![(action, "add.intent", intent.clone())];
+        let (ranking_status, recovery_status, message, controls) = match name {
+            "saved_before_rejection" => {
+                facts.extend([
+                    (action, "preference.rankingprepared", prepared.clone()),
+                    (action, "add.rejected", rejected.clone()),
+                ]);
+                (200, 303, None, 0)
+            }
+            "rejected_before_prepared" => {
+                facts.extend([
+                    (action, "add.rankingprepared", invalid.clone()),
+                    (action, "preference.rejected", rejected.clone()),
+                ]);
+                (
+                    200,
+                    200,
+                    Some("Retained rejection wins before preparation."),
+                    0,
+                )
+            }
+            "later_preparation" => {
+                facts.extend([
+                    (action, "preference.rankingprepared", prepared.clone()),
+                    (action, "add.rankingprepared", invalid.clone()),
+                ]);
+                (200, 303, None, 0)
+            }
+            "unrelated_intent" => {
+                facts.extend([
+                    (action, "add.rankingprepared", prepared.clone()),
+                    (other, "preference.intent", json!({})),
+                ]);
+                (500, 303, None, 0)
+            }
+            "first_intent" => {
+                facts[0].2 = json!({});
+                facts.extend([
+                    (action, "preference.intent", intent.clone()),
+                    (action, "add.rankingprepared", prepared.clone()),
+                ]);
+                (500, 200, Some("Checking your save"), 0)
+            }
+            "later_intent" => {
+                facts.extend([
+                    (action, "preference.intent", json!({})),
+                    (action, "add.rankingprepared", prepared.clone()),
+                ]);
+                (500, 303, None, 0)
+            }
+            "first_rejection" => {
+                facts.extend([
+                    (action, "add.rankingprepared", missing.clone()),
+                    (action, "add.rejected", malformed.clone()),
+                    (action, "preference.rejected", rejected.clone()),
+                ]);
+                (500, 200, Some("Checking your save"), 0)
+            }
+            "later_rejection" => {
+                facts.extend([
+                    (action, "add.rankingprepared", missing.clone()),
+                    (action, "preference.rejected", rejected.clone()),
+                    (action, "add.rejected", malformed.clone()),
+                ]);
+                (
+                    500,
+                    200,
+                    Some("Retained rejection wins before preparation."),
+                    0,
+                )
+            }
+            "missing_document_id" => {
+                facts.push((action, "add.rankingprepared", missing.clone()));
+                (500, 200, Some("Checking your save"), 0)
+            }
+            "invalid_document_id" => {
+                facts.push((action, "preference.rankingprepared", invalid.clone()));
+                (500, 200, Some("Checking your save"), 0)
+            }
+            "unrelated_preparation" => {
+                facts.extend([
+                    (action, "add.rankingprepared", prepared.clone()),
+                    (other, "preference.rankingprepared", invalid.clone()),
+                ]);
+                (200, 303, None, 0)
+            }
+            "unrelated_rejection" => {
+                facts.extend([
+                    (action, "add.rankingprepared", prepared.clone()),
+                    (other, "preference.rejected", malformed.clone()),
+                ]);
+                (500, 303, None, 0)
+            }
+            "saved_before_bad_rejection" => {
+                facts.extend([
+                    (action, "add.rankingprepared", prepared.clone()),
+                    (action, "preference.rejected", malformed.clone()),
+                ]);
+                (500, 303, None, 0)
+            }
+            "missing_correlated_intent" => {
+                facts[0].0 = other;
+                facts.push((action, "preference.rankingprepared", prepared.clone()));
+                (200, 403, None, 0)
+            }
+            "different_payload_identity" => {
+                facts[0].2 = evidence_intent(other);
+                facts.push((action, "preference.rankingprepared", prepared.clone()));
+                (200, 303, None, 1)
+            }
+            _ => unreachable!(),
+        };
+        for (correlation, kind, data) in facts {
+            evidence_fact(&app, id, correlation, kind, data).await?;
+        }
+        let history = store(&app).load_application_history(id).await?;
+        let ranking = store(&app).load_ranking_documents(id).await?;
+        let response = app.ranking(&cookie).await?;
+        assert_that!(
+            response.status().as_u16(),
+            eq(ranking_status),
+            "{name}: ranking response"
+        );
+        if ranking_status == 200 {
+            let html = response.text().await?;
+            assert_that!(
+                recovery_actions(&html)?.len(),
+                eq(controls),
+                "{name}: recovery controls"
+            );
+            if controls == 1 {
+                assert_that!(recovery_actions(&html)?, eq(&vec![other.to_string()]));
+            }
+        }
+        let response = recover_evidence(&app, &cookie, &csrf, action).await?;
+        assert_that!(
+            response.status().as_u16(),
+            eq(recovery_status),
+            "{name}: original recovery"
+        );
+        if let Some(message) = message {
+            assert_that!(
+                response.text().await?.as_str(),
+                contains_substring(message),
+                "{name}"
+            );
+        }
+        assert_that!(
+            store(&app).load_application_history(id).await?,
+            eq(&history),
+            "{name}: no new app facts"
+        );
+        assert_that!(
+            store(&app).load_ranking_documents(id).await?,
+            eq(&ranking),
+            "{name}: no new ranking effect"
+        );
+    }
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn evidence_first_preparation_requires_the_complete_envelope_including_optional_context()
+-> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    for (name, attribute, matching_first) in [
+        ("subject_conflict", "subject", false),
+        ("extension_conflict", "correlationid", false),
+        ("later_subject_conflict", "subject", true),
+        ("later_extension_conflict", "correlationid", true),
+    ] {
+        let cookie = app.login(name).await?;
+        let id = reader(&app, name).await?;
+        let csrf = field(&app.ranking(&cookie).await?.text().await?, "csrf")?;
+        let document = evidence_saved_document(&app, id).await?;
+        let mut conflict = document.clone();
+        conflict[attribute] = json!(Uuid::from_u128(303).to_string());
+        let action = Uuid::from_u128(301);
+        evidence_fact(
+            &app,
+            id,
+            action,
+            "preference.intent",
+            evidence_intent(action),
+        )
+        .await?;
+        let documents = if matching_first {
+            [document, conflict]
+        } else {
+            [conflict, document]
+        };
+        for (kind, document) in ["add.rankingprepared", "preference.rankingprepared"]
+            .into_iter()
+            .zip(documents)
+        {
+            evidence_fact(&app, id, action, kind, json!({"document":document})).await?;
+        }
+        let history = store(&app).load_application_history(id).await?;
+        let ranking = store(&app).load_ranking_documents(id).await?;
+        let html = app.ranking(&cookie).await?.text().await?;
+        let expected_controls = if matching_first {
+            vec![]
+        } else {
+            vec![action.to_string()]
+        };
+        assert_that!(recovery_actions(&html)?, eq(&expected_controls), "{name}");
+        let response = recover_evidence(&app, &cookie, &csrf, action).await?;
+        if matching_first {
+            assert_that!(response.status().as_u16(), eq(303));
+        } else {
+            assert_that!(response.status().as_u16(), eq(200));
+            assert_that!(
+                response.text().await?.as_str(),
+                contains_substring("Checking your save")
+            );
+        }
+        assert_that!(
+            store(&app).load_application_history(id).await?,
+            eq(&history)
+        );
+        assert_that!(store(&app).load_ranking_documents(id).await?, eq(&ranking));
+    }
+    Ok(())
+}
