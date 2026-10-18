@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-
 ROOT = Path(os.environ["TEST_SRCDIR"]) / os.environ["TEST_WORKSPACE"]
 
 
@@ -118,3 +117,153 @@ def test_ordinary_process_tests_pass_without_coverage(
     )
     assert result.returncode == 0, result.stdout + result.stderr
     assert not report.exists()
+
+
+@pytest.mark.parametrize(
+    ("children", "fault"),
+    [
+        (False, ""),
+        (True, ""),
+        (True, "completion"),
+        (True, "missing"),
+        (True, "corrupt"),
+    ],
+)
+def test_nested_collection_reports_real_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, children: bool, fault: str
+) -> None:
+    import coverage
+
+    from tools.python import coverage_runtime
+
+    outer = coverage.Coverage.current()
+    subject = ROOT / "python_sample/__main__.py"
+    directory = tmp_path / "nested"
+    directory.mkdir()
+    with monkeypatch.context() as environment:
+        environment.setenv("COVERAGE_DIR", str(directory))
+        for name in (
+            "BAZEL_PYTHON_COVERAGE",
+            "BAZEL_PYTHON_COVERAGE_CONFIG",
+            "BAZEL_PYTHON_COVERAGE_HOOK",
+        ):
+            environment.setenv(name, os.environ.get(name, ""))
+        collector = coverage_runtime.start(
+            [str(subject), str(Path(__file__)), str(Path(coverage_runtime.__file__))]
+        )
+        if children:
+            result = subprocess.run(
+                [str(ROOT / "python_sample/python_sample_bin"), "2.0", "1.0"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=30,
+            )
+            assert result.stdout == "1.0\n2.0\n"
+        if fault:
+            root = directory / "python-processes"
+            if fault == "completion":
+                for receipt in root.glob("*.saved"):
+                    receipt.unlink()
+            else:
+                for data_file in root.glob(".coverage.*"):
+                    if fault == "missing":
+                        data_file.unlink()
+                    else:
+                        data_file.write_bytes(b"invalid coverage data")
+            with pytest.raises((RuntimeError, coverage.exceptions.DataError)):
+                coverage_runtime.finish(collector)
+            assert coverage.Coverage.current() is outer
+            return
+        coverage_runtime.finish(collector)
+        assert coverage.Coverage.current() is outer
+        report = tmp_path / "nested.lcov"
+        collector.lcov_report(outfile=str(report))
+        if children:
+            assert "DA:6,1\n" in report.read_text()
+            assert "BRH:1\n" in report.read_text()
+        else:
+            assert str(subject) not in report.read_text()
+        # Preserve measured nested execution in the enclosing Bazel report.
+        if outer is not None:
+            outer.get_data().update(collector.get_data())
+
+
+@pytest.mark.parametrize("fault", ["", "startup", "receipt"])
+def test_child_bootstrap_completes_or_reports_collection_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: str
+) -> None:
+    import sys
+
+    import coverage
+
+    from tools.python import coverage_runtime
+
+    outer = coverage.Coverage.current()
+    directory = tmp_path / "bootstrap"
+    directory.mkdir()
+    observed = tmp_path / "observed.coverage"
+    runtime = str(Path(coverage_runtime.__file__).resolve())
+    with monkeypatch.context() as environment:
+        environment.setenv("COVERAGE_DIR", str(directory))
+        for name in (
+            "BAZEL_PYTHON_COVERAGE",
+            "BAZEL_PYTHON_COVERAGE_CONFIG",
+            "BAZEL_PYTHON_COVERAGE_HOOK",
+        ):
+            environment.setenv(name, os.environ.get(name, ""))
+        collector = coverage_runtime.start([runtime])
+        child_environment = dict(os.environ)
+        child_environment.pop("BAZEL_PYTHON_COVERAGE")
+        # An independent real collector measures the complete startup path.
+        program = """
+import atexit
+import os
+import runpy
+import sys
+from pathlib import Path
+import coverage
+
+runtime, observed, fault = sys.argv[1:]
+observer = coverage.Coverage(config_file=False, data_file=observed, include=[runtime], branch=True)
+observer.set_option("run:patch", ["_exit"])
+observer.start()
+def finish_observer():
+    observer.stop()
+    observer.save()
+atexit.register(finish_observer)
+if fault == "startup":
+    os.environ["COVERAGE_CORE"] = "invalid"
+runpy.run_path(runtime, run_name="__bazel_coverage_child__")
+if fault == "receipt":
+    root = Path(os.environ["BAZEL_PYTHON_COVERAGE_CONFIG"]).parent
+    for receipt in root.glob(f"{os.getpid()}-*.started"):
+        receipt.with_suffix(".saved").mkdir()
+print("application completed", flush=True)
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", program, runtime, str(observed), fault],
+            env=child_environment,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=30,
+        )
+        if fault:
+            assert result.returncode != 0, result.stdout + result.stderr
+            with pytest.raises(
+                RuntimeError, match="Python child coverage did not finish"
+            ):
+                coverage_runtime.finish(collector)
+        else:
+            assert result.returncode == 0, result.stdout + result.stderr
+            coverage_runtime.finish(collector)
+        if fault != "startup":
+            assert "application completed" in result.stdout
+        assert coverage.Coverage.current() is outer
+        measured = coverage.CoverageData(basename=str(observed))
+        measured.read()
+        assert runtime in measured.measured_files()
+        if outer is not None:
+            outer.get_data().update(measured)
+            outer.get_data().update(collector.get_data())

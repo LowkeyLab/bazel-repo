@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 HOOK = 'import os, runpy; os.environ.get("BAZEL_PYTHON_COVERAGE") and runpy.run_path(os.environ["BAZEL_PYTHON_COVERAGE"], run_name="__bazel_coverage_child__")\n'
 
 
-def start(manifest: list[str]) -> "Coverage":
+def start(manifest: list[str]) -> Coverage:
     """Start parent collection and prepare isolated child collection."""
     import coverage
     from coverage.files import abs_file
@@ -39,7 +39,7 @@ def start(manifest: list[str]) -> "Coverage":
                 "coverage_path": str(Path(coverage.__file__).parent.parent),
                 "data_file": str(root / ".coverage"),
                 "include": collector.get_option("run:include"),
-                "rcfile": os.environ.get("COVERAGE_RCFILE", True),
+                "rcfile": os.environ.get("COVERAGE_RCFILE") or True,
             }
         )
     )
@@ -54,11 +54,15 @@ def start(manifest: list[str]) -> "Coverage":
     return collector
 
 
-def finish(collector: "Coverage") -> None:
+def finish(collector: Coverage) -> None:
     """Require complete child data before combining the process results."""
+    collector.stop()
+    _combine(collector)
+
+
+def _combine(collector: Coverage) -> None:
     import coverage
 
-    collector.stop()
     collector.save()
     root = Path(os.environ["BAZEL_PYTHON_COVERAGE_CONFIG"]).parent
     for pending in root.glob("*.started"):
@@ -75,6 +79,11 @@ def finish(collector: "Coverage") -> None:
         data = coverage.CoverageData(basename=str(data_file))
         data.read()
         collector.get_data().update(data)
+
+
+def _save_child(collector: Coverage, receipt: Path) -> None:
+    collector.save()
+    receipt.with_suffix(".saved").write_text(collector.get_data().data_filename())
 
 
 def child() -> None:
@@ -100,16 +109,13 @@ def child() -> None:
         def save() -> None:
             try:
                 collector.stop()
-                collector.save()
-                receipt.with_suffix(".saved").write_text(
-                    collector.get_data().data_filename()
-                )
-            except BaseException:
+                _save_child(collector, receipt)
+            except BaseException:  # noqa: BLE001 -- Startup and exit errors must terminate collection.
                 traceback.print_exc()
                 os._exit(1)
 
         atexit.register(save)
-    except BaseException:
+    except BaseException:  # noqa: BLE001 -- Startup and exit errors must terminate collection.
         # Python normally prints .pth errors and continues without collection.
         traceback.print_exc()
         os._exit(1)
