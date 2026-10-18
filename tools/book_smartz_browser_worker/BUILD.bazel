@@ -1,0 +1,124 @@
+# Custom image composition and privileged runtime validation.
+# gazelle:ignore
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_image_layer", "js_library")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
+
+package(default_visibility = ["//visibility:public"])
+
+oci_image(
+    name = "image",
+    base = "@book_smartz_playwright",
+    env = {"PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright"},
+    tars = [
+        "@book_smartz_docker//:flat",
+        ":docker_configuration",
+    ],
+)
+
+# Package extraction does not execute iptables' update-alternatives postinst.
+pkg_tar(
+    name = "docker_configuration",
+    symlinks = {
+        "usr/sbin/iptables": "iptables-nft",
+        "usr/sbin/iptables-save": "iptables-nft-save",
+        "usr/sbin/iptables-restore": "iptables-nft-restore",
+        "usr/sbin/ip6tables": "ip6tables-nft",
+        "usr/sbin/ip6tables-save": "ip6tables-nft-save",
+        "usr/sbin/ip6tables-restore": "ip6tables-nft-restore",
+    },
+)
+
+oci_load(
+    name = "load_image",
+    image = ":image",
+    repo_tags = ["local/book-smartz-browser-worker:latest"],
+)
+
+js_binary(
+    name = "runtime",
+    testonly = True,
+    data = ["//:node_modules/playwright"],
+    entry_point = "runtime.mjs",
+)
+
+js_library(
+    name = "scripts",
+    testonly = True,
+    srcs = ["runtime.mjs"],
+    deps = ["//:node_modules/playwright"],
+)
+
+js_image_layer(
+    name = "runtime_layers",
+    testonly = True,
+    binary = ":runtime",
+    root = "/probe",
+)
+
+oci_image(
+    name = "runtime_image",
+    testonly = True,
+    base = ":image",
+    entrypoint = ["/probe/tools/book_smartz_browser_worker/runtime"],
+    tars = [":runtime_layers"],
+    workdir = "/probe/tools/book_smartz_browser_worker/runtime.runfiles/_main",
+)
+
+genrule(
+    name = "runtime_worker_ref",
+    testonly = True,
+    srcs = [":runtime_image.digest"],
+    outs = ["runtime_worker.ref.txt"],
+    cmd = "sed 's|sha256:|local/book-smartz-browser-worker-validation:sha256-|' $(SRCS) > $@",
+)
+
+oci_load(
+    name = "runtime_worker_load",
+    testonly = True,
+    image = ":runtime_image",
+    repo_tags = ":runtime_worker_ref",
+)
+
+filegroup(
+    name = "runtime_worker_tar",
+    testonly = True,
+    srcs = [":runtime_worker_load"],
+    output_group = "tarball",
+)
+
+sh_test(
+    name = "runtime_test",
+    size = "large",
+    timeout = "long",
+    srcs = ["runtime_test.sh"],
+    data = ["@bazel_tools//tools/bash/runfiles"] + image_data("postgres_18") + [
+        ":runtime_worker_ref",
+        ":runtime_worker_tar",
+    ],
+    env = image_env("postgres_18") | {
+        "WORKER_IMAGE_TAR": "$(rlocationpath :runtime_worker_tar)",
+        "WORKER_IMAGE_REF": "$(rlocationpath :runtime_worker_ref)",
+    },
+    env_inherit = ["PATH"],
+    # Needs a host capable of launching a privileged, isolated Docker daemon.
+    tags = [
+        "external",
+        "manual",
+        "no-remote-exec",
+        "no-sandbox",
+        "requires-docker",
+    ],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = glob(
+        ["**/*.md"],
+        allow_empty = True,
+    ),
+    tags = ["markdown"],
+    visibility = ["//tools/lint:__pkg__"],
+)

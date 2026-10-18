@@ -729,6 +729,15 @@ oci_extension.pull(
     ],
 )
 
+# Playwright release must match the root pnpm catalog.
+oci_extension.pull(
+    name = "book_smartz_playwright",
+    digest = "sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf",
+    image = "mcr.microsoft.com/playwright",
+    platforms = ["linux/amd64"],
+    tag = "v1.64.1-noble",
+)
+
 # Test fixtures: PostgreSQL 18 shared by all Testcontainers tests.
 oci_extension.pull(
     name = "test_postgres_18",
@@ -744,10 +753,49 @@ oci_extension.pull(
     platforms = ["linux/amd64"],
     tag = "0.14.0",
 )
-use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java25", "distroless_java25_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "test_postgres_18", "test_postgres_18_linux_amd64", "test_ryuk", "test_ryuk_linux_amd64")
+use_repo(oci_extension, "alpine_caddy", "alpine_caddy_linux_amd64", "book_smartz_playwright", "book_smartz_playwright_linux_amd64", "distroless_cc", "distroless_cc_linux_amd64", "distroless_java25", "distroless_java25_linux_amd64", "distroless_node24", "distroless_node24_linux_amd64", "test_postgres_18", "test_postgres_18_linux_amd64", "test_ryuk", "test_ryuk_linux_amd64")
 
 ###########################
 # BuildBuddy Remote Execution
 buildbuddy = use_extension("@toolchains_buildbuddy//:extensions.bzl", "buildbuddy")
 buildbuddy.platform(buildbuddy_container_image = "UBUNTU24_04_IMAGE")
 use_repo(buildbuddy, "buildbuddy_toolchain")
+
+# Docker and its runtime dependencies come from an immutable, signed snapshot.
+http_file(
+    name = "ubuntu_archive_keyring",
+    downloaded_file_path = "ubuntu-archive-keyring.gpg",
+    sha256 = "80a36b0a6de2f69f49d2df75ef473ccde121e9e190b9ea01d20a4f63778d5c31",
+    urls = ["https://archive.ubuntu.com/ubuntu/project/ubuntu-archive-keyring.gpg"],
+)
+
+book_smartz_apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+book_smartz_apt.sources_list(
+    architectures = ["amd64"],
+    components = [
+        "main",
+        "universe",
+    ],
+    gpg_keys = ["@ubuntu_archive_keyring//file:ubuntu-archive-keyring.gpg"],
+    suites = [
+        "noble",
+        "noble-updates",
+        "noble-security",
+    ],
+    types = ["deb"],
+    uris = ["https://snapshot.ubuntu.com/ubuntu/20261017T000000Z"],
+)
+book_smartz_apt.install(
+    dependency_set = "book_smartz_docker",
+    mergedusr = True,
+    packages = [
+        "docker.io (= 29.1.3-0ubuntu3~24.04.2)",
+        "iptables (= 1.8.10-3ubuntu2)",
+    ],
+    suites = [
+        "noble",
+        "noble-updates",
+        "noble-security",
+    ],
+)
+use_repo(book_smartz_apt, "book_smartz_docker")

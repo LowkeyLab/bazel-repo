@@ -115,6 +115,8 @@
               pkgs.pnpm
               pkgs.jdk25_headless
               pkgs.gcc
+              # rules_distroless verifies the worker package snapshot signatures.
+              pkgs.gnupg
               pkgs.pre-commit
               agent-browser
               pkgs.nodejs_24
