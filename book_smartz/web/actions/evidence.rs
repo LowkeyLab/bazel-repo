@@ -40,102 +40,73 @@ pub(super) fn matches_document(
     Ok(serde_json::from_str::<Value>(&encode_document(actual)?)? == *expected)
 }
 
-/// Lazy interpretation for one retained correlation. Construction never decodes payloads.
-pub(super) struct SingleAction<'a> {
-    facts: Vec<&'a Value>,
+pub(super) fn facts(history: &[ApplicationEvent], action: ActionId) -> Vec<&Value> {
+    history
+        .iter()
+        .map(ApplicationEvent::envelope)
+        .filter(|event| event["correlationid"] == action.text())
+        .collect()
 }
-
-pub(super) enum Recovery<'a> {
-    Missing,
-    Saved,
-    Rejected(String),
-    Prepared {
-        original: Box<Intent>,
-        event: &'a Value,
-        document: Box<CloudEventDocument>,
-    },
-    Pending(Box<Intent>),
+pub(super) fn intent(
+    history: &[ApplicationEvent],
+    action: ActionId,
+) -> anyhow::Result<Option<Intent>> {
+    facts(history, action)
+        .iter()
+        .find(|e| stage(e) == Some(Stage::Intent))
+        .map(|e| serde_json::from_value(e["data"].clone()).map_err(Into::into))
+        .transpose()
 }
-
-impl<'a> SingleAction<'a> {
-    pub(super) fn new(history: &'a [ApplicationEvent], action: ActionId) -> Self {
-        Self {
-            facts: history
-                .iter()
-                .map(ApplicationEvent::envelope)
-                .filter(|event| event["correlationid"] == action.text())
-                .collect(),
+pub(super) fn prepared(history: &[ApplicationEvent], action: ActionId) -> Option<&Value> {
+    facts(history, action)
+        .into_iter()
+        .find(|e| stage(e) == Some(Stage::RankingPrepared))
+}
+pub(super) fn saved(
+    history: &[ApplicationEvent],
+    ranking: &[CloudEventDocument],
+    action: ActionId,
+) -> anyhow::Result<bool> {
+    let Some(expected) = prepared(history, action) else {
+        return Ok(false);
+    };
+    for doc in ranking {
+        if doc.event().metadata().id.as_uuid().to_string()
+            == expected["data"]["document"]["id"].as_str().unwrap_or("")
+        {
+            return matches_document(doc, &expected["data"]["document"]);
         }
     }
+    Ok(false)
+}
+pub(super) fn rejected(history: &[ApplicationEvent], action: ActionId) -> Option<String> {
+    facts(history, action)
+        .into_iter()
+        .find(|e| stage(e) == Some(Stage::Rejected))
+        .and_then(|e| e["data"]["reason"].as_str())
+        .map(str::to_owned)
+}
+pub(super) fn registration_prepared(
+    history: &[ApplicationEvent],
+    action: ActionId,
+) -> Option<&Value> {
+    facts(history, action)
+        .into_iter()
+        .find(|event| stage(event) == Some(Stage::RegistrationPrepared))
+}
 
-    fn first(&self, wanted: Stage) -> Option<&'a Value> {
-        self.facts
+pub(super) fn ranking_document(
+    event: &Value,
+    ranking: &[CloudEventDocument],
+) -> anyhow::Result<CloudEventDocument> {
+    let document = book_smartz_domain::decode_event(&event["data"]["document"].to_string())?;
+    anyhow::ensure!(
+        !ranking
             .iter()
-            .copied()
-            .find(|event| stage(event) == Some(wanted))
-    }
-
-    pub(super) fn intent(&self) -> anyhow::Result<Option<Intent>> {
-        self.first(Stage::Intent)
-            .map(|event| serde_json::from_value(event["data"].clone()).map_err(Into::into))
-            .transpose()
-    }
-
-    pub(super) fn registration_prepared(&self) -> Option<&'a Value> {
-        self.first(Stage::RegistrationPrepared)
-    }
-
-    pub(super) fn first_fact_id(&self) -> String {
-        self.facts[0]["id"].as_str().unwrap().to_owned()
-    }
-
-    fn rejection(&self) -> Option<String> {
-        self.first(Stage::Rejected)
-            .and_then(|event| event["data"]["reason"].as_str())
-            .map(str::to_owned)
-    }
-
-    pub(super) fn has_ranking_decision(&self) -> bool {
-        self.first(Stage::RankingPrepared).is_some() || self.rejection().is_some()
-    }
-
-    pub(super) fn recovery(&self, ranking: &[CloudEventDocument]) -> anyhow::Result<Recovery<'a>> {
-        let Some(original) = self.intent()? else {
-            return Ok(Recovery::Missing);
-        };
-        let prepared = self.first(Stage::RankingPrepared);
-        if let Some(expected) = prepared {
-            for document in ranking {
-                if document.event().metadata().id.as_uuid().to_string()
-                    == expected["data"]["document"]["id"].as_str().unwrap_or("")
-                {
-                    if matches_document(document, &expected["data"]["document"])? {
-                        return Ok(Recovery::Saved);
-                    }
-                    break;
-                }
-            }
-        }
-        if let Some(reason) = self.rejection() {
-            return Ok(Recovery::Rejected(reason));
-        }
-        if let Some(event) = prepared {
-            let document =
-                book_smartz_domain::decode_event(&event["data"]["document"].to_string())?;
-            anyhow::ensure!(
-                !ranking
-                    .iter()
-                    .any(|d| d.event().metadata().id == document.event().metadata().id),
-                "conflicting durable evidence"
-            );
-            return Ok(Recovery::Prepared {
-                original: Box::new(original),
-                event,
-                document: Box::new(document),
-            });
-        }
-        Ok(Recovery::Pending(Box::new(original)))
-    }
+            .any(|d| d.event().metadata().id == document.event().metadata().id),
+        "conflicting durable evidence"
+    );
+    Ok(document)
 }
 
 /// A read only reconstruction. Absence is unresolved, never a rollback verdict.
@@ -225,9 +196,36 @@ mod tests {
         .unwrap()
     }
 
+    fn action() -> super::ActionId {
+        super::ActionId(Uuid::from_u128(1))
+    }
+
     #[googletest::test]
-    fn single_action_saved_precedes_rejection_and_requires_a_correlated_intent()
+    fn single_action_uses_first_correlated_intent_without_validating_other_actions()
     -> anyhow::Result<()> {
+        let history = [
+            fact(1, 2, "add.intent", json!({})),
+            fact(2, 1, "preference.intent", intent(9)),
+            fact(3, 1, "add.intent", json!({})),
+        ];
+        let original = super::intent(&history, action())?.unwrap();
+        assert_that!(original.action.text(), eq(&Uuid::from_u128(9).to_string()));
+        assert_that!(original.event, eq(Uuid::from_u128(99)));
+        assert_that!(original.revision, eq(0));
+        assert_that!(original.time.to_rfc3339(), eq("2026-01-01T12:00:00+00:00"));
+        assert_that!(
+            super::facts(&history, action())[0]["id"],
+            eq(&json!(Uuid::from_u128(2)))
+        );
+        assert_that!(
+            super::intent(&history, super::ActionId(Uuid::from_u128(3)))?.is_none(),
+            eq(true)
+        );
+        Ok(())
+    }
+
+    #[googletest::test]
+    fn single_action_saved_evidence_is_independent_of_rejection_validation() -> anyhow::Result<()> {
         let expected = document();
         let ranking = [book_smartz_domain::decode_event(&expected.to_string())?];
         for reason in [json!("rejected"), json!(false)] {
@@ -237,23 +235,18 @@ mod tests {
                 fact(3, 1, "preference.rejected", json!({"reason": reason})),
                 fact(4, 2, "add.rejected", json!({"reason": false})),
             ];
-            let evidence = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(1)));
-            assert_that!(
-                matches!(evidence.recovery(&ranking)?, super::Recovery::Saved),
-                eq(true)
-            );
-            let no_intent =
-                super::SingleAction::new(&history[1..], super::ActionId(Uuid::from_u128(1)));
-            assert_that!(
-                matches!(no_intent.recovery(&ranking)?, super::Recovery::Missing),
-                eq(true)
-            );
+            assert_that!(super::intent(&history, action())?.is_some(), eq(true));
+            assert_that!(super::saved(&history, &ranking, action())?, eq(true));
+            // Preparation alone doesn't supply execution's required correlated intent.
+            assert_that!(super::intent(&history[1..], action())?.is_none(), eq(true));
         }
+        assert_that!(super::saved(&[], &ranking, action())?, eq(false));
         Ok(())
     }
 
     #[googletest::test]
-    fn single_action_first_rejection_controls_prepared_validation() -> anyhow::Result<()> {
+    fn single_action_first_rejection_does_not_validate_or_replace_preparation() -> anyhow::Result<()>
+    {
         for bad_document in [json!({}), json!({"id": "invalid"})] {
             let history = [
                 fact(1, 1, "add.intent", intent(1)),
@@ -266,29 +259,22 @@ mod tests {
                 fact(3, 1, "add.rejected", json!({"reason": "first rejection"})),
                 fact(4, 1, "preference.rejected", json!({"reason": false})),
             ];
-            let evidence = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(1)));
-            let super::Recovery::Rejected(reason) = evidence.recovery(&[])? else {
-                anyhow::bail!("expected rejection");
-            };
-            assert_that!(reason, eq("first rejection"));
+            assert_that!(super::saved(&history, &[], action())?, eq(false));
+            assert_that!(
+                super::rejected(&history, action()).as_deref(),
+                eq(Some("first rejection"))
+            );
+            assert_that!(
+                super::ranking_document(super::prepared(&history, action()).unwrap(), &[]).is_err(),
+                eq(true)
+            );
             let mut malformed_first = history.clone();
             malformed_first.swap(2, 3);
-            let evidence =
-                super::SingleAction::new(&malformed_first, super::ActionId(Uuid::from_u128(1)));
-            assert_that!(evidence.has_ranking_decision(), eq(true));
-            assert_that!(evidence.recovery(&[]).is_err(), eq(true));
+            assert_that!(
+                super::rejected(&malformed_first, action()).is_none(),
+                eq(true)
+            );
         }
-        let history = [
-            fact(1, 1, "add.intent", intent(1)),
-            fact(2, 1, "add.rejected", json!({"reason": false})),
-            fact(3, 1, "preference.rejected", json!({"reason": "later"})),
-        ];
-        let evidence = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(1)));
-        assert_that!(evidence.has_ranking_decision(), eq(false));
-        assert_that!(
-            matches!(evidence.recovery(&[])?, super::Recovery::Pending(_)),
-            eq(true)
-        );
         Ok(())
     }
 
@@ -307,20 +293,20 @@ mod tests {
             ),
             fact(3, 1, "add.rankingprepared", json!({"document": {}})),
         ];
-        let evidence = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(1)));
-        let super::Recovery::Prepared {
-            original,
-            event,
-            document: retained,
-        } = evidence.recovery(&[])?
-        else {
-            anyhow::bail!("expected prepared action");
-        };
-        assert_that!(original.event, eq(Uuid::from_u128(99)));
-        assert_that!(event["id"], eq(&json!(Uuid::from_u128(2))));
+        let prepared = super::prepared(&history, action()).unwrap();
+        assert_that!(prepared["id"], eq(&json!(Uuid::from_u128(2))));
+        let retained = super::ranking_document(prepared, &[])?;
         assert_that!(
             serde_json::from_str::<Value>(&book_smartz_domain::encode_document(&retained)?)?,
             eq(&expected)
+        );
+        let mut unrelated = expected.clone();
+        unrelated["id"] = json!(Uuid::from_u128(71));
+        let unrelated = [book_smartz_domain::decode_event(&unrelated.to_string())?];
+        assert_that!(super::saved(&history, &unrelated, action())?, eq(false));
+        assert_that!(
+            super::ranking_document(prepared, &unrelated).is_ok(),
+            eq(true)
         );
         for field in [
             "traceparent",
@@ -336,11 +322,7 @@ mod tests {
                 history[0].clone(),
                 fact(2, 1, "add.rankingprepared", json!({"document": conflict})),
             ];
-            let evidence = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(1)));
-            assert_that!(
-                matches!(evidence.recovery(&ranking), Ok(super::Recovery::Saved)),
-                eq(false)
-            );
+            assert_that!(super::saved(&history, &ranking, action())?, eq(false));
         }
         let mut conflict = expected.clone();
         conflict["retainedextension"] = json!("different");
@@ -348,8 +330,7 @@ mod tests {
             history[0].clone(),
             fact(2, 1, "add.rankingprepared", json!({"document": conflict})),
         ];
-        let error = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(1)))
-            .recovery(&ranking)
+        let error = super::ranking_document(super::prepared(&history, action()).unwrap(), &ranking)
             .err()
             .unwrap();
         assert_that!(error.to_string(), eq("conflicting durable evidence"));
@@ -383,43 +364,15 @@ mod tests {
             fact(6, 1, "preference.intent", json!({})),
             fact(7, 1, "add.intent", intent(1)),
         ];
-        let evidence = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(1)));
         assert_that!(
-            evidence.registration_prepared().unwrap()["data"]["bookId"],
+            super::registration_prepared(&history, action()).unwrap()["data"]["bookId"],
             eq(&json!(Uuid::from_u128(80)))
         );
         assert_that!(
-            evidence.first_fact_id(),
-            eq(&Uuid::from_u128(1).to_string())
+            super::facts(&history, action())[0]["id"],
+            eq(&json!(Uuid::from_u128(1)))
         );
-        assert_that!(evidence.intent().is_err(), eq(true));
-        assert_that!(evidence.recovery(&[]).is_err(), eq(true));
-        Ok(())
-    }
-
-    #[googletest::test]
-    fn single_action_uses_first_correlated_intent_without_validating_other_actions()
-    -> anyhow::Result<()> {
-        let history = [
-            fact(1, 2, "add.intent", json!({})),
-            fact(2, 1, "preference.intent", intent(9)),
-            fact(3, 1, "add.intent", json!({})),
-        ];
-        let evidence = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(1)));
-        let original = evidence.intent()?.unwrap();
-        assert_that!(original.action.text(), eq(&Uuid::from_u128(9).to_string()));
-        assert_that!(original.event, eq(Uuid::from_u128(99)));
-        assert_that!(original.revision, eq(0));
-        assert_that!(original.time.to_rfc3339(), eq("2026-01-01T12:00:00+00:00"));
-        assert_that!(
-            evidence.first_fact_id(),
-            eq(&Uuid::from_u128(2).to_string())
-        );
-        let missing = super::SingleAction::new(&history, super::ActionId(Uuid::from_u128(3)));
-        assert_that!(
-            matches!(missing.recovery(&[])?, super::Recovery::Missing),
-            eq(true)
-        );
+        assert_that!(super::intent(&history, action()).is_err(), eq(true));
         Ok(())
     }
 
