@@ -17,6 +17,8 @@ def run_test(
     *,
     fault: str = "",
     coverage: bool = True,
+    cwd: Path | None = None,
+    extra_environment: dict[str, str] | None = None,
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     directory = tmp_path / "coverage"
     directory.mkdir()
@@ -39,9 +41,13 @@ def run_test(
             COVERAGE_DIR=str(directory),
             COVERAGE_OUTPUT_FILE=str(report),
         )
+    environment.update(extra_environment or {})
+    command = [str(ROOT / target), "-o", f"python_files={Path(target).name}.py"]
+    if cwd is not None:
+        command.append(str(ROOT / (target + ".py")))
     result = subprocess.run(
-        [str(ROOT / target), "-o", f"python_files={Path(target).name}.py"],
-        cwd=ROOT,
+        command,
+        cwd=cwd or ROOT,
         env=environment,
         text=True,
         capture_output=True,
@@ -311,3 +317,23 @@ def _check_bootstrap_report(
     if outer is not None:
         outer.get_data().update(measured)
         outer.get_data().update(collector.get_data())
+
+
+def test_relative_configuration_survives_child_working_directory(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "custom.coveragerc").write_text("[run]\nbranch = True\n")
+    child = tmp_path / "child"
+    child.mkdir()
+    result, report = run_test(
+        tmp_path,
+        "tools/python/coverage_fixture_test",
+        [str(ROOT / "tools/python/coverage_fixture_test.py")],
+        cwd=tmp_path,
+        extra_environment={
+            "COVERAGE_RCFILE": "custom.coveragerc",
+            "COVERAGE_TEST_CHILD_CWD": str(child),
+        },
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert report.is_file()

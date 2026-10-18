@@ -32,6 +32,7 @@ def start(manifest: list[str]) -> Coverage:
     )
     # Read the caller's configuration once. Children must use the same options.
     collector.set_option("run:parallel", True)
+    rcfile = os.environ.get("COVERAGE_RCFILE")
     config = root / "config.json"
     config.write_text(
         json.dumps(
@@ -39,7 +40,7 @@ def start(manifest: list[str]) -> Coverage:
                 "coverage_path": str(Path(coverage.__file__).parent.parent),
                 "data_file": str(root / ".coverage"),
                 "include": collector.get_option("run:include"),
-                "rcfile": os.environ.get("COVERAGE_RCFILE") or True,
+                "rcfile": str(Path(rcfile).absolute()) if rcfile else True,
             }
         )
     )

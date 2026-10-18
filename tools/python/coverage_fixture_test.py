@@ -13,6 +13,7 @@ def test_child_finishes() -> None:
     subprocess.run(
         [sys.executable, "-c", "print('child completed')"],
         env=environment,
+        cwd=environment.get("COVERAGE_TEST_CHILD_CWD"),
         check=False,
         capture_output=True,
     )
