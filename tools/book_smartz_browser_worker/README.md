@@ -89,7 +89,9 @@ gh run list --repo LowkeyLab/bazel-repo --workflow publish-browser-worker.yml
 
 Publication uses the workflow's short-lived `GITHUB_TOKEN` with `packages: write`,
 through the existing `oci_push` rule. It needs no new personal access token or registry secret.
-The publisher reruns the isolated Docker/PostgreSQL/Chromium runtime test, builds
+Hosted publication uses the runner’s Bazel setup and installed `gpgv`, rather than
+the developer shell’s Linux namespace wrapper. The publisher reruns the isolated
+Docker/PostgreSQL/Chromium runtime test, builds
 the worker digest, and tags the artifact `sha-<publishing-commit>`. Its summary
 records the publishing commit and validated digest. Consumers must use the digest,
 not the source tag. The runtime probe image is never published.
