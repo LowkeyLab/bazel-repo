@@ -20,7 +20,8 @@ def config(ctx):
         "//tools/lint:linters.bzl%vale",
     ]
 
-    ctx.tasks["delivery"].args.query = "kind(\"oci_push rule\", //...)"
+    # Tooling publication has its own bootstrap and anonymous-access gate.
+    ctx.tasks["delivery"].args.query = "kind(\"oci_push rule\", //...) except //tools/book_smartz_browser_worker:push_image"
     ctx.tasks["delivery"].args.bazel_flags = [
         "--compilation_mode=opt",
         # Override the Aspect cache selected automatically on CI.
