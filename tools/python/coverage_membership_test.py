@@ -47,6 +47,11 @@ def check_report(report: str, ordinary: str, hidden: str) -> None:
         assert "DA:4,0" in lines
         assert "BRF:2" in lines
         assert "BRH:0" in lines
+    observed = records[f"{ordinary}/observed/observed.py"]
+    assert "DA:3,1" in observed
+    assert "DA:4,0" in observed
+    assert "BRF:2" in observed
+    assert "BRH:1" in observed
     assert f"{ordinary}/generated.py" not in records
     assert f"{ordinary}/test_helpers/support.py" not in records
     for source in records:
@@ -63,7 +68,7 @@ def main() -> None:
     evidence.mkdir(parents=True, exist_ok=True)
     with (
         tempfile.TemporaryDirectory(
-            prefix="coverage_fixture_", dir=root / "python_sample"
+            prefix="coverage_fixture_", dir=root
         ) as ordinary_directory,
         tempfile.TemporaryDirectory(
             prefix="coverage_fixture_", dir=root / ".github"
@@ -73,6 +78,14 @@ def main() -> None:
         hidden = Path(hidden_directory)
         generate(root, ordinary / "untested.py", SOURCE)
         generate(root, hidden / "untested.py", SOURCE)
+        observed = ordinary / "observed"
+        observed.mkdir()
+        generate(root, observed / "observed.py", SOURCE)
+        generate(
+            root,
+            observed / "observed_test.py",
+            f"from {ordinary.name}.observed.observed import choose\n\ndef test_choose():\n    assert choose(True) == 1\n",
+        )
         support = ordinary / "test_helpers"
         support.mkdir()
         generate(root, support / "support.py", "TEST_SUPPORT = True\n")
@@ -100,7 +113,12 @@ genrule(
 )
 py_library(name = "generated", srcs = [":generated.py"])
 """)
-        targets = ["//python_sample/...", "//.github/...", "//tools/python/..."]
+        targets = [
+            "//python_sample/...",
+            "//.github/...",
+            "//tools/python/...",
+            f"//{ordinary.relative_to(root)}/...",
+        ]
         result = command(root, "coverage", *targets, "--config=ci")
         (evidence / "coverage.log").write_text(result.stdout + result.stderr)
         assert result.returncode == 0, result.stdout + result.stderr
@@ -117,7 +135,7 @@ py_library(name = "generated", srcs = [":generated.py"])
         query = command(
             root,
             "query",
-            f'kind("py_test rule", rdeps(//..., //{ordinary.relative_to(root)}:{ordinary.name}))',
+            f'kind("py_test rule", rdeps(//..., //{ordinary.relative_to(root)}:untested.py))',
         )
         assert query.returncode == 0, query.stdout + query.stderr
         assert not query.stdout.strip(), query.stdout
