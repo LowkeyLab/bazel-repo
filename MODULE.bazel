@@ -99,7 +99,7 @@ git_override(
 bazel_dep(name = "rules_java")
 git_override(
     module_name = "rules_java",
-    commit = "500d0a792c747d050f788d1c38c3d92f175d5e93",
+    commit = "cd2030164287fdcbfc104036f7aebb788ef48c08",
     remote = "https://github.com/bazelbuild/rules_java.git",
 )
 
