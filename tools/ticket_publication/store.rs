@@ -4,7 +4,7 @@ use anyhow::{Context, Result, ensure};
 use std::{
     fs::{self, File, OpenOptions},
     io::Write,
-    os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+    os::unix::fs::{OpenOptionsExt, PermissionsExt},
     path::{Path, PathBuf},
 };
 
@@ -73,7 +73,25 @@ fn check_private_directory(path: &Path) -> Result<()> {
         fs::metadata(path)?.permissions().mode().trailing_zeros() >= 6,
         "state directory is not private"
     );
+    created_directory(path)?;
     Ok(())
+}
+
+const CREATION_MARKER: &str = ".ticket-publication-directory";
+const CREATION_VERSION: &[u8] = b"1\n";
+
+fn created_directory(path: &Path) -> Result<bool> {
+    let marker = path.join(CREATION_MARKER);
+    let metadata = match fs::symlink_metadata(&marker) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error.into()),
+    };
+    ensure!(
+        metadata.is_file() && fs::read(marker)? == CREATION_VERSION,
+        "invalid directory creation marker"
+    );
+    Ok(true)
 }
 
 fn private_directory(path: &Path) -> Result<()> {
@@ -85,13 +103,35 @@ fn private_directory(path: &Path) -> Result<()> {
         if !parent.exists() {
             private_directory(parent)?;
         }
-        fs::DirBuilder::new().mode(0o700).create(path)?;
+        let staging = tempfile::Builder::new()
+            .prefix(".ticket-publication-")
+            .tempdir_in(parent)?;
+        fs::set_permissions(staging.path(), fs::Permissions::from_mode(0o700))?;
+        let mut marker = OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(staging.path().join(CREATION_MARKER))?;
+        marker.write_all(CREATION_VERSION)?;
+        marker.sync_all()?;
+        File::open(staging.path())?.sync_all()?;
+        ensure!(
+            !path.try_exists()?,
+            "state directory appeared during preparation; retry"
+        );
+        fs::rename(staging.path(), path)?;
+        let _ = staging.keep();
     }
     check_private_directory(path)?;
-    // A previous attempt can create any ancestor before its sync fails.
-    // Synchronize the whole retained chain before accepting that attempt.
-    for directory in path.canonicalize()?.ancestors() {
-        File::open(directory)?.sync_all()?;
+    // A marker is durable before the directory receives its final name.
+    // Retry parent syncs for marked directories, then stop at the existing boundary.
+    let mut directory = path.canonicalize()?;
+    while created_directory(&directory)? {
+        let parent = directory
+            .parent()
+            .context("created directory has no parent")?;
+        File::open(parent)?.sync_all()?;
+        directory = parent.to_path_buf();
     }
     Ok(())
 }

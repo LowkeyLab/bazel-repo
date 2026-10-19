@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -37,4 +38,32 @@ int fsync(int descriptor) {
     }
   }
   return result;
+}
+
+// A traverse-only ancestor must not require a read-only directory descriptor.
+static int checked_open(const char *symbol, const char *path, int flags, mode_t mode) {
+  int (*real_open)(const char *, int, ...) = (int (*)(const char *, int, ...))dlsym(RTLD_NEXT, symbol);
+  if (real_open == NULL) { errno = EIO; return -1; }
+  const char *denied = getenv("DENY_READ_DIRECTORY");
+  if (denied != NULL && strcmp(denied, path) == 0 && (flags & O_ACCMODE) == O_RDONLY && (flags & O_PATH) == 0) {
+    errno = EACCES;
+    return -1;
+  }
+  return real_open(path, flags, mode);
+}
+
+int open(const char *path, int flags, ...) {
+  mode_t mode = 0;
+  if ((flags & O_CREAT) != 0 || (flags & O_TMPFILE) == O_TMPFILE) {
+    va_list args; va_start(args, flags); mode = va_arg(args, mode_t); va_end(args);
+  }
+  return checked_open("open", path, flags, mode);
+}
+
+int open64(const char *path, int flags, ...) {
+  mode_t mode = 0;
+  if ((flags & O_CREAT) != 0 || (flags & O_TMPFILE) == O_TMPFILE) {
+    va_list args; va_start(args, flags); mode = va_arg(args, mode_t); va_end(args);
+  }
+  return checked_open("open64", path, flags, mode);
 }

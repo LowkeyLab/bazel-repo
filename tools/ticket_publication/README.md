@@ -57,13 +57,17 @@ State paths must use UTF-8 because the command returns paths in JSON.
 The command rejects other path encodings before creating state.
 
 Each batch has a private directory. The directory contains `batch.json` and a
-persistent `lock` file. The snapshot contains the original checked plan,
+persistent `lock` file. A `.ticket-publication-directory` marker identifies each
+directory that this tool creates. The snapshot contains the original checked plan,
 fingerprint, batch identity, ticket identity markers, and pending progress.
 Each marker has the form `<!-- ticket-publication:<batch-id>:<key> -->`.
 The fingerprint identifies the serialized checked plan. It is not a signature.
 
 The command synchronizes the snapshot before committing its name. It then
-synchronizes the directory. It does not overwrite an existing snapshot.
+synchronizes the directory. Creation markers become durable before directory
+publication. Preparation retries synchronization for marked directories and their
+parent boundary. It does not require read access to earlier ancestors.
+Retain these markers during state transfer. It does not overwrite an existing snapshot.
 A failed write prevents a successful result. An interruption can leave temporary
 files or a directory without a committed snapshot. `status` rejects incomplete,
 corrupt, or unsupported state without replacing the snapshot.

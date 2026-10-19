@@ -480,3 +480,73 @@ fn non_utf8_state_paths_fail_before_creating_any_batch() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[googletest::test]
+fn preparation_below_a_traverse_only_ancestor_succeeds() -> anyhow::Result<()> {
+    let f = Fixture::new()?;
+    let files = Runfiles::create()?;
+    let fault = rlocation!(files, std::env::var("SYNC_FAULT_LIBRARY")?).context("fault runfile")?;
+    let ancestor = f.directory.path().join("traverse-only");
+    let home = ancestor.join("user");
+    fs::create_dir_all(&home)?;
+    fs::set_permissions(&home, fs::Permissions::from_mode(0o700))?;
+    fs::set_permissions(&ancestor, fs::Permissions::from_mode(0o111))?;
+    let state = home.join("state");
+    let output = Command::new(&f.tool)
+        .arg("--state-dir")
+        .arg(&state)
+        .args(["prepare", "--plan", "plan.json"])
+        .current_dir(f.directory.path())
+        .env("LD_PRELOAD", &fault)
+        .env("DENY_READ_DIRECTORY", &ancestor)
+        .output()?;
+    fs::set_permissions(&ancestor, fs::Permissions::from_mode(0o700))?;
+    anyhow::ensure!(
+        output.status.success(),
+        "preparation failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let prepared: Value = serde_json::from_slice(&output.stdout)?;
+    let id = prepared["batch_id"].as_str().context("batch identity")?;
+    f.successful(&[
+        "--state-dir",
+        state.to_str().context("state path")?,
+        "status",
+        "--batch",
+        id,
+    ])?;
+    Ok(())
+}
+
+#[googletest::test]
+fn invalid_creation_markers_stop_inspection_without_changing_the_snapshot() -> anyhow::Result<()> {
+    let f = Fixture::new()?;
+    let prepared = f.successful(&["--state-dir", "state", "prepare", "--plan", "plan.json"])?;
+    let id = prepared["batch_id"].as_str().context("batch identity")?;
+    let file = f
+        .directory
+        .path()
+        .join(prepared["plan_path"].as_str().context("plan path")?);
+    let snapshot = fs::read(&file)?;
+    for directory in [
+        f.directory.path().join("state"),
+        file.parent().context("batch directory")?.to_path_buf(),
+    ] {
+        let marker = directory.join(".ticket-publication-directory");
+        let original = fs::read(&marker)?;
+        fs::write(&marker, b"unsupported marker version")?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "status", "--batch", id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        assert_that!(fs::read(&file)?, eq(&snapshot));
+        assert_that!(
+            fs::read(&marker)?,
+            eq(&b"unsupported marker version".to_vec())
+        );
+        fs::write(marker, original)?;
+    }
+    Ok(())
+}
