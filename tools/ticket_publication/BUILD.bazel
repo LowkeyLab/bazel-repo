@@ -1,0 +1,54 @@
+"""Prepare and inspect private ticket-publication state."""
+
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+
+rust_binary(
+    name = "ticket_publication",
+    srcs = [
+        "main.rs",
+        "plan.rs",
+        "store.rs",
+    ],
+    crate_root = "main.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:clap",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:tempfile",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "command_test",
+    size = "small",
+    srcs = ["tests/command.rs"],
+    crate_root = "tests/command.rs",
+    data = [
+        ":sync_fault.so",
+        ":ticket_publication",
+    ],
+    env = {
+        "PUBLICATION_TOOL": "$(rlocationpath :ticket_publication)",
+        "SYNC_FAULT_LIBRARY": "$(rlocationpath :sync_fault.so)",
+    },
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+cc_binary(
+    name = "sync_fault.so",
+    testonly = True,
+    srcs = ["tests/sync_fault.c"],
+    linkopts = ["-ldl"],
+    linkshared = True,
+)
