@@ -1,4 +1,5 @@
 //! Security and account continuity through the packaged HTTP application.
+use anyhow::Context;
 use googletest::{
     assert_that,
     matchers::{contains_substring, eq},
@@ -88,7 +89,7 @@ async fn audience_and_authorized_presenter_control_session_authority() -> anyhow
                     .await?;
             assert_that!(sessions_after, eq(sessions_before));
         } else {
-            let cookie = session_cookie.ok_or_else(|| anyhow::anyhow!("Missing session cookie"))?;
+            let cookie = session_cookie.context("Missing session cookie")?;
             let cookie = cookie.split(';').next().unwrap();
             assert_that!(app.ranking(cookie).await?.status().as_u16(), eq(200));
         }
