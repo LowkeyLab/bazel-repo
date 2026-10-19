@@ -1,0 +1,42 @@
+[
+  {
+    "path": "baseline.0.go",
+    "bytes": 249,
+    "sha256": "e9d63bf18821513ee42bd20f27bdca1f8d360f5c933b4abe57114bc80ea98d09"
+  },
+  {
+    "path": "baseline.1.go",
+    "bytes": 138,
+    "sha256": "c5b7b068f86da5a2e92b8ea7e57b2d83543e00c0a5c136fa7d961d5fe9dbb14b"
+  },
+  {
+    "path": "baseline.cov",
+    "bytes": 82,
+    "sha256": "ed7411e144cbdd86744acc7c4218a7e33842413899f8327e769099046f56893f"
+  },
+  {
+    "path": "covervars.go",
+    "bytes": 1095,
+    "sha256": "eecb94f894120e11d568a17c0e46ac0b0815140db3b101dc8321b8a27ed66122"
+  },
+  {
+    "path": "covmeta/covmeta.98d7ad2a45c18864f9243f169ce80746",
+    "bytes": 241,
+    "sha256": "d0b502582e134d35a2f92da638c105a6e4615621c5440d55c4e9f1b3318c56ab"
+  },
+  {
+    "path": "outcfg.txt",
+    "bytes": 226,
+    "sha256": "4889c4549345f45921e8f3a6991ea37ce6dff2c608138552dc388720a8a643bc"
+  },
+  {
+    "path": "outfilelist.txt",
+    "bytes": 98,
+    "sha256": "d63574dcf540ef9d600d1f880bd144e42dcf4fb3be8340fcfec99b44b2399b67"
+  },
+  {
+    "path": "pkgcfg.json",
+    "bytes": 242,
+    "sha256": "3be9771960ebae20f286fbdda52a18989debd02c2083838211502f0db235d64f"
+  }
+]

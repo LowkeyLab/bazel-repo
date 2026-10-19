@@ -1,0 +1,25 @@
+baselinecoverage: WORK=<TMPDIR>/<WORKDIR>
+GOEXPERIMENT= \
+GODEBUG=winsymlink=0 \
+COMPILER_PATH=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm- \
+PWD=<LOCAL_PATH> \
+GOARCH=amd64 \
+LLVM_NM=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm-nm \
+LLVM_STRIP=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm-strip \
+TMPDIR=<TMPDIR> \
+LLVM_CLANGXX=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/clang++ \
+GOROOT=external/rules_go++go_sdk+main___download_0_linux_amd64 \
+SHLVL=1 \
+GOTOOLCHAIN=local \
+LLVM_READTAPI=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm-readtapi \
+GOROOT_FINAL=GOROOT \
+LLVM_DSYMUTIL=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/dsymutil \
+PATH=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin:bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/llvm+/tools/internal/link-wrapper-clang++:/bin:/usr/bin \
+CGO_ENABLED=1 \
+LLVM_IFS=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm-ifs \
+GOOS=linux \
+GOPATH= \
+_=bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_go++go_sdk+main___download_0_linux_amd64/builder_reset/builder \
+external/rules_go++go_sdk+main___download_0_linux_amd64/pkg/tool/linux_amd64/cover -pkgcfg <TMPDIR>/<WORKDIR>/pkgcfg.json -var GoBaselineCover -mode set -outfilelist <TMPDIR>/<WORKDIR>/outfilelist.txt bazel-out/k8-fastbuild/bin/docs/research/go-test-baseline-experiment/invalid.go
+2026/10/20 00:10:35 cover: bazel-out/k8-fastbuild/bin/docs/research/go-test-baseline-experiment/invalid.go: bazel-out/k8-fastbuild/bin/docs/research/go-test-baseline-experiment/invalid.go:2:15: expected ')', found '{'
+baselinecoverage: instrumenting package: error running subcommand external/rules_go++go_sdk+main___download_0_linux_amd64/pkg/tool/linux_amd64/cover: exit status 1

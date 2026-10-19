@@ -1,0 +1,37 @@
+[
+  {
+    "path": "baseline.0.go",
+    "bytes": 254,
+    "sha256": "f5ef08985d7f06697267c4ceac26cbc82ba85cf73ad219ede959fa5720e82fc8"
+  },
+  {
+    "path": "baseline.cov",
+    "bytes": 82,
+    "sha256": "d2d6f6b6748ceaafbeea2dcc7048fbdd288ea5193a06915fdd08d99ec807fbf2"
+  },
+  {
+    "path": "covervars.go",
+    "bytes": 1131,
+    "sha256": "04b8cdddb55578579b57ab6da601995ffa8fb9eb2d8cef1dd2b8e573429c0d05"
+  },
+  {
+    "path": "covmeta/covmeta.98d7ad2a45c18864f9243f169ce80746",
+    "bytes": 246,
+    "sha256": "c8b7dcc44e244c97874baa41620e9ce0707315fb8b5f0365ddc874b81c9a6c15"
+  },
+  {
+    "path": "outcfg.txt",
+    "bytes": 226,
+    "sha256": "4de3420ff9c27587fcf175abb8f6b8396fe52d10177d8e0cad2b6bcee5c52b36"
+  },
+  {
+    "path": "outfilelist.txt",
+    "bytes": 65,
+    "sha256": "ada551d4b0784d9bb1cd5b33f3d74b10dc186918e3c4e995effc1bf5833dec71"
+  },
+  {
+    "path": "pkgcfg.json",
+    "bytes": 247,
+    "sha256": "2c1deb48fcf0ac930d31e897706587c0cc7f6e7bdd2d98a772cf866e35332273"
+  }
+]

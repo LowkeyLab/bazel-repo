@@ -1,0 +1,39 @@
+INFO: Invocation ID: 138ea106-3733-45d8-ba85-0f989d0fa30c
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/138ea106-3733-45d8-ba85-0f989d0fa30c
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 6 targets (1 packages loaded, 0 targets configured)
+INFO: Analyzed 6 targets (2 packages loaded, 12 targets configured).
+INFO: Found 6 targets...
+[0 / 9] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[6 / 12] GoBaselineExperiment docs/research/go-test-baseline-experiment/internal.evidence; Downloading external/rules_go++go_sdk+main___download_0_linux_amd64/builder_reset/builder, 2.2 MiB / 6.7 MiB; 1s remote-cache ... (6 actions, 0 running)
+Target //docs/research/go-test-baseline-experiment:declarations up-to-date:
+  bazel-bin/docs/research/go-test-baseline-experiment/declarations.evidence
+Target //docs/research/go-test-baseline-experiment:internal up-to-date:
+  bazel-bin/docs/research/go-test-baseline-experiment/internal.evidence
+Target //docs/research/go-test-baseline-experiment:invalid up-to-date:
+  bazel-bin/docs/research/go-test-baseline-experiment/invalid.evidence
+Target //docs/research/go-test-baseline-experiment:absent_metadata up-to-date:
+  bazel-bin/docs/research/go-test-baseline-experiment/absent_metadata.evidence
+Target //docs/research/go-test-baseline-experiment:mixed up-to-date:
+  bazel-bin/docs/research/go-test-baseline-experiment/mixed.evidence
+Target //docs/research/go-test-baseline-experiment:external up-to-date:
+  bazel-bin/docs/research/go-test-baseline-experiment/external.evidence
+INFO: Elapsed time: 4.623s, Critical Path: 2.09s
+INFO: 10 processes: 1 action cache hit, 3 internal, 7 local.
+INFO: Build completed successfully, 10 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/138ea106-3733-45d8-ba85-0f989d0fa30c

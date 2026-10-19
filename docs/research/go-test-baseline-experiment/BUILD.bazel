@@ -1,0 +1,56 @@
+# gazelle:ignore
+load(":experiment.bzl", "baseline_experiment")
+
+baseline_experiment(
+    name = "mixed",
+    srcs = [
+        "declarations.go",
+        "excluded.go",
+        "external_test.go",
+        "internal_test.go",
+    ],
+    tags = ["manual"],
+)
+
+baseline_experiment(
+    name = "internal",
+    srcs = [
+        "declarations.go",
+        "excluded.go",
+        "internal_test.go",
+    ],
+    tags = ["manual"],
+)
+
+baseline_experiment(
+    name = "external",
+    srcs = ["external_test.go"],
+    tags = ["manual"],
+)
+
+baseline_experiment(
+    name = "declarations",
+    srcs = ["declarations.go"],
+    tags = ["manual"],
+)
+
+baseline_experiment(
+    name = "absent_metadata",
+    srcs = ["internal_test.go"],
+    absent_metadata = True,
+    tags = ["manual"],
+)
+
+genrule(
+    name = "invalid_fixture",
+    srcs = ["invalid.input"],
+    outs = ["invalid.go"],
+    cmd = "cp $(location invalid.input) $@",
+    tags = ["manual"],
+)
+
+baseline_experiment(
+    name = "invalid",
+    srcs = [":invalid_fixture"],
+    tags = ["manual"],
+)

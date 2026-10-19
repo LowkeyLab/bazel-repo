@@ -1,0 +1,24 @@
+baselinecoverage: WORK=<TMPDIR>/<WORKDIR>
+GOEXPERIMENT= \
+GODEBUG=winsymlink=0 \
+COMPILER_PATH=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm- \
+PWD=<LOCAL_PATH> \
+GOARCH=amd64 \
+LLVM_NM=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm-nm \
+LLVM_STRIP=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm-strip \
+TMPDIR=<TMPDIR> \
+LLVM_CLANGXX=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/clang++ \
+GOROOT=external/rules_go++go_sdk+main___download_0_linux_amd64 \
+SHLVL=1 \
+GOTOOLCHAIN=local \
+LLVM_READTAPI=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm-readtapi \
+GOROOT_FINAL=GOROOT \
+LLVM_DSYMUTIL=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/dsymutil \
+PATH=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin:bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/llvm+/tools/internal/link-wrapper-clang++:/bin:/usr/bin \
+CGO_ENABLED=1 \
+LLVM_IFS=external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/llvm-ifs \
+GOOS=linux \
+GOPATH= \
+_=bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/rules_go++go_sdk+main___download_0_linux_amd64/builder_reset/builder \
+bazel-out/k8-fastbuild/bin/docs/research/go-test-baseline-experiment/absent_metadata/pkg/tool/linux_amd64/cover -pkgcfg <TMPDIR>/<WORKDIR>/pkgcfg.json -var GoBaselineCover -mode set -outfilelist <TMPDIR>/<WORKDIR>/outfilelist.txt docs/research/go-test-baseline-experiment/internal_test.go
+baselinecoverage: the cover tool did not emit a coverage meta-data file for example.invalid/baseline: stat <TMPDIR>/<WORKDIR>/covmeta/covmeta.98d7ad2a45c18864f9243f169ce80746: no such file or directory

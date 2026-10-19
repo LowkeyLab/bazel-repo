@@ -1,0 +1,17 @@
+[
+  {
+    "path": "baseline.0.go",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "outfilelist.txt",
+    "bytes": 65,
+    "sha256": "ada551d4b0784d9bb1cd5b33f3d74b10dc186918e3c4e995effc1bf5833dec71"
+  },
+  {
+    "path": "pkgcfg.json",
+    "bytes": 242,
+    "sha256": "3be9771960ebae20f286fbdda52a18989debd02c2083838211502f0db235d64f"
+  }
+]

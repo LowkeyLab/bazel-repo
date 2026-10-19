@@ -1,0 +1,60 @@
+INFO: Invocation ID: 43a8319f-59b7-4f03-800c-319085af9f06
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/43a8319f-59b7-4f03-800c-319085af9f06
+Computing main repo mapping: 
+Computing main repo mapping: 
+Loading: 
+Loading: 7 packages loaded
+Loading: 8 packages loaded
+WARNING: <LOCAL_PATH> The module extension toolchains defined in @rules_rs//rs/toolchains:module_extension.bzl reported incorrect imports of repositories via use_repo():
+
+Imported, but reported as indirect dependencies by the extension:
+    rustfmt_linux_x86_64_1_99_1
+
+Fix the use_repo calls by running 'bazel mod tidy'.
+Analyzing: target //:gazelle (16 packages loaded, 14 targets configured)
+Analyzing: target //:gazelle (544 packages loaded, 11282 targets configured)
+Analyzing: target //:gazelle (719 packages loaded, 46957 targets configured)
+Analyzing: target //:gazelle (1093 packages loaded, 95973 targets configured)
+Analyzing: target //:gazelle (1149 packages loaded, 136585 targets configured, 87 aspect applications)
+Analyzing: target //:gazelle (1152 packages loaded, 200335 targets configured, 215 aspect applications)
+INFO: Analyzed target //:gazelle (1154 packages loaded, 221168 targets configured, 634 aspect applications).
+ no actions running
+INFO: Found 1 target...
+[4 / 36] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[3,901 / 4,567] [Prepa] runfiles for @@rules_rs++crate+crates__quote-1.0.47//:_bs_
+[4,492 / 4,567] Compiling Rust rlib @@rules_rs++crate+crates__parking_lot_core-0.9.12//:parking_lot_core v0.9.12 (18 files); 0s remote, remote-cache ... (8 actions, 0 running)
+[4,543 / 4,567] Compiling Rust rlib @@rules_rs++crate+crates__gix-diff-0.67.1//:gix-diff v0.67.1 (18 files); 0s remote, remote-cache ... (6 actions, 0 running)
+[4,565 / 4,567] checking cached actions
+[4,565 / 4,567] Compiling Rust bin //3rdparty/gazelle_rust/upstream/rust_parser:rust_parser (1 file); Downloading 3rdparty/gazelle_rust/upstream/rust_parser/rust_parser, 1.1 MiB / 26.7 MiB; 0s remote, remote-cache
+INFO: From Compiling Rust bin //3rdparty/gazelle_rust/upstream/rust_parser:rust_parser (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+Target //:gazelle up-to-date:
+  bazel-bin/gazelle-runner.bash
+  bazel-bin/gazelle
+INFO: Elapsed time: 16.932s, Critical Path: 5.36s
+INFO: 177 processes: 4390 action cache hit, 98 remote cache hit, 79 internal.
+INFO: Build completed successfully, 177 total actions
+
+INFO: Running command line: bazel-bin/gazelle
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/43a8319f-59b7-4f03-800c-319085af9f06
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.PlatformDependent0$4 (file:<LOCAL_PATH>
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$4
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
