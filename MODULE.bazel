@@ -213,7 +213,7 @@ use_repo(rules_rust_wasm_bindgen, "rules_rust_wasm_bindgen")
 bazel_dep(name = "rules_shell")
 git_override(
     module_name = "rules_shell",
-    commit = "660e16c77fdc1081ffdec014790ea2d3ba184942",
+    commit = "6ce926fa2be0c94b06ef65eba8d2f989676a26a3",
     remote = "https://github.com/bazel-contrib/rules_shell.git",
 )
 
