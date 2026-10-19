@@ -1,0 +1,25 @@
+{
+  "source_count": 11,
+  "one_identity_per_source": true,
+  "identical_merge_orders": true,
+  "merged_sha256": "76b125dff7656ddfc441e805a44d61064e4a7f08bb7d4ffd5e0bb2faebf9c75d",
+  "preserved_parent_hits": true,
+  "child_only_line": 7,
+  "child_only_hit": 1,
+  "original_path_mismatches_corrected": true,
+  "duplicate_basename_paths_separated": true,
+  "stable_supported_branch_keys": true,
+  "out_of_range_DA_records": [],
+  "inline_body_line": 3,
+  "inline_body_hit": 0,
+  "nonpositive_function_records": [
+    [
+      "tools/coverage/jvm_fixture/kotlin/kprobe/Declaration.kt",
+      "0,kprobe/Declaration::abstractValue ()I"
+    ],
+    [
+      "tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt",
+      "-1,kprobe/ExecutedKotlinKt::doubled (I)I"
+    ]
+  ]
+}

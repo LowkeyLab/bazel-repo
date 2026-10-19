@@ -1,0 +1,62 @@
+load("@rules_java//java:defs.bzl", "java_binary", "java_library", "java_test")
+load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+
+# gazelle:ignore
+
+java_library(
+    name = "executed_java",
+    srcs = [
+        "java/odd/DirectoryMismatch.java",
+        "java/probe/Executed.java",
+    ],
+)
+
+java_library(
+    name = "disconnected_java",
+    srcs = ["java/disconnected/Disconnected.java"],
+)
+
+kt_jvm_library(
+    name = "executed_kotlin",
+    srcs = [
+        "kotlin/first/shared/Twin.kt",
+        "kotlin/kprobe/ExecutedKotlin.kt",
+        "kotlin/odd/KotlinMismatch.kt",
+        "kotlin/second/shared/Twin.kt",
+    ],
+)
+
+kt_jvm_library(
+    name = "disconnected_kotlin",
+    srcs = [
+        "kotlin/kprobe/Declaration.kt",
+        "kotlin/kprobe/DisconnectedKotlin.kt",
+    ],
+)
+
+java_binary(
+    name = "child",
+    srcs = ["java/probe/Child.java"],
+    main_class = "probe.Child",
+)
+
+java_test(
+    name = "fixture_test",
+    size = "small",
+    srcs = ["java/probe/FixtureTest.java"],
+    args = ["$(location :child)"],
+    data = [":child"],
+    main_class = "probe.FixtureTest",
+    use_testrunner = False,
+    deps = [
+        ":executed_java",
+        ":executed_kotlin",
+    ],
+)
+
+java_binary(
+    name = "baseline",
+    srcs = ["java/adapter/Baseline.java"],
+    main_class = "adapter.Baseline",
+    runtime_deps = ["@@rules_java++toolchains+remote_java_tools//:jacoco_coverage_runner"],
+)

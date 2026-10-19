@@ -1,0 +1,16 @@
+SF:tools/coverage/jvm_fixture/java/probe/Child.java
+FN:3,probe/Child::<init> ()V
+FNDA:0,probe/Child::<init> ()V
+FN:5,probe/Child::main ([Ljava/lang/String;)V
+FNDA:1,probe/Child::main ([Ljava/lang/String;)V
+BRDA:5,0,0,1
+BRDA:5,0,1,0
+BRDA:6,0,0,1
+BRDA:6,0,1,0
+DA:3,0
+DA:5,1
+DA:6,1
+DA:7,1
+DA:9,0
+DA:11,1
+end_of_record

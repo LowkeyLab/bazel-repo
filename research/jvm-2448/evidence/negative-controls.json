@@ -1,0 +1,22 @@
+[
+  {
+    "control": "child-missing",
+    "functional_test_status": "PASSED",
+    "collection_exit": 1,
+    "diagnostics": [
+      "Exception in thread \"main\" java.nio.file.NoSuchFileException: [CONTROL_INPUT_DIRECTORY]/expected-child.exec",
+      "\tat java.base/sun.nio.fs.UnixException.translateToIOException(UnixException.java:92)",
+      "\tat java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:106)",
+      "\tat java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:111)"
+    ]
+  },
+  {
+    "control": "child-corrupt",
+    "functional_test_status": "PASSED",
+    "collection_exit": 1,
+    "diagnostics": [
+      "Exception in thread \"main\" java.lang.reflect.InvocationTargetException",
+      "Caused by: java.io.IOException: Invalid execution data file."
+    ]
+  }
+]

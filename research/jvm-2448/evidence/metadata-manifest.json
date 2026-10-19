@@ -1,0 +1,106 @@
+[
+  {
+    "jar": "libexecuted_java.jar",
+    "sha256": "dbac2fcc661bc9760f29205b99f90bb96dd49aaec0f8737e96bc6feba8316066",
+    "entries": [
+      {
+        "entry": "bazel-out/k8-fastbuild/bin/tools/coverage/jvm_fixture/libexecuted_java-paths-for-coverage.txt",
+        "sha256": "6fbb9226ab998e30039143d4629405375ba1385ee497219a3e437fbce7d548ec"
+      },
+      {
+        "entry": "mismatch/DirectoryMismatch.class.uninstrumented",
+        "sha256": "4111d9915d97e53c9964e5c0f18b0af0bd85ed3f2a4100b607e36b566ecdc19e"
+      },
+      {
+        "entry": "probe/Executed.class.uninstrumented",
+        "sha256": "c02ab2528cd32b403cafb525d5a5eb7f4e252aa8371b6be191b616dacdd7765e"
+      }
+    ]
+  },
+  {
+    "jar": "executed_kotlin.jar",
+    "sha256": "72c7bce305e792d1e39ddd16266d99c676e91ebb03fa324944f58e6976e71e1a",
+    "entries": [
+      {
+        "entry": "executed_kotlin-kt.jar-paths-for-coverage.txt",
+        "sha256": "2da21dc853cbb60edf1d1a128d18af4debe14599fc33285f74ee9a7eadc87b0e"
+      },
+      {
+        "entry": "kodd/KotlinMismatchKt.class.uninstrumented",
+        "sha256": "41ddd3caa9bb0d8d7330572c0e70c733400e471bbefb054d07d3b0ad595b072b"
+      },
+      {
+        "entry": "kprobe/ExecutedKotlinKt.class.uninstrumented",
+        "sha256": "e7343a72f7c434c023b25b6cbce263e62d2023e468dbf2937d5a29369fa19900"
+      },
+      {
+        "entry": "shared/SecondTwin.class.uninstrumented",
+        "sha256": "e0186cc2945840fb6ce1696b4021bddf378e7ecd07881afada915e80aaf3026d"
+      },
+      {
+        "entry": "shared/TwinKt.class.uninstrumented",
+        "sha256": "acdd8460c2fcf91c027992d57e6f06128907b46a6125f32892dd09816ad8aabc"
+      }
+    ]
+  },
+  {
+    "jar": "fixture_test.jar",
+    "sha256": "9d5b29fdb929c1b2e29189406803dd7f81336deaa73d87f40634dd8bb16b71d4",
+    "entries": [
+      {
+        "entry": "bazel-out/k8-fastbuild/bin/tools/coverage/jvm_fixture/fixture_test-paths-for-coverage.txt",
+        "sha256": "ce2a5eefb81c7d762aec05a4b43c739f92039eedb5b84b733b994b4403aa336b"
+      },
+      {
+        "entry": "probe/FixtureTest.class.uninstrumented",
+        "sha256": "9911d232ab39bce7a80ee4a8f2cad6112c265d074afe4d1070933e081d2bbce8"
+      }
+    ]
+  },
+  {
+    "jar": "child.jar",
+    "sha256": "5f606437c520e256a873f6edeba60ad2dbc4c4184fec75a812b9ef9a24d86291",
+    "entries": [
+      {
+        "entry": "bazel-out/k8-fastbuild/bin/tools/coverage/jvm_fixture/child-paths-for-coverage.txt",
+        "sha256": "66a7b16c89783af2854d60f074b120f7ff865b07422045ff6bb25e6342a88123"
+      },
+      {
+        "entry": "probe/Child.class.uninstrumented",
+        "sha256": "3fef1fedb37a2d97f372749da6f96751714087b0ac8435bd1ac8252a1d8fcc87"
+      }
+    ]
+  },
+  {
+    "jar": "libdisconnected_java.jar",
+    "sha256": "b21e907d770c27906b96c68c09a64c6a301fae9abe7635448cf86fcf9775ef50",
+    "entries": [
+      {
+        "entry": "bazel-out/k8-fastbuild/bin/tools/coverage/jvm_fixture/libdisconnected_java-paths-for-coverage.txt",
+        "sha256": "1ab73c44d9f41324a1d92b89fd5109900e3aa6665a574e08719bc17785808bbe"
+      },
+      {
+        "entry": "disconnected/Disconnected.class.uninstrumented",
+        "sha256": "418fcb3e33896d3475fe53b3af744470fe87f82595b47e2288baa1e76cd3c15f"
+      }
+    ]
+  },
+  {
+    "jar": "disconnected_kotlin.jar",
+    "sha256": "d915007fe0f59660a4d628c8a9df50d26119b7e22cd67c642ec6bc1b50fff9d7",
+    "entries": [
+      {
+        "entry": "disconnected_kotlin-kt.jar-paths-for-coverage.txt",
+        "sha256": "30db9ce36f4f505c603c59368080fecb857674614c53a4e9d6bbf64de3d98fe0"
+      },
+      {
+        "entry": "kprobe/Declaration.class.uninstrumented",
+        "sha256": "1fbe3ea806d456bcfe2a1357362a60458ce4f01066ccb7d11e0aeed3bbdc2298"
+      },
+      {
+        "entry": "kprobe/DisconnectedKotlinKt.class.uninstrumented",
+        "sha256": "dfead2cf1d92c62265316302f442d461f26e9d55f49ddf1157cbe1d11eda9b67"
+      }
+    ]
+  }
+]

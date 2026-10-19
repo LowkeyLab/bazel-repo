@@ -1,0 +1,189 @@
+SF:tools/coverage/jvm_fixture/java/disconnected/Disconnected.java
+FN:5,disconnected/Disconnected::<clinit> ()V
+FN:3,disconnected/Disconnected::<init> ()V
+FN:9,disconnected/Disconnected::untouched (Z)I
+FNDA:0,disconnected/Disconnected::<clinit> ()V
+FNDA:0,disconnected/Disconnected::<init> ()V
+FNDA:0,disconnected/Disconnected::untouched (Z)I
+FNF:3
+FNH:0
+BRDA:5,0,0,-
+BRDA:5,0,1,-
+BRDA:9,0,0,-
+BRDA:9,0,1,-
+BRF:4
+BRH:0
+DA:3,0
+DA:5,0
+DA:6,0
+DA:9,0
+DA:10,0
+LH:0
+LF:5
+end_of_record
+SF:tools/coverage/jvm_fixture/java/odd/DirectoryMismatch.java
+FN:3,mismatch/DirectoryMismatch::<init> ()V
+FN:5,mismatch/DirectoryMismatch::value ()I
+FNDA:0,mismatch/DirectoryMismatch::<init> ()V
+FNDA:1,mismatch/DirectoryMismatch::value ()I
+FNF:2
+FNH:1
+DA:3,0
+DA:5,1
+LH:1
+LF:2
+end_of_record
+SF:tools/coverage/jvm_fixture/java/probe/Child.java
+FN:3,probe/Child::<init> ()V
+FN:5,probe/Child::main ([Ljava/lang/String;)V
+FNDA:0,probe/Child::<init> ()V
+FNDA:1,probe/Child::main ([Ljava/lang/String;)V
+FNF:2
+FNH:1
+BRDA:5,0,0,1
+BRDA:5,0,1,0
+BRDA:6,0,0,1
+BRDA:6,0,1,0
+BRF:4
+BRH:2
+DA:3,0
+DA:5,1
+DA:6,1
+DA:7,1
+DA:9,0
+DA:11,1
+LH:4
+LF:6
+end_of_record
+SF:tools/coverage/jvm_fixture/java/probe/Executed.java
+FN:3,probe/Executed::<init> ()V
+FN:5,probe/Executed::select (Z)I
+FNDA:0,probe/Executed::<init> ()V
+FNDA:1,probe/Executed::select (Z)I
+FNF:2
+FNH:1
+BRDA:5,0,0,1
+BRDA:5,0,1,0
+BRF:2
+BRH:1
+DA:3,0
+DA:5,1
+DA:6,1
+DA:8,0
+LH:2
+LF:4
+end_of_record
+SF:tools/coverage/jvm_fixture/java/probe/FixtureTest.java
+FN:6,probe/FixtureTest::<init> ()V
+FN:8,probe/FixtureTest::main ([Ljava/lang/String;)V
+FNDA:0,probe/FixtureTest::<init> ()V
+FNDA:1,probe/FixtureTest::main ([Ljava/lang/String;)V
+FNF:2
+FNH:1
+BRDA:8,0,0,0
+BRDA:8,0,1,1
+BRDA:9,0,0,0
+BRDA:9,0,1,1
+BRDA:10,0,0,0
+BRDA:10,0,1,1
+BRDA:11,0,0,0
+BRDA:11,0,1,1
+BRDA:12,0,0,0
+BRDA:12,0,1,1
+BRDA:13,0,0,0
+BRDA:13,0,1,1
+BRDA:20,0,0,0
+BRDA:20,0,1,1
+BRDA:21,0,0,0
+BRDA:21,0,1,1
+BRF:16
+BRH:8
+DA:6,0
+DA:8,1
+DA:9,1
+DA:10,1
+DA:11,1
+DA:12,1
+DA:13,1
+DA:14,1
+DA:15,1
+DA:16,1
+DA:17,1
+DA:18,1
+DA:19,1
+DA:20,1
+DA:21,1
+DA:22,0
+DA:24,1
+DA:25,1
+DA:26,1
+LH:17
+LF:19
+end_of_record
+SF:tools/coverage/jvm_fixture/kotlin/first/shared/Twin.kt
+FN:3,shared/TwinKt::firstTwin ()I
+FNDA:1,shared/TwinKt::firstTwin ()I
+FNF:1
+FNH:1
+DA:3,1
+LH:1
+LF:1
+end_of_record
+SF:tools/coverage/jvm_fixture/kotlin/kprobe/Declaration.kt
+FN:0,kprobe/Declaration::abstractValue ()I
+FNDA:0,kprobe/Declaration::abstractValue ()I
+FNF:1
+FNH:0
+LH:0
+LF:0
+end_of_record
+SF:tools/coverage/jvm_fixture/kotlin/kprobe/DisconnectedKotlin.kt
+FN:2,kprobe/DisconnectedKotlinKt::<clinit> ()V
+FN:5,kprobe/DisconnectedKotlinKt::untouchedKotlin (Z)I
+FNDA:0,kprobe/DisconnectedKotlinKt::<clinit> ()V
+FNDA:0,kprobe/DisconnectedKotlinKt::untouchedKotlin (Z)I
+FNF:2
+FNH:0
+BRDA:5,0,0,-
+BRDA:5,0,1,-
+BRF:2
+BRH:0
+DA:2,0
+DA:5,0
+LH:0
+LF:2
+end_of_record
+SF:tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt
+FN:-1,kprobe/ExecutedKotlinKt::doubled (I)I
+FN:7,kprobe/ExecutedKotlinKt::selectKotlin (Z)I
+FNDA:0,kprobe/ExecutedKotlinKt::doubled (I)I
+FNDA:1,kprobe/ExecutedKotlinKt::selectKotlin (Z)I
+FNF:2
+FNH:1
+BRDA:7,0,0,1
+BRDA:7,0,1,0
+BRF:2
+BRH:1
+DA:3,0
+DA:7,1
+LH:1
+LF:2
+end_of_record
+SF:tools/coverage/jvm_fixture/kotlin/odd/KotlinMismatch.kt
+FN:3,kodd/KotlinMismatchKt::mismatchValue ()I
+FNDA:1,kodd/KotlinMismatchKt::mismatchValue ()I
+FNF:1
+FNH:1
+DA:3,1
+LH:1
+LF:1
+end_of_record
+SF:tools/coverage/jvm_fixture/kotlin/second/shared/Twin.kt
+FN:5,shared/SecondTwin::secondTwin ()I
+FNDA:1,shared/SecondTwin::secondTwin ()I
+FNF:1
+FNH:1
+DA:5,1
+LH:1
+LF:1
+end_of_record

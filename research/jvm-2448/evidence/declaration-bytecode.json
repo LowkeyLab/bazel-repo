@@ -1,0 +1,12 @@
+{
+  "class_access_flags": "0x601",
+  "methods": [
+    {
+      "name": "abstractValue",
+      "descriptor": "()I",
+      "access_flags": "0x401",
+      "attributes": []
+    }
+  ],
+  "contains_Code_utf8_constant": false
+}

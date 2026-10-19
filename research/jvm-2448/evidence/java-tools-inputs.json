@@ -1,0 +1,47 @@
+{
+  "java_tools": "v22.0",
+  "bazel_source_revision": "c9b10ec53b5fa49a1bb9c593f08f73ff52f60d95",
+  "runtime": "remotejdk_25",
+  "jars": [
+    {
+      "path": "JacocoCoverage_jarjar_deploy.jar",
+      "sha256": "d936b687d624fd19c937e5152b1d027255ddc02e96e8d93d909c26bbbb077e1e"
+    },
+    {
+      "path": "third_party/java/jacoco/jacocoagent-0.8.14.jar",
+      "sha256": "3fb76eea65f81bd9415202bab34b6571728841dff1ab8e6bbe81adc2e299face"
+    },
+    {
+      "path": "third_party/java/jacoco/org.jacoco.core-0.8.14-sources.jar",
+      "sha256": "1550fd5081ecd2c2ad053994c23d91a4cef6dcbed4c4dac95130e7d75fa9cd3c"
+    },
+    {
+      "path": "third_party/java/jacoco/org.jacoco.report-0.8.14.jar",
+      "sha256": "a3e2026060ab8b8d5c650706406234bb4c033dfd5376afeb8b1666e8ed27c453"
+    },
+    {
+      "path": "third_party/java/jacoco/org.jacoco.ant-0.8.14-sources.jar",
+      "sha256": "c6a7e71b8b80a3f51d19153092cfb1ad3f5985c1653ff864710ff5b3e6bd27a6"
+    },
+    {
+      "path": "third_party/java/jacoco/org.jacoco.agent-0.8.14-sources.jar",
+      "sha256": "8a643b749deb255d7a42c445c3053c9ec263e27103becdaaf88cedda44357255"
+    },
+    {
+      "path": "third_party/java/jacoco/org.jacoco.agent-0.8.14.jar",
+      "sha256": "20be9853385bdfc65a5929643412d09243d14514304b89ba23a265158cc8792b"
+    },
+    {
+      "path": "third_party/java/jacoco/org.jacoco.ant-0.8.14.jar",
+      "sha256": "9fff68954d5de3aad2bf838eaf886ed67d2c22a2d6c6f095548bade8c45caeae"
+    },
+    {
+      "path": "third_party/java/jacoco/org.jacoco.report-0.8.14-sources.jar",
+      "sha256": "80ac2fac212d6a4583b7f025dc7b602f384a9dfcdbccd0e9cb78c415e9f5ffc6"
+    },
+    {
+      "path": "third_party/java/jacoco/org.jacoco.core-0.8.14.jar",
+      "sha256": "28abbf0eea5a08e4f24097f2fbac663ca17c341c25c3a04d90d6cd325943c995"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+tools/coverage/jvm_fixture/java/odd/DirectoryMismatch.java
+tools/coverage/jvm_fixture/java/probe/Child.java
+tools/coverage/jvm_fixture/java/probe/Executed.java
+tools/coverage/jvm_fixture/java/probe/FixtureTest.java
+tools/coverage/jvm_fixture/kotlin/first/shared/Twin.kt
+tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt
+tools/coverage/jvm_fixture/kotlin/odd/KotlinMismatch.kt
+tools/coverage/jvm_fixture/kotlin/second/shared/Twin.kt

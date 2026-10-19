@@ -1,0 +1,74 @@
+[
+  {
+    "source": "tools/coverage/jvm_fixture/java/adapter/Baseline.java",
+    "role": "analysis adapter",
+    "sha256": "ce0f70f94f7cb5234a1799990bb4cba935fea2671082a02e37de9be1003dfac6",
+    "source_lines": 25
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/java/disconnected/Disconnected.java",
+    "role": "coverage subject",
+    "sha256": "88b4ce594994d8457e786839b400c99c120093358e8e7662e617bc81d1403e09",
+    "source_lines": 12
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/java/odd/DirectoryMismatch.java",
+    "role": "coverage subject",
+    "sha256": "3c9e510a1b26fe0011070d6b739a557828260962a5d74ad11058fc1f0fcfcecd",
+    "source_lines": 7
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/java/probe/Child.java",
+    "role": "coverage subject",
+    "sha256": "9dc5e709f123d71283a2289e857a3ab0104ea20a60d330a5ee9d480667219303",
+    "source_lines": 12
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/java/probe/Executed.java",
+    "role": "coverage subject",
+    "sha256": "41f6b0e593448a4538d9eb21ecc32a19222d589e8738251667ecd5ce7935c700",
+    "source_lines": 10
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/java/probe/FixtureTest.java",
+    "role": "coverage subject",
+    "sha256": "ed66afc6ce42854db4f57aa64e158b2c3e72f46a4bcca015c51427f2b5e892fc",
+    "source_lines": 27
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/kotlin/first/shared/Twin.kt",
+    "role": "coverage subject",
+    "sha256": "97a035ab2e148bdbaac1338e9a99b3321e9bbc58e1d1d38cca934d7c9b8400c5",
+    "source_lines": 4
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/kotlin/kprobe/Declaration.kt",
+    "role": "coverage subject",
+    "sha256": "593c9eb60f00efeff9b0132b36e6a4793d917e77ed03b95fb4f2f204c9ea83b5",
+    "source_lines": 4
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/kotlin/kprobe/DisconnectedKotlin.kt",
+    "role": "coverage subject",
+    "sha256": "027d4e213af5937b897787a5b8ca86947153c7d8e75f1bbb5d9e7197672d3c27",
+    "source_lines": 6
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt",
+    "role": "coverage subject",
+    "sha256": "a6edcdcc445d079b2e07ff1d3117a64987b8b1d14349c2df1be8b3fda1a41ec1",
+    "source_lines": 8
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/kotlin/odd/KotlinMismatch.kt",
+    "role": "coverage subject",
+    "sha256": "774206231c18d66e422850447681e244cd4996b46a24f58d83bf0fa6d7c001a5",
+    "source_lines": 4
+  },
+  {
+    "source": "tools/coverage/jvm_fixture/kotlin/second/shared/Twin.kt",
+    "role": "coverage subject",
+    "sha256": "883b9b194fa63b1b6c2a5ff40e1aec9cdedc2187c952e685575d99339a585567",
+    "source_lines": 6
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "status": "PASSED",
+  "duration_ms": "932",
+  "strategy": "remote",
+  "cachedLocally": false,
+  "cachedRemotely": false,
+  "functional_marker": true,
+  "invocation": "65c2bb1f-b1df-4a67-83c1-cb596f8817b0"
+}

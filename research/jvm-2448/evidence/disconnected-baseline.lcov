@@ -1,0 +1,31 @@
+SF:tools/coverage/jvm_fixture/java/disconnected/Disconnected.java
+FN:3,disconnected/Disconnected::<init> ()V
+FNDA:0,disconnected/Disconnected::<init> ()V
+FN:9,disconnected/Disconnected::untouched (Z)I
+FNDA:0,disconnected/Disconnected::untouched (Z)I
+FN:5,disconnected/Disconnected::<clinit> ()V
+FNDA:0,disconnected/Disconnected::<clinit> ()V
+BRDA:5,0,0,-
+BRDA:5,0,1,-
+BRDA:9,0,0,-
+BRDA:9,0,1,-
+DA:3,0
+DA:5,0
+DA:6,0
+DA:9,0
+DA:10,0
+end_of_record
+SF:tools/coverage/jvm_fixture/kotlin/kprobe/Declaration.kt
+FN:0,kprobe/Declaration::abstractValue ()I
+FNDA:0,kprobe/Declaration::abstractValue ()I
+end_of_record
+SF:tools/coverage/jvm_fixture/kotlin/kprobe/DisconnectedKotlin.kt
+FN:5,kprobe/DisconnectedKotlinKt::untouchedKotlin (Z)I
+FNDA:0,kprobe/DisconnectedKotlinKt::untouchedKotlin (Z)I
+FN:2,kprobe/DisconnectedKotlinKt::<clinit> ()V
+FNDA:0,kprobe/DisconnectedKotlinKt::<clinit> ()V
+BRDA:5,0,0,-
+BRDA:5,0,1,-
+DA:2,0
+DA:5,0
+end_of_record

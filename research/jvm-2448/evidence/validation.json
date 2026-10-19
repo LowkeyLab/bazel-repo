@@ -1,0 +1,63 @@
+{
+  "gazelle-remote-approved": {
+    "exit_code": 0
+  },
+  "gazelle-adapter": {
+    "exit_code": 0
+  },
+  "gazelle-formatted": {
+    "exit_code": 0
+  },
+  "format": {
+    "exit_code": 1,
+    "failure": "google-java-format: NoSuchMethodError for DeferredDiagnosticHandler.getDiagnostics() with Java 25"
+  },
+  "format-java21": {
+    "exit_code": 0,
+    "runtime_override": "Java language/runtime 21 for formatter build only"
+  },
+  "coverage-final": {
+    "exit_code": 0,
+    "execution": "fresh configured-remote fixture test"
+  },
+  "adapter-baseline": {
+    "exit_code": 0,
+    "execution": "local program with configured-remote Bazel build"
+  },
+  "adapter-parent": {
+    "exit_code": 0,
+    "execution": "local program with configured-remote Bazel build"
+  },
+  "adapter-child": {
+    "exit_code": 0,
+    "execution": "local program with configured-remote Bazel build"
+  },
+  "disconnected-final": {
+    "exit_code": 0,
+    "execution": "local program with configured-remote Bazel build"
+  },
+  "child-missing": {
+    "exit_code": 1,
+    "execution": "local program with configured-remote Bazel build"
+  },
+  "child-corrupt": {
+    "exit_code": 1,
+    "execution": "local program with configured-remote Bazel build"
+  },
+  "merge-forward": {
+    "exit_code": 0,
+    "execution": "local program with configured-remote Bazel build"
+  },
+  "merge-reverse": {
+    "exit_code": 0,
+    "execution": "local program with configured-remote Bazel build"
+  },
+  "lint": {
+    "exit_code": 1,
+    "failure": "missing input file '//:pmd.xml'"
+  },
+  "format-final": {
+    "exit_code": 0,
+    "runtime_override": "Java language/runtime 21 for formatter build only"
+  }
+}
