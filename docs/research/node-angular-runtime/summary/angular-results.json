@@ -1,0 +1,167 @@
+[
+  {
+    "name": "mindreadr-absent",
+    "status": 0,
+    "signal": null,
+    "outputExists": false,
+    "outputBytes": null
+  },
+  {
+    "name": "mindreadr-empty",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 0
+  },
+  {
+    "name": "mindreadr-partial",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 78
+  },
+  {
+    "name": "nicknamer-absent",
+    "status": 0,
+    "signal": null,
+    "outputExists": false,
+    "outputBytes": null
+  },
+  {
+    "name": "nicknamer-empty",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 0
+  },
+  {
+    "name": "nicknamer-partial",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 78
+  },
+  {
+    "name": "nicknamer2-web-absent",
+    "status": 0,
+    "signal": null,
+    "outputExists": false,
+    "outputBytes": null
+  },
+  {
+    "name": "nicknamer2-web-empty",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 0
+  },
+  {
+    "name": "nicknamer2-web-partial",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 78
+  },
+  {
+    "name": "pinyin-composer-absent",
+    "status": 0,
+    "signal": null,
+    "outputExists": false,
+    "outputBytes": null
+  },
+  {
+    "name": "pinyin-composer-empty",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 0
+  },
+  {
+    "name": "pinyin-composer-partial",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 78
+  },
+  {
+    "name": "predix-absent",
+    "status": 0,
+    "signal": null,
+    "outputExists": false,
+    "outputBytes": null
+  },
+  {
+    "name": "predix-empty",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 0
+  },
+  {
+    "name": "predix-partial",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 78
+  },
+  {
+    "name": "tailwind-sample-absent",
+    "status": 0,
+    "signal": null,
+    "outputExists": false,
+    "outputBytes": null
+  },
+  {
+    "name": "tailwind-sample-empty",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 0
+  },
+  {
+    "name": "tailwind-sample-partial",
+    "status": 0,
+    "signal": null,
+    "outputExists": true,
+    "outputBytes": 78
+  },
+  {
+    "name": "predix-readonly",
+    "status": 1,
+    "signal": null,
+    "readOnlyConfiguration": true,
+    "effectiveUid": 65534
+  },
+  {
+    "name": "tailwind-sample-readonly",
+    "status": 1,
+    "signal": null,
+    "readOnlyConfiguration": true,
+    "effectiveUid": 65534
+  },
+  {
+    "name": "nicknamer-readonly",
+    "status": 0,
+    "signal": null,
+    "readOnlyConfiguration": true,
+    "effectiveUid": 65534
+  },
+  {
+    "name": "angular-defaults",
+    "status": 0,
+    "signal": null,
+    "lcovExists": true
+  },
+  {
+    "name": "angular-include",
+    "status": 0,
+    "signal": null,
+    "lcovExists": true
+  },
+  {
+    "name": "angular-autoattach",
+    "status": 0,
+    "signal": null,
+    "lcovExists": true
+  }
+]

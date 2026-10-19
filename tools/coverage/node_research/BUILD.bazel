@@ -1,0 +1,91 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library", "js_test")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+
+# aspect:generation_mode update_only
+# Temporary research fixtures. No production target depends on this package.
+
+ts_project(
+    name = "compiled",
+    srcs = [
+        "child_only.ts",
+        "helper.ts",
+        "production.ts",
+    ],
+    assets = [
+        "child_only.ts",
+        "helper.ts",
+        "production.ts",
+    ],
+    source_map = True,
+    tsconfig = "tsconfig.json",
+)
+
+ts_project(
+    name = "disconnected",
+    srcs = ["disconnected.ts"],
+    assets = ["disconnected.ts"],
+    source_map = True,
+    tsconfig = "tsconfig.json",
+)
+
+js_library(
+    name = "entry",
+    srcs = [
+        "child.mjs",
+        "native.test.mjs",
+    ],
+    deps = [":compiled"],
+)
+
+js_test(
+    name = "native",
+    data = [":entry"],
+    entry_point = "native.test.mjs",
+)
+
+js_test(
+    name = "inventory_root",
+    data = [
+        ":disconnected",
+        ":entry",
+    ],
+    entry_point = "native.test.mjs",
+)
+
+js_test(
+    name = "matrix",
+    timeout = "long",
+    data = glob(["adapters/*"]) + [
+        "capture.mjs",
+        ":disconnected",
+        ":entry",
+        "//angular:node_modules/@angular",
+        "//angular:node_modules/@types/node",
+        "//angular:node_modules/@vitest/coverage-v8",
+        "//angular:node_modules/jsdom",
+        "//angular:node_modules/typescript",
+        "//angular:node_modules/vitest",
+    ],
+    entry_point = "matrix.mjs",
+    tags = ["manual"],
+)
+
+js_test(
+    name = "native_adapter",
+    args = ["$(rootpath :native_converter)"],
+    data = [
+        ":disconnected",
+        ":entry",
+        ":native_converter",
+    ],
+    entry_point = "native-adapter.mjs",
+    tags = ["manual"],
+)
+
+genrule(
+    name = "native_converter",
+    srcs = ["@aspect_rules_js//js/private/coverage:coverage.js"],
+    outs = ["converter.cjs"],
+    cmd = "cp $(SRCS) $@",
+    tags = ["manual"],
+)

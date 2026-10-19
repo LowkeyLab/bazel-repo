@@ -1,0 +1,12 @@
+{
+  "owned": {
+    "tools/coverage/node_research/undeclared.ts": false,
+    "tools/coverage/node_research/child_only.ts": true,
+    "tools/coverage/node_research/helper.ts": true,
+    "tools/coverage/node_research/disconnected.ts": true,
+    "tools/coverage/node_research/production.ts": true,
+    "tools/coverage/node_research/.owned/hidden.ts": true
+  },
+  "unowned": ["tools/coverage/node_research/undeclared.ts"],
+  "validationExit": 1
+}

@@ -1,0 +1,11 @@
+{
+  "sourceCopyHashesMatch": true,
+  "combinedPreservesMeasuredHits": true,
+  "canonicalSourcesUnique": true,
+  "autoAttachCapture": {
+    "providerPresent": true,
+    "sourceCaptures": 3,
+    "profileDirectoryPresent": true,
+    "remapCaptures": 5
+  }
+}

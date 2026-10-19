@@ -1,0 +1,86 @@
+[
+  {
+    "mode": "original-manifest",
+    "functionalExit": 0,
+    "converterExit": 0,
+    "missing": [],
+    "positive": {
+      "production.ts": false,
+      "helper.ts": false,
+      "child_only.ts": false,
+      "disconnected.ts": false,
+      "native.test.mjs": true
+    },
+    "validationErrors": [
+      "missing-hit:production.ts",
+      "missing-hit:helper.ts",
+      "missing-hit:child_only.ts"
+    ]
+  },
+  {
+    "mode": "emitted-manifest",
+    "functionalExit": 0,
+    "converterExit": 0,
+    "missing": [],
+    "positive": {
+      "production.ts": true,
+      "helper.ts": true,
+      "child_only.ts": true,
+      "disconnected.ts": false,
+      "native.test.mjs": true
+    },
+    "validationErrors": []
+  },
+  {
+    "mode": "missing-profile",
+    "functionalExit": 0,
+    "converterExit": 0,
+    "missing": [],
+    "positive": {
+      "production.ts": false,
+      "helper.ts": false,
+      "child_only.ts": false,
+      "disconnected.ts": false,
+      "native.test.mjs": false
+    },
+    "validationErrors": [
+      "missing-hit:production.ts",
+      "missing-hit:helper.ts",
+      "missing-hit:child_only.ts",
+      "missing-hit:native.test.mjs"
+    ]
+  },
+  {
+    "mode": "corrupt-profile",
+    "functionalExit": 0,
+    "converterExit": 0,
+    "missing": [],
+    "positive": {
+      "production.ts": false,
+      "helper.ts": false,
+      "child_only.ts": false,
+      "disconnected.ts": false,
+      "native.test.mjs": false
+    },
+    "validationErrors": [
+      "missing-hit:production.ts",
+      "missing-hit:helper.ts",
+      "missing-hit:child_only.ts",
+      "missing-hit:native.test.mjs"
+    ]
+  },
+  {
+    "mode": "missing-runfile",
+    "functionalExit": 0,
+    "converterExit": 0,
+    "missing": [],
+    "positive": {
+      "production.ts": true,
+      "helper.ts": true,
+      "child_only.ts": true,
+      "disconnected.ts": false,
+      "native.test.mjs": true
+    },
+    "validationErrors": ["missing-runfile:absent-maintained.js"]
+  }
+]

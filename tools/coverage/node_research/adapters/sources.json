@@ -1,0 +1,26 @@
+[
+  {
+    "source": "angular/projects/mindreadr/vitest-global-setup.ts",
+    "sha256": "8b5d6de5c14333efb944afcf1f53dcc7ac02337ff73d2180eb1c8e420406dc18"
+  },
+  {
+    "source": "angular/projects/nicknamer/vitest-global-setup.ts",
+    "sha256": "8b5d6de5c14333efb944afcf1f53dcc7ac02337ff73d2180eb1c8e420406dc18"
+  },
+  {
+    "source": "angular/projects/nicknamer2-web/vitest-global-setup.ts",
+    "sha256": "8b5d6de5c14333efb944afcf1f53dcc7ac02337ff73d2180eb1c8e420406dc18"
+  },
+  {
+    "source": "angular/projects/pinyin-composer/vitest-global-setup.ts",
+    "sha256": "de7abccd892f6661f05eedc1fcc7e552970d51b5e7c94830b9284bb0b70a510a"
+  },
+  {
+    "source": "angular/projects/predix/vitest-global-setup.ts",
+    "sha256": "1da30311f99bf3026a391919e475f73f9f9a6d87fa3ac4aaf7e8a2974b747e68"
+  },
+  {
+    "source": "angular/projects/tailwind-sample/vitest-global-setup.ts",
+    "sha256": "1da30311f99bf3026a391919e475f73f9f9a6d87fa3ac4aaf7e8a2974b747e68"
+  }
+]

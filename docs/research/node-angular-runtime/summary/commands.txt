@@ -1,0 +1,4 @@
+nix develop --command aspect --host_jvm_args=-Xmx1536m test //tools/coverage/node_research:native_adapter --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 --nocache_test_results --test_output=errors
+nix develop --command bazel --host_jvm_args=-Xmx1536m coverage //tools/coverage/node_research:matrix //tools/coverage/node_research:inventory_root --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 --nocache_test_results --combined_report=lcov --instrumentation_filter=//tools/coverage/node_research --test_output=errors
+nix develop --command bazel --host_jvm_args=-Xmx1536m cquery 'kind("source file", deps(//tools/coverage/node_research/...))' --output=label --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048
+nix develop --command aspect --host_jvm_args=-Xmx1536m format --scope=all --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048
