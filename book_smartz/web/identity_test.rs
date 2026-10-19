@@ -40,6 +40,64 @@ async fn sign_in_restores_the_same_private_account_across_restart_and_email_chan
 
 #[googletest::test]
 #[tokio::test]
+async fn audience_and_authorized_presenter_control_session_authority() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    for (audience, presenter, expected_status) in [
+        (json!(["fixture-client", "other-client"]), None, 401),
+        (
+            json!(["fixture-client", "other-client"]),
+            Some("other-client"),
+            401,
+        ),
+        (
+            json!(["fixture-client", "other-client"]),
+            Some("fixture-client"),
+            303,
+        ),
+        (
+            json!(["other-client", "another-client"]),
+            Some("fixture-client"),
+            401,
+        ),
+        (json!("fixture-client"), None, 303),
+    ] {
+        let login = app.begin().await?;
+        let mut claims = Fixture::claims(&login, "reader");
+        claims["aud"] = audience;
+        claims.as_object_mut().unwrap().remove("azp");
+        if let Some(presenter) = presenter {
+            claims["azp"] = json!(presenter);
+        }
+        let sessions_before: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM book_smartz_web.sessions")
+                .fetch_one(&app.pool)
+                .await?;
+        let response = app.finish(&login, claims).await?;
+        assert_that!(response.status().as_u16(), eq(expected_status));
+        let session_cookie = response
+            .headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .find(|value| value.starts_with("__Host-book-smartz-session="));
+        if expected_status == 401 {
+            assert_that!(session_cookie, eq(None));
+            let sessions_after: i64 =
+                sqlx::query_scalar("SELECT count(*) FROM book_smartz_web.sessions")
+                    .fetch_one(&app.pool)
+                    .await?;
+            assert_that!(sessions_after, eq(sessions_before));
+        } else {
+            let cookie = session_cookie.ok_or_else(|| anyhow::anyhow!("Missing session cookie"))?;
+            let cookie = cookie.split(';').next().unwrap();
+            assert_that!(app.ranking(cookie).await?.status().as_u16(), eq(200));
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
 async fn rejects_invalid_identity_claims_signatures_and_callback_state() -> anyhow::Result<()> {
     let app = Fixture::new().await?;
     for (field, value) in [
