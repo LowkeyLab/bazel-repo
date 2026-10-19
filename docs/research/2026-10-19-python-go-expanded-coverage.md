@@ -87,7 +87,9 @@ The upstream baseline check includes disconnected libraries, a binary, declarati
 
 `go_test` declares its own source attributes and propagates `data`, `deps`, `embed`, and `embedsrcs`. Bazel includes test-local sources only when `--instrument_test_targets` and the filter permit them. The repository already enables that switch. [Test rule][go-test], [Bazel inclusion check][bazel-instrumented], [Coverage configuration][bazelrc]
 
-The rule creates an internal package and an external package. `new_go_info` supplies declared sources for instrumentation. Embedded library coverage propagates separately. The builder's test filter divides files by package suffix `_test`, rather than excluding every filename ending `_test.go`. Internal tests remain in the internal package. External tests enter the external package. The builder then instruments selected sources after this partition. [Test rule][go-test], [Context][go-context], [Archive action][go-archive], [Builder filter][go-filter], [Compilation][go-compile]
+The rule creates an internal package and an external package. `new_go_info` supplies declared sources for instrumentation. Embedded library coverage propagates separately.
+
+The builder's test filter divides files by package suffix `_test`, rather than excluding every filename ending `_test.go`. Internal tests remain in the internal package. External tests enter the external package. The builder then instruments selected sources after this partition. [Test rule][go-test], [Context][go-context], [Archive action][go-archive], [Builder filter][go-filter], [Compilation][go-compile]
 
 This is source capability for internal tests, external tests, and their unexecuted functions within an executed package. Execute controlled cases before claiming repository acceptance. The generated test main explicitly disables its own instrumentation. That exclusion concerns generated output. [Test rule][go-test]
 
@@ -158,7 +160,9 @@ This report belongs to `research/python-go-expanded-coverage`. The branch contai
 
 The strict prose check preserved the exact issue title and omitted Markdown reference definitions. Its final result contained zero findings. A reference check found no missing or unused definitions. GitHub tree queries checked all 44 cited source paths at their exact revisions.
 
-Full repository formatting passed. The [repository build][report-build] also passed. The required `aspect lint` command exited zero with 64 advisory warnings. Its changed-file selection checked the Markdown target. The warnings concern technical terms and prose preferences. This result does not establish all-source lint execution. These checks establish documentation integration and build success. They do not establish collector behavior. The resolution records the complete check results.
+Full repository formatting passed. The [repository build][report-build] also passed. The required `aspect lint` command exited zero with 64 advisory warnings. Its changed-file selection checked the Markdown target. The warnings concern technical terms and prose preferences. This result does not establish all-source lint execution.
+
+These checks establish documentation integration and build success. They do not establish collector behavior. The resolution records the complete check results.
 
 This documentation investigation ran no coverage collection, configured-remote coverage acceptance, or hosted upload.
 
