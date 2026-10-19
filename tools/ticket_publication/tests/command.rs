@@ -403,3 +403,58 @@ fn ordered_tickets_keep_batch_and_external_blockers() -> anyhow::Result<()> {
     );
     Ok(())
 }
+
+#[googletest::test]
+fn failed_directory_sync_is_retried_before_preparation_succeeds() -> anyhow::Result<()> {
+    let files = Runfiles::create()?;
+    let fault =
+        rlocation!(files, std::env::var("SYNC_FAULT_LIBRARY")?).context("sync fault runfile")?;
+    for fail_on_root in [true, false] {
+        let f = Fixture::new()?;
+        let id = "84c6d08c-06c2-4d37-ac9d-d051a3e0786d";
+        let state = f.directory.path().join("state");
+        let target = if fail_on_root {
+            state.clone()
+        } else {
+            f.directory.path().to_path_buf()
+        };
+        let receipt = f.directory.path().join("sync-receipt");
+        let run = || {
+            Command::new(&f.tool)
+                .args([
+                    "--state-dir",
+                    "state",
+                    "prepare",
+                    "--plan",
+                    "plan.json",
+                    "--batch",
+                    id,
+                ])
+                .current_dir(f.directory.path())
+                .env("LD_PRELOAD", &fault)
+                .env("SYNC_FAULT", &target)
+                .env("SYNC_RECEIPT", &receipt)
+                .env("PATH", f.directory.path().join("bin"))
+                .env("REMOTE_STATE", f.directory.path().join("remote.log"))
+                .output()
+        };
+        let failed = run()?;
+        assert_that!(failed.status.success(), eq(false));
+        assert_that!(receipt.exists(), eq(true));
+        assert_that!(state.join(id).join("batch.json").exists(), eq(false));
+        assert_that!(fs::read_to_string(&receipt)?, eq(""));
+        let retried = run()?;
+        anyhow::ensure!(
+            retried.status.success(),
+            "retry failed: {}",
+            String::from_utf8_lossy(&retried.stderr)
+        );
+        assert_that!(
+            fs::read_to_string(&receipt)?.contains("synchronized"),
+            eq(true)
+        );
+        f.successful(&["--state-dir", "state", "status", "--batch", id])?;
+        assert_that!(f.directory.path().join("remote.log").exists(), eq(false));
+    }
+    Ok(())
+}

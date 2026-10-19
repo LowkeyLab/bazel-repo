@@ -18,30 +18,12 @@ impl Store {
         if create {
             private_directory(root)?;
         }
-        ensure!(
-            fs::symlink_metadata(root)?.is_dir(),
-            "state path is not a directory"
-        );
-        ensure!(
-            fs::metadata(root)?.permissions().mode().trailing_zeros() >= 6,
-            "state directory is not private"
-        );
+        check_private_directory(root)?;
         let directory = root.join(batch.as_str());
         if create {
             private_directory(&directory)?;
         }
-        ensure!(
-            fs::symlink_metadata(&directory)?.is_dir(),
-            "batch path is not a directory"
-        );
-        ensure!(
-            fs::metadata(&directory)?
-                .permissions()
-                .mode()
-                .trailing_zeros()
-                >= 6,
-            "batch directory is not private"
-        );
+        check_private_directory(&directory)?;
         let lock = OpenOptions::new()
             .read(true)
             .write(true)
@@ -81,27 +63,36 @@ impl Store {
         Ok(())
     }
 }
+fn check_private_directory(path: &Path) -> Result<()> {
+    ensure!(
+        fs::symlink_metadata(path)?.is_dir(),
+        "state path is not a directory"
+    );
+    // The low six permission bits must be zero for private Unix access.
+    ensure!(
+        fs::metadata(path)?.permissions().mode().trailing_zeros() >= 6,
+        "state directory is not private"
+    );
+    Ok(())
+}
+
 fn private_directory(path: &Path) -> Result<()> {
-    if path.exists() {
-        ensure!(
-            fs::symlink_metadata(path)?.is_dir(),
-            "state path is not a directory"
-        );
-        ensure!(
-            fs::metadata(path)?.permissions().mode().trailing_zeros() >= 6,
-            "state directory is not private"
-        );
-        return Ok(());
+    if !path.exists() {
+        let parent = path
+            .parent()
+            .filter(|p| !p.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        if !parent.exists() {
+            private_directory(parent)?;
+        }
+        fs::DirBuilder::new().mode(0o700).create(path)?;
     }
-    let parent = path
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or_else(|| Path::new("."));
-    if !parent.exists() {
-        private_directory(parent)?;
+    check_private_directory(path)?;
+    // A previous attempt can create any ancestor before its sync fails.
+    // Synchronize the whole retained chain before accepting that attempt.
+    for directory in path.canonicalize()?.ancestors() {
+        File::open(directory)?.sync_all()?;
     }
-    fs::DirBuilder::new().mode(0o700).create(path)?;
-    File::open(parent)?.sync_all()?;
     Ok(())
 }
 
