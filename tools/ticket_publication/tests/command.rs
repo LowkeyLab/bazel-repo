@@ -458,3 +458,25 @@ fn failed_directory_sync_is_retried_before_preparation_succeeds() -> anyhow::Res
     }
     Ok(())
 }
+
+#[googletest::test]
+fn non_utf8_state_paths_fail_before_creating_any_batch() -> anyhow::Result<()> {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+    for source in ["argument", "XDG_STATE_HOME", "HOME"] {
+        let f = Fixture::new()?;
+        let mut bytes = f.directory.path().as_os_str().as_encoded_bytes().to_vec();
+        bytes.extend_from_slice(b"/non-utf8-\xff");
+        let invalid = PathBuf::from(OsString::from_vec(bytes));
+        let mut command = Command::new(&f.tool);
+        command.current_dir(f.directory.path());
+        if source == "argument" {
+            command.arg("--state-dir").arg(&invalid);
+        } else {
+            command.env_remove("XDG_STATE_HOME").env(source, &invalid);
+        }
+        let output = command.args(["prepare", "--plan", "plan.json"]).output()?;
+        assert_that!(output.status.code(), eq(Some(1)));
+        assert_that!(invalid.exists(), eq(false));
+    }
+    Ok(())
+}

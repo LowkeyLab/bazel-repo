@@ -53,6 +53,8 @@ The default directory is `$XDG_STATE_HOME/ticket-publication`. If
 `XDG_STATE_HOME` is unset, the command uses
 `$HOME/.local/state/ticket-publication`. `--state-dir` selects another directory.
 Keep this directory outside Git checkouts and reusable worktrees.
+State paths must use UTF-8 because the command returns paths in JSON.
+The command rejects other path encodings before creating state.
 
 Each batch has a private directory. The directory contains `batch.json` and a
 persistent `lock` file. The snapshot contains the original checked plan,

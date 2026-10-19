@@ -44,6 +44,10 @@ fn state_directory(explicit: Option<PathBuf>) -> Result<PathBuf> {
 }
 fn execute(cli: Cli) -> Result<serde_json::Value> {
     let root = state_directory(cli.state_dir)?;
+    ensure!(
+        root.to_str().is_some(),
+        "state directory must use UTF-8 for JSON output"
+    );
     match cli.command {
         Action::Prepare { plan, batch } => {
             let plan: Plan = serde_json::from_reader(std::fs::File::open(plan)?)?;
