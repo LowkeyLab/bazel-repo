@@ -234,7 +234,7 @@ git_override(
 bazel_dep(name = "rules_jvm_external")
 git_override(
     module_name = "rules_jvm_external",
-    commit = "e75220a13409f5e5096309740b8fc86b076ff1a2",
+    commit = "18838d69e9be877460ee281e5f66b5b7c59d7808",
     remote = "https://github.com/bazel-contrib/rules_jvm_external.git",
 )
 
