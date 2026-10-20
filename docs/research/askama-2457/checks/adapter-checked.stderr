@@ -1,0 +1,42 @@
+warning: Git tree '<CHECKOUT>' is dirty
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: 9cb83a94-d86c-4f4b-a1ce-43bec3c71c0f
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/9cb83a94-d86c-4f4b-a1ce-43bec3c71c0f
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_askama:adapter_collection_test (1 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_askama:adapter_collection_test (11 packages loaded, 761 targets configured).
+INFO: Found 1 test target...
+[9 / 89] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[2,063 / 2,065] Compiling Rust bin //tools/research_askama:collector (1 file); 0s remote, remote-cache
+INFO: From Compiling Rust bin //tools/research_askama:collector (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[2,064 / 2,065] [Prepa] runfiles for //tools/research_askama:adapter_collection_test
+[2,065 / 2,066] Testing //tools/research_askama:adapter_collection_test; 0s remote
+[2,065 / 2,066] 1 / 1 tests; Testing //tools/research_askama:adapter_collection_test; 1s remote, remote-cache
+Target //tools/research_askama:adapter_collection_test up-to-date:
+  bazel-bin/tools/research_askama/adapter_collection_test
+INFO: Elapsed time: 6.318s, Critical Path: 5.15s
+INFO: 9 processes: 123 action cache hit, 1 remote cache hit, 7 internal, 2 remote.
+INFO: Build completed successfully, 9 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/9cb83a94-d86c-4f4b-a1ce-43bec3c71c0f

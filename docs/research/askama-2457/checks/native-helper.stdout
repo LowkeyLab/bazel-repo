@@ -1,0 +1,4 @@
+//tools/research_askama:native_export_test                               PASSED in 0.3s
+  WARNING: //tools/research_askama:native_export_test: Test execution time (0.3s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+
+Executed 1 out of 1 test: 1 test passes.

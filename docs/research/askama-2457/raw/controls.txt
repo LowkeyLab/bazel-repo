@@ -1,0 +1,4 @@
+missing-profile exit=1 functional_assertions=passed
+corrupt-profile exit=1 functional_assertions=passed
+missing-receipt exit=1 functional_assertions=passed
+missing-baseline exit=1 functional_assertions=passed

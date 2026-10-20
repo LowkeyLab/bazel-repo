@@ -1,0 +1,1 @@
+<strong>included {{ crate::hit("tools/research_askama/templates/included.html", 20) }}{{ label }}</strong>

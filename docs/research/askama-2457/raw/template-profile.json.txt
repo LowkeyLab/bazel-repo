@@ -1,0 +1,46 @@
+{
+  "baseline_sha256": "ea8380e20edda9767c36e42af7431e900550e6a673b8c43e28999d7889c33c04",
+  "events": [
+    [
+      "tools/research_askama/templates/main.html",
+      41,
+      null
+    ],
+    [
+      "tools/research_askama/templates/main.html",
+      41,
+      0
+    ],
+    [
+      "tools/research_askama/templates/main.html",
+      65,
+      null
+    ],
+    [
+      "tools/research_askama/templates/main.html",
+      126,
+      null
+    ],
+    [
+      "tools/research_askama/templates/main.html",
+      156,
+      null
+    ],
+    [
+      "tools/research_askama/templates/main.html",
+      156,
+      null
+    ],
+    [
+      "tools/research_askama/templates/main.html",
+      186,
+      null
+    ],
+    [
+      "tools/research_askama/templates/included.html",
+      20,
+      null
+    ]
+  ],
+  "schema": 1
+}

@@ -1,0 +1,124 @@
+warning: Git tree '<CHECKOUT>' is dirty
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 61e9f955bc2d75f7108c6332abae49e232ea21c4..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  tools/research_askama/BUILD.bazel [+119 / -0] (changed)
+  tools/research_askama/adapter.rs [+87 / -0] (changed)
+  tools/research_askama/adapter_test.sh [+45 / -0] (changed)
+  tools/research_askama/collect.rs [+161 / -0] (changed)
+  tools/research_askama/instrument.bzl [+32 / -0] (changed)
+  tools/research_askama/instrument.rs [+138 / -0] (changed)
+  tools/research_askama/native.rs [+55 / -0] (changed)
+  tools/research_askama/native_export.sh [+13 / -0] (changed)
+  tools/research_askama/templates/included.html [+1 / -0] (changed)
+  tools/research_askama/templates/main.html [+8 / -0] (changed)
+  tools/research_askama/templates/unused.html [+5 / -0] (changed)
+  tools/ticket_publication/BUILD.bazel [+15 / -0] (changed)
+  tools/ticket_publication/README.md [+40 / -7] (changed)
+  tools/ticket_publication/github.rs [+142 / -0] (changed)
+  tools/ticket_publication/main.rs [+58 / -8] (changed)
+  tools/ticket_publication/plan.rs [+58 / -1] (changed)
+  tools/ticket_publication/publish.rs [+90 / -0] (changed)
+  tools/ticket_publication/store.rs [+12 / -0] (changed)
+  tools/ticket_publication/tests/command.rs [+352 / -5] (changed)
+  tools/ticket_publication/tests/fake_gh.rs [+91 / -0] (changed)
+  tools/ticket_publication/tests/sync_fault.c [+33 / -1] (changed)
+
+→ 🔬 Lint · Running lint aspects
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: 2efabe15-4d12-4f2f-b5c3-79841415f9b8
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/2efabe15-4d12-4f2f-b5c3-79841415f9b8
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: 9 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 9 targets (262 packages loaded, 66313 targets configured, 516 aspect applications).
+INFO: Found 9 targets...
+[0 / 1] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[3,112 / 3,118] [Sched] Linting //tools/research_askama:collector with KeepSorted ... (3 actions, 0 running)
+INFO: From Action tools/research_askama/collector.AspectRulesLintClippy.report:
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:collector up-to-date:
+  bazel-bin/tools/research_askama/collector.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/collector.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%clippy of //tools/research_askama:adapter_test up-to-date:
+  bazel-bin/tools/research_askama/adapter_test.AspectRulesLintClippy.report
+  bazel-bin/tools/research_askama/adapter_test.AspectRulesLintClippy.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:compiler_metadata up-to-date:
+  bazel-bin/tools/research_askama/compiler_metadata.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/compiler_metadata.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%shellcheck of //tools/research_askama:native_export_test up-to-date:
+  bazel-bin/tools/research_askama/native_export_test.AspectRulesLintShellCheck.report
+  bazel-bin/tools/research_askama/native_export_test.AspectRulesLintShellCheck.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:adapter_collection_test up-to-date:
+  bazel-bin/tools/research_askama/adapter_collection_test.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/adapter_collection_test.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%clippy of //tools/research_askama:instrumenter up-to-date:
+  bazel-bin/tools/research_askama/instrumenter.AspectRulesLintClippy.report
+  bazel-bin/tools/research_askama/instrumenter.AspectRulesLintClippy.report.exit_code
+Aspect //tools/lint:linters.bzl%clippy of //tools/research_askama:native_test up-to-date:
+  bazel-bin/tools/research_askama/native_test.AspectRulesLintClippy.report
+  bazel-bin/tools/research_askama/native_test.AspectRulesLintClippy.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:instrumented up-to-date:
+  bazel-bin/tools/research_askama/instrumented.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/instrumented.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:instrumenter up-to-date:
+  bazel-bin/tools/research_askama/instrumenter.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/instrumenter.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:native_test up-to-date:
+  bazel-bin/tools/research_askama/native_test.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/native_test.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:native_export_test up-to-date:
+  bazel-bin/tools/research_askama/native_export_test.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/native_export_test.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:adapter_test up-to-date:
+  bazel-bin/tools/research_askama/adapter_test.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/adapter_test.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_askama:instrumented_env up-to-date:
+  bazel-bin/tools/research_askama/instrumented_env.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_askama/instrumented_env.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%clippy of //tools/research_askama:collector up-to-date:
+  bazel-bin/tools/research_askama/collector.AspectRulesLintClippy.report
+  bazel-bin/tools/research_askama/collector.AspectRulesLintClippy.report.exit_code
+Aspect //tools/lint:linters.bzl%shellcheck of //tools/research_askama:adapter_collection_test up-to-date:
+  bazel-bin/tools/research_askama/adapter_collection_test.AspectRulesLintShellCheck.report
+  bazel-bin/tools/research_askama/adapter_collection_test.AspectRulesLintShellCheck.report.exit_code
+INFO: Elapsed time: 4.223s, Critical Path: 2.53s
+INFO: 6 processes: 1093 action cache hit, 1 internal, 5 remote.
+INFO: Build completed successfully, 6 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/2efabe15-4d12-4f2f-b5c3-79841415f9b8
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (3): Clippy, KeepSorted, ShellCheck
+
+Lint findings after hold-the-line (7)
+  ⚠️ tools/research_askama/instrument.rs:10 · clippy · clippy::format_collect — use of `format!` to build up a string from an iterator
+  ⚠️ tools/research_askama/instrument.rs:121 · clippy · clippy::unnecessary_sort_by — consider using `sort_by_key`
+  ⚠️ tools/research_askama/collect.rs:9 · clippy · clippy::format_collect — use of `format!` to build up a string from an iterator
+  ⚠️ tools/research_askama/collect.rs:21 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/collect.rs:33 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/collect.rs:38 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/collect.rs:50 · clippy · clippy::too_many_lines — this function has too many lines (110/100)
+
+→ ⚠️  Flagged lint task in 6.0s · 7 warnings
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  264ms  Detect changed files
+    🔬 Lint     5.8s  Run lint aspects
+    🔎 Filter    2ms  Filter diagnostics

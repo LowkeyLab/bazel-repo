@@ -1,0 +1,95 @@
+{
+  "files": [
+    {
+      "nodes": [
+        {
+          "arms": 0,
+          "column": 20,
+          "end": 25,
+          "id": 20,
+          "kind": "expression",
+          "line": 1
+        }
+      ],
+      "path": "tools/research_askama/templates/included.html",
+      "sha256": "0a1994768785d3efed2dd632f2befec42bc93911fcddc5c2e935664fe32c2be3"
+    },
+    {
+      "nodes": [
+        {
+          "arms": 2,
+          "column": 41,
+          "end": 43,
+          "id": 41,
+          "kind": "if",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 10,
+          "end": 70,
+          "id": 65,
+          "kind": "expression",
+          "line": 2
+        },
+        {
+          "arms": 0,
+          "column": 9,
+          "end": 103,
+          "id": 98,
+          "kind": "expression",
+          "line": 4
+        },
+        {
+          "arms": 0,
+          "column": 15,
+          "end": 129,
+          "id": 126,
+          "kind": "loop",
+          "line": 5
+        },
+        {
+          "arms": 0,
+          "column": 9,
+          "end": 160,
+          "id": 156,
+          "kind": "expression",
+          "line": 6
+        },
+        {
+          "arms": 0,
+          "column": 15,
+          "end": 211,
+          "id": 186,
+          "kind": "include",
+          "line": 7
+        }
+      ],
+      "path": "tools/research_askama/templates/main.html",
+      "sha256": "7e945ef1f7aef4abc182eb07db57029a23207475c4d5c4a07bc2c1e87850cc8f"
+    },
+    {
+      "nodes": [
+        {
+          "arms": 2,
+          "column": 3,
+          "end": 5,
+          "id": 3,
+          "kind": "if",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 13,
+          "end": 35,
+          "id": 30,
+          "kind": "expression",
+          "line": 2
+        }
+      ],
+      "path": "tools/research_askama/templates/unused.html",
+      "sha256": "b6538feec72276c963218a5015e8f645b4f4ed255aacefa810e5a45be65a854f"
+    }
+  ],
+  "schema": 1
+}

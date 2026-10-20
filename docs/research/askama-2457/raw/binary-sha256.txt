@@ -1,0 +1,2 @@
+fdab343871f513334ba7348796f6920c11715a727d0e2f87345b6a7d705ae851  tools/research_askama/native_test
+90038d1a5889cc31c340626c74fc43e1501a02b6b4ed7a742ba819bb2a5347af  tools/research_askama/adapter_test

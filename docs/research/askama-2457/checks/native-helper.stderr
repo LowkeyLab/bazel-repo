@@ -1,0 +1,41 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: e345179c-9b67-4c58-9239-4a2a87ffa067
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/e345179c-9b67-4c58-9239-4a2a87ffa067
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_askama:native_export_test (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_askama:native_export_test (1 packages loaded, 52 targets configured).
+INFO: Found 1 test target...
+[40 / 590] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,900 / 1,902] Compiling Rust bin //tools/research_askama:native_test (1 file); 0s remote, remote-cache
+INFO: From Compiling Rust bin //tools/research_askama:native_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[1,901 / 1,902] [Prepa] runfiles for //tools/research_askama:native_export_test
+[1,902 / 1,903] Testing //tools/research_askama:native_export_test; 0s remote, remote-cache
+[1,902 / 1,903] Testing //tools/research_askama:native_export_test; 1s remote, remote-cache
+[1,902 / 1,903] Testing //tools/research_askama:native_export_test; Downloading tools/research_askama/native_export_test/test.xml; 2s remote, remote-cache
+Target //tools/research_askama:native_export_test up-to-date:
+  bazel-bin/tools/research_askama/native_export_test
+INFO: Elapsed time: 6.565s, Critical Path: 5.94s
+INFO: 4 processes: 73 action cache hit, 2 internal, 3 remote.
+INFO: Build completed successfully, 4 total actions
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/e345179c-9b67-4c58-9239-4a2a87ffa067

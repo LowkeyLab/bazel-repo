@@ -1,0 +1,8 @@
+{# This comment is not executable. #} {% if crate::branch("tools/research_askama/templates/main.html", 41, (enabled)) %}
+<p>yes {{ crate::hit("tools/research_askama/templates/main.html", 65) }}{{ label }}</p>
+{% else %}
+<p>no {{ crate::hit("tools/research_askama/templates/main.html", 98) }}{{ label }}</p>
+{% endif %} {{ crate::hit("tools/research_askama/templates/main.html", 126) }}{% for item in items %}
+<span>{{ crate::hit("tools/research_askama/templates/main.html", 156) }}{{ item }}</span>
+{% endfor %} {{ crate::hit("tools/research_askama/templates/main.html", 186) }}{% include "included.html" %}
+<footer>static</footer>

@@ -1,0 +1,119 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":instrument.bzl", "instrument")
+
+# gazelle:ignore
+
+rust_test(
+    name = "native_test",
+    srcs = ["native.rs"],
+    compile_data = glob(["templates/*.html"]),
+    crate_root = "native.rs",
+    rustc_env = {"CARGO_MANIFEST_DIR": "tools/research_askama"},
+    rustc_flags = ["-Cinstrument-coverage"],
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+    ],
+)
+
+sh_test(
+    name = "native_export_test",
+    srcs = ["native_export.sh"],
+    args = [
+        "$(rootpath :native_test)",
+        "$(rootpath @llvm//tools:llvm-profdata)",
+        "$(rootpath @llvm//tools:llvm-cov)",
+    ],
+    data = [
+        ":native_test",
+        "@llvm//tools:llvm-cov",
+        "@llvm//tools:llvm-profdata",
+    ],
+)
+
+rust_binary(
+    name = "instrumenter",
+    srcs = ["instrument.rs"],
+    crate_root = "instrument.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:askama_parser-0.16.1",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+instrument(
+    name = "instrumented",
+    srcs = glob(["templates/*.html"]),
+    tool = ":instrumenter",
+)
+
+filegroup(
+    name = "instrumented_env",
+    srcs = [":instrumented"],
+    output_group = "env",
+)
+
+rust_test(
+    name = "adapter_test",
+    srcs = ["adapter.rs"],
+    compile_data = [":instrumented"],
+    crate_root = "adapter.rs",
+    data = [":instrumented"],
+    rustc_env_files = [":instrumented_env"],
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+rust_binary(
+    name = "collector",
+    srcs = ["collect.rs"],
+    crate_root = "collect.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+sh_test(
+    name = "adapter_collection_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "$(rootpath :native_export.sh)",
+        "$(rootpath :native_test)",
+        "$(rootpath @llvm//tools:llvm-profdata)",
+        "$(rootpath @llvm//tools:llvm-cov)",
+        "$(rootpath :adapter_test)",
+        "$(rootpath :collector)",
+        "$(rootpath :instrumented)",
+        "$(rootpath :compiler_metadata)",
+    ],
+    data = [
+        "instrument.bzl",
+        ":adapter_test",
+        ":collector",
+        ":compiler_metadata",
+        ":instrumented",
+        ":native_test",
+        "@llvm//tools:llvm-cov",
+        "@llvm//tools:llvm-profdata",
+    ] + glob([
+        "templates/*.html",
+        "*.rs",
+        "*.sh",
+    ]),
+)
+
+filegroup(
+    name = "compiler_metadata",
+    srcs = [":instrumented"],
+    output_group = "compiler",
+)

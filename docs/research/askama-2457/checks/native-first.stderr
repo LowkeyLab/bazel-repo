@@ -1,0 +1,42 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: fb3b4941-4d07-4ee5-89b7-0ae4044bd486
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/fb3b4941-4d07-4ee5-89b7-0ae4044bd486
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_askama:native_test (1 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_askama:native_test (11 packages loaded, 692 targets configured).
+INFO: Found 1 test target...
+[9 / 42] [Prepa] Creating source manifest for //tools/research_askama:native_test
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,977 / 1,982] [Prepa] Compiling Rust rlib @@rules_rs++crate+crates__askama_derive-0.16.1//:askama_derive v0.16.1 (20 files) [for tool]
+[1,980 / 1,982] [Sched] Compiling Rust bin //tools/research_askama:native_test (1 file)
+[1,980 / 1,982] Compiling Rust bin //tools/research_askama:native_test (1 file); 1s remote, remote-cache
+INFO: From Compiling Rust bin //tools/research_askama:native_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[1,982 / 1,983] [Sched] Testing //tools/research_askama:native_test
+[1,982 / 1,983] Testing //tools/research_askama:native_test; 1s remote, remote-cache
+Target //tools/research_askama:native_test up-to-date:
+  bazel-bin/tools/research_askama/native_test
+INFO: Elapsed time: 8.744s, Critical Path: 6.86s
+INFO: 44 processes: 36 action cache hit, 22 remote cache hit, 20 internal, 3 remote.
+INFO: Build completed successfully, 44 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/fb3b4941-4d07-4ee5-89b7-0ae4044bd486
