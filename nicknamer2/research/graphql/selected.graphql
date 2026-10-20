@@ -1,0 +1,15 @@
+query CoverageProbe($show: Boolean!) {
+  __schema {
+    queryType {
+      name
+      ...TypeName @include(if: $show)
+    }
+  }
+}
+fragment TypeName on __Type {
+  kind
+}
+
+mutation CoverageMutation {
+  __typename
+}

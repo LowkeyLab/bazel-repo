@@ -1,0 +1,7 @@
+query UnusedProbe {
+  __schema {
+    mutationType {
+      name
+    }
+  }
+}

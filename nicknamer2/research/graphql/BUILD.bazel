@@ -1,0 +1,66 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+
+# gazelle:ignore
+
+rust_binary(
+    name = "bridge",
+    srcs = ["bridge.rs"],
+    crate_root = "bridge.rs",
+    deps = [
+        "//nicknamer2/src/auth:auth_claims",
+        "//nicknamer2/src/discord_server:discord_server_repo",
+        "//nicknamer2/src/discord_server:discord_server_service",
+        "//nicknamer2/src/graphql:graphql_schema",
+        "//nicknamer2/src/name:name_repo",
+        "//nicknamer2/src/name:name_service",
+        "//nicknamer2/src/server",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+copy_to_bin(
+    name = "selected_input",
+    srcs = ["selected.graphql"],
+)
+
+copy_to_bin(
+    name = "disconnected_input",
+    srcs = ["disconnected/unused.graphql"],
+)
+
+js_test(
+    name = "execute_test",
+    size = "small",
+    args = [
+        "execute",
+        "$(rootpath :bridge)",
+    ],
+    data = [
+        ":bridge",
+        ":selected_input",
+        "//angular:node_modules/@apollo/client",
+        "//angular:node_modules/graphql",
+    ],
+    entry_point = "probe.mjs",
+    tags = ["manual"],
+)
+
+js_test(
+    name = "baseline_test",
+    size = "small",
+    args = ["baseline"],
+    data = [
+        ":disconnected_input",
+        ":selected_input",
+        "//angular:node_modules/graphql",
+    ],
+    entry_point = "probe.mjs",
+    tags = ["manual"],
+)

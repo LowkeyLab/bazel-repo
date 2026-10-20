@@ -1,0 +1,13 @@
+# Run these commands from the retained research checkout.
+# REPO is the checkout. EVIDENCE is a writable absolute artifact directory.
+# HOME, BAZEL_CACHE, TMPDIR, and EVIDENCE replace private prefixes in published logs.
+# All Bazel commands use the configured BuildBuddy service.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run //:gazelle --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048
+nix develop --command bazel --host_jvm_args=-Xmx1536m test //nicknamer2/research/graphql:execute_test //nicknamer2/research/graphql:baseline_test --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 --nocache_test_results --test_output=all
+nix develop --command bazel --host_jvm_args=-Xmx1536m coverage //nicknamer2/research/graphql:execute_test --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 --build_tag_filters= --instrumentation_filter='^//nicknamer2/research/graphql' --nocache_test_results --test_output=all
+# Copy baseline.lcov, dispatch-only.lcov, and native combined LCOV to 01.dat, 02.dat, and 03.dat under EVIDENCE/merge-forward.
+# Reverse the first two file assignments under EVIDENCE/merge-reverse.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run @bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 -- --coverage_dir="${EVIDENCE}/merge-forward" --output_file="${EVIDENCE}/combined-forward.lcov"
+nix develop --command bazel --host_jvm_args=-Xmx1536m run @bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 -- --coverage_dir="${EVIDENCE}/merge-reverse" --output_file="${EVIDENCE}/combined-reverse.lcov"
+nix develop --command aspect --host_jvm_args=-Xmx1536m lint //nicknamer2/research/graphql:bridge //nicknamer2/research/graphql:execute_test //nicknamer2/research/graphql:baseline_test --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048
+nix develop --command aspect --host_jvm_args=-Xmx1536m format --scope=all --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048

@@ -1,0 +1,862 @@
+[
+  {
+    "path": "ARTIFACTS.md",
+    "sha256": "cd04903bbaba92270d730206eca77347520ff4738f8bfc95d0c09b56cb448a8a",
+    "bytes": 441
+  },
+  {
+    "path": "combined-forward.lcov",
+    "sha256": "6139fbb2775237e86f6c6765f1996bef69b4394148d411197acd71abdebd5d83",
+    "bytes": 350
+  },
+  {
+    "path": "combined-reverse.lcov",
+    "sha256": "6139fbb2775237e86f6c6765f1996bef69b4394148d411197acd71abdebd5d83",
+    "bytes": 350
+  },
+  {
+    "path": "commands-and-logs/coverage.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/coverage.log",
+    "sha256": "6c040b451e9674f5b874cb25ed8efbbbc4ae5083eedf25c58f95b1cc997a3136",
+    "bytes": 8121
+  },
+  {
+    "path": "commands-and-logs/format-final.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/format-final.log",
+    "sha256": "86b4f4d79af7c76999216e23afc517629c06f8adc01bea91f79edb71c45b15b5",
+    "bytes": 5806
+  },
+  {
+    "path": "commands-and-logs/format.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/format.log",
+    "sha256": "1a38b03795590e28d2b6b8f92215f46dd5429fa2160877dc9fcd1f77ae30e876",
+    "bytes": 7070
+  },
+  {
+    "path": "commands-and-logs/gazelle-formatted.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-formatted.log",
+    "sha256": "9bbd998f5a13926cef9fb6098a654f94c3fd7a4061fd042c36b7f020031f8435",
+    "bytes": 2971
+  },
+  {
+    "path": "commands-and-logs/gazelle-initial.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-initial.log",
+    "sha256": "e5f00eb3a305ad61f97678d9448ed19c6b5d24dbfc97b12240d468c12850b679",
+    "bytes": 78090
+  },
+  {
+    "path": "commands-and-logs/gazelle-probe.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-probe.log",
+    "sha256": "d5c51d9e2dc98388a7e95c49629302e57a9676854b88a4de99b499aedf815032",
+    "bytes": 2004
+  },
+  {
+    "path": "commands-and-logs/lint.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/lint.log",
+    "sha256": "ff3e8693a9cf6a2403d1940df522f49596c8cec8a3b35c55450fe77988109ad5",
+    "bytes": 6287
+  },
+  {
+    "path": "commands-and-logs/merge-forward.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/merge-forward.log",
+    "sha256": "1447cdee7b2b89ef0bac7da580c6e34239121ecac6f111de3c47e716cd468f96",
+    "bytes": 2549
+  },
+  {
+    "path": "commands-and-logs/merge-reverse.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/merge-reverse.log",
+    "sha256": "7574ace52007bf977ed0efbacf48cf3502c0d2d697d3dbc181ea7509f864292a",
+    "bytes": 1846
+  },
+  {
+    "path": "commands-and-logs/test-final.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/test-final.log",
+    "sha256": "a68e66310a1b1d2b5d43be7ccd4039875194a646469131a8dd0fde70b65a5f28",
+    "bytes": 3868
+  },
+  {
+    "path": "commands-and-logs/test-first.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/test-first.log",
+    "sha256": "b5929b85bebd85e64d08862c4a3e15d38cd64e7829b2128ef9a1fb1dc4f1b5d2",
+    "bytes": 8388
+  },
+  {
+    "path": "commands.txt",
+    "sha256": "4c9908427725618856f7fa69401f75430201fe53708e7cc51efc49b1334c016f",
+    "bytes": 2285
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/_rules_js_report.lcov",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/a_object.pic.gcda",
+    "sha256": "d6db22ea13dafe3beb9b7425a77567f64d018acb2703d6fba3e4ebe80aa7b8f6",
+    "bytes": 568
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/asn1_compat.pic.gcda",
+    "sha256": "4daca2113d84a4340c925373790b2f929db50a60e6698004678ef71382888bd9",
+    "bytes": 164
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/bcm.pic.gcda",
+    "sha256": "e5227169fe709d000a17286724e49aa05ec2e52e6d6d73b57751b2a9fc3cb8dd",
+    "bytes": 154308
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/bio.pic.gcda",
+    "sha256": "32b333562935cac742cd96097d226941f39b5b8feefb5393ca7608a10ad8ac31",
+    "bytes": 4404
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/blake2.pic.gcda",
+    "sha256": "16f4dd812a6ff523200c1f5afa622f66c4cf6c7ab5bde54263a0950a6cee33e1",
+    "bytes": 556
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/bn_asn1.pic.gcda",
+    "sha256": "d3c8c1ae2b4bd21805d0c331000be6c02d79f5d6be3255e8057aa675f448529e",
+    "bytes": 172
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/cbb.pic.gcda",
+    "sha256": "11f0a2f07b5687b8e1980ebc6142cdb16b2129d2e15131f9463524fc75cefef2",
+    "bytes": 3112
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/cbs.pic.gcda",
+    "sha256": "352701f379258a35813adffbbb955285d2a1a60d4ef7484b721ad0f6a2a34dbf",
+    "bytes": 3708
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/cfb.pic.gcda",
+    "sha256": "fdc114f027717b431bf730c732220226b9da67672b919c2542971f3617610ff1",
+    "bytes": 692
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/chacha.pic.gcda",
+    "sha256": "d782ba08f1e05f3f734c2fe3b99d3e45058ced03edcda43158ec7d9bc464ecb3",
+    "bytes": 712
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/console.pic.gcda",
+    "sha256": "282695ad1ff180947282ccc54b0e785c9aa964381887f0c4729f2297c741eba0",
+    "bytes": 936
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/convert.pic.gcda",
+    "sha256": "f2fc591c611865b04074046fe42cc53e26d469195c09caa3ec2c310b21cdfbb9",
+    "bytes": 1296
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/cpucap.pic.gcda",
+    "sha256": "892ece2c854c300d58befe6fe2aa72e9f1305c58057cd7c67d52cdf32d5f6420",
+    "bytes": 36
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/crypto.pic.gcda",
+    "sha256": "30cf59ca14525d3c8995d38c40442e7800272705b9edc27e809c43ba4a1dfd4f",
+    "bytes": 804
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/des.pic.gcda",
+    "sha256": "56f2c29a31be855e1747aeb33144656f6dbb166aad6667753e9e4d1b26dc523e",
+    "bytes": 1468
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/dh_asn1.pic.gcda",
+    "sha256": "a6f85593d92e17b9fc3655bffb3b391031e4c16d4e354ad99d6aa2ac286bdb3f",
+    "bytes": 428
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/digest_extra.pic.gcda",
+    "sha256": "3447660b77a34b08181701e278309d2306bba32bc6459ce239f66beacfb2a7a9",
+    "bytes": 1140
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/dsa.pic.gcda",
+    "sha256": "2d99a8d686707b51f3bd0930074391cdfecfbbe1a0fed96723aa120585db5392",
+    "bytes": 3032
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/dsa_asn1.pic.gcda",
+    "sha256": "7834ca3360a777d6f4341bc28fb9f850a3b47ac5cab8ed9f37265b082a54cf95",
+    "bytes": 1608
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/e_aesgcmsiv.pic.gcda",
+    "sha256": "e04f00eaa4939c8128342244465a19d156768a7c362ff1a9ff4056b67ab8e0dc",
+    "bytes": 1516
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/e_chacha20poly1305.pic.gcda",
+    "sha256": "af0e50fec2f5fe87467680e7612b16dc55a2d7edd49ebed56d82d95af373b6da",
+    "bytes": 1572
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/e_des.pic.gcda",
+    "sha256": "55124caf6172ee0c8d1013d525df92d4151a8ba74d9fc5e8efa3b60da07d7d59",
+    "bytes": 572
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/ec_asn1.pic.gcda",
+    "sha256": "f2007500cd9d7164e336559354b8278ab7365f7eae98c103332d8e154dde2e4a",
+    "bytes": 2380
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/ecdsa_asn1.pic.gcda",
+    "sha256": "284d2307d979e1ed164d9f5e8a566c743ae5f286982aaba5e52319a57c8d78d6",
+    "bytes": 568
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/engine.pic.gcda",
+    "sha256": "56301f12de17f6009758a79fc601f6cc15ba93a2b82eb97c2092295e232a67f2",
+    "bytes": 320
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/err.pic.gcda",
+    "sha256": "dcb938bc6d12d748f697b6f26ba78eb24d666c37fa0e185f097f255206b887b6",
+    "bytes": 2684
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/err_data.pic.gcda",
+    "sha256": "892ece2c854c300d58befe6fe2aa72e9f1305c58057cd7c67d52cdf32d5f6420",
+    "bytes": 36
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/evp_asn1.pic.gcda",
+    "sha256": "8fbf63ea509eba71e78b5b487af307a62bc8aa5118b9fc2c03a0cfd10dc2d19f",
+    "bytes": 2384
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/ex_data.pic.gcda",
+    "sha256": "89cf8263197a65178cecb14aec0fd5966830e321a5fe4ec398c78ef747201b66",
+    "bytes": 888
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/file.pic.gcda",
+    "sha256": "6e595e38f0003115ca541cf5b5f30dc0ec789bacfcbeaf446652f87aec93cba5",
+    "bytes": 876
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/fork_ube_detect.pic.gcda",
+    "sha256": "27255ff58dfdfe86880c099bf9158d3fae4e8e1bfdff9662d74b0cd45d4ec95c",
+    "bytes": 496
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/getentropy.pic.gcda",
+    "sha256": "dc8c637114c3fa460d51e39672074506cec95c9f8566673c30d720cb283ffa72",
+    "bytes": 96
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/lhash.pic.gcda",
+    "sha256": "ea85cf657179d7a494ab4114d0bc42cfcefda9ee64144d8e42d6061157d81e90",
+    "bytes": 752
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/md4.pic.gcda",
+    "sha256": "52d8fc3d373a7e2172404cdc8fa80a3024d02ebe4a7a069a7cc929e86414d3e7",
+    "bytes": 680
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/mem.pic.gcda",
+    "sha256": "2aa5dc891b997c67c6d166317dd159e3324f3396f6ace6b18874a1092e92c7c1",
+    "bytes": 2580
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/obj.pic.gcda",
+    "sha256": "7891a62122cd7291fb369092cf2e30d4fefe1b192984c489974216353c99d4a7",
+    "bytes": 2240
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/obj_xref.pic.gcda",
+    "sha256": "68f5fb15e5d913272e60d42c8bc295f76af61c3c84b73bec936ae14389c75e80",
+    "bytes": 172
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_dh.pic.gcda",
+    "sha256": "fe8ef665fe234aff68cd5519df99984d6403d3debf96436ee3c133d5367180c8",
+    "bytes": 736
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_dh_asn1.pic.gcda",
+    "sha256": "8a3db02afe69e4587d407c471190d6394ff0fe604b0e393c3a4e5f3a540d76fe",
+    "bytes": 832
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_dsa.pic.gcda",
+    "sha256": "2a8475f14b45cce764e0d5cdf8cb657e34677f64d65f877c19a075ac1f5210eb",
+    "bytes": 1008
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_dsa_asn1.pic.gcda",
+    "sha256": "1aa057a5e33eb09e989d4882dfe0e510638c10172966c122b4d1e744243ffb0c",
+    "bytes": 852
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_ec_asn1.pic.gcda",
+    "sha256": "e4b761032e97fe11f387cdca9f24d70061e9d53512ab9084125d3ee5ee0f0e96",
+    "bytes": 844
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_ed25519_asn1.pic.gcda",
+    "sha256": "795a0da24cdd94d43fef3a866fc152f49d2d8cd67dff5447c6b29d8b8d80f8c5",
+    "bytes": 1180
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_hmac_asn1.pic.gcda",
+    "sha256": "339c0ffb8d163aa4821e207ac85aaaa134d7477cdb0df9b24343b2b51bb45c36",
+    "bytes": 296
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_kem_asn1.pic.gcda",
+    "sha256": "4efc998a04e4cb82d6e1a37f84127a4c460ee5b5e89e4c16d43f5175aeb948be",
+    "bytes": 1160
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_methods.pic.gcda",
+    "sha256": "07fcd621d4d20f7e668a7ea4efd97fdb528d0a9d738ba34927263ce80b75bd07",
+    "bytes": 108
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_pqdsa_asn1.pic.gcda",
+    "sha256": "c646bb049fb99f3a4ef53fa7d374ef85c3ceb7c1f656e564ea6b35fa8d809d76",
+    "bytes": 1272
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_rsa_asn1.pic.gcda",
+    "sha256": "fd700c34f393d4bd92d42ed299bd5b772d235e5fcff17410ab672a27717fbc17",
+    "bytes": 728
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_x25519.pic.gcda",
+    "sha256": "69e1899351360b51cbfd642c186bf2ff115407a2386eafa2a93a479cc0d0bcfb",
+    "bytes": 260
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/p_x25519_asn1.pic.gcda",
+    "sha256": "b6ad61a1f6b2737035272b4729dde40ae84c0f3997c9e987cd138ca5f19da904",
+    "bytes": 1180
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/params.pic.gcda",
+    "sha256": "198e3c6b2b74b30fe938657bc7e758d9fc5817cd80ed3f3c028c943b95beb14b",
+    "bytes": 780
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/poly1305_vec.pic.gcda",
+    "sha256": "2048011846cef9548f862d057c9f5e264539cc15ccc371b082429108d8bebac5",
+    "bytes": 880
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/posix_time.pic.gcda",
+    "sha256": "e885d64f5185cf8e7a23570fa0b7990dd4f67be01ebe4f6d032036eef6de409a",
+    "bytes": 828
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/print.pic.gcda",
+    "sha256": "3cdea8b9568f656e215c038441ef01f27e74c3ff6eecf026235ca1dee77d2e20",
+    "bytes": 1360
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/printf.pic.gcda",
+    "sha256": "2c37deb8b87eec5044fdc948d4776220d693d49721e02d68f3f2c8aaa983f51c",
+    "bytes": 112
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/refcount_c11.pic.gcda",
+    "sha256": "3116883e4c3a041b749372b3dec20424309246dccb9fe9777c1f4644b213ecef",
+    "bytes": 164
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/ripemd.pic.gcda",
+    "sha256": "f38b72221a2a22d6b71e7bc42585ba77b30d52a4c00030ae20c8dbc791fbf4c0",
+    "bytes": 652
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/rsa_asn1.pic.gcda",
+    "sha256": "2a0f8f5e376608612e2c7750e5bd5014529f8c7ec725a6ab7768313213d1ab6e",
+    "bytes": 1192
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/rsa_crypt.pic.gcda",
+    "sha256": "e1368c2d846a9b87a9a346d2d96687f4017cf7d9624249711e270ca99761cab8",
+    "bytes": 1548
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/rsassa_pss_asn1.pic.gcda",
+    "sha256": "154b6d6c897aa466814e1b5b6df04389f034f52be0840525aa275a0ce57144e6",
+    "bytes": 1984
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/stack.pic.gcda",
+    "sha256": "0f2aeb62ff94dd14533a185c78801ff1daf482615455d46442068781ce4451ac",
+    "bytes": 1548
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/thread_pthread.pic.gcda",
+    "sha256": "22edfd33a4426466877eea8329803e2ea106c5308f7d900ba7554acaeb33321e",
+    "bytes": 1056
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/ube.pic.gcda",
+    "sha256": "94aeff5c51462db87a3edde07c7df307781621784abbde471ffd5fee865047c6",
+    "bytes": 632
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/vm_ube_detect.pic.gcda",
+    "sha256": "186765d8110edbb8688f6de16a4f9bbfa1a16f5b8650206acabb12b8229c4987",
+    "bytes": 324
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/crypto/vm_ube_fallback.pic.gcda",
+    "sha256": "8b1ac7b671efd9bba2b9b26e816ac43d34915fb23dd1102a2370fb6bc7ebf2b9",
+    "bytes": 72
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/jitterentropy/jitterentropy-base.pic.gcda",
+    "sha256": "9663568af7633a01977c8777e5bdadd5e547324e842144665ccb5cb548144292",
+    "bytes": 1808
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/jitterentropy/jitterentropy-gcd.pic.gcda",
+    "sha256": "f5705492c3657954df252931ec14e36abe56ad32a27395cea555a7767dcfb19b",
+    "bytes": 532
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/jitterentropy/jitterentropy-health.pic.gcda",
+    "sha256": "03109e0c2a7d2ca71cb3c26915c55959ebd0020ae8084e4526d05ec78df8c0ab",
+    "bytes": 800
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/jitterentropy/jitterentropy-noise.pic.gcda",
+    "sha256": "62ea198b984d238ed7f547bf0c93fc3d0814a0023aee811f396878dbf9493676",
+    "bytes": 580
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bazel-out/k8-fastbuild/bin/external/aws-lc+/_objs/jitterentropy/jitterentropy-sha3.pic.gcda",
+    "sha256": "1e61a5f0e359789144e6aa6b919dd209a52fbb344c1731d98f2c9604c6aec736",
+    "bytes": 888
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/00c879ee3285a50d-montgomery.gcda",
+    "sha256": "d62bb4ea47d84f87cfa5e25182c27d08d9de2e1db6a3d97044d2c25e594ed637",
+    "bytes": 300
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/00c879ee3285a50d-montgomery_inv.gcda",
+    "sha256": "b7cfb6923da50021d0ade0ff68c76475e643d83435c3d734e28a41ae3f82f6aa",
+    "bytes": 80
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/0bbbd18bda93c05b-aes_nohw.gcda",
+    "sha256": "e2e175f790a674e4421dfd47a6e1cadcdac8a5d5211ae89ff1993050e7f99e8a",
+    "bytes": 1596
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/25ac62e5b3c53843-curve25519.gcda",
+    "sha256": "e33750775a10d7c9c0f91fa1313db4a0b67cc54ab85daeb0c8f6d558455d7af5",
+    "bytes": 3572
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/25ac62e5b3c53843-curve25519_64_adx.gcda",
+    "sha256": "a3793e484f94fac4427d4e167d5f238c93358820acc4a065eba1155cddc318a6",
+    "bytes": 1124
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/a0330e891e733f4e-ecp_nistz.gcda",
+    "sha256": "b3c28095ec27d03b22daba01278d1e74f612e5d20bae4475ff3d9dc363b74012",
+    "bytes": 88
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/a0330e891e733f4e-gfp_p384.gcda",
+    "sha256": "039df6660fce19f844e1dcda90a1856da53d60c9ff338b200de01866d493bb40",
+    "bytes": 1544
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/a0330e891e733f4e-p256-nistz.gcda",
+    "sha256": "a1bede78d9599c0e003c8b0b041548df2c06f96b77dc6a70eabe2112a7a905f6",
+    "bytes": 1068
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/a4019cc0736b0423-cpu_intel.gcda",
+    "sha256": "b3820c70a2fd686f20159a4901773c78df1a2dd5e9149f1657056d0ae4d01dff",
+    "bytes": 296
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/a4019cc0736b0423-crypto.gcda",
+    "sha256": "892ece2c854c300d58befe6fe2aa72e9f1305c58057cd7c67d52cdf32d5f6420",
+    "bytes": 36
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/a4019cc0736b0423-mem.gcda",
+    "sha256": "21d0511495084f0d112e2c51fd3ba8430920d243c739ae8ada00b6fdbfa8f300",
+    "bytes": 80
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/aaa1ba3e455ee2e1-limbs.gcda",
+    "sha256": "65a59304da611ddde383750b778f88e925758ebfe53901c5017ab637257741ce",
+    "bytes": 1128
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/bin/external/rules_rs++crate+crates__ring-0.17.14/_bs_x86_64-unknown-linux-gnu.out_dir/d5a9841f3dc6e253-poly1305.gcda",
+    "sha256": "c193e2efbe3cbc61070198c79dfaa11dd3ee3aeaa50c8a82fa847825110ba7c0",
+    "bytes": 380
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/coverage-18-1792454953117-0.json",
+    "sha256": "2e764292a9ce56b8b1ad1d3af3ba5fb08fec1d47584310cd608f85b183d18ccb",
+    "bytes": 1029848
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/f69f6b25af15-33-3148489491655755428_0.profraw",
+    "sha256": "b04ab65e3893e24682f94cb67d31b181388aac90ff0f2359b5f1eafa728f3fa9",
+    "bytes": 416
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/f69f6b25af15-38-3148489491655755428_0.profraw",
+    "sha256": "b04ab65e3893e24682f94cb67d31b181388aac90ff0f2359b5f1eafa728f3fa9",
+    "bytes": 416
+  },
+  {
+    "path": "coverage-outputs/execute_test/_coverage/f69f6b25af15-42-3148489491655755428_0.profraw",
+    "sha256": "b04ab65e3893e24682f94cb67d31b181388aac90ff0f2359b5f1eafa728f3fa9",
+    "bytes": 416
+  },
+  {
+    "path": "coverage-outputs/execute_test/coverage.dat",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0
+  },
+  {
+    "path": "coverage-outputs/execute_test/test.log",
+    "sha256": "85a7d9d209a055043b8dda7a3419ad811c8c151df551804a457ee8dde0e5f2d3",
+    "bytes": 638
+  },
+  {
+    "path": "coverage-outputs/execute_test/test.outputs/capabilities.json",
+    "sha256": "68bdffdc8bf258d1584dd132c31bee66b4a237769afd7280143e0ad7cf0f65f1",
+    "bytes": 451
+  },
+  {
+    "path": "coverage-outputs/execute_test/test.outputs/dispatch-only.lcov",
+    "sha256": "1e72244b20cb677010e674c0f4d65eff1c6434edb0319625a9191cc1689b1286",
+    "bytes": 158
+  },
+  {
+    "path": "coverage-outputs/execute_test/test.outputs/observations.json",
+    "sha256": "b3d2d6ff427f91ccc9b7be03a1b6802fd5fb19dadd976707f751c6a33296308f",
+    "bytes": 4697
+  },
+  {
+    "path": "coverage-outputs/execute_test/test.outputs/original-selected.graphql",
+    "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+    "bytes": 212
+  },
+  {
+    "path": "coverage-outputs/execute_test/test.outputs_manifest/MANIFEST",
+    "sha256": "7b215678f50f8b9e77e624b7f5df6f2c9698786b89ab243300a415428e29917b",
+    "bytes": 154
+  },
+  {
+    "path": "coverage-outputs/execute_test/test.xml",
+    "sha256": "62945ec801faf9a694707d8612ae2fb97dbb5e76aa5244d44b76fef4fcf39530",
+    "bytes": 1094
+  },
+  {
+    "path": "final-test-outputs/baseline_test/test.log",
+    "sha256": "260c22c357de59971063f163a67ff88aad1e935a84446bf1fda14bdcacafc0fc",
+    "bytes": 378
+  },
+  {
+    "path": "final-test-outputs/baseline_test/test.outputs/baseline.json",
+    "sha256": "259ae8ef74f176aa454d009325ccbf60b36d013dc12341559362132866aea0b3",
+    "bytes": 2565
+  },
+  {
+    "path": "final-test-outputs/baseline_test/test.outputs/baseline.lcov",
+    "sha256": "bb3c9cc28e7ebcc0ad0eae39a5b80992fb58b5a4ae7ac1ae716590f919e55bc9",
+    "bytes": 289
+  },
+  {
+    "path": "final-test-outputs/baseline_test/test.outputs/original-disconnected.graphql",
+    "sha256": "a13e5586a0906cd8e0d301c081fc81ec7f730175ae0180d4213e76b409f37a5e",
+    "bytes": 75
+  },
+  {
+    "path": "final-test-outputs/baseline_test/test.outputs/original-selected.graphql",
+    "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+    "bytes": 212
+  },
+  {
+    "path": "final-test-outputs/baseline_test/test.outputs_manifest/MANIFEST",
+    "sha256": "db4704eae463e11d3a71a0e829a3a8cb085a594c87a30c6757caa5ce3d560456",
+    "bytes": 150
+  },
+  {
+    "path": "final-test-outputs/baseline_test/test.xml",
+    "sha256": "f7790b0a170532d0782d81f0e790ccc6e22a6c92e5aaf0b65180e4fc24521025",
+    "bytes": 838
+  },
+  {
+    "path": "final-test-outputs/execute_test/test.log",
+    "sha256": "85a7d9d209a055043b8dda7a3419ad811c8c151df551804a457ee8dde0e5f2d3",
+    "bytes": 638
+  },
+  {
+    "path": "final-test-outputs/execute_test/test.outputs/capabilities.json",
+    "sha256": "68bdffdc8bf258d1584dd132c31bee66b4a237769afd7280143e0ad7cf0f65f1",
+    "bytes": 451
+  },
+  {
+    "path": "final-test-outputs/execute_test/test.outputs/dispatch-only.lcov",
+    "sha256": "1e72244b20cb677010e674c0f4d65eff1c6434edb0319625a9191cc1689b1286",
+    "bytes": 158
+  },
+  {
+    "path": "final-test-outputs/execute_test/test.outputs/observations.json",
+    "sha256": "b3d2d6ff427f91ccc9b7be03a1b6802fd5fb19dadd976707f751c6a33296308f",
+    "bytes": 4697
+  },
+  {
+    "path": "final-test-outputs/execute_test/test.outputs/original-selected.graphql",
+    "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+    "bytes": 212
+  },
+  {
+    "path": "final-test-outputs/execute_test/test.outputs_manifest/MANIFEST",
+    "sha256": "7b215678f50f8b9e77e624b7f5df6f2c9698786b89ab243300a415428e29917b",
+    "bytes": 154
+  },
+  {
+    "path": "final-test-outputs/execute_test/test.xml",
+    "sha256": "62945ec801faf9a694707d8612ae2fb97dbb5e76aa5244d44b76fef4fcf39530",
+    "bytes": 1094
+  },
+  {
+    "path": "first-test-outputs/baseline_test/test.log",
+    "sha256": "260c22c357de59971063f163a67ff88aad1e935a84446bf1fda14bdcacafc0fc",
+    "bytes": 378
+  },
+  {
+    "path": "first-test-outputs/baseline_test/test.outputs/baseline.json",
+    "sha256": "259ae8ef74f176aa454d009325ccbf60b36d013dc12341559362132866aea0b3",
+    "bytes": 2565
+  },
+  {
+    "path": "first-test-outputs/baseline_test/test.outputs/baseline.lcov",
+    "sha256": "bb3c9cc28e7ebcc0ad0eae39a5b80992fb58b5a4ae7ac1ae716590f919e55bc9",
+    "bytes": 289
+  },
+  {
+    "path": "first-test-outputs/baseline_test/test.outputs/original-disconnected.graphql",
+    "sha256": "a13e5586a0906cd8e0d301c081fc81ec7f730175ae0180d4213e76b409f37a5e",
+    "bytes": 75
+  },
+  {
+    "path": "first-test-outputs/baseline_test/test.outputs/original-selected.graphql",
+    "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+    "bytes": 212
+  },
+  {
+    "path": "first-test-outputs/baseline_test/test.outputs_manifest/MANIFEST",
+    "sha256": "db4704eae463e11d3a71a0e829a3a8cb085a594c87a30c6757caa5ce3d560456",
+    "bytes": 150
+  },
+  {
+    "path": "first-test-outputs/baseline_test/test.xml",
+    "sha256": "f7790b0a170532d0782d81f0e790ccc6e22a6c92e5aaf0b65180e4fc24521025",
+    "bytes": 838
+  },
+  {
+    "path": "first-test-outputs/execute_test/test.log",
+    "sha256": "85a7d9d209a055043b8dda7a3419ad811c8c151df551804a457ee8dde0e5f2d3",
+    "bytes": 638
+  },
+  {
+    "path": "first-test-outputs/execute_test/test.outputs/capabilities.json",
+    "sha256": "68bdffdc8bf258d1584dd132c31bee66b4a237769afd7280143e0ad7cf0f65f1",
+    "bytes": 451
+  },
+  {
+    "path": "first-test-outputs/execute_test/test.outputs/dispatch-only.lcov",
+    "sha256": "1e72244b20cb677010e674c0f4d65eff1c6434edb0319625a9191cc1689b1286",
+    "bytes": 158
+  },
+  {
+    "path": "first-test-outputs/execute_test/test.outputs/observations.json",
+    "sha256": "b3d2d6ff427f91ccc9b7be03a1b6802fd5fb19dadd976707f751c6a33296308f",
+    "bytes": 4697
+  },
+  {
+    "path": "first-test-outputs/execute_test/test.outputs/original-selected.graphql",
+    "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+    "bytes": 212
+  },
+  {
+    "path": "first-test-outputs/execute_test/test.outputs_manifest/MANIFEST",
+    "sha256": "7b215678f50f8b9e77e624b7f5df6f2c9698786b89ab243300a415428e29917b",
+    "bytes": 154
+  },
+  {
+    "path": "first-test-outputs/execute_test/test.xml",
+    "sha256": "62945ec801faf9a694707d8612ae2fb97dbb5e76aa5244d44b76fef4fcf39530",
+    "bytes": 1094
+  },
+  {
+    "path": "lint/bridge.AspectRulesLintClippy.report",
+    "sha256": "3a52390597a3cb1f65c88a9906f9af2f94cf71767b8b0078762fd25a91a6a3f9",
+    "bytes": 334
+  },
+  {
+    "path": "lint/bridge.AspectRulesLintClippy.report.exit_code",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "lint/bridge.AspectRulesLintKeepSorted.report",
+    "sha256": "28926f6104d0d3fab6d49b5615ee9d7e1d1fab941fb7f53586d5520322037b27",
+    "bytes": 246
+  },
+  {
+    "path": "lint/bridge.AspectRulesLintKeepSorted.report.exit_code",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "native-combined.lcov",
+    "sha256": "1f0a10da2aa70db05bef6d0586d684b6784ef1c1f039d107a5288b5b7801d5c3",
+    "bytes": 77
+  },
+  {
+    "path": "sources/final-runtime/nicknamer2/research/graphql/BUILD.bazel",
+    "sha256": "c711cf821574e6a339a666ac8436acb116e83637929d3906665a4d3665bc7218",
+    "bytes": 1573
+  },
+  {
+    "path": "sources/final-runtime/nicknamer2/research/graphql/bridge.rs",
+    "sha256": "747abff80e2801b8d4304b6b07d9c11e53e4676a03c9cc6e0655463918597c9e",
+    "bytes": 1298
+  },
+  {
+    "path": "sources/final-runtime/nicknamer2/research/graphql/disconnected/unused.graphql",
+    "sha256": "a13e5586a0906cd8e0d301c081fc81ec7f730175ae0180d4213e76b409f37a5e",
+    "bytes": 75
+  },
+  {
+    "path": "sources/final-runtime/nicknamer2/research/graphql/probe.mjs",
+    "sha256": "99c3af66398f636cb3982d26a233bb2e23714115f158c144ed741e186a6380f5",
+    "bytes": 7455
+  },
+  {
+    "path": "sources/final-runtime/nicknamer2/research/graphql/selected.graphql",
+    "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+    "bytes": 212
+  },
+  {
+    "path": "sources/initial-runtime/nicknamer2/research/graphql/BUILD.bazel",
+    "sha256": "c509411e2888fa7421dcc2bba9d66622e3acb3105575b5e4c11a40d5d19d03d7",
+    "bytes": 1550
+  },
+  {
+    "path": "sources/initial-runtime/nicknamer2/research/graphql/bridge.rs",
+    "sha256": "19a87217f35cd572da767182efc4bb53d14cfd0c8b4a633335bab9f1f03581e7",
+    "bytes": 1185
+  },
+  {
+    "path": "sources/initial-runtime/nicknamer2/research/graphql/disconnected/unused.graphql",
+    "sha256": "a13e5586a0906cd8e0d301c081fc81ec7f730175ae0180d4213e76b409f37a5e",
+    "bytes": 75
+  },
+  {
+    "path": "sources/initial-runtime/nicknamer2/research/graphql/probe.mjs",
+    "sha256": "85a2e1b79d5865dd3d32dec89b47fc37c5a1481c16bed535ffe80a32a72d0d27",
+    "bytes": 6559
+  },
+  {
+    "path": "sources/initial-runtime/nicknamer2/research/graphql/selected.graphql",
+    "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+    "bytes": 212
+  },
+  {
+    "path": "sources/maintained/.bazelrc",
+    "sha256": "ff27c12ee42e380a2a5c530455fc2ea38c3d921621c8fe4e3ebaba04fcf227ff",
+    "bytes": 5817
+  },
+  {
+    "path": "sources/maintained/.bazelversion",
+    "sha256": "14ebdd5f5d8dfccb0fc574ea9aabecc07d7cdd99d53e4fc01e58f9c3d23d18ef",
+    "bytes": 6
+  },
+  {
+    "path": "sources/maintained/Cargo.lock",
+    "sha256": "645189861a56d866baa5c4bac172efb21eed76e645c0546b5648735a75418c52",
+    "bytes": 218030
+  },
+  {
+    "path": "sources/maintained/MODULE.bazel",
+    "sha256": "1acef95cca7c41cd981b1ed633bb679b9be8f8e95f2dfbd51fe87cd6a2a7939a",
+    "bytes": 26361
+  },
+  {
+    "path": "sources/maintained/nicknamer2/src/graphql/schema/lib.rs",
+    "sha256": "bb5e03cf8776c795c57e4c9903ae280fb3096d8a0584347cf2c35934a660e85a",
+    "bytes": 380
+  },
+  {
+    "path": "sources/maintained/nicknamer2/src/server/lib.rs",
+    "sha256": "fa577c10582fb2b8eff152df06467a1b6fff0c26d27386b6e7e3ce652f969aa9",
+    "bytes": 2346
+  },
+  {
+    "path": "sources/maintained/pnpm-lock.yaml",
+    "sha256": "0c5d23f00f11e2f04d8b62d22a716547076c3de5f2b7be46c10607f6d7ac39d0",
+    "bytes": 367335
+  }
+]

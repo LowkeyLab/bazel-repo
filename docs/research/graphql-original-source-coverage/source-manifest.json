@@ -1,0 +1,107 @@
+{
+  "base": "5e246a47cd7ea0a9c506e915db0c053d7d84d023",
+  "sources": [
+    {
+      "path": "nicknamer2/research/graphql/bridge.rs",
+      "snapshot": "initial-runtime",
+      "sha256": "19a87217f35cd572da767182efc4bb53d14cfd0c8b4a633335bab9f1f03581e7",
+      "bytes": 1185
+    },
+    {
+      "path": "nicknamer2/research/graphql/bridge.rs",
+      "snapshot": "final-runtime",
+      "sha256": "747abff80e2801b8d4304b6b07d9c11e53e4676a03c9cc6e0655463918597c9e",
+      "bytes": 1298
+    },
+    {
+      "path": "nicknamer2/research/graphql/probe.mjs",
+      "snapshot": "initial-runtime",
+      "sha256": "85a2e1b79d5865dd3d32dec89b47fc37c5a1481c16bed535ffe80a32a72d0d27",
+      "bytes": 6559
+    },
+    {
+      "path": "nicknamer2/research/graphql/probe.mjs",
+      "snapshot": "final-runtime",
+      "sha256": "99c3af66398f636cb3982d26a233bb2e23714115f158c144ed741e186a6380f5",
+      "bytes": 7455
+    },
+    {
+      "path": "nicknamer2/research/graphql/selected.graphql",
+      "snapshot": "initial-runtime",
+      "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+      "bytes": 212
+    },
+    {
+      "path": "nicknamer2/research/graphql/selected.graphql",
+      "snapshot": "final-runtime",
+      "sha256": "1effb18aab953d45a0fa9bae6ad7fe385115de45251c994ce5e5255e5acde51a",
+      "bytes": 212
+    },
+    {
+      "path": "nicknamer2/research/graphql/disconnected/unused.graphql",
+      "snapshot": "initial-runtime",
+      "sha256": "a13e5586a0906cd8e0d301c081fc81ec7f730175ae0180d4213e76b409f37a5e",
+      "bytes": 75
+    },
+    {
+      "path": "nicknamer2/research/graphql/disconnected/unused.graphql",
+      "snapshot": "final-runtime",
+      "sha256": "a13e5586a0906cd8e0d301c081fc81ec7f730175ae0180d4213e76b409f37a5e",
+      "bytes": 75
+    },
+    {
+      "path": "nicknamer2/research/graphql/BUILD.bazel",
+      "snapshot": "initial-runtime",
+      "sha256": "c509411e2888fa7421dcc2bba9d66622e3acb3105575b5e4c11a40d5d19d03d7",
+      "bytes": 1550
+    },
+    {
+      "path": "nicknamer2/research/graphql/BUILD.bazel",
+      "snapshot": "final-runtime",
+      "sha256": "c711cf821574e6a339a666ac8436acb116e83637929d3906665a4d3665bc7218",
+      "bytes": 1573
+    },
+    {
+      "path": "nicknamer2/src/server/lib.rs",
+      "snapshot": "maintained-base",
+      "sha256": "fa577c10582fb2b8eff152df06467a1b6fff0c26d27386b6e7e3ce652f969aa9",
+      "bytes": 2346
+    },
+    {
+      "path": "nicknamer2/src/graphql/schema/lib.rs",
+      "snapshot": "maintained-base",
+      "sha256": "bb5e03cf8776c795c57e4c9903ae280fb3096d8a0584347cf2c35934a660e85a",
+      "bytes": 380
+    },
+    {
+      "path": "Cargo.lock",
+      "snapshot": "maintained-base",
+      "sha256": "645189861a56d866baa5c4bac172efb21eed76e645c0546b5648735a75418c52",
+      "bytes": 218030
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "snapshot": "maintained-base",
+      "sha256": "0c5d23f00f11e2f04d8b62d22a716547076c3de5f2b7be46c10607f6d7ac39d0",
+      "bytes": 367335
+    },
+    {
+      "path": "MODULE.bazel",
+      "snapshot": "maintained-base",
+      "sha256": "1acef95cca7c41cd981b1ed633bb679b9be8f8e95f2dfbd51fe87cd6a2a7939a",
+      "bytes": 26361
+    },
+    {
+      "path": ".bazelversion",
+      "snapshot": "maintained-base",
+      "sha256": "14ebdd5f5d8dfccb0fc574ea9aabecc07d7cdd99d53e4fc01e58f9c3d23d18ef",
+      "bytes": 6
+    },
+    {
+      "path": ".bazelrc",
+      "snapshot": "maintained-base",
+      "sha256": "ff27c12ee42e380a2a5c530455fc2ea38c3d921621c8fe4e3ebaba04fcf227ff",
+      "bytes": 5817
+    }
+  ]
+}

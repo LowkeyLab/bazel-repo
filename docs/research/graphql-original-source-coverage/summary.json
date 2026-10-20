@@ -1,0 +1,15 @@
+{
+  "node": "24.15.0",
+  "graphql": "17.0.2",
+  "apollo": "4.3.4",
+  "query_dispatches": 2,
+  "mutation_dispatches": 1,
+  "successful_router_results": 3,
+  "fault_checks": 7,
+  "server_selection_events": false,
+  "native_graphql_sources": 0,
+  "candidate_selected_lines": 9,
+  "candidate_disconnected_lines": 4,
+  "combined_identical_both_orders": true,
+  "native_combined_bytes": 77
+}
