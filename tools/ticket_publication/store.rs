@@ -51,6 +51,18 @@ impl Store {
         saved.check(batch)?;
         Ok(saved)
     }
+    pub fn save(&self, batch: &Batch) -> Result<()> {
+        batch.check(&batch.id)?;
+        let mut temporary = tempfile::NamedTempFile::new_in(&self.directory)?;
+        serde_json::to_writer_pretty(&mut temporary, batch)?;
+        temporary.write_all(b"\n")?;
+        temporary.as_file().sync_all()?;
+        temporary
+            .persist(self.plan_path())
+            .context("cannot commit batch progress")?;
+        File::open(&self.directory)?.sync_all()?;
+        Ok(())
+    }
     pub fn save_new(&self, batch: &Batch) -> Result<()> {
         let mut temporary = tempfile::NamedTempFile::new_in(&self.directory)?;
         serde_json::to_writer_pretty(&mut temporary, batch)?;

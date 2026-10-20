@@ -151,6 +151,39 @@ pub struct Progress {
 #[serde(rename_all = "snake_case")]
 pub enum TicketStatus {
     Pending,
+    Creating,
+    Created(IssueMapping),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct IssueId(std::num::NonZeroU64);
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String")]
+pub struct NodeId(String);
+impl TryFrom<String> for NodeId {
+    type Error = anyhow::Error;
+    fn try_from(value: String) -> Result<Self> {
+        ensure!(
+            !value.is_empty() && !value.chars().any(|c| c.is_whitespace() || c.is_control()),
+            "invalid issue node ID"
+        );
+        Ok(Self(value))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IssueMapping {
+    pub number: IssueNumber,
+    pub id: IssueId,
+    pub node_id: NodeId,
+}
+impl std::fmt::Display for IssueNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
 }
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -197,9 +230,33 @@ impl Batch {
             "saved plan fingerprint mismatch"
         );
         ensure!(
-            checked.tickets == self.tickets,
+            checked.tickets.len() == self.tickets.len()
+                && checked
+                    .tickets
+                    .iter()
+                    .zip(&self.tickets)
+                    .all(|(expected, saved)| expected.key == saved.key
+                        && expected.marker == saved.marker),
             "invalid saved ticket identities or progress"
         );
+        let mut mappings = Vec::new();
+        for progress in &self.tickets {
+            if let TicketStatus::Created(mapping) = &progress.status {
+                ensure!(
+                    mapping.number != self.plan.parent,
+                    "child mapping identifies the parent"
+                );
+                ensure!(
+                    !mappings
+                        .iter()
+                        .any(|m: &&IssueMapping| m.number == mapping.number
+                            || m.id == mapping.id
+                            || m.node_id == mapping.node_id),
+                    "duplicate saved issue mapping"
+                );
+                mappings.push(mapping);
+            }
+        }
         Ok(())
     }
 }

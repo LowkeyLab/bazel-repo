@@ -1,5 +1,7 @@
-//! Prepare and inspect a publication batch without GitHub requests.
+//! Prepare, inspect, and resume creation of a publication batch.
+mod github;
 mod plan;
+mod publish;
 mod store;
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
@@ -9,7 +11,7 @@ use std::path::PathBuf;
 use store::Store;
 
 #[derive(Parser)]
-#[command(about = "Prepare and inspect durable ticket-publication batches")]
+#[command(about = "Prepare batches and resume ticket creation")]
 struct Cli {
     #[arg(long, global = true)]
     state_dir: Option<PathBuf>,
@@ -23,6 +25,10 @@ enum Action {
         plan: PathBuf,
         #[arg(long)]
         batch: Option<String>,
+    },
+    Publish {
+        #[arg(long)]
+        batch: String,
     },
     Status {
         #[arg(long)]
@@ -57,29 +63,73 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 .unwrap_or_else(BatchId::new);
             let prepared = Batch::prepare(id.clone(), plan)?;
             let store = Store::open(&root, &id, true)?;
-            if store.plan_path().try_exists()? {
+            let saved = if store.plan_path().try_exists()? {
                 let saved = store.read(&id)?;
                 ensure!(
                     saved.plan_fingerprint == prepared.plan_fingerprint,
                     "batch already contains a different plan"
                 );
+                saved
             } else {
                 store.save_new(&prepared)?;
-            }
-            Ok(json!({"batch_id": id, "plan_path": store.plan_path(), "status": "prepared"}))
+                prepared
+            };
+            Ok(
+                json!({"batch_id": id, "plan_path": store.plan_path(), "status": local_status(&saved)}),
+            )
+        }
+        Action::Publish { batch } => {
+            let id = BatchId::try_from(batch)?;
+            let store = Store::open(&root, &id, false)?;
+            let mut saved = store.read(&id)?;
+            let result = publish::run(&mut saved, &store);
+            let status = if result
+                .as_ref()
+                .err()
+                .is_some_and(|e| e.downcast_ref::<github::Conflict>().is_some())
+            {
+                "conflict"
+            } else if result.is_err()
+                && saved
+                    .tickets
+                    .iter()
+                    .any(|p| matches!(p.status, plan::TicketStatus::Creating))
+            {
+                "uncertain"
+            } else {
+                "partial"
+            };
+            Ok(
+                json!({"status":status, "phase":if result.is_ok() {"issues_created"} else {"stopped"}, "batch_id":saved.id, "tickets":saved.tickets, "error":result.err().map(|e|format!("{e:#}"))}),
+            )
         }
         Action::Status { batch } => {
             let id = BatchId::try_from(batch)?;
             let store = Store::open(&root, &id, false)?;
             let saved = store.read(&id)?;
             Ok(
-                json!({"status":"prepared", "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets}),
+                json!({"status":local_status(&saved), "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets}),
             )
         }
     }
 }
-fn main() -> Result<()> {
+fn local_status(batch: &Batch) -> &'static str {
+    if batch
+        .tickets
+        .iter()
+        .all(|p| matches!(p.status, plan::TicketStatus::Pending))
+    {
+        "prepared"
+    } else {
+        "partial"
+    }
+}
+fn main() -> Result<std::process::ExitCode> {
     let result = execute(Cli::parse())?;
     println!("{}", serde_json::to_string(&result)?);
-    Ok(())
+    Ok(if result.get("error").is_some_and(|e| !e.is_null()) {
+        std::process::ExitCode::FAILURE
+    } else {
+        std::process::ExitCode::SUCCESS
+    })
 }
