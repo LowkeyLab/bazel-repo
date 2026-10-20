@@ -96,3 +96,29 @@ The final test log contains harmless `file: command not found` messages from Baz
 The individual evidence files exist and the collector checks them.
 No test failure follows from those helper messages.
 The final database stop record states that the container stopped.
+
+## Approved remote phase
+
+The approved remote commands tested commit `5b8a02edbe0efa4ea08499e8f3d478004800416a`.
+They used the same target and resource limits as the local command.
+Replace the remote-disable flags with `--config=remote --remote_download_toplevel`.
+Keep `--nocache_test_results` to require a fresh test attempt.
+
+The first command recorded a compact execution log.
+The focused repeat requested JSON execution logging:
+
+```sh
+--execution_log_compact_file= --execution_log_json_file=/private/output/execution.json
+```
+
+Both commands also recorded a private BEP JSON file.
+Read the TestRunner record for the exact target.
+Check its runner, cache result, exit code, and digest.
+Compare that execution record with the BEP strategy and actual database outputs.
+A remote build or cache hit does not prove remote test execution.
+
+A private supplemental archive preserves the approved remote phase separately from the initial published archive.
+The report links both approved BuildBuddy invocations.
+The supplemental archive and full repeated-check records require private runtime-receipt access.
+The local exporter, fault controls, and mergers used the original remote-disable flags.
+The second test's original-record exports must equal the first test's exports byte for byte.

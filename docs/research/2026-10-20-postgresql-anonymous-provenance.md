@@ -119,11 +119,13 @@ It does not establish general exception, rollback, trigger, loop, dynamic-source
 
 ## Validation and command errors
 
-The final database test, valid export, ten fault controls, and both merges ran locally with remote services disabled.
+The initial database test, valid export, ten fault controls, and both merges ran locally with remote services disabled.
 Focused Clippy, Ruff, Ty, and KeepSorted reports contained no findings.
 The corrected full-tree formatter passed with no file changes.
 The archive preserves commands and separate check logs.
-The experiment does not establish fresh configured-remote execution or a hosted coverage upload.
+The initial record did not establish remote test execution.
+The approved check below supplies that evidence.
+Neither phase establishes a Codecov upload.
 A cached prerequisite is not evidence of test execution.
 
 Three earlier formatter calls contacted the configured remote cache and BES while remote-payload approval remained pending.
@@ -142,3 +144,46 @@ Published logs remove that entire announcement and all configured header values.
 The final archive check rejects those values before publication.
 
 See [reproduction and evidence](postgresql-anonymous-provenance/REPRODUCE.md).
+
+## Approved BuildBuddy check
+
+The user later approved the exact GitHub publication and research transfers to `remote.buildbuddy.io`.
+The published initial archive remains byte-identical to the approved archive.
+Its SHA-256 is `7fd79a8ee80db8d9b484200abfc88a3bc340fcba3e0bddc9b023bea8927e1041`.
+Both approved remote commands tested commit `5b8a02edbe0efa4ea08499e8f3d478004800416a`.
+The later report commit changes only documentation and evidence.
+
+The [first BuildBuddy invocation](https://app.buildbuddy.io/invocation/a3ae993c-9e65-4286-9248-1d3d376447ac) passed the database test in 24.915 seconds.
+Its BEP records the remote strategy, one run, and one attempt.
+The command used `--nocache_test_results`.
+Its JSON omits cache booleans, so their absence alone does not prove a cache miss.
+The action summary records 3,678 remote cache hits, 1,185 internal processes, and nine remote processes.
+These action counts do not mean that nine tests ran.
+The worker's Docker server reports 28.1.0.
+
+The downloaded database records passed the local exporter and independent original-record check.
+All ten malformed-output controls rejected those remote records after functional success.
+Both local merge orders produced the same expected SHA-256 as the initial local experiment.
+These exporter, fault, and merge tools ran locally with remote services disabled.
+They do not constitute additional remote tests.
+
+The [focused repeat](https://app.buildbuddy.io/invocation/0c6d0d08-d193-4673-9252-6ed18c674473) passed in 25.704 seconds.
+Its JSON execution record identifies the exact TestRunner target.
+That record states `runner=remote`, `cacheHit=false`, `remoteCacheable=false`, and `exitCode=0`.
+The BEP independently records the remote strategy.
+The repeat command also disables test-result caching.
+Together these records establish a fresh remote test execution.
+The action summary records 4,817 action-cache hits, one internal process, and one remote process.
+The repeat's baseline and both original-source delta files equal the first remote run's exports byte for byte.
+The raw remote records and supplemental archive remain private in runtime receipts.
+The private archive preserves both commands, BEP excerpts, actual database profiles, effect receipts, and local verification records.
+Raw BEP files and full execution logs remain private.
+Published excerpts omit command environments and configured headers.
+
+GitHub publication approval covered the original archive only.
+Automatic review rejected publication of the supplemental archive.
+This report publishes aggregate results and links to the approved BuildBuddy invocations.
+It does not publish the rejected raw payload in another form.
+The branch preserves the original approved archive unchanged.
+Readers need access to the private runtime receipts to inspect the full repeated-check records.
+The repeat TestRunner action digest is `9e9f6cd4cce7e42d6ec67fbbc89da979c53a26b3c091b1e9958fac4d556cdd2a/346`.
