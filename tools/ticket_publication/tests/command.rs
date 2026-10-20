@@ -29,8 +29,8 @@ impl Fixture {
         )?;
         fs::create_dir(directory.path().join("bin"))?;
         let gh = directory.path().join("bin/gh");
-        fs::write(&gh, "#!/bin/sh\necho called >> \"$REMOTE_STATE\"\nexit 1\n")?;
-        fs::set_permissions(gh, fs::Permissions::from_mode(0o700))?;
+        let fake = rlocation!(files, std::env::var("FAKE_GH")?).context("fake gh")?;
+        std::os::unix::fs::symlink(fake, gh)?;
         Ok(Self { directory, tool })
     }
     fn run(&self, args: &[&str]) -> anyhow::Result<Output> {
@@ -894,6 +894,498 @@ fn repeated_preparation_reports_preserved_publication_progress() -> anyhow::Resu
             eq(&snapshot)
         );
         assert_that!(f.remote()?, eq(&remote));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn explicit_adoption_checks_the_issue_and_never_publishes() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let remote = f.remote()?;
+    let result = f.successful(&[
+        "--state-dir",
+        "state",
+        "recover",
+        "adopt",
+        "--batch",
+        &id,
+        "--ticket",
+        "first",
+        "--issue",
+        "3000",
+    ])?;
+    assert_that!(
+        result["tickets"][0]["status"]["created"]["number"].as_u64(),
+        eq(Some(3000))
+    );
+    assert_that!(f.remote()?, eq(&remote));
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&remote));
+    Ok(())
+}
+
+#[googletest::test]
+fn uncertain_retry_requires_durable_explicit_authorization_and_fresh_reads() -> anyhow::Result<()> {
+    for remote_appears in [false, true] {
+        let f = Fixture::with_github()?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+        let id = f.prepare()?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let original = f.remote()?;
+        f.save_remote(&json!({"creations":0,"issues":[]}))?;
+        let snapshot = f
+            .directory
+            .path()
+            .join("state")
+            .join(&id)
+            .join("batch.json");
+        let before = fs::read(&snapshot)?;
+        assert_that!(
+            f.run(&[
+                "--state-dir",
+                "state",
+                "recover",
+                "authorize-retry",
+                "--batch",
+                &id,
+                "--ticket",
+                "first"
+            ])?
+            .status
+            .success(),
+            eq(false)
+        );
+        assert_that!(fs::read(&snapshot)?, eq(&before));
+        f.successful(&[
+            "--state-dir",
+            "state",
+            "recover",
+            "authorize-retry",
+            "--batch",
+            &id,
+            "--ticket",
+            "first",
+            "--acknowledge-duplicate-risk",
+        ])?;
+        assert_that!(f.remote()?["creations"].as_u64(), eq(Some(0)));
+        // An issue can become visible after authorization. Publication must reuse it.
+        if remote_appears {
+            f.save_remote(&original)?;
+        }
+        f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn reconstruction_preserves_original_identities_and_requires_a_stopped_publisher()
+-> anyhow::Result<()> {
+    for use_export in [false, true] {
+        let f = Fixture::with_github()?;
+        let id = f.prepare()?;
+        let exported = f.successful(&["--state-dir", "state", "export", "--batch", &id])?;
+        fs::write(
+            f.directory.path().join("export.json"),
+            serde_json::to_vec(&exported)?,
+        )?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let remote = f.remote()?;
+        let source = if use_export { "--export" } else { "--plan" };
+        let file = if use_export {
+            "export.json"
+        } else {
+            "plan.json"
+        };
+        let args = [
+            "--state-dir",
+            "restored",
+            "recover",
+            "reconstruct",
+            "--batch",
+            &id,
+            source,
+            file,
+        ];
+        assert_that!(f.run(&args)?.status.success(), eq(false));
+        assert_that!(f.directory.path().join("restored").exists(), eq(false));
+        let mut authorized = args.to_vec();
+        authorized.push("--publisher-stopped");
+        let result = f.successful(&authorized)?;
+        assert_that!(result["batch_id"].as_str(), eq(Some(id.as_str())));
+        assert_that!(
+            result["tickets"][0]["status"]["created"]["number"].as_u64(),
+            eq(Some(3000))
+        );
+        assert_that!(f.remote()?, eq(&remote));
+        f.successful(&["--state-dir", "restored", "publish", "--batch", &id])?;
+        assert_that!(f.remote()?, eq(&remote));
+        // Existing state is evidence. Reconstruction must never replace it.
+        let saved = f
+            .directory
+            .path()
+            .join("restored")
+            .join(&id)
+            .join("batch.json");
+        fs::write(&saved, b"corrupt evidence")?;
+        assert_that!(f.run(&authorized)?.status.success(), eq(false));
+        assert_that!(fs::read(saved)?, eq(b"corrupt evidence"));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn status_checks_remote_conflicts_and_uncertainty_without_saving_or_publishing()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let original = f.remote()?;
+    let snapshot = f
+        .directory
+        .path()
+        .join("state")
+        .join(&id)
+        .join("batch.json");
+    let before = fs::read(&snapshot)?;
+    for mode in ["absent", "content", "permission", "incomplete"] {
+        let mut remote = original.clone();
+        match mode {
+            "absent" => remote["issues"] = json!([]),
+            "content" => remote["issues"][0]["title"] = json!("External change"),
+            _ => remote["mode"] = json!(mode),
+        }
+        f.save_remote(&remote)?;
+        let output = f.run(&["--state-dir", "state", "status", "--batch", &id])?;
+        let result: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(
+            result["status"].as_str(),
+            eq(Some(if mode == "content" {
+                "conflict"
+            } else if mode == "absent" {
+                "uncertain"
+            } else {
+                "unverified"
+            }))
+        );
+        assert_that!(output.status.success(), eq(mode == "absent"));
+        assert_that!(fs::read(&snapshot)?, eq(&before));
+        assert_that!(f.remote()?, eq(&remote));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn rejected_adoptions_preserve_saved_and_remote_evidence() -> anyhow::Result<()> {
+    for field in ["title", "body", "repository_url", "pull_request"] {
+        let f = Fixture::with_github()?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+        let id = f.prepare()?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let mut remote = f.remote()?;
+        remote["issues"][0][field] = if field == "pull_request" {
+            json!({"url":"example"})
+        } else {
+            json!("External change")
+        };
+        f.save_remote(&remote)?;
+        let snapshot = f
+            .directory
+            .path()
+            .join("state")
+            .join(&id)
+            .join("batch.json");
+        let before = fs::read(&snapshot)?;
+        assert_that!(
+            f.run(&[
+                "--state-dir",
+                "state",
+                "recover",
+                "adopt",
+                "--batch",
+                &id,
+                "--ticket",
+                "first",
+                "--issue",
+                "3000"
+            ])?
+            .status
+            .success(),
+            eq(false)
+        );
+        assert_that!(fs::read(snapshot)?, eq(&before));
+        assert_that!(f.remote()?, eq(&remote));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn explicit_adoption_resolves_multiple_matches_but_cannot_replace_a_saved_mapping()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    let mut duplicate = remote["issues"][0].clone();
+    duplicate["number"] = json!(3001);
+    duplicate["id"] = json!(13001);
+    duplicate["node_id"] = json!("I_3001");
+    remote["issues"].as_array_mut().unwrap().push(duplicate);
+    f.save_remote(&remote)?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    f.successful(&[
+        "--state-dir",
+        "state",
+        "recover",
+        "adopt",
+        "--batch",
+        &id,
+        "--ticket",
+        "first",
+        "--issue",
+        "3001",
+    ])?;
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    let snapshot = f
+        .directory
+        .path()
+        .join("state")
+        .join(&id)
+        .join("batch.json");
+    let before = fs::read(&snapshot)?;
+    assert_that!(
+        f.run(&[
+            "--state-dir",
+            "state",
+            "recover",
+            "adopt",
+            "--batch",
+            &id,
+            "--ticket",
+            "first",
+            "--issue",
+            "3000"
+        ])?
+        .status
+        .success(),
+        eq(false)
+    );
+    assert_that!(fs::read(snapshot)?, eq(&before));
+    assert_that!(f.remote()?, eq(&remote));
+    Ok(())
+}
+
+#[googletest::test]
+fn reconstructed_absence_never_authorizes_creation_and_invalid_inputs_preserve_evidence()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let id = f.prepare()?;
+    let exported = f.successful(&["--state-dir", "state", "export", "--batch", &id])?;
+    fs::write(
+        f.directory.path().join("export.json"),
+        serde_json::to_vec(&exported)?,
+    )?;
+    assert_that!(
+        f.run(&[
+            "--state-dir",
+            "missing",
+            "recover",
+            "reconstruct",
+            "--batch",
+            &id,
+            "--publisher-stopped"
+        ])?
+        .status
+        .success(),
+        eq(false)
+    );
+    assert_that!(f.directory.path().join("missing").exists(), eq(false));
+    f.successful(&[
+        "--state-dir",
+        "restored",
+        "recover",
+        "reconstruct",
+        "--batch",
+        &id,
+        "--export",
+        "export.json",
+        "--publisher-stopped",
+    ])?;
+    let output = f.run(&["--state-dir", "restored", "publish", "--batch", &id])?;
+    assert_that!(output.status.success(), eq(false));
+    let result: Value = serde_json::from_slice(&output.stdout)?;
+    assert_that!(result["status"].as_str(), eq(Some("uncertain")));
+    assert_that!(f.directory.path().join("remote.log").exists(), eq(false));
+    let mut changed = exported;
+    changed["plan"]["tickets"][0]["title"] = json!("Changed plan");
+    let changed_bytes = serde_json::to_vec(&changed)?;
+    fs::write(f.directory.path().join("export.json"), &changed_bytes)?;
+    assert_that!(
+        f.run(&[
+            "--state-dir",
+            "changed",
+            "recover",
+            "reconstruct",
+            "--batch",
+            &id,
+            "--export",
+            "export.json",
+            "--publisher-stopped"
+        ])?
+        .status
+        .success(),
+        eq(false)
+    );
+    assert_that!(f.directory.path().join("changed").exists(), eq(false));
+    assert_that!(
+        fs::read(f.directory.path().join("export.json"))?,
+        eq(&changed_bytes)
+    );
+    Ok(())
+}
+
+#[googletest::test]
+fn authorized_publication_stops_on_new_conflicting_or_incomplete_evidence() -> anyhow::Result<()> {
+    for mode in ["multiple", "content", "permission", "incomplete"] {
+        let f = Fixture::with_github()?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+        let id = f.prepare()?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let mut remote = f.remote()?;
+        f.successful(&[
+            "--state-dir",
+            "state",
+            "recover",
+            "authorize-retry",
+            "--batch",
+            &id,
+            "--ticket",
+            "first",
+            "--acknowledge-duplicate-risk",
+        ])?;
+        match mode {
+            "multiple" => {
+                let mut duplicate = remote["issues"][0].clone();
+                duplicate["number"] = json!(3001);
+                remote["issues"].as_array_mut().unwrap().push(duplicate);
+            }
+            "content" => remote["issues"][0]["title"] = json!("External change"),
+            _ => remote["mode"] = json!(mode),
+        }
+        f.save_remote(&remote)?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        assert_that!(f.remote()?, eq(&remote));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn interrupted_authorization_writes_never_publish_and_can_resume_explicitly() -> anyhow::Result<()>
+{
+    let files = Runfiles::create()?;
+    let fault = rlocation!(files, std::env::var("SYNC_FAULT_LIBRARY")?).context("sync fault")?;
+    for phase in ["authorization-file", "authorization-directory"] {
+        for effect in ["error", "exit"] {
+            let f = Fixture::with_github()?;
+            f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+            let id = f.prepare()?;
+            assert_that!(
+                f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                    .status
+                    .success(),
+                eq(false)
+            );
+            let remote = json!({"creations":0,"issues":[]});
+            f.save_remote(&remote)?;
+            let args = [
+                "--state-dir",
+                "state",
+                "recover",
+                "authorize-retry",
+                "--batch",
+                &id,
+                "--ticket",
+                "first",
+                "--acknowledge-duplicate-risk",
+            ];
+            let failed = f
+                .command(&args)
+                .env("LD_PRELOAD", &fault)
+                .env("PROGRESS_FAULT", phase)
+                .env("PROGRESS_EFFECT", effect)
+                .env("PROGRESS_BATCH", f.directory.path().join("state").join(&id))
+                .output()?;
+            assert_that!(failed.status.success(), eq(false));
+            assert_that!(
+                f.directory.path().join("progress-fault-receipt").exists(),
+                eq(true)
+            );
+            assert_that!(f.remote()?, eq(&remote));
+            if phase == "authorization-file" {
+                assert_that!(
+                    f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                        .status
+                        .success(),
+                    eq(false)
+                );
+                assert_that!(f.remote()?, eq(&remote));
+            }
+            f.successful(&args)?;
+            assert_that!(f.remote()?, eq(&remote));
+            f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+            assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
+        }
     }
     Ok(())
 }

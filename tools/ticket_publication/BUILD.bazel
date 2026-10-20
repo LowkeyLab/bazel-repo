@@ -11,6 +11,7 @@ rust_binary(
         "main.rs",
         "plan.rs",
         "publish.rs",
+        "recovery.rs",
         "store.rs",
     ],
     crate_root = "main.rs",

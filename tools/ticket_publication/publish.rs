@@ -2,7 +2,7 @@
 use crate::github::Conflict;
 use crate::{
     github,
-    plan::{Batch, Blocker, TicketStatus},
+    plan::{Batch, Blocker, IssueMapping, TicketStatus},
     store::Store,
 };
 use anyhow::{Context, Result, bail, ensure};
@@ -32,9 +32,17 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
         };
         let ticket = &batch.plan.tickets[index];
         let body = format!("{}\n\n{}", ticket.body, batch.tickets[index].marker);
-        let created = if matches!(batch.tickets[index].status, TicketStatus::Creating) {
+        let created = if matches!(
+            batch.tickets[index].status,
+            TicketStatus::Creating | TicketStatus::RetryAuthorized
+        ) {
             let mut found = github::find(&batch.tickets[index].marker)?;
             match found.len() {
+                0 if matches!(batch.tickets[index].status, TicketStatus::RetryAuthorized) => {
+                    batch.tickets[index].status = TicketStatus::Creating;
+                    store.save(batch)?;
+                    github::create(&ticket.title, &body)?
+                }
                 0 => bail!(
                     "Creation remains uncertain. An absent match does not authorize another request."
                 ),
@@ -87,4 +95,36 @@ fn check_mappings(batch: &Batch) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Read remote evidence without changing saved progress or GitHub state.
+pub fn observe(batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {
+    github::read(&batch.plan.parent)?;
+    batch
+        .tickets
+        .iter()
+        .zip(&batch.plan.tickets)
+        .map(|(progress, ticket)| {
+            let remote = if let TicketStatus::Created(mapping) = &progress.status {
+                let remote = github::read(&mapping.number)?;
+                ensure!(remote.mapping() == *mapping, Conflict);
+                Some(remote)
+            } else {
+                let mut found = github::find(&progress.marker)?;
+                ensure!(found.len() <= 1, Conflict);
+                found.pop()
+            };
+            if let Some(remote) = remote {
+                remote
+                    .check_content(
+                        &ticket.title,
+                        &format!("{}\n\n{}", ticket.body, progress.marker),
+                    )
+                    .context(Conflict)?;
+                Ok(Some(remote.mapping()))
+            } else {
+                Ok(None)
+            }
+        })
+        .collect()
 }

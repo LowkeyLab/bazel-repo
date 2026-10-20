@@ -2,10 +2,11 @@
 mod github;
 mod plan;
 mod publish;
+mod recovery;
 mod store;
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
-use plan::{Batch, BatchId, Plan};
+use plan::{Batch, BatchId, IssueNumber, Plan, TicketKey, TicketStatus};
 use serde_json::json;
 use std::path::PathBuf;
 use store::Store;
@@ -26,13 +27,50 @@ enum Action {
         #[arg(long)]
         batch: Option<String>,
     },
+    Export {
+        #[arg(long)]
+        batch: String,
+    },
     Publish {
         #[arg(long)]
         batch: String,
     },
+    Recover {
+        #[command(subcommand)]
+        command: Recovery,
+    },
     Status {
         #[arg(long)]
         batch: String,
+    },
+}
+#[derive(Subcommand)]
+enum Recovery {
+    Reconstruct {
+        #[arg(long)]
+        batch: String,
+        #[arg(long, required_unless_present = "export", conflicts_with = "export")]
+        plan: Option<PathBuf>,
+        #[arg(long, required_unless_present = "plan")]
+        export: Option<PathBuf>,
+        #[arg(long, required = true)]
+        publisher_stopped: bool,
+    },
+    AuthorizeRetry {
+        #[arg(long)]
+        batch: String,
+        #[arg(long)]
+        ticket: TicketKey,
+        #[arg(long, required = true)]
+        acknowledge_duplicate_risk: bool,
+    },
+    Adopt {
+        #[arg(long)]
+        batch: String,
+        #[arg(long)]
+        ticket: TicketKey,
+        #[arg(long)]
+        issue: IssueNumber,
     },
 }
 fn state_directory(explicit: Option<PathBuf>) -> Result<PathBuf> {
@@ -78,6 +116,11 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 json!({"batch_id": id, "plan_path": store.plan_path(), "status": local_status(&saved)}),
             )
         }
+        Action::Export { batch } => {
+            let id = BatchId::try_from(batch)?;
+            let store = Store::open(&root, &id, false)?;
+            Ok(serde_json::to_value(store.read(&id)?)?)
+        }
         Action::Publish { batch } => {
             let id = BatchId::try_from(batch)?;
             let store = Store::open(&root, &id, false)?;
@@ -90,10 +133,12 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             {
                 "conflict"
             } else if result.is_err()
-                && saved
-                    .tickets
-                    .iter()
-                    .any(|p| matches!(p.status, plan::TicketStatus::Creating))
+                && saved.tickets.iter().any(|p| {
+                    matches!(
+                        p.status,
+                        plan::TicketStatus::Creating | plan::TicketStatus::RetryAuthorized
+                    )
+                })
             {
                 "uncertain"
             } else {
@@ -103,12 +148,94 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 json!({"status":status, "phase":if result.is_ok() {"issues_created"} else {"stopped"}, "batch_id":saved.id, "tickets":saved.tickets, "error":result.err().map(|e|format!("{e:#}"))}),
             )
         }
+        Action::Recover {
+            command:
+                Recovery::Reconstruct {
+                    batch,
+                    plan,
+                    export,
+                    publisher_stopped,
+                },
+        } => {
+            ensure!(
+                publisher_stopped,
+                "stop the previous publisher before reconstruction"
+            );
+            let id = BatchId::try_from(batch)?;
+            let mut saved = if let Some(path) = export {
+                let exported: Batch = serde_json::from_reader(std::fs::File::open(path)?)?;
+                exported.check(&id)?;
+                exported
+            } else {
+                let plan: Plan = serde_json::from_reader(std::fs::File::open(
+                    plan.context("original plan is required")?,
+                )?)?;
+                Batch::prepare(id.clone(), plan)?
+            };
+            let store = Store::open(&root, &id, true)?;
+            ensure!(
+                !store.plan_path().try_exists()?,
+                "reconstruction cannot replace existing state"
+            );
+            recovery::reconstruct(&mut saved, &store)?;
+            Ok(json!({"status":local_status(&saved), "batch_id":saved.id, "tickets":saved.tickets}))
+        }
+        Action::Recover {
+            command:
+                Recovery::AuthorizeRetry {
+                    batch,
+                    ticket,
+                    acknowledge_duplicate_risk,
+                },
+        } => {
+            ensure!(
+                acknowledge_duplicate_risk,
+                "acknowledge duplicate risk before retry authorization"
+            );
+            let id = BatchId::try_from(batch)?;
+            let store = Store::open(&root, &id, false)?;
+            let mut saved = store.read(&id)?;
+            recovery::authorize_retry(&mut saved, &ticket, &store)?;
+            Ok(json!({"status":"partial", "batch_id":saved.id, "tickets":saved.tickets}))
+        }
+        Action::Recover {
+            command:
+                Recovery::Adopt {
+                    batch,
+                    ticket,
+                    issue,
+                },
+        } => {
+            let id = BatchId::try_from(batch)?;
+            let store = Store::open(&root, &id, false)?;
+            let mut saved = store.read(&id)?;
+            recovery::adopt(&mut saved, &ticket, &issue, &store)?;
+            Ok(json!({"status":"partial", "batch_id":saved.id, "tickets":saved.tickets}))
+        }
         Action::Status { batch } => {
             let id = BatchId::try_from(batch)?;
             let store = Store::open(&root, &id, false)?;
             let saved = store.read(&id)?;
+            let observed = publish::observe(&saved);
+            let status = match &observed {
+                Err(error) if error.downcast_ref::<github::Conflict>().is_some() => "conflict",
+                Err(_) => "unverified",
+                Ok(mappings)
+                    if saved.tickets.iter().zip(mappings).any(|(p, m)| {
+                        !matches!(p.status, TicketStatus::Pending) && m.is_none()
+                    }) =>
+                {
+                    "uncertain"
+                }
+                Ok(mappings) if mappings.iter().any(Option::is_some) => "partial",
+                Ok(_) => local_status(&saved),
+            };
+            let (remote_mappings, error) = match observed {
+                Ok(mappings) => (Some(mappings), None),
+                Err(error) => (None, Some(format!("{error:#}"))),
+            };
             Ok(
-                json!({"status":local_status(&saved), "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets}),
+                json!({"status":status, "phase":"creation", "publication_complete":false, "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets, "remote_mappings":remote_mappings, "error":error}),
             )
         }
     }
