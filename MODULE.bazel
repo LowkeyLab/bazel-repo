@@ -808,3 +808,6 @@ book_smartz_apt.install(
     ],
 )
 use_repo(book_smartz_apt, "book_smartz_docker")
+
+# Research-only parser from the existing Go module graph.
+use_repo(go_deps, "net_starlark_go")

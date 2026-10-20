@@ -1,0 +1,35 @@
+"""Bounded Starlark coverage research."""
+
+load("@rules_go//go:def.bzl", "go_binary")
+load("//tools/python:defs.bzl", "py_binary", "py_library")
+load(":phase.bzl", "phase")
+
+go_binary(
+    name = "inventory",
+    srcs = ["inventory.go"],
+    deps = ["@net_starlark_go//syntax"],
+)
+
+py_binary(
+    name = "probe",
+    srcs = ["probe.py"],
+    main = "probe.py",
+)
+
+py_library(name = "subject")
+
+phase(
+    name = "phase_observation",
+    subject = ":subject.python_coverage",
+)
+
+exports_files([
+    "phase.bzl",
+    "unloaded.bzl",
+])
+
+py_binary(
+    name = "convert",
+    srcs = ["convert.py"],
+    main = "convert.py",
+)
