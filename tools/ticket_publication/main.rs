@@ -223,16 +223,18 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let store = Store::open(&root, &id, false)?;
             let saved = store.read(&id)?;
             let observed = publish::observe(&saved);
-            let graph = if observed.is_ok()
-                && saved
+            let graph = observed.as_ref().ok().map(|mappings| {
+                graph::preflight_capacity(&saved.plan.parent, mappings)?;
+                if saved
                     .tickets
                     .iter()
                     .all(|p| matches!(p.status, TicketStatus::Created(_)))
-            {
-                Some(graph::observe(&saved))
-            } else {
-                None
-            };
+                {
+                    graph::observe(&saved)
+                } else {
+                    Ok(plan::GraphProgress::default())
+                }
+            });
             let status = match &observed {
                 Err(error) if error.downcast_ref::<github::Conflict>().is_some() => "conflict",
                 Err(_) => "unverified",

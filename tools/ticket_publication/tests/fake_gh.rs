@@ -219,7 +219,7 @@ fn read_relationship(
         {
             values.extend(extra.iter().cloned());
         }
-        let pages: Vec<Value> = values.chunks(100).map(|a| json!(a)).collect();
+        let pages: Vec<Value> = values.chunks(50).map(|a| json!(a)).collect();
         if pages.is_empty() {
             json!([[]])
         } else {

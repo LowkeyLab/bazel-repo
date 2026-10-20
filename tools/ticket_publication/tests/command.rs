@@ -1601,7 +1601,10 @@ fn incomplete_native_reads_and_permission_failures_stop_without_link_mutations()
             eq(false)
         );
         let before = f.remote()?;
-        assert_that!(before["creations"].as_u64(), eq(Some(1)));
+        assert_that!(
+            before["creations"].as_u64(),
+            eq(Some(u64::from(mode.starts_with("parent-"))))
+        );
         assert_that!(before["link_mutations"].as_u64().unwrap_or(0), eq(0));
         let output = f.run(&["--state-dir", "state", "status", "--batch", &id])?;
         assert_that!(output.status.success(), eq(false));
@@ -1616,7 +1619,7 @@ fn incomplete_native_reads_and_permission_failures_stop_without_link_mutations()
 fn external_parent_and_content_conflicts_are_preserved_during_graph_resume() -> anyhow::Result<()> {
     for conflict in ["parent", "late-content"] {
         let f = Fixture::with_github()?;
-        f.save_remote(&json!({"creations":0,"issues":[],"mode":"native-unavailable"}))?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
         let id = f.prepare()?;
         assert_that!(
             f.run(&["--state-dir", "state", "publish", "--batch", &id])?
@@ -1672,7 +1675,7 @@ fn existing_paginated_links_preserve_compatible_relationships_and_parent_content
     let mut remote = f.remote()?;
     remote["mode"] = Value::Null;
     let mut numbers = Vec::new();
-    for number in 4000..4101 {
+    for number in 4000..4099 {
         numbers.push(json!(number));
         remote["issues"].as_array_mut().unwrap().push(json!({"number":number,"id":number+10000,"node_id":format!("I_{number}"),"title":"Unrelated","body":"Keep this.","repository_url":"https://api.github.com/repos/LowkeyLab/bazel-repo"}));
     }
@@ -1772,7 +1775,7 @@ fn compatible_cross_repository_relationships_do_not_alias_planned_issue_numbers(
         f.directory.path().join("plan.json"),
         serde_json::to_vec(&plan)?,
     )?;
-    f.save_remote(&json!({"creations":0,"issues":[],"mode":"native-unavailable"}))?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
     let id = f.prepare()?;
     assert_that!(
         f.run(&["--state-dir", "state", "publish", "--batch", &id])?
@@ -1796,5 +1799,82 @@ fn compatible_cross_repository_relationships_do_not_alias_planned_issue_numbers(
     assert_that!(after["link_mutations"].as_u64(), eq(Some(2)));
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
     assert_that!(f.remote()?, eq(&after));
+    Ok(())
+}
+
+#[googletest::test]
+fn oversized_plans_fail_before_preparation_or_github_effects() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let path = f.directory.path().join("plan.json");
+    let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+    let template = plan["tickets"][0].clone();
+    plan["tickets"] = json!(
+        (0..101)
+            .map(|index| {
+                let mut ticket = template.clone();
+                ticket["key"] = json!(format!("ticket-{index}"));
+                ticket
+            })
+            .collect::<Vec<_>>()
+    );
+    fs::write(path, serde_json::to_vec(&plan)?)?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "prepare", "--plan", "plan.json"])?
+            .status
+            .success(),
+        eq(false)
+    );
+    assert_that!(f.directory.path().join("state").exists(), eq(false));
+    assert_that!(f.directory.path().join("remote.log").exists(), eq(false));
+    Ok(())
+}
+
+#[googletest::test]
+fn parent_capacity_is_checked_before_any_issue_creation() -> anyhow::Result<()> {
+    for (children, tickets, fits) in [(99, 2, false), (100, 1, false), (99, 1, true)] {
+        let f = Fixture::with_github()?;
+        let path = f.directory.path().join("plan.json");
+        let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        if tickets == 2 {
+            let mut ticket = plan["tickets"][0].clone();
+            ticket["key"] = json!("second");
+            plan["tickets"].as_array_mut().unwrap().push(ticket);
+        }
+        fs::write(path, serde_json::to_vec(&plan)?)?;
+        let extra: Vec<Value> = (0..children).map(|n| json!({"number":n+1,"id":n+50000,"node_id":format!("I_other_{n}"),"title":"Preserved child","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"})).collect();
+        let before = json!({"creations":0,"issues":[],"extra_children":extra});
+        f.save_remote(&before)?;
+        let id = f.prepare()?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(fits));
+        if fits {
+            assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
+        } else {
+            assert_that!(f.remote()?, eq(&before));
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn a_full_parent_does_not_block_recovery_of_an_already_linked_issue() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = Value::Null;
+    remote["children"] = json!([3000]);
+    remote["parents"] = json!({"3000":2401});
+    remote["extra_children"] = json!((0..99).map(|n|json!({"number":n+1,"id":n+50000,"node_id":format!("I_other_{n}"),"title":"Preserved child","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"})).collect::<Vec<_>>());
+    f.save_remote(&remote)?;
+    let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(report["graph"]["verified"].as_bool(), eq(Some(true)));
+    assert_that!(f.remote()?, eq(&remote));
     Ok(())
 }

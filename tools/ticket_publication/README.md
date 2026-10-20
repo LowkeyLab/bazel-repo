@@ -47,6 +47,7 @@ Ticket order is part of the saved plan. Keys start with a lowercase ASCII letter
 Keys contain lowercase ASCII letters, digits, or hyphens, with at most 64 bytes.
 Issue numbers must be positive. Plans must use the supported repository.
 Unknown fields, duplicate keys, missing blocker keys, and dependency cycles fail.
+A batch can contain at most 100 tickets, the GitHub limit for one parent.
 Bodies must not contain the reserved `<!-- ticket-publication:` marker prefix.
 Planned labels remain data during preparation. This includes `ready-for-agent`.
 
@@ -122,6 +123,11 @@ saved state and remote evidence. It cannot infer safe retry from an absent match
 Use the recovery commands below. Do not edit progress to bypass uncertainty.
 
 ## Native graph operations
+
+Before issue creation, publication checks the parent’s remaining native child
+capacity. Existing planned children use no additional slots. Compatible children
+from other repositories still count toward the parent limit. Insufficient capacity
+stops publication before issue creation.
 
 Publication checks every ticket mapping, title, body, and identity marker before
 creating relationships. It reads all pages of the parent sub-issues and each

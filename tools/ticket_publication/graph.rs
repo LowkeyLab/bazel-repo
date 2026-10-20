@@ -1,7 +1,9 @@
 //! Native graph checks. Saved observations never replace fresh relationship reads.
 use crate::{
     github::{self, Conflict},
-    plan::{Batch, Blocker, GraphProgress, IssueMapping, TicketStatus},
+    plan::{
+        Batch, Blocker, GraphProgress, IssueMapping, IssueNumber, MAX_SUB_ISSUES, TicketStatus,
+    },
     store::Store,
 };
 use anyhow::{Context, Result, ensure};
@@ -30,6 +32,25 @@ fn contains(mappings: &[github::Relationship], expected: &IssueMapping) -> Resul
     }
     Ok(false)
 }
+/// Check remaining capacity before creating issues. Existing planned links use no new slots.
+pub fn preflight_capacity(parent: &IssueNumber, issues: &[Option<IssueMapping>]) -> Result<()> {
+    let children = github::relationships(parent, "sub_issues")?;
+    let mut missing = issues.len();
+    for issue in issues.iter().flatten() {
+        if contains(&children, issue)? {
+            missing -= 1;
+        }
+    }
+    ensure!(
+        children
+            .len()
+            .checked_add(missing)
+            .is_some_and(|total| total <= MAX_SUB_ISSUES),
+        "publication batch exceeds the remaining native parent capacity"
+    );
+    Ok(())
+}
+
 fn read(batch: &Batch) -> Result<Graph> {
     let parent = github::read(&batch.plan.parent)?.mapping();
     let children = github::relationships(&parent.number, "sub_issues")?;

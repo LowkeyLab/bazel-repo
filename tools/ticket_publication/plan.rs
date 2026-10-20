@@ -5,6 +5,9 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, fmt::Write};
 use uuid::Uuid;
 
+// GitHub permits at most 100 native children for one parent.
+pub const MAX_SUB_ISSUES: usize = 100;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String")]
 pub struct TicketKey(String);
@@ -82,6 +85,10 @@ impl Plan {
             "unsupported repository"
         );
         ensure!(!self.tickets.is_empty(), "plan contains no tickets");
+        ensure!(
+            self.tickets.len() <= MAX_SUB_ISSUES,
+            "plan exceeds the native parent capacity"
+        );
         let mut keys = BTreeSet::new();
         for ticket in &self.tickets {
             ensure!(keys.insert(&ticket.key), "duplicate ticket key");
