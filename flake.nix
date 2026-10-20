@@ -2,7 +2,7 @@
   description = "Dev shell for bazel-repo";
 
   inputs = {
-    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=f20cd90e28fe0403873f473b29e42662cd86e8c4";
+    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=7a6522c868711d06e3a520bbcdfafe9806f4337f";
     aspect-cli-src = {
       url = "github:aspect-build/aspect-cli?rev=cc78a877607e373ca489f2e983f23c6e62202a25";
       flake = false;
