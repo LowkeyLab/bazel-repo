@@ -1,0 +1,27 @@
+[
+  {
+    "source": "personal_website/src/utils/blog.ts",
+    "snapshot": "personal_website__src__utils__blog.ts.input",
+    "sha256": "ace2878271699f33eb7620d351bb24f25da813e7f0b9595c11bb9b8be71b9b5c"
+  },
+  {
+    "source": "personal_website/src/utils/seo.ts",
+    "snapshot": "personal_website__src__utils__seo.ts.input",
+    "sha256": "11475779faa1af49bb759caff91c26b8e127fff4f5d8b4a4199e26b2d2877e04"
+  },
+  {
+    "source": "personal_website/tests/blog.test.ts",
+    "snapshot": "personal_website__tests__blog.test.ts.input",
+    "sha256": "6d4218b885f57cf2e72b4066f6f8616d9e6000b6851af7db62ebdaaea1ecc926"
+  },
+  {
+    "source": "personal_website/tests/fixtures/posts.ts",
+    "snapshot": "personal_website__tests__fixtures__posts.ts.input",
+    "sha256": "0f028ad8e869a494dd2ef5b3f55bb7d78f2e7098833e5e7c8f2338ce454a15a4"
+  },
+  {
+    "source": "angular/projects/predix/src/testing/create-mock-object.ts",
+    "snapshot": "angular__projects__predix__src__testing__create-mock-object.ts.input",
+    "sha256": "26bda3f2290b8cd91021256514ea21b128fa4652648bec514cb5dde31024f49a"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "mode": "default-test-filter",
+    "status": 0,
+    "signal": null,
+    "lcov": true
+  },
+  {
+    "mode": "include-test-metadata",
+    "status": 0,
+    "signal": null,
+    "lcov": true
+  }
+]

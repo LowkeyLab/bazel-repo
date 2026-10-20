@@ -1,0 +1,103 @@
+[
+  {
+    "path": "tools/coverage/node_research/child_only.ts",
+    "lines": [2],
+    "branches": []
+  },
+  {
+    "path": "tools/coverage/node_research/disconnected.ts",
+    "lines": [7, 8, 10],
+    "branches": [
+      {
+        "line": 7,
+        "arms": 2,
+        "kind": "IfStatement"
+      }
+    ]
+  },
+  {
+    "path": "tools/coverage/node_research/helper.ts",
+    "lines": [2],
+    "branches": []
+  },
+  {
+    "path": "tools/coverage/node_research/lowered.ts",
+    "lines": [3],
+    "branches": [
+      {
+        "line": 3,
+        "arms": 2,
+        "kind": "ConditionalExpression"
+      }
+    ]
+  },
+  {
+    "path": "tools/coverage/node_research/production.ts",
+    "lines": [7, 8, 10],
+    "branches": [
+      {
+        "line": 7,
+        "arms": 2,
+        "kind": "IfStatement"
+      }
+    ]
+  },
+  {
+    "path": "personal_website/src/utils/blog.ts",
+    "lines": [6, 7, 10, 19, 20, 21, 22, 27, 28],
+    "branches": [
+      {
+        "line": 10,
+        "arms": 2,
+        "kind": "BarBarToken"
+      }
+    ]
+  },
+  {
+    "path": "personal_website/src/utils/seo.ts",
+    "lines": [2, 3, 4, 5, 6, 7, 10],
+    "branches": [
+      {
+        "line": 5,
+        "arms": 2,
+        "kind": "IfStatement"
+      },
+      {
+        "line": 5,
+        "arms": 2,
+        "kind": "AmpersandAmpersandToken"
+      }
+    ]
+  },
+  {
+    "path": "personal_website/tests/blog.test.ts",
+    "lines": [11, 23, 35, 36, 37, 47, 48, 53, 55, 56, 60, 61, 62],
+    "branches": []
+  },
+  {
+    "path": "personal_website/tests/fixtures/posts.ts",
+    "lines": [12, 29, 53, 68],
+    "branches": []
+  },
+  {
+    "path": "angular/projects/predix/src/testing/create-mock-object.ts",
+    "lines": [10, 11],
+    "branches": []
+  },
+  {
+    "path": "tools/coverage/node_research/angular-case.spec.ts",
+    "lines": [9, 10, 11, 12, 15, 16, 17, 18, 19, 24],
+    "branches": []
+  },
+  {
+    "path": "tools/coverage/node_research/angular-child.mjs",
+    "lines": [2],
+    "branches": [
+      {
+        "line": 2,
+        "arms": 2,
+        "kind": "IfStatement"
+      }
+    ]
+  }
+]

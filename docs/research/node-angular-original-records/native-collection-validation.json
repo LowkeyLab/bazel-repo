@@ -1,0 +1,19 @@
+[
+  {
+    "mode": "valid",
+    "functionalStatus": 0,
+    "accepted": true
+  },
+  {
+    "mode": "missing",
+    "functionalStatus": 0,
+    "accepted": false,
+    "error": "Missing expected measured hit: tools/coverage/node_research/production.ts:8"
+  },
+  {
+    "mode": "partial",
+    "functionalStatus": 0,
+    "accepted": false,
+    "error": "Missing expected measured hit: tools/coverage/node_research/child_only.ts:2"
+  }
+]

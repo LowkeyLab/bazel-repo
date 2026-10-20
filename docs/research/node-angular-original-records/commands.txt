@@ -1,0 +1,14 @@
+# Research base: 39075c1280f357d58b06a9a471e617cd73949bdf.
+# Run from the research checkout. EVIDENCE is a writable directory outside it.
+# Remote payload approval remained pending. All commands disable executor, cache, and BES.
+# The research test records the failed native async branch expectation without hiding it.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run //:gazelle --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor=
+nix develop --command aspect --host_jvm_args=-Xmx1536m format --scope=all --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor=
+nix develop --command bazel --host_jvm_args=-Xmx1536m test //tools/coverage/node_research:faithful --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor= --nocache_test_results --test_output=all
+# Raw outputs: bazel-testlogs/tools/coverage/node_research/faithful/test.outputs.
+# The harness executes the pinned compiler, converter, Angular CLI, provider, and adapter snapshots inside the Bazel test.
+# Copy native-projected-baseline.lcov, native-projected-measured.lcov, and angular-include-test-metadata/canonical.lcov to 0.dat, 1.dat, and 2.dat in EVIDENCE/merge-forward.
+# Reverse those assignments in EVIDENCE/merge-reverse. Raw source maps, emitted code, and V8 profiles remain byte-for-byte in evidence.tar.gz.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run @bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor= -- --coverage_dir="${EVIDENCE}/merge-forward" --output_file="${EVIDENCE}/combined-forward.lcov"
+nix develop --command bazel --host_jvm_args=-Xmx1536m run @bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor= -- --coverage_dir="${EVIDENCE}/merge-reverse" --output_file="${EVIDENCE}/combined-reverse.lcov"
+nix develop --command aspect --host_jvm_args=-Xmx1536m lint //tools/coverage/node_research:faithful //tools/coverage/node_research:compiled //tools/coverage/node_research:disconnected --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor=

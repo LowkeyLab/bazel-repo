@@ -1,0 +1,14 @@
+{
+  "projects/research/src/child_only.ts": "tools/coverage/node_research/child_only.ts",
+  "projects/research/src/disconnected.ts": "tools/coverage/node_research/disconnected.ts",
+  "projects/research/src/helper.ts": "tools/coverage/node_research/helper.ts",
+  "projects/research/src/lowered.ts": "tools/coverage/node_research/lowered.ts",
+  "projects/research/src/production.ts": "tools/coverage/node_research/production.ts",
+  "projects/research/src/maintained/personal_website/src/utils/blog.ts": "personal_website/src/utils/blog.ts",
+  "projects/research/src/maintained/personal_website/src/utils/seo.ts": "personal_website/src/utils/seo.ts",
+  "projects/research/src/maintained/personal_website/tests/blog.test.ts": "personal_website/tests/blog.test.ts",
+  "projects/research/src/maintained/personal_website/tests/fixtures/posts.ts": "personal_website/tests/fixtures/posts.ts",
+  "projects/research/src/maintained/angular/projects/predix/src/testing/create-mock-object.ts": "angular/projects/predix/src/testing/create-mock-object.ts",
+  "projects/research/src/case.spec.ts": "tools/coverage/node_research/angular-case.spec.ts",
+  "projects/research/src/child.mjs": "tools/coverage/node_research/angular-child.mjs"
+}

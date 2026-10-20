@@ -1,0 +1,82 @@
+{
+  "sources": [
+    {
+      "path": "tools/coverage/node_research/child_only.ts",
+      "expectedLines": [2],
+      "actualLines": [2],
+      "passed": true
+    },
+    {
+      "path": "tools/coverage/node_research/disconnected.ts",
+      "expectedLines": [7, 8, 10],
+      "actualLines": [7, 8, 10],
+      "passed": true
+    },
+    {
+      "path": "tools/coverage/node_research/helper.ts",
+      "expectedLines": [2],
+      "actualLines": [2],
+      "passed": true
+    },
+    {
+      "path": "tools/coverage/node_research/lowered.ts",
+      "expectedLines": [3],
+      "actualLines": [3],
+      "passed": true
+    },
+    {
+      "path": "tools/coverage/node_research/production.ts",
+      "expectedLines": [7, 8, 10],
+      "actualLines": [7, 8, 10],
+      "passed": true
+    },
+    {
+      "path": "personal_website/src/utils/blog.ts",
+      "expectedLines": [6, 7, 10, 19, 20, 21, 22, 27, 28],
+      "actualLines": [6, 7, 10, 19, 20, 21, 22, 27, 28],
+      "passed": true
+    },
+    {
+      "path": "personal_website/src/utils/seo.ts",
+      "expectedLines": [2, 3, 4, 5, 6, 7, 10],
+      "actualLines": [2, 3, 4, 5, 6, 7, 10],
+      "passed": true
+    },
+    {
+      "path": "personal_website/tests/blog.test.ts",
+      "expectedLines": [11, 23, 35, 36, 37, 47, 48, 53, 55, 56, 60, 61, 62],
+      "actualLines": [11, 23, 35, 36, 37, 47, 48, 53, 55, 56, 60, 61, 62],
+      "passed": true
+    },
+    {
+      "path": "personal_website/tests/fixtures/posts.ts",
+      "expectedLines": [12, 29, 53, 68],
+      "actualLines": [12, 29, 53, 68],
+      "passed": true
+    },
+    {
+      "path": "angular/projects/predix/src/testing/create-mock-object.ts",
+      "expectedLines": [10, 11],
+      "actualLines": [10, 11],
+      "passed": true
+    },
+    {
+      "path": "tools/coverage/node_research/angular-case.spec.ts",
+      "expectedLines": [9, 10, 11, 12, 15, 16, 17, 18, 19, 24],
+      "actualLines": [9, 10, 11, 12, 15, 16, 17, 18, 19, 24],
+      "passed": true
+    },
+    {
+      "path": "tools/coverage/node_research/angular-child.mjs",
+      "expectedLines": [2],
+      "actualLines": [2],
+      "passed": true
+    }
+  ],
+  "sameMergeBytes": true,
+  "allAvailableLineAndBranchHitsPreserved": true,
+  "sourceHashesMatch": true,
+  "sha256": "d38be7d70f763907e8e61f6e62f6f1cbf29e46405da23637974a5a7a60bb0390",
+  "branchSemanticsAccepted": false,
+  "branchFailure": "ES5 async conditional maps to reversed generated-if arms"
+}

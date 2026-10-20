@@ -1,0 +1,9 @@
+{
+  "node": "v24.15.0",
+  "typescript": "6.0.3",
+  "converter": "1.0.7",
+  "vitest": "5.0.5",
+  "functionalStatus": 0,
+  "rawProfileCount": 2,
+  "sameNativeMergeBytes": true
+}

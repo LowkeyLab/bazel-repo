@@ -1,0 +1,119 @@
+[
+  {
+    "path": "tools/coverage/node_research/child_only.ts",
+    "expected": {
+      "lines": [2],
+      "branches": 0
+    },
+    "actualLines": [2],
+    "actualBranchArms": 0,
+    "missingLines": [],
+    "extraLines": [],
+    "explicitLineMatch": true
+  },
+  {
+    "path": "tools/coverage/node_research/disconnected.ts",
+    "expected": {
+      "lines": [7, 8, 10],
+      "branches": 2
+    },
+    "actualLines": [7, 8, 10],
+    "actualBranchArms": 2,
+    "missingLines": [],
+    "extraLines": [],
+    "explicitLineMatch": true
+  },
+  {
+    "path": "tools/coverage/node_research/helper.ts",
+    "expected": {
+      "lines": [2],
+      "branches": 0
+    },
+    "actualLines": [2],
+    "actualBranchArms": 0,
+    "missingLines": [],
+    "extraLines": [],
+    "explicitLineMatch": true
+  },
+  {
+    "path": "tools/coverage/node_research/lowered.ts",
+    "expected": {
+      "lines": [3],
+      "branches": 2
+    },
+    "actualLines": [2, 3],
+    "actualBranchArms": 2,
+    "missingLines": [],
+    "extraLines": [2],
+    "explicitLineMatch": false
+  },
+  {
+    "path": "tools/coverage/node_research/production.ts",
+    "expected": {
+      "lines": [7, 8, 10],
+      "branches": 2
+    },
+    "actualLines": [7, 8, 10],
+    "actualBranchArms": 2,
+    "missingLines": [],
+    "extraLines": [],
+    "explicitLineMatch": true
+  },
+  {
+    "path": "personal_website/src/utils/blog.ts",
+    "expected": {
+      "path": "personal_website/src/utils/blog.ts",
+      "lines": [6, 7, 10, 19, 20, 21, 22, 27, 28],
+      "branches": [
+        {
+          "line": 10,
+          "arms": 2,
+          "kind": "BarBarToken"
+        }
+      ]
+    },
+    "actualLines": [6, 7, 10, 19, 20, 21, 22, 27, 28],
+    "actualBranchArms": 2,
+    "missingLines": [],
+    "extraLines": [],
+    "explicitLineMatch": null
+  },
+  {
+    "path": "personal_website/src/utils/seo.ts",
+    "expected": {
+      "lines": [2, 3, 4, 5, 6, 7, 10],
+      "branches": 4
+    },
+    "actualLines": [2, 3, 4, 5, 6, 7, 10],
+    "actualBranchArms": 4,
+    "missingLines": [],
+    "extraLines": [],
+    "explicitLineMatch": true
+  },
+  {
+    "path": "personal_website/tests/blog.test.ts",
+    "expected": {
+      "path": "personal_website/tests/blog.test.ts",
+      "lines": [11, 23, 35, 36, 37, 47, 48, 53, 55, 56, 60, 61, 62],
+      "branches": []
+    },
+    "actualLines": [11, 23, 35, 36, 37, 47, 48, 53, 55, 56, 60, 61, 62],
+    "actualBranchArms": 3,
+    "missingLines": [],
+    "extraLines": [],
+    "explicitLineMatch": null
+  },
+  {
+    "path": "personal_website/tests/fixtures/posts.ts",
+    "expected": {
+      "path": "personal_website/tests/fixtures/posts.ts",
+      "lines": [12, 29, 53, 68],
+      "branches": []
+    },
+    "actualLines": [12, 29, 53, 68],
+    "actualBranchArms": 0,
+    "missingLines": [],
+    "extraLines": [],
+    "explicitLineMatch": null
+  }
+]

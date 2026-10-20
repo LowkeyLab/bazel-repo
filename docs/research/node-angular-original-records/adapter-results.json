@@ -1,0 +1,158 @@
+[
+  {
+    "project": "mindreadr",
+    "mode": "missing",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": false,
+    "independentAccepted": false,
+    "error": "missing-output"
+  },
+  {
+    "project": "mindreadr",
+    "mode": "partial",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": false,
+    "error": "missing-executable:angular/projects/research/src/production.ts:7"
+  },
+  {
+    "project": "mindreadr",
+    "mode": "valid",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": true
+  },
+  {
+    "project": "nicknamer",
+    "mode": "missing",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": false,
+    "independentAccepted": false,
+    "error": "missing-output"
+  },
+  {
+    "project": "nicknamer",
+    "mode": "partial",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": false,
+    "error": "missing-executable:angular/projects/research/src/production.ts:7"
+  },
+  {
+    "project": "nicknamer",
+    "mode": "valid",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": true
+  },
+  {
+    "project": "nicknamer2-web",
+    "mode": "missing",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": false,
+    "independentAccepted": false,
+    "error": "missing-output"
+  },
+  {
+    "project": "nicknamer2-web",
+    "mode": "partial",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": false,
+    "error": "missing-executable:angular/projects/research/src/production.ts:7"
+  },
+  {
+    "project": "nicknamer2-web",
+    "mode": "valid",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": true
+  },
+  {
+    "project": "pinyin-composer",
+    "mode": "missing",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": false,
+    "independentAccepted": false,
+    "error": "missing-output"
+  },
+  {
+    "project": "pinyin-composer",
+    "mode": "partial",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": false,
+    "error": "missing-executable:angular/projects/research/src/production.ts:7"
+  },
+  {
+    "project": "pinyin-composer",
+    "mode": "valid",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": true
+  },
+  {
+    "project": "predix",
+    "mode": "missing",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": false,
+    "independentAccepted": false,
+    "error": "missing-output"
+  },
+  {
+    "project": "predix",
+    "mode": "partial",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": false,
+    "error": "missing-executable:angular/projects/research/src/production.ts:7"
+  },
+  {
+    "project": "predix",
+    "mode": "valid",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": true
+  },
+  {
+    "project": "tailwind-sample",
+    "mode": "missing",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": false,
+    "independentAccepted": false,
+    "error": "missing-output"
+  },
+  {
+    "project": "tailwind-sample",
+    "mode": "partial",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": false,
+    "error": "missing-executable:angular/projects/research/src/production.ts:7"
+  },
+  {
+    "project": "tailwind-sample",
+    "mode": "valid",
+    "functionalStatus": 0,
+    "adapterStatus": 0,
+    "outputExists": true,
+    "independentAccepted": true
+  }
+]

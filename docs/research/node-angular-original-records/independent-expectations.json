@@ -1,0 +1,26 @@
+{
+  "tools/coverage/node_research/production.ts": {
+    "lines": [7, 8, 10],
+    "branches": 2
+  },
+  "tools/coverage/node_research/helper.ts": {
+    "lines": [2],
+    "branches": 0
+  },
+  "tools/coverage/node_research/disconnected.ts": {
+    "lines": [7, 8, 10],
+    "branches": 2
+  },
+  "tools/coverage/node_research/child_only.ts": {
+    "lines": [2],
+    "branches": 0
+  },
+  "tools/coverage/node_research/lowered.ts": {
+    "lines": [3],
+    "branches": 2
+  },
+  "personal_website/src/utils/seo.ts": {
+    "lines": [2, 3, 4, 5, 6, 7, 10],
+    "branches": 4
+  }
+}

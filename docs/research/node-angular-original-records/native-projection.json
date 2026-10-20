@@ -1,0 +1,94 @@
+[
+  {
+    "path": "tools/coverage/node_research/helper.ts",
+    "removed": [],
+    "retained": {
+      "2": 1
+    }
+  },
+  {
+    "path": "tools/coverage/node_research/lowered.ts",
+    "removed": [
+      {
+        "line": 2,
+        "hits": 1
+      }
+    ],
+    "retained": {
+      "3": 1
+    }
+  },
+  {
+    "path": "tools/coverage/node_research/production.ts",
+    "removed": [],
+    "retained": {
+      "7": 1,
+      "8": 1,
+      "10": 0
+    }
+  },
+  {
+    "path": "personal_website/src/utils/blog.ts",
+    "removed": [],
+    "retained": {
+      "6": 7,
+      "7": 42,
+      "10": 66,
+      "19": 4,
+      "20": 4,
+      "21": 17,
+      "22": 17,
+      "27": 0,
+      "28": 0
+    }
+  },
+  {
+    "path": "personal_website/tests/blog.test.ts",
+    "removed": [],
+    "retained": {
+      "11": 12,
+      "23": 1,
+      "35": 28,
+      "36": 1,
+      "37": 2,
+      "47": 2,
+      "48": 2,
+      "53": 2,
+      "55": 1,
+      "56": 1,
+      "60": 1,
+      "61": 1,
+      "62": 1
+    }
+  },
+  {
+    "path": "personal_website/tests/fixtures/posts.ts",
+    "removed": [],
+    "retained": {
+      "12": 7,
+      "29": 1,
+      "53": 1,
+      "68": 1
+    }
+  },
+  {
+    "path": "tools/coverage/node_research/child_only.ts",
+    "removed": [],
+    "retained": {
+      "2": 1
+    }
+  },
+  {
+    "path": "personal_website/src/utils/seo.ts",
+    "removed": [],
+    "retained": {
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 1,
+      "10": 1
+    }
+  }
+]
