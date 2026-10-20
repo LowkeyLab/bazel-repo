@@ -1,0 +1,14 @@
+[
+  {
+    "class": "probe/Executed",
+    "line": 5,
+    "total_branches": 2,
+    "parent_covered_branches": 1
+  },
+  {
+    "class": "kprobe/ExecutedKotlinKt",
+    "line": 7,
+    "total_branches": 2,
+    "parent_covered_branches": 1
+  }
+]

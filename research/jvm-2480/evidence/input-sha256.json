@@ -1,0 +1,10 @@
+{
+  "inputs/parent.exec": "82a9fde38b6c24a8de7a53ed88a0d21c3c1046fe74eee6da64f90f25ac8670f4",
+  "inputs/fixture_test.jar": "9d5b29fdb929c1b2e29189406803dd7f81336deaa73d87f40634dd8bb16b71d4",
+  "inputs/child.exec": "ecb040d11085a0e91e3f07657c4a7a46ca280c530ba06238ad4fd147a7286c8c",
+  "inputs/libdisconnected_java.jar": "b21e907d770c27906b96c68c09a64c6a301fae9abe7635448cf86fcf9775ef50",
+  "inputs/disconnected_kotlin.jar": "d915007fe0f59660a4d628c8a9df50d26119b7e22cd67c642ec6bc1b50fff9d7",
+  "inputs/libexecuted_java.jar": "dbac2fcc661bc9760f29205b99f90bb96dd49aaec0f8737e96bc6feba8316066",
+  "inputs/executed_kotlin.jar": "72c7bce305e792d1e39ddd16266d99c676e91ebb03fa324944f58e6976e71e1a",
+  "inputs/child.jar": "5f606437c520e256a873f6edeba60ad2dbc4c4184fec75a812b9ef9a24d86291"
+}

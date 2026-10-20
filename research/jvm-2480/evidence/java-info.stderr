@@ -1,0 +1,12 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: 7 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 7 targets (2 packages loaded, 769 targets configured, 113 aspect applications).
+INFO: Found 7 targets...
+INFO: Elapsed time: 2.386s, Critical Path: 0.00s
+INFO: 0 processes.
+INFO: Build completed successfully, 0 total actions

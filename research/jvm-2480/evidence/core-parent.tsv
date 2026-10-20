@@ -1,0 +1,54 @@
+CLASS	probe/FixtureTest	FixtureTest.java
+LINE	probe/FixtureTest	6	0	3	0	0
+LINE	probe/FixtureTest	8	4	8	1	2
+LINE	probe/FixtureTest	9	4	8	1	2
+LINE	probe/FixtureTest	10	3	7	1	2
+LINE	probe/FixtureTest	11	3	7	1	2
+LINE	probe/FixtureTest	12	3	7	1	2
+LINE	probe/FixtureTest	13	3	7	1	2
+LINE	probe/FixtureTest	14	6	6	0	0
+LINE	probe/FixtureTest	15	16	16	0	0
+LINE	probe/FixtureTest	16	9	9	0	0
+LINE	probe/FixtureTest	17	4	4	0	0
+LINE	probe/FixtureTest	18	7	7	0	0
+LINE	probe/FixtureTest	19	3	3	0	0
+LINE	probe/FixtureTest	20	3	8	1	2
+LINE	probe/FixtureTest	21	7	7	1	2
+LINE	probe/FixtureTest	22	0	5	0	0
+LINE	probe/FixtureTest	24	8	8	0	0
+LINE	probe/FixtureTest	25	3	3	0	0
+LINE	probe/FixtureTest	26	1	1	0	0
+CLASS	probe/Executed	Executed.java
+LINE	probe/Executed	3	0	3	0	0
+LINE	probe/Executed	5	2	2	1	2
+LINE	probe/Executed	6	2	2	0	0
+LINE	probe/Executed	8	0	2	0	0
+CLASS	probe/Child	Child.java
+LINE	probe/Child	3	0	3	0	0
+LINE	probe/Child	5	0	8	0	2
+LINE	probe/Child	6	0	2	0	2
+LINE	probe/Child	7	0	4	0	0
+LINE	probe/Child	9	0	5	0	0
+LINE	probe/Child	11	0	1	0	0
+CLASS	mismatch/DirectoryMismatch	DirectoryMismatch.java
+LINE	mismatch/DirectoryMismatch	3	0	3	0	0
+LINE	mismatch/DirectoryMismatch	5	2	2	0	0
+CLASS	shared/SecondTwin	Twin.kt
+LINE	shared/SecondTwin	5	2	2	0	0
+CLASS	kprobe/ExecutedKotlinKt	ExecutedKotlin.kt
+LINE	kprobe/ExecutedKotlinKt	3	1	1	0	0
+LINE	kprobe/ExecutedKotlinKt	7	7	8	1	2
+CLASS	kprobe/Declaration	Declaration.kt
+CLASS	shared/TwinKt	Twin.kt
+LINE	shared/TwinKt	3	2	2	0	0
+CLASS	kodd/KotlinMismatchKt	KotlinMismatch.kt
+LINE	kodd/KotlinMismatchKt	3	2	2	0	0
+CLASS	kprobe/DisconnectedKotlinKt	DisconnectedKotlin.kt
+LINE	kprobe/DisconnectedKotlinKt	2	0	6	0	0
+LINE	kprobe/DisconnectedKotlinKt	5	0	6	0	2
+CLASS	disconnected/Disconnected	Disconnected.java
+LINE	disconnected/Disconnected	3	0	3	0	0
+LINE	disconnected/Disconnected	5	0	9	0	2
+LINE	disconnected/Disconnected	6	0	1	0	0
+LINE	disconnected/Disconnected	9	0	4	0	2
+LINE	disconnected/Disconnected	10	0	2	0	0

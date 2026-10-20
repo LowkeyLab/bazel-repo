@@ -1,0 +1,15 @@
+{
+  "probe/FixtureTest": [
+    6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26
+  ],
+  "probe/Executed": [3, 5, 6, 8],
+  "probe/Child": [3, 5, 6, 7, 9, 11],
+  "mismatch/DirectoryMismatch": [3, 5],
+  "shared/SecondTwin": [5],
+  "kprobe/ExecutedKotlinKt": [3, 7],
+  "kprobe/Declaration": [],
+  "shared/TwinKt": [3],
+  "kodd/KotlinMismatchKt": [3],
+  "kprobe/DisconnectedKotlinKt": [2, 5],
+  "disconnected/Disconnected": [3, 5, 6, 9, 10]
+}

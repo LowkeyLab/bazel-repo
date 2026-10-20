@@ -1,0 +1,48 @@
+{
+  "testAttemptDurationMillis": "327",
+  "status": "PASSED",
+  "testAttemptStartMillisEpoch": "1792490653488",
+  "executionInfo": {
+    "strategy": "linux-sandbox",
+    "timingBreakdown": {
+      "child": [
+        {
+          "name": "parseTime",
+          "time": "0s"
+        },
+        {
+          "name": "fetchTime",
+          "time": "0s"
+        },
+        {
+          "name": "queueTime",
+          "time": "0s"
+        },
+        {
+          "name": "uploadTime",
+          "time": "0s"
+        },
+        {
+          "name": "setupTime",
+          "time": "0s"
+        },
+        {
+          "name": "executionWallTime",
+          "time": "0.327s"
+        },
+        {
+          "name": "processOutputsTime",
+          "time": "0s"
+        },
+        {
+          "name": "networkTime",
+          "time": "0s"
+        }
+      ],
+      "name": "totalTime",
+      "time": "0.327s"
+    }
+  },
+  "testAttemptStart": "2026-10-20T10:04:13.488Z",
+  "testAttemptDuration": "0.327s"
+}

@@ -1,0 +1,159 @@
+→ 🎬 Running format task
+
+→ 🔧 Setup · Running setup
+
+→ 🔨 Build · Building formatter (//tools/format:format)
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+WARNING: Build options --java_language_version, --java_runtime_version, --tool_java_language_version, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //tools/format:format (1 packages loaded, 0 targets configured)
+Analyzing: target //tools/format:format (132 packages loaded, 96156 targets configured, 110 aspect applications)
+INFO: Analyzed target //tools/format:format (137 packages loaded, 108251 targets configured, 180 aspect applications).
+INFO: Found 1 target...
+[0 / 18] [Prepa] Writing file tools/format/format.aspect_runinfo.json ... (4 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,211 / 1,455] JavaToolchainCompileBootClasspath external/rules_java+/toolchains/platformclasspath_unstripped.jar; 0s linux-sandbox ... (4 actions, 3 running)
+[1,231 / 1,811] Generating Rust bindings for ../rules_rs++crate+crates__aws-lc-sys-0.46.0/include/rust_wrapper.h [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+INFO: From Generating Rust bindings for ../rules_rs++crate+crates__aws-lc-sys-0.46.0/include/rust_wrapper.h [for tool]:
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: external/llvm++glibc+glibc_headers_x86_64-linux-gnu.2.28/include/features.h:381:4: warning: _FORTIFY_SOURCE requires compiling with optimization (-O) [-W#warnings]
+[1,246 / 1,818] Compiling Rust rlib @@rules_rs++crate+crates__brotli-decompressor-5.0.3//:brotli-decompressor v5.0.3 (24 files) [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[1,274 / 1,868] Compiling ssl/tls_record.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,299 / 1,868] Compiling ssl/tls13_server.cc [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[1,319 / 1,868] Compiling ssl/tls13_client.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,326 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__brotli-decompressor-6.0.1//:brotli-decompressor v6.0.1 (28 files) [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[1,335 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__brotli-9.0.0//:brotli v9.0.0 (69 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,345 / 1,868] Compiling ssl/ssl_transcript.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,355 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__zlib-rs-0.6.8//:zlib-rs v0.6.8 (45 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,359 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__zlib-rs-0.6.8//:zlib-rs v0.6.8 (45 files) [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[1,377 / 1,868] Compiling ssl/ssl_key_share.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,396 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__typenum-1.20.1//:typenum v1.20.1 (15 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,412 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__crypto-common-0.2.2//:crypto-common v0.2.2 (3 files) [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[1,425 / 1,868] Compiling ssl/ssl_asn1.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,437 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__data-encoding-2.11.1//:data-encoding v2.11.1 (1 file) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,451 / 1,868] Compiling ssl/handshake_server.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,470 / 1,868] Compiling ssl/handshake.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,489 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__hashbrown-0.17.1//:hashbrown v0.17.1 (39 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,512 / 1,868] Compiling ssl/dtls_record.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,528 / 1,868] Compiling ssl/d1_srtp.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,547 / 1,868] Compiling ssl/d1_lib.cc [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,562 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__winnow-1.0.4//:winnow v1.0.4 (100 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,588 / 1,868] Compiling generated-src/linux-x86_64/crypto/fipsmodule/aesni-gcm-avx512.S [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,606 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__serde_core-1.0.229//:serde_core v1.0.229 (20 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,619 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__compression-codecs-0.4.46//:compression-codecs v0.4.46 (51 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,634 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__toml-1.1.8-spec-1.1.0//:toml v1.1.8+spec-1.1.0 (39 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,643 / 1,868] Compiling crypto/x509/x_crl.c [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,658 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__serde_json-1.0.154//:serde_json v1.0.154 (70 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,680 / 1,868] Compiling Rust proc-macro @@rules_rs++crate+crates__zeroize_derive-1.5.0//:zeroize_derive v1.5.0 (1 file) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,690 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__aws-lc-rs-1.18.2//:aws-lc-rs v1.18.2 (99 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,700 / 1,868] Compiling crypto/fipsmodule/bcm.c [for tool]; 1s linux-sandbox ... (4 actions, 2 running)
+[1,703 / 1,868] Compiling crypto/fipsmodule/bcm.c [for tool]; 3s linux-sandbox ... (4 actions, 3 running)
+[1,708 / 1,868] Compiling crypto/fipsmodule/bcm.c [for tool]; 4s linux-sandbox ... (4 actions, 2 running)
+[1,709 / 1,868] Compiling crypto/fipsmodule/bcm.c [for tool]; 5s linux-sandbox ... (4 actions, 3 running)
+[1,719 / 1,868] Running Cargo build script @@rules_rs++crate+crates__ring-0.17.14//:_bs_x86_64-unknown-linux-gnu [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,724 / 1,868] Running Cargo build script @@rules_rs++crate+crates__ring-0.17.14//:_bs_x86_64-unknown-linux-gnu [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[1,731 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__ring-0.17.14//:ring v0.17.14 (168 files) [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[1,741 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__rustls-0.23.46//:rustls v0.23.46 (110 files) [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[1,744 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__rustls-0.23.46//:rustls v0.23.46 (110 files) [for tool]; 2s linux-sandbox ... (4 actions, 3 running)
+[1,755 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__ureq-3.4.2//:ureq v3.4.2 (42 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,759 / 1,868] Compiling Rust proc-macro @@rules_rs++crate+crates__tokio-macros-2.7.2//:tokio-macros v2.7.2 (3 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,772 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__tokio-1.54.0//:tokio v1.54.0 (573 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,782 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__tokio-1.54.0//:tokio v1.54.0 (573 files) [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[1,795 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-core-0.10.0//:topcoat-core v0.10.0 (22 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,806 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__h2-0.4.20//:h2 v0.4.20 (58 files) [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[1,806 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__h2-0.4.20//:h2 v0.4.20 (58 files) [for tool]; 2s linux-sandbox ... (4 actions, 3 running)
+[1,812 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__hyper-1.12.0//:hyper v1.12.0 (64 files) [for tool]; 1s linux-sandbox ... (4 actions, 2 running)
+[1,821 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__tower-http-0.7.1//:tower-http v0.7.1 (115 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,842 / 1,868] Compiling Rust rlib @@rules_rs++crate+crates__topcoat-router-0.10.0//:topcoat-router v0.10.0 (64 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,860 / 1,868] Compiling crypto/trust_token/voprf.c [for tool]; 0s linux-sandbox ... (3 actions running)
+[1,866 / 1,868] [Prepa] Compiling Rust bin //tools/topcoat:format_impl (1 file) [for tool]
+INFO: From Compiling Rust bin //tools/topcoat:format_impl (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+Target //tools/format:format up-to-date:
+  bazel-bin/tools/format/format.bash
+Aspect @@bazel_tools//aspect_932a1c220d46ba72:aspect.bzl%runinfo of //tools/format:format up-to-date:
+  bazel-bin/tools/format/format.aspect_runinfo.json
+INFO: Elapsed time: 62.471s, Critical Path: 13.61s
+INFO: 859 processes: 1009 action cache hit, 257 internal, 600 linux-sandbox, 2 worker.
+INFO: Build completed successfully, 859 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ ✨ Format · Formatting all files
+Formatted JavaScript in 0m0.173s
+[error] No parser could be inferred for file "/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/research/jvm-2480/evidence/java-info.jsonl".
+Formatted JSON in 0m0.247s
+FAILED: A formatter tool exited with code 123
+Formatted Markdown in 0m2.851s
+Formatted CSS in 0m0.458s
+Formatted HTML in 0m0.580s
+1 file reformatted, 20 files left unchanged
+Formatted Python in 0m0.008s
+Formatted Starlark in 0m0.029s
+Done formatting tools/coverage/jvm_fixture/kotlin/second/shared/Twin.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Observability.kt
+Done formatting ktor_tutorial/src/model/Task.kt
+Done formatting ktor_tutorial/src/Databases.kt
+Done formatting tools/coverage/jvm_fixture/kotlin/kprobe/DisconnectedKotlin.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Serialization.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesSummaryTest.kt
+Done formatting ktor_tutorial/test/model/FakeTaskRepository.kt
+Done formatting ktor_tutorial/src/model/TaskRepository.kt
+Done formatting ktor_tutorial/src/Serialization.kt
+Done formatting tools/coverage/jvm_fixture/kotlin/odd/KotlinMismatch.kt
+Done formatting tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt
+Done formatting ktor_tutorial/src/db/Mapping.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/ResourcePlayerFactory.kt
+Done formatting ktor_tutorial/src/model/PostgresTaskRepository.kt
+Done formatting tools/coverage/jvm_fixture/kotlin/kprobe/Declaration.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/PlayerFactory.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/GameRepository.kt
+Done formatting ktor_tutorial/test/ApplicationTest.kt
+Done formatting ktor_tutorial/src/Routing.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/Game.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/Player.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Sockets.kt
+Done formatting tools/coverage/jvm_fixture/kotlin/first/shared/Twin.kt
+Done formatting ktor_tutorial/src/Application.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/app/Application.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Security.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/ApplicationTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Routing.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/GameService.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/InMemoryGameRepository.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/CalculateAllowedOriginsTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Games.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/game/GameServiceTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesHttpTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesWebSocketTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/game/GameTest.kt
+Formatted Kotlin in 0m0.595s
+Formatted Java in 0m0.244s
+Formatted Go in 0m0.013s
+Formatted Shell in 0m0.004s
+Formatted YAML in 0m0.008s
+Formatted Rust in 0m2.135s
+ERROR: Formatter exited with code 1.
+
+→ ❌ Failed format task (exit code 1) in 1m 11s · Formatter error (exit 1)
+    🔧 Setup     3ms  Prepare the task environment
+    🔨 Build   1m 2s  Build formatter
+    ✨ Format   9.1s  Format files (failed)

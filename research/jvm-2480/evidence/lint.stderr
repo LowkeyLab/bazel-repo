@@ -1,0 +1,46 @@
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 99fb9361b60ef8626fc1c7728d5284c93a45de57..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  MODULE.bazel [+1 / -1] (changed)
+
+→ 🔬 Lint · Running lint aspects
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+WARNING: Build options --java_language_version, --java_runtime_version, --tool_java_language_version, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: 10 targets (1 packages loaded, 0 targets configured)
+Analyzing: 10 targets (216 packages loaded, 17234 targets configured)
+Analyzing: 10 targets (269 packages loaded, 186157 targets configured, 180 aspect applications)
+INFO: Analyzed 10 targets (269 packages loaded, 227136 targets configured, 508 aspect applications).
+INFO: Found 10 targets...
+[0 / 8] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (3 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:37:12: Linting //tools/coverage/jvm_fixture:child with Checkstyle failed: missing input file '//:checkstyle.xml'
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:37:12: Linting //tools/coverage/jvm_fixture:child with PMD failed: missing input file '//:pmd.xml'
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:37:12: Linting //tools/coverage/jvm_fixture:child with PMD failed: 1 input file(s) do not exist
+Use --verbose_failures to see the command lines of failed build steps.
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:37:12 Linting //tools/coverage/jvm_fixture:child with PMD failed: 1 input file(s) do not exist
+INFO: Elapsed time: 5.114s, Critical Path: 0.35s
+INFO: 48 processes: 853 action cache hit, 46 internal, 2 worker.
+ERROR: Build did NOT complete successfully
+
+INFO: Build Event Protocol files produced successfully.
+
+→ ❌ Failed lint task (exit code 1) in 38.2s · Build failed
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  264ms  Detect changed files
+    🔬 Lint    37.9s  Run lint aspects (failed)

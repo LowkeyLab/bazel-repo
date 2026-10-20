@@ -1,0 +1,4 @@
+//tools/coverage/jvm_fixture:fixture_test                                PASSED in 0.3s
+  /home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/coverage/jvm_fixture/fixture_test/coverage.dat
+
+Executed 1 out of 1 test: 1 test passes.

@@ -1,0 +1,15 @@
+{
+  "coverage-local": 0,
+  "core-empty": 0,
+  "core-parent": 0,
+  "core-child": 0,
+  "missing-child": 1,
+  "corrupt-child": 1,
+  "missing-metadata": 1,
+  "gazelle-checked": 0,
+  "format-checked": 0,
+  "python-lint-checked": 0,
+  "lint": 1,
+  "final-analyze": 0,
+  "final-parent": 0
+}

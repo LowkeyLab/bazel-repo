@@ -1,0 +1,7 @@
+{
+  "jar_sha256": "d936b687d624fd19c937e5152b1d027255ddc02e96e8d93d909c26bbbb077e1e",
+  "jacoco_properties": {
+    "org/jacoco/agent/rt/internal_29a6edd/core/jacoco.properties": "VERSION=0.8.14.202510111229\nCOMMITID=2eb248366f0eb63fd964fc7a81804b27229a6edd\nHOMEURL=http://www.jacoco.org/jacoco\nRUNTIMEPACKAGE=org.jacoco.agent.rt.internal_29a6edd\n",
+    "org/jacoco/core/jacoco.properties": "VERSION=0.8.14.202510111229\nCOMMITID=2eb248366f0eb63fd964fc7a81804b27229a6edd\nHOMEURL=http://www.jacoco.org/jacoco\nRUNTIMEPACKAGE=org.jacoco.agent.rt.internal_29a6edd\n"
+  }
+}

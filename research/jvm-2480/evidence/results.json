@@ -1,0 +1,12 @@
+{
+  "expected_classes": 11,
+  "expected_executable_lines": 43,
+  "baseline_all_zero": true,
+  "inline_original_line_3_positive": true,
+  "child_original_line_7_positive": true,
+  "merge_orders_equal": true,
+  "automatic_unique_class_owners": 9,
+  "ambiguous_classes": ["shared/SecondTwin", "shared/TwinKt"],
+  "partial_lcov_sources": 9,
+  "branch_identity_guarantee": false
+}

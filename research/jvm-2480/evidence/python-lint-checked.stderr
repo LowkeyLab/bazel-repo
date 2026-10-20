@@ -1,0 +1,130 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 99fb9361b60ef8626fc1c7728d5284c93a45de57..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  MODULE.bazel [+1 / -1] (changed)
+  research/jvm-2480/BUILD.bazel [+13 / -0] (changed)
+  research/jvm-2480/README.md [+150 / -0] (changed)
+  research/jvm-2480/REPRODUCE.md [+73 / -0] (changed)
+  research/jvm-2480/analyze.py [+122 / -0] (changed)
+  research/jvm-2480/evidence/automatic-ownership-summary.json [+5 / -0] (changed)
+  research/jvm-2480/evidence/automatic-ownership.json [+126 / -0] (changed)
+  research/jvm-2480/evidence/core-child.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/core-child.stderr [+27 / -0] (changed)
+  research/jvm-2480/evidence/core-child.tsv [+54 / -0] (changed)
+  research/jvm-2480/evidence/core-empty.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/core-empty.stderr [+29 / -0] (changed)
+  research/jvm-2480/evidence/core-empty.tsv [+54 / -0] (changed)
+  research/jvm-2480/evidence/core-parent.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/core-parent.stderr [+27 / -0] (changed)
+  research/jvm-2480/evidence/core-parent.tsv [+54 / -0] (changed)
+  research/jvm-2480/evidence/corrupt-child.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/corrupt-child.stderr [+37 / -0] (changed)
+  research/jvm-2480/evidence/coverage-local.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/coverage-local.stderr [+787 / -0] (changed)
+  research/jvm-2480/evidence/coverage-local.stdout [+4 / -0] (changed)
+  research/jvm-2480/evidence/cquery.stderr [+17 / -0] (changed)
+  research/jvm-2480/evidence/expected-lines.json [+15 / -0] (changed)
+  research/jvm-2480/evidence/format-final.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/format-final.stderr [+100 / -0] (changed)
+  research/jvm-2480/evidence/format.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/format.stderr [+159 / -0] (changed)
+  research/jvm-2480/evidence/gazelle-final.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/gazelle-final.stderr [+34 / -0] (changed)
+  research/jvm-2480/evidence/gazelle-local.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/gazelle-local.stderr [+909 / -0] (changed)
+  research/jvm-2480/evidence/gazelle-original.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/gazelle-original.stderr [+32 / -0] (changed)
+  research/jvm-2480/evidence/input-sha256.json [+10 / -0] (changed)
+  research/jvm-2480/evidence/java-info.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/java-info.stderr [+12 / -0] (changed)
+  research/jvm-2480/evidence/java-info.txt [+7 / -0] (changed)
+  research/jvm-2480/evidence/lint.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/lint.stderr [+46 / -0] (changed)
+  research/jvm-2480/evidence/local-test-result.json [+48 / -0] (changed)
+  research/jvm-2480/evidence/merged-forward-partial.lcov [+59 / -0] (changed)
+  research/jvm-2480/evidence/merged-reverse-partial.lcov [+59 / -0] (changed)
+  research/jvm-2480/evidence/missing-child.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/missing-child.stderr [+38 / -0] (changed)
+  research/jvm-2480/evidence/missing-metadata.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/missing-metadata.stderr [+41 / -0] (changed)
+  research/jvm-2480/evidence/native-baseline.lcov [+2 / -0] (changed)
+  research/jvm-2480/evidence/native-child.lcov [+16 / -0] (changed)
+  research/jvm-2480/evidence/native-combined.lcov [+135 / -0] (changed)
+  research/jvm-2480/evidence/native-parent.lcov [+93 / -0] (changed)
+  research/jvm-2480/evidence/providers.txt [+7 / -0] (changed)
+  research/jvm-2480/evidence/python-lint.stderr [+116 / -0] (changed)
+  research/jvm-2480/evidence/query.exit [+1 / -0] (changed)
+  research/jvm-2480/evidence/query.stderr [+5 / -0] (changed)
+  research/jvm-2480/evidence/results.json [+12 / -0] (changed)
+  research/jvm-2480/evidence/source-owners.xml [+193 / -0] (changed)
+  tools/coverage/jvm_fixture/BUILD.bazel [+69 / -0] (changed)
+  tools/coverage/jvm_fixture/java/adapter/Baseline.java [+25 / -0] (changed)
+  tools/coverage/jvm_fixture/java/adapter/Original.java [+76 / -0] (changed)
+  tools/coverage/jvm_fixture/java/disconnected/Disconnected.java [+12 / -0] (changed)
+  tools/coverage/jvm_fixture/java/odd/DirectoryMismatch.java [+7 / -0] (changed)
+  tools/coverage/jvm_fixture/java/probe/Child.java [+12 / -0] (changed)
+  tools/coverage/jvm_fixture/java/probe/Executed.java [+10 / -0] (changed)
+  tools/coverage/jvm_fixture/java/probe/FixtureTest.java [+27 / -0] (changed)
+  tools/coverage/jvm_fixture/kotlin/first/shared/Twin.kt [+4 / -0] (changed)
+  tools/coverage/jvm_fixture/kotlin/kprobe/Declaration.kt [+4 / -0] (changed)
+  tools/coverage/jvm_fixture/kotlin/kprobe/DisconnectedKotlin.kt [+6 / -0] (changed)
+  tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt [+8 / -0] (changed)
+  tools/coverage/jvm_fixture/kotlin/odd/KotlinMismatch.kt [+4 / -0] (changed)
+  tools/coverage/jvm_fixture/kotlin/second/shared/Twin.kt [+6 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+WARNING: Build options --java_language_version, --java_runtime_version, --tool_java_language_version, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: 2 targets (0 packages loaded, 0 targets configured)
+Analyzing: 2 targets (2 packages loaded, 150551 targets configured, 57 aspect applications)
+INFO: Analyzed 2 targets (2 packages loaded, 201913 targets configured, 346 aspect applications).
+INFO: Found 2 targets...
+[0 / 13] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //research/jvm-2480:jvm-2480 up-to-date (nothing to build)
+Target //research/jvm-2480:analyze up-to-date (nothing to build)
+Aspect //tools/lint:linters.bzl%ty of //research/jvm-2480:jvm-2480 up-to-date:
+  bazel-bin/research/jvm-2480/jvm-2480.AspectRulesLintTy.report
+  bazel-bin/research/jvm-2480/jvm-2480.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ty of //research/jvm-2480:analyze up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/research/jvm-2480/analyze.AspectRulesLintTy.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/research/jvm-2480/analyze.AspectRulesLintTy.report.exit_code
+Aspect //tools/lint:linters.bzl%ruff of //research/jvm-2480:analyze up-to-date:
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/research/jvm-2480/analyze.AspectRulesLintRuff.report
+  bazel-out/k8-fastbuild-ST-98618d796211/bin/research/jvm-2480/analyze.AspectRulesLintRuff.report.exit_code
+Aspect //tools/lint:linters.bzl%ruff of //research/jvm-2480:jvm-2480 up-to-date:
+  bazel-bin/research/jvm-2480/jvm-2480.AspectRulesLintRuff.report
+  bazel-bin/research/jvm-2480/jvm-2480.AspectRulesLintRuff.report.exit_code
+INFO: Elapsed time: 4.259s, Critical Path: 0.10s
+INFO: 11 processes: 2798 action cache hit, 1 internal, 10 linux-sandbox.
+INFO: Build completed successfully, 11 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (2): Ruff, Ty
+
+→ ✅ Passed lint task in 4.8s · No findings
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  266ms  Detect changed files
+    🔬 Lint     4.5s  Run lint aspects
+    🔎 Filter    4ms  Filter diagnostics

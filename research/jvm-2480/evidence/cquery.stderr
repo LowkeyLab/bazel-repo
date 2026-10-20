@@ -1,0 +1,17 @@
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: c724455f-e996-4dcc-9c5e-532079ae08ed
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/c724455f-e996-4dcc-9c5e-532079ae08ed
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: 7 targets (1 packages loaded, 0 targets configured)
+INFO: Analyzed 7 targets (51 packages loaded, 1206 targets configured, 113 aspect applications).
+INFO: Found 7 targets...
+INFO: Elapsed time: 2.617s, Critical Path: 0.00s
+INFO: 0 processes.
+INFO: Build completed successfully, 0 total actions
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/c724455f-e996-4dcc-9c5e-532079ae08ed
