@@ -195,6 +195,8 @@ pub struct Batch {
     pub plan_fingerprint: String,
     pub plan: Plan,
     pub tickets: Vec<Progress>,
+    #[serde(default)]
+    pub graph: GraphProgress,
 }
 impl Batch {
     pub fn prepare(batch_id: BatchId, plan: Plan) -> Result<Self> {
@@ -218,6 +220,7 @@ impl Batch {
             id: batch_id,
             plan,
             tickets,
+            graph: GraphProgress::default(),
         })
     }
     pub fn check(&self, expected: &BatchId) -> Result<()> {
@@ -273,4 +276,13 @@ impl std::str::FromStr for TicketKey {
     fn from_str(value: &str) -> Result<Self> {
         Self::try_from(value.to_owned())
     }
+}
+
+/// Observed progress is a receipt. Fresh reads, not this receipt, control mutations.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GraphProgress {
+    pub parent_links: usize,
+    pub dependency_links: usize,
+    pub verified: bool,
 }

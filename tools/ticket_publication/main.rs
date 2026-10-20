@@ -1,5 +1,6 @@
 //! Prepare, inspect, and resume creation of a publication batch.
 mod github;
+mod graph;
 mod plan;
 mod publish;
 mod recovery;
@@ -126,6 +127,9 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let store = Store::open(&root, &id, false)?;
             let mut saved = store.read(&id)?;
             let result = publish::run(&mut saved, &store);
+            if result.is_err() {
+                saved.graph.verified = false;
+            }
             let status = if result
                 .as_ref()
                 .err()
@@ -145,7 +149,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 "partial"
             };
             Ok(
-                json!({"status":status, "phase":if result.is_ok() {"issues_created"} else {"stopped"}, "batch_id":saved.id, "tickets":saved.tickets, "error":result.err().map(|e|format!("{e:#}"))}),
+                json!({"status":status, "phase":if result.is_ok() {"graph_checked"} else {"stopped"}, "publication_complete":false, "graph":saved.graph, "batch_id":saved.id, "tickets":saved.tickets, "error":result.err().map(|e|format!("{e:#}"))}),
             )
         }
         Action::Recover {
@@ -219,6 +223,16 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let store = Store::open(&root, &id, false)?;
             let saved = store.read(&id)?;
             let observed = publish::observe(&saved);
+            let graph = if observed.is_ok()
+                && saved
+                    .tickets
+                    .iter()
+                    .all(|p| matches!(p.status, TicketStatus::Created(_)))
+            {
+                Some(graph::observe(&saved))
+            } else {
+                None
+            };
             let status = match &observed {
                 Err(error) if error.downcast_ref::<github::Conflict>().is_some() => "conflict",
                 Err(_) => "unverified",
@@ -232,12 +246,26 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 Ok(mappings) if mappings.iter().any(Option::is_some) => "partial",
                 Ok(_) => local_status(&saved),
             };
-            let (remote_mappings, error) = match observed {
+            let mut status = status;
+            let (remote_mappings, mut error) = match observed {
                 Ok(mappings) => (Some(mappings), None),
                 Err(error) => (None, Some(format!("{error:#}"))),
             };
+            let graph = match graph {
+                Some(Ok(progress)) => Some(progress),
+                Some(Err(cause)) => {
+                    status = if cause.downcast_ref::<github::Conflict>().is_some() {
+                        "conflict"
+                    } else {
+                        "unverified"
+                    };
+                    error = Some(format!("{cause:#}"));
+                    None
+                }
+                None => None,
+            };
             Ok(
-                json!({"status":status, "phase":"creation", "publication_complete":false, "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets, "remote_mappings":remote_mappings, "error":error}),
+                json!({"status":status, "phase":"graph", "graph":graph, "publication_complete":false, "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets, "remote_mappings":remote_mappings, "error":error}),
             )
         }
     }

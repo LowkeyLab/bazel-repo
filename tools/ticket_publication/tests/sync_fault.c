@@ -29,8 +29,12 @@ static int progress_fault(int descriptor, const char *path) {
   }
   if (size < 0) return 0;
   buffer[size] = '\0';
-  const char *status = strstr(phase, "authorization") != NULL ? "\"retry_authorized\"" :
-    (strstr(phase, "intent") != NULL ? "\"creating\"" : "\"created\"");
+  const char *status = strstr(phase, "graph-complete") != NULL ? "\"verified\": true" :
+    (strstr(phase, "graph-first") != NULL ? "\"parent_links\": 1" :
+    (strstr(phase, "authorization") != NULL ? "\"retry_authorized\"" :
+    (strstr(phase, "intent") != NULL ? "\"creating\"" : "\"created\"")));
+  if (strstr(phase, "graph-start") != NULL &&
+      (strstr(buffer, "\"pending\"") != NULL || strstr(buffer, "\"creating\"") != NULL)) return 0;
   if (strstr(buffer, status) == NULL) return 0;
   int record = open("progress-fault-receipt", O_WRONLY | O_CREAT | O_EXCL, 0600);
   if (record < 0) return 0;

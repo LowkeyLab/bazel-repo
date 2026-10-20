@@ -111,7 +111,7 @@ pub fn enumerate() -> Result<Vec<Issue>> {
     }
     Ok(matches)
 }
-fn request(endpoint: &str, body: Option<Value>, paginate: bool) -> Result<Value> {
+pub fn request(endpoint: &str, body: Option<Value>, paginate: bool) -> Result<Value> {
     let mut command = Command::new("gh");
     command.args([
         "api",
@@ -145,4 +145,85 @@ fn request(endpoint: &str, body: Option<Value>, paginate: bool) -> Result<Value>
     // Do not copy process output into diagnostics or durable state.
     ensure!(output.status.success(), "gh api request failed");
     serde_json::from_slice(&output.stdout).context("gh api returned invalid JSON")
+}
+
+/// Enumerate every relationship page. Malformed pages cannot establish absence.
+pub fn relationships(number: &IssueNumber, relation: &str) -> Result<Vec<IssueMapping>> {
+    let pages = request(
+        &format!("{REPOSITORY}/issues/{number}/{relation}?per_page=100"),
+        None,
+        true,
+    )?;
+    let pages = pages
+        .as_array()
+        .context("relationship read did not return pages")?;
+    ensure!(!pages.is_empty(), "relationship read returned no pages");
+    let mut mappings = Vec::new();
+    for page in pages {
+        for value in page.as_array().context("incomplete relationship page")? {
+            let issue: Issue =
+                serde_json::from_value(value.clone()).context("incomplete related issue")?;
+            issue.check_repository()?;
+            let mapping = issue.mapping();
+            ensure!(
+                !mappings
+                    .iter()
+                    .any(|m: &IssueMapping| m.number == mapping.number
+                        || m.id == mapping.id
+                        || m.node_id == mapping.node_id),
+                "duplicate relationship identity"
+            );
+            mappings.push(mapping);
+        }
+    }
+    Ok(mappings)
+}
+
+/// An explicit nullable parent avoids treating a REST 404 as proof of absence.
+pub fn parent(mapping: &IssueMapping) -> Result<Option<NodeId>> {
+    #[derive(Deserialize)]
+    struct Parent {
+        id: NodeId,
+    }
+    #[derive(Deserialize)]
+    struct Node {
+        id: NodeId,
+        parent: Option<Parent>,
+    }
+    let response = request(
+        "graphql",
+        Some(json!({
+            "query":"query($id:ID!) { node(id:$id) { ... on Issue { id parent { id } } } }",
+            "variables":{"id":mapping.node_id}
+        })),
+        false,
+    )?;
+    ensure!(
+        response.get("errors").is_none(),
+        "parent query returned errors"
+    );
+    let value = response
+        .pointer("/data/node")
+        .context("parent query has no node")?;
+    ensure!(value.get("parent").is_some(), "incomplete parent query");
+    let node: Node = serde_json::from_value(value.clone())?;
+    ensure!(node.id == mapping.node_id, Conflict);
+    Ok(node.parent.map(|p| p.id))
+}
+
+pub fn add_child(parent: &IssueNumber, child: &IssueMapping) -> Result<()> {
+    request(
+        &format!("{REPOSITORY}/issues/{parent}/sub_issues"),
+        Some(json!({"sub_issue_id":child.id,"replace_parent":false})),
+        false,
+    )?;
+    Ok(())
+}
+pub fn add_blocker(issue: &IssueNumber, blocker: &IssueMapping) -> Result<()> {
+    request(
+        &format!("{REPOSITORY}/issues/{issue}/dependencies/blocked_by"),
+        Some(json!({"issue_id":blocker.id})),
+        false,
+    )?;
+    Ok(())
 }

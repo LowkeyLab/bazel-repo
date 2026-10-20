@@ -1,9 +1,9 @@
-# Prepare and create a ticket publication batch
+# Prepare and link a ticket publication batch
 
 This command checks and saves a publication plan. It can create the planned
-issues and resume creation after an interruption. Tickets #2403 through #2405
-implement preparation, creation, and explicit recovery. Later tickets add
-native graph operations and readiness labels.
+issues and resume creation after an interruption. Tickets #2403 through #2406
+implement preparation, creation, explicit recovery, and native relationships.
+Ticket #2407 adds readiness labels.
 
 ```sh
 bazel run //tools/ticket_publication -- prepare --plan /absolute/plan.json
@@ -105,21 +105,49 @@ must also pass repository, identity, and content checks before reuse. Multiple
 matches stop publication. No match leaves creation uncertain. Failed reads and
 incomplete responses cannot authorize another creation request.
 
-A successful creation phase returns `status: partial` and `phase: issues_created`.
-It does not establish publication completion. This phase applies no labels or
-native relationships. A stopped run returns a nonzero exit code and reports
+After creation, publication checks and creates the required native relationships.
+A successful graph phase returns `status: partial`, `phase: graph_checked`, and
+`publication_complete: false`. This phase applies no labels. A stopped run returns a nonzero exit code and reports
 `partial`, `uncertain`, or `conflict`, with the available ticket progress.
 `status` checks saved mappings and enumerates unresolved identities.
 Status and reconstruction each enumerate the repository once for the batch. It reports
 `prepared`, `partial`, `uncertain`, `conflict`, or `unverified`. Failed remote
 reads return `unverified` and a nonzero exit code. Conflicts also return a nonzero
-exit code. `publication_complete` remains false during this creation phase.
+exit code. `publication_complete` remains false during this graph phase.
 A checked issue does not establish graph or label completion.
 
 Preserve saved state after errors. A durable-write failure can leave an intent
 without a request or a checked issue without a saved mapping. Restart checks the
 saved state and remote evidence. It cannot infer safe retry from an absent match.
 Use the recovery commands below. Do not edit progress to bypass uncertainty.
+
+## Native graph operations
+
+Publication checks every ticket mapping, title, body, and identity marker before
+creating relationships. It reads all pages of the parent sub-issues and each
+ticket's blockers. A GraphQL query checks each ticket's nullable parent identity.
+Errors and incomplete responses cannot establish an absent relationship.
+
+The command adds only missing parent and blocker links. Requests use numeric
+issue IDs. Parent requests specify `replace_parent: false`. A different parent
+stops publication without replacement. Compatible extra links remain intact.
+Parent title, body, labels, and state remain intact.
+
+Publication saves observed graph progress before each relationship mutation.
+It checks an accepted link through fresh reads before another mutation. A lost
+response stops the command. On restart, fresh reads identify accepted links and
+prevent repeated mutations. Failed durable writes stop dependent mutations.
+
+After the last mutation, publication checks all tickets and required links again.
+The result includes `graph.parent_links`, `graph.dependency_links`, and
+`graph.verified`. These fields describe checked required links. Compatible extra
+links do not increase these counts. Saved observations cannot authorize skipped
+checks. `status` checks the current graph without saving progress or GitHub writes.
+A saved verified graph can become incomplete or conflicting after external edits.
+
+Native endpoint failures stop publication. The command does not substitute body
+references. Preserve state and inspect the error before resuming. Graph checks
+cannot prevent external changes between requests and do not establish isolation.
 
 ## Explicit recovery
 

@@ -79,7 +79,7 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
             .all(|p| matches!(p.status, TicketStatus::Created(_))),
         "creation remains incomplete"
     );
-    Ok(())
+    crate::graph::run(batch, store)
 }
 fn check_mappings(batch: &Batch) -> Result<()> {
     for (progress, ticket) in batch.tickets.iter().zip(&batch.plan.tickets) {
