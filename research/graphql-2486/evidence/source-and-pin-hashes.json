@@ -1,0 +1,86 @@
+[
+  {
+    "path": ".bazelversion",
+    "sha256": "14ebdd5f5d8dfccb0fc574ea9aabecc07d7cdd99d53e4fc01e58f9c3d23d18ef"
+  },
+  {
+    "path": "MODULE.bazel",
+    "sha256": "25fcaddc2940af0a427086f24ec2f9f581d86b06856d0d35996c702376963a2f"
+  },
+  {
+    "path": "Cargo.lock",
+    "sha256": "645189861a56d866baa5c4bac172efb21eed76e645c0546b5648735a75418c52"
+  },
+  {
+    "path": "pnpm-lock.yaml",
+    "sha256": "0c5d23f00f11e2f04d8b62d22a716547076c3de5f2b7be46c10607f6d7ac39d0"
+  },
+  {
+    "path": "nicknamer2/src/server/lib.rs",
+    "sha256": "fa577c10582fb2b8eff152df06467a1b6fff0c26d27386b6e7e3ce652f969aa9"
+  },
+  {
+    "path": "nicknamer2/src/graphql/lib.rs",
+    "sha256": "1a76ac1272f478fdea8cea712b0e563407736efa2bda7b0bcb9489b465f63bbd"
+  },
+  {
+    "path": "nicknamer2/src/graphql/tests.rs",
+    "sha256": "8ea41534b8c80a01c6fcb82f090494527e9146e65e04e635778916cfc25b126f"
+  },
+  {
+    "path": "nicknamer2/src/graphql/relay/lib.rs",
+    "sha256": "d4ce9f14e6cd4b9c8cbb32501f153a6e2ddc5b54aef187abcb255091bb8f015d"
+  },
+  {
+    "path": "nicknamer2/src/graphql/mutation/lib.rs",
+    "sha256": "a062957e17bca550fbd9ba32d7a980f393000b09583d5edb4176f51ae41df04b"
+  },
+  {
+    "path": "nicknamer2/src/graphql/model/lib.rs",
+    "sha256": "8360263ee8e3837737556208ec5a99acb7ce62dba57327c9925db9fd2d7d4f2d"
+  },
+  {
+    "path": "nicknamer2/src/graphql/schema/lib.rs",
+    "sha256": "bb5e03cf8776c795c57e4c9903ae280fb3096d8a0584347cf2c35934a660e85a"
+  },
+  {
+    "path": "nicknamer2/src/graphql/query/lib.rs",
+    "sha256": "3be8ad6d9404f54df7b882dc093108f978f54a82489b717ca11a2cacf6643126"
+  },
+  {
+    "path": "nicknamer2/src/graphql/context/lib.rs",
+    "sha256": "f85300edd45016445a120d364a7efc69d2a6a82fb0afdcfd4d1729d397c6e772"
+  },
+  {
+    "path": "nicknamer2/src/name/lib.rs",
+    "sha256": "d58d5b767321aaf28157ceda6d83b62b98e255542f853f866281a4a641bcd3a5"
+  },
+  {
+    "path": "nicknamer2/src/name/repo/lib.rs",
+    "sha256": "1795a794adbcb135fa16c341cdf7c339d561e95f1abd471484fdefee2a8c11c2"
+  },
+  {
+    "path": "nicknamer2/src/name/service/lib.rs",
+    "sha256": "7becbf485b20eb5462d1b80fdba212bc8de712cecc44741d2b305279635b34a8"
+  },
+  {
+    "path": "nicknamer2/src/discord_server/repo/lib.rs",
+    "sha256": "95216aef7fe79d0b128d5b86ace84dfa8e2091105b5fae3e22911b967d314343"
+  },
+  {
+    "path": "nicknamer2/src/discord_server/server/lib.rs",
+    "sha256": "d1a8f5449a8f0e61fd84da83850a0481b66a3601176b3932f4f55c20292b69ea"
+  },
+  {
+    "path": "nicknamer2/src/discord_server/service/lib.rs",
+    "sha256": "b98d0b9fc8b984a7b19092a0d52586e84010fe5f13a1d7b74687f46e39380158"
+  },
+  {
+    "path": "nicknamer2/migrations/002_create_servers_table.sql",
+    "sha256": "61d2cb9033493d49f4d1e99969beb5457871bdde7b56bff947d4a1c3f24a3288"
+  },
+  {
+    "path": "nicknamer2/migrations/001_create_names_table.sql",
+    "sha256": "5fa7259ba7b070f98a459c12f1a43750c5c4b20545a5f227f86731e137f8d39f"
+  }
+]

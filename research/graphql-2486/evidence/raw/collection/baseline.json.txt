@@ -1,0 +1,599 @@
+{
+  "records": [
+    {
+      "key": "create-name",
+      "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+      "sha256": "52bd4a12a60dcbc18598506b71a902e38cafaaa4faed333cfb2940e642c1be1a",
+      "nodes": [
+        {
+          "kind": "OperationDefinition",
+          "name": "CreateName",
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "createName",
+          "offset": 50,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "clientMutationId",
+          "offset": 82,
+          "line": 3,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "name",
+          "offset": 103,
+          "line": 4,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "id",
+          "offset": 116,
+          "line": 5,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "name",
+          "offset": 125,
+          "line": 6,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "createdAt",
+          "offset": 136,
+          "line": 7,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "updatedAt",
+          "offset": 152,
+          "line": 8,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "key": "create-names",
+      "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+      "sha256": "b8749a41cea214c9f41c458fcdd76b847bd8ef035568c62f25d6473e4c9fbf47",
+      "nodes": [
+        {
+          "kind": "OperationDefinition",
+          "name": "CreateNames",
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "createNames",
+          "offset": 52,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "clientMutationId",
+          "offset": 85,
+          "line": 3,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "names",
+          "offset": 106,
+          "line": 4,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "id",
+          "offset": 120,
+          "line": 5,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "name",
+          "offset": 129,
+          "line": 6,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "createdAt",
+          "offset": 140,
+          "line": 7,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "updatedAt",
+          "offset": 156,
+          "line": 8,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "key": "create-server",
+      "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+      "sha256": "fcfed492536e1abe3397075cdabc3ee94f5b63c659c2713891de22092fd6640e",
+      "nodes": [
+        {
+          "kind": "OperationDefinition",
+          "name": "CreateServer",
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "createServer",
+          "offset": 54,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "clientMutationId",
+          "offset": 88,
+          "line": 3,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "server",
+          "offset": 109,
+          "line": 4,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "id",
+          "offset": 124,
+          "line": 5,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "serverId",
+          "offset": 133,
+          "line": 6,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "displayName",
+          "offset": 148,
+          "line": 7,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "createdAt",
+          "offset": 166,
+          "line": 8,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "updatedAt",
+          "offset": 182,
+          "line": 9,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "key": "get-dashboard",
+      "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+      "sha256": "4c1337d32baa0427fa285881c792cf4c51c4f0216c45d060b776f09870e52bad",
+      "nodes": [
+        {
+          "kind": "OperationDefinition",
+          "name": "GetDashboard",
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "servers",
+          "offset": 37,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "totalCount",
+          "offset": 66,
+          "line": 3,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "edges",
+          "offset": 81,
+          "line": 4,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "node",
+          "offset": 95,
+          "line": 5,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "id",
+          "offset": 110,
+          "line": 6,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "serverId",
+          "offset": 121,
+          "line": 7,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "displayName",
+          "offset": 138,
+          "line": 8,
+          "column": 9
+        }
+      ]
+    },
+    {
+      "key": "get-server-names",
+      "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+      "sha256": "308fb46ead05c3e27d9420d3714f9e983c3679775041653d86cd7b56739a8a5a",
+      "nodes": [
+        {
+          "kind": "OperationDefinition",
+          "name": "GetServerNames",
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "server",
+          "offset": 65,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "id",
+          "offset": 87,
+          "line": 3,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "serverId",
+          "offset": 94,
+          "line": 4,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "names",
+          "offset": 107,
+          "line": 5,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "edges",
+          "offset": 151,
+          "line": 6,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "cursor",
+          "offset": 167,
+          "line": 7,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "node",
+          "offset": 182,
+          "line": 8,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "id",
+          "offset": 199,
+          "line": 9,
+          "column": 11
+        },
+        {
+          "kind": "Field",
+          "name": "name",
+          "offset": 212,
+          "line": 10,
+          "column": 11
+        },
+        {
+          "kind": "Field",
+          "name": "createdAt",
+          "offset": 227,
+          "line": 11,
+          "column": 11
+        },
+        {
+          "kind": "Field",
+          "name": "updatedAt",
+          "offset": 247,
+          "line": 12,
+          "column": 11
+        },
+        {
+          "kind": "Field",
+          "name": "pageInfo",
+          "offset": 281,
+          "line": 15,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "hasNextPage",
+          "offset": 300,
+          "line": 16,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "endCursor",
+          "offset": 320,
+          "line": 17,
+          "column": 9
+        }
+      ]
+    },
+    {
+      "key": "get-servers",
+      "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+      "sha256": "da05894a7222df41880bce3452cea06f02fdf8a093e905c0e737b42f9842986f",
+      "nodes": [
+        {
+          "kind": "OperationDefinition",
+          "name": "GetServers",
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "servers",
+          "offset": 51,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "edges",
+          "offset": 95,
+          "line": 3,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "cursor",
+          "offset": 109,
+          "line": 4,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "node",
+          "offset": 122,
+          "line": 5,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "id",
+          "offset": 137,
+          "line": 6,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "serverId",
+          "offset": 148,
+          "line": 7,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "displayName",
+          "offset": 165,
+          "line": 8,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "pageInfo",
+          "offset": 195,
+          "line": 11,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "hasNextPage",
+          "offset": 212,
+          "line": 12,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "endCursor",
+          "offset": 230,
+          "line": 13,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "key": "selection",
+      "path": "nicknamer2/research/graphql_business/selection.graphql",
+      "sha256": "34d5003bd5d830d0ee61b6b4256820f8da5dc7f0f00193b9470d129d439f5846",
+      "nodes": [
+        {
+          "kind": "OperationDefinition",
+          "name": "BusinessSelection",
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "servers",
+          "offset": 62,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "totalCount",
+          "offset": 87,
+          "line": 3,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "edges",
+          "offset": 102,
+          "line": 4,
+          "column": 5
+        },
+        {
+          "kind": "Field",
+          "name": "node",
+          "offset": 116,
+          "line": 5,
+          "column": 7
+        },
+        {
+          "kind": "Field",
+          "name": "id",
+          "offset": 131,
+          "line": 6,
+          "column": 9
+        },
+        {
+          "kind": "FragmentSpread",
+          "name": "ServerDetails",
+          "offset": 142,
+          "line": 7,
+          "column": 9
+        },
+        {
+          "kind": "Directive",
+          "name": "include",
+          "offset": 159,
+          "line": 7,
+          "column": 26
+        },
+        {
+          "kind": "Field",
+          "name": "displayName",
+          "offset": 187,
+          "line": 8,
+          "column": 9
+        },
+        {
+          "kind": "Directive",
+          "name": "skip",
+          "offset": 199,
+          "line": 8,
+          "column": 21
+        },
+        {
+          "kind": "InlineFragment",
+          "name": "Server",
+          "offset": 224,
+          "line": 9,
+          "column": 9
+        },
+        {
+          "kind": "Field",
+          "name": "serverId",
+          "offset": 250,
+          "line": 10,
+          "column": 11
+        },
+        {
+          "kind": "FragmentDefinition",
+          "name": "ServerDetails",
+          "offset": 289,
+          "line": 16,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "createdAt",
+          "offset": 326,
+          "line": 17,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "updatedAt",
+          "offset": 338,
+          "line": 18,
+          "column": 3
+        }
+      ]
+    },
+    {
+      "key": "unused",
+      "path": "nicknamer2/research/graphql_business/disconnected/unused.graphql",
+      "sha256": "bddaaf82d3857b3681f75a9bbeb42676f28622bc901bd6926272c56f0375cecb",
+      "nodes": [
+        {
+          "kind": "OperationDefinition",
+          "name": "DisconnectedBusiness",
+          "offset": 0,
+          "line": 1,
+          "column": 1
+        },
+        {
+          "kind": "Field",
+          "name": "servers",
+          "offset": 31,
+          "line": 2,
+          "column": 3
+        },
+        {
+          "kind": "Field",
+          "name": "totalCount",
+          "offset": 55,
+          "line": 3,
+          "column": 5
+        }
+      ]
+    }
+  ]
+}

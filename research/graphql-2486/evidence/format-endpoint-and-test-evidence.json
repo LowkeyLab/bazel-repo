@@ -1,0 +1,51 @@
+{
+  "canonical_options": [
+    {
+      "combinedForm": "--remote_executor=",
+      "optionName": "remote_executor",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--remote_cache=",
+      "optionName": "remote_cache",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--bes_backend=",
+      "optionName": "bes_backend",
+      "effectTags": ["AFFECTS_OUTPUTS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--remote_upload_local_results=false",
+      "optionName": "remote_upload_local_results",
+      "optionValue": "false",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--jobs=4",
+      "optionName": "jobs",
+      "optionValue": "4",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS", "EXECUTION"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--local_resources=cpu=2",
+      "optionName": "local_resources",
+      "optionValue": "cpu=2",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--local_resources=memory=2048",
+      "optionName": "local_resources",
+      "optionValue": "memory=2048",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS"],
+      "source": "command line options"
+    }
+  ],
+  "tests": []
+}

@@ -1,0 +1,19 @@
+query BusinessSelection($show: Boolean!, $hide: Boolean!) {
+  servers(first: 10) {
+    totalCount
+    edges {
+      node {
+        id
+        ...ServerDetails @include(if: $show)
+        displayName @skip(if: $hide)
+        ... on Server {
+          serverId
+        }
+      }
+    }
+  }
+}
+fragment ServerDetails on Server {
+  createdAt
+  updatedAt
+}

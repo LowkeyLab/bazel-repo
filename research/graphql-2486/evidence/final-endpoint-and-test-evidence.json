@@ -1,0 +1,307 @@
+{
+  "canonical_options": [
+    {
+      "combinedForm": "--remote_executor=",
+      "optionName": "remote_executor",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--remote_cache=",
+      "optionName": "remote_cache",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--bes_backend=",
+      "optionName": "bes_backend",
+      "effectTags": ["AFFECTS_OUTPUTS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--remote_upload_local_results=false",
+      "optionName": "remote_upload_local_results",
+      "optionValue": "false",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--jobs=4",
+      "optionName": "jobs",
+      "optionValue": "4",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS", "EXECUTION"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--local_resources=cpu=2",
+      "optionName": "local_resources",
+      "optionValue": "cpu=2",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--local_resources=memory=2048",
+      "optionName": "local_resources",
+      "optionValue": "memory=2048",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--test_strategy=standalone",
+      "optionName": "test_strategy",
+      "optionValue": "standalone",
+      "effectTags": ["EXECUTION"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--strategy=TestRunner=local",
+      "optionName": "strategy",
+      "optionValue": "TestRunner=local",
+      "effectTags": ["EXECUTION"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--cache_test_results=no",
+      "optionName": "cache_test_results",
+      "optionValue": "no",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    }
+  ],
+  "tests": [
+    {
+      "id": {
+        "testResult": {
+          "label": "//nicknamer2/research/graphql_business:baseline_test",
+          "run": 1,
+          "shard": 1,
+          "attempt": 1,
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testResult": {
+        "testActionOutput": [
+          {
+            "name": "test.log",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/baseline_test/test.log"
+          },
+          {
+            "name": "test.xml",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/baseline_test/test.xml"
+          },
+          {
+            "name": "test.outputs/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/baseline_test/test.outputs/baseline.json"
+          },
+          {
+            "name": "test.outputs/baseline.lcov",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/baseline_test/test.outputs/baseline.lcov"
+          },
+          {
+            "name": "test.outputs_manifest__MANIFEST",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/baseline_test/test.outputs_manifest/MANIFEST"
+          }
+        ],
+        "testAttemptDurationMillis": "126",
+        "status": "PASSED",
+        "testAttemptStartMillisEpoch": "1792494759942",
+        "executionInfo": {
+          "strategy": "local",
+          "hostname": "pc",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0s"
+              },
+              {
+                "name": "setupTime",
+                "time": "0.003s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "0.126s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "0.131s"
+          }
+        },
+        "testAttemptStart": "2026-10-20T11:12:39.942Z",
+        "testAttemptDuration": "0.126s"
+      }
+    },
+    {
+      "id": {
+        "testSummary": {
+          "label": "//nicknamer2/research/graphql_business:baseline_test",
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testSummary": {
+        "totalRunCount": 1,
+        "passed": [
+          {
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/baseline_test/test.log"
+          }
+        ],
+        "overallStatus": "PASSED",
+        "firstStartTimeMillis": "1792494759942",
+        "lastStopTimeMillis": "1792494760068",
+        "totalRunDurationMillis": "126",
+        "runCount": 1,
+        "totalRunDuration": "0.126s",
+        "firstStartTime": "2026-10-20T11:12:39.942Z",
+        "lastStopTime": "2026-10-20T11:12:40.068Z",
+        "attemptCount": 1
+      }
+    },
+    {
+      "id": {
+        "testResult": {
+          "label": "//nicknamer2/research/graphql_business:execute_test",
+          "run": 1,
+          "shard": 1,
+          "attempt": 1,
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testResult": {
+        "testActionOutput": [
+          {
+            "name": "test.log",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.log"
+          },
+          {
+            "name": "test.xml",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.xml"
+          },
+          {
+            "name": "test.outputs/bridge-ready.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.outputs/bridge-ready.json"
+          },
+          {
+            "name": "test.outputs/bridge.stderr.txt",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.outputs/bridge.stderr.txt"
+          },
+          {
+            "name": "test.outputs/completion.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.outputs/completion.json"
+          },
+          {
+            "name": "test.outputs/functional.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.outputs/functional.json"
+          },
+          {
+            "name": "test.outputs/observations.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.outputs/observations.json"
+          },
+          {
+            "name": "test.outputs_manifest__MANIFEST",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.outputs_manifest/MANIFEST"
+          }
+        ],
+        "testAttemptDurationMillis": "2581",
+        "status": "PASSED",
+        "testAttemptStartMillisEpoch": "1792494761495",
+        "executionInfo": {
+          "strategy": "local",
+          "hostname": "pc",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0s"
+              },
+              {
+                "name": "setupTime",
+                "time": "0.003s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "2.581s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "2.585s"
+          }
+        },
+        "testAttemptStart": "2026-10-20T11:12:41.495Z",
+        "testAttemptDuration": "2.581s"
+      }
+    },
+    {
+      "id": {
+        "testSummary": {
+          "label": "//nicknamer2/research/graphql_business:execute_test",
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testSummary": {
+        "totalRunCount": 1,
+        "passed": [
+          {
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.log"
+          }
+        ],
+        "overallStatus": "PASSED",
+        "firstStartTimeMillis": "1792494761495",
+        "lastStopTimeMillis": "1792494764076",
+        "totalRunDurationMillis": "2581",
+        "runCount": 1,
+        "totalRunDuration": "2.581s",
+        "firstStartTime": "2026-10-20T11:12:41.495Z",
+        "lastStopTime": "2026-10-20T11:12:44.076Z",
+        "attemptCount": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+exec ${PAGER:-/usr/bin/less} "$0" || exit 1
+Executing tests from //nicknamer2/research/graphql_business:execute_test
+-----------------------------------------------------------------------------
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found

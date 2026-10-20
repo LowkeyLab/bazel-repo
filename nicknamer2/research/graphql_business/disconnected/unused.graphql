@@ -1,0 +1,5 @@
+query DisconnectedBusiness {
+  servers(first: 1) {
+    totalCount
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "events": {
+    "dispatch": 11,
+    "router-result": 11,
+    "response-field": 89,
+    "directive-decision": 8,
+    "inline-context": 4,
+    "fragment-context": 4
+  },
+  "documents": 8,
+  "candidate_nodes": 77,
+  "candidate_lines": 75
+}

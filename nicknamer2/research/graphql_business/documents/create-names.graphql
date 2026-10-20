@@ -1,0 +1,11 @@
+mutation CreateNames($input: CreateNamesInput!) {
+  createNames(input: $input) {
+    clientMutationId
+    names {
+      id
+      name
+      createdAt
+      updatedAt
+    }
+  }
+}

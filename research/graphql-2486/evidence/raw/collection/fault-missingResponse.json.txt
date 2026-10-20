@@ -1,0 +1,1746 @@
+{
+  "damaged": {
+    "node": "v24.15.0",
+    "graphql": "17.0.2",
+    "records": [
+      {
+        "key": "create-name",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "sha256": "52bd4a12a60dcbc18598506b71a902e38cafaaa4faed333cfb2940e642c1be1a",
+        "nodes": [
+          {
+            "kind": "OperationDefinition",
+            "name": "CreateName",
+            "offset": 0,
+            "line": 1,
+            "column": 1
+          },
+          {
+            "kind": "Field",
+            "name": "createName",
+            "offset": 50,
+            "line": 2,
+            "column": 3
+          },
+          {
+            "kind": "Field",
+            "name": "clientMutationId",
+            "offset": 82,
+            "line": 3,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "name",
+            "offset": 103,
+            "line": 4,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "id",
+            "offset": 116,
+            "line": 5,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "name",
+            "offset": 125,
+            "line": 6,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "createdAt",
+            "offset": 136,
+            "line": 7,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "updatedAt",
+            "offset": 152,
+            "line": 8,
+            "column": 7
+          }
+        ]
+      },
+      {
+        "key": "create-names",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "sha256": "b8749a41cea214c9f41c458fcdd76b847bd8ef035568c62f25d6473e4c9fbf47",
+        "nodes": [
+          {
+            "kind": "OperationDefinition",
+            "name": "CreateNames",
+            "offset": 0,
+            "line": 1,
+            "column": 1
+          },
+          {
+            "kind": "Field",
+            "name": "createNames",
+            "offset": 52,
+            "line": 2,
+            "column": 3
+          },
+          {
+            "kind": "Field",
+            "name": "clientMutationId",
+            "offset": 85,
+            "line": 3,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "names",
+            "offset": 106,
+            "line": 4,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "id",
+            "offset": 120,
+            "line": 5,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "name",
+            "offset": 129,
+            "line": 6,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "createdAt",
+            "offset": 140,
+            "line": 7,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "updatedAt",
+            "offset": 156,
+            "line": 8,
+            "column": 7
+          }
+        ]
+      },
+      {
+        "key": "create-server",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "sha256": "fcfed492536e1abe3397075cdabc3ee94f5b63c659c2713891de22092fd6640e",
+        "nodes": [
+          {
+            "kind": "OperationDefinition",
+            "name": "CreateServer",
+            "offset": 0,
+            "line": 1,
+            "column": 1
+          },
+          {
+            "kind": "Field",
+            "name": "createServer",
+            "offset": 54,
+            "line": 2,
+            "column": 3
+          },
+          {
+            "kind": "Field",
+            "name": "clientMutationId",
+            "offset": 88,
+            "line": 3,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "server",
+            "offset": 109,
+            "line": 4,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "id",
+            "offset": 124,
+            "line": 5,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "serverId",
+            "offset": 133,
+            "line": 6,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "displayName",
+            "offset": 148,
+            "line": 7,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "createdAt",
+            "offset": 166,
+            "line": 8,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "updatedAt",
+            "offset": 182,
+            "line": 9,
+            "column": 7
+          }
+        ]
+      },
+      {
+        "key": "get-dashboard",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "sha256": "4c1337d32baa0427fa285881c792cf4c51c4f0216c45d060b776f09870e52bad",
+        "nodes": [
+          {
+            "kind": "OperationDefinition",
+            "name": "GetDashboard",
+            "offset": 0,
+            "line": 1,
+            "column": 1
+          },
+          {
+            "kind": "Field",
+            "name": "servers",
+            "offset": 37,
+            "line": 2,
+            "column": 3
+          },
+          {
+            "kind": "Field",
+            "name": "totalCount",
+            "offset": 66,
+            "line": 3,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "edges",
+            "offset": 81,
+            "line": 4,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "node",
+            "offset": 95,
+            "line": 5,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "id",
+            "offset": 110,
+            "line": 6,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "serverId",
+            "offset": 121,
+            "line": 7,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "displayName",
+            "offset": 138,
+            "line": 8,
+            "column": 9
+          }
+        ]
+      },
+      {
+        "key": "get-server-names",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "sha256": "308fb46ead05c3e27d9420d3714f9e983c3679775041653d86cd7b56739a8a5a",
+        "nodes": [
+          {
+            "kind": "OperationDefinition",
+            "name": "GetServerNames",
+            "offset": 0,
+            "line": 1,
+            "column": 1
+          },
+          {
+            "kind": "Field",
+            "name": "server",
+            "offset": 65,
+            "line": 2,
+            "column": 3
+          },
+          {
+            "kind": "Field",
+            "name": "id",
+            "offset": 87,
+            "line": 3,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "serverId",
+            "offset": 94,
+            "line": 4,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "names",
+            "offset": 107,
+            "line": 5,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "edges",
+            "offset": 151,
+            "line": 6,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "cursor",
+            "offset": 167,
+            "line": 7,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "node",
+            "offset": 182,
+            "line": 8,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "id",
+            "offset": 199,
+            "line": 9,
+            "column": 11
+          },
+          {
+            "kind": "Field",
+            "name": "name",
+            "offset": 212,
+            "line": 10,
+            "column": 11
+          },
+          {
+            "kind": "Field",
+            "name": "createdAt",
+            "offset": 227,
+            "line": 11,
+            "column": 11
+          },
+          {
+            "kind": "Field",
+            "name": "updatedAt",
+            "offset": 247,
+            "line": 12,
+            "column": 11
+          },
+          {
+            "kind": "Field",
+            "name": "pageInfo",
+            "offset": 281,
+            "line": 15,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "hasNextPage",
+            "offset": 300,
+            "line": 16,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "endCursor",
+            "offset": 320,
+            "line": 17,
+            "column": 9
+          }
+        ]
+      },
+      {
+        "key": "get-servers",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "sha256": "da05894a7222df41880bce3452cea06f02fdf8a093e905c0e737b42f9842986f",
+        "nodes": [
+          {
+            "kind": "OperationDefinition",
+            "name": "GetServers",
+            "offset": 0,
+            "line": 1,
+            "column": 1
+          },
+          {
+            "kind": "Field",
+            "name": "servers",
+            "offset": 51,
+            "line": 2,
+            "column": 3
+          },
+          {
+            "kind": "Field",
+            "name": "edges",
+            "offset": 95,
+            "line": 3,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "cursor",
+            "offset": 109,
+            "line": 4,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "node",
+            "offset": 122,
+            "line": 5,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "id",
+            "offset": 137,
+            "line": 6,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "serverId",
+            "offset": 148,
+            "line": 7,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "displayName",
+            "offset": 165,
+            "line": 8,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "pageInfo",
+            "offset": 195,
+            "line": 11,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "hasNextPage",
+            "offset": 212,
+            "line": 12,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "endCursor",
+            "offset": 230,
+            "line": 13,
+            "column": 7
+          }
+        ]
+      },
+      {
+        "key": "selection",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "sha256": "34d5003bd5d830d0ee61b6b4256820f8da5dc7f0f00193b9470d129d439f5846",
+        "nodes": [
+          {
+            "kind": "OperationDefinition",
+            "name": "BusinessSelection",
+            "offset": 0,
+            "line": 1,
+            "column": 1
+          },
+          {
+            "kind": "Field",
+            "name": "servers",
+            "offset": 62,
+            "line": 2,
+            "column": 3
+          },
+          {
+            "kind": "Field",
+            "name": "totalCount",
+            "offset": 87,
+            "line": 3,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "edges",
+            "offset": 102,
+            "line": 4,
+            "column": 5
+          },
+          {
+            "kind": "Field",
+            "name": "node",
+            "offset": 116,
+            "line": 5,
+            "column": 7
+          },
+          {
+            "kind": "Field",
+            "name": "id",
+            "offset": 131,
+            "line": 6,
+            "column": 9
+          },
+          {
+            "kind": "FragmentSpread",
+            "name": "ServerDetails",
+            "offset": 142,
+            "line": 7,
+            "column": 9
+          },
+          {
+            "kind": "Directive",
+            "name": "include",
+            "offset": 159,
+            "line": 7,
+            "column": 26
+          },
+          {
+            "kind": "Field",
+            "name": "displayName",
+            "offset": 187,
+            "line": 8,
+            "column": 9
+          },
+          {
+            "kind": "Directive",
+            "name": "skip",
+            "offset": 199,
+            "line": 8,
+            "column": 21
+          },
+          {
+            "kind": "InlineFragment",
+            "name": "Server",
+            "offset": 224,
+            "line": 9,
+            "column": 9
+          },
+          {
+            "kind": "Field",
+            "name": "serverId",
+            "offset": 250,
+            "line": 10,
+            "column": 11
+          },
+          {
+            "kind": "FragmentDefinition",
+            "name": "ServerDetails",
+            "offset": 289,
+            "line": 16,
+            "column": 1
+          },
+          {
+            "kind": "Field",
+            "name": "createdAt",
+            "offset": 326,
+            "line": 17,
+            "column": 3
+          },
+          {
+            "kind": "Field",
+            "name": "updatedAt",
+            "offset": 338,
+            "line": 18,
+            "column": 3
+          }
+        ]
+      }
+    ],
+    "events": [
+      {
+        "type": "dispatch",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 0,
+        "operationName": "CreateServer",
+        "variables": {
+          "input": {
+            "discordServerId": "42",
+            "displayName": "Research Server",
+            "clientMutationId": "server"
+          }
+        },
+        "transmittedDocument": "mutation CreateServer($input: CreateServerInput!) {\n  createServer(input: $input) {\n    clientMutationId\n    server {\n      id\n      serverId\n      displayName\n      createdAt\n      updatedAt\n      __typename\n    }\n    __typename\n  }\n}"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 54,
+        "responseKey": "createServer"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 88,
+        "responseKey": "clientMutationId"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 109,
+        "responseKey": "server"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 124,
+        "responseKey": "id"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 133,
+        "responseKey": "serverId"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 148,
+        "responseKey": "displayName"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 166,
+        "responseKey": "createdAt"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-server.graphql",
+        "offset": 182,
+        "responseKey": "updatedAt"
+      },
+      {
+        "type": "dispatch",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "offset": 0,
+        "operationName": "CreateName",
+        "variables": {
+          "input": {
+            "discordId": "100",
+            "discordServerId": "42",
+            "name": "Alpha",
+            "clientMutationId": "name"
+          }
+        },
+        "transmittedDocument": "mutation CreateName($input: CreateNameInput!) {\n  createName(input: $input) {\n    clientMutationId\n    name {\n      id\n      name\n      createdAt\n      updatedAt\n      __typename\n    }\n    __typename\n  }\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "request": {
+          "operationName": "CreateName",
+          "variables": {
+            "input": {
+              "discordId": "100",
+              "discordServerId": "42",
+              "name": "Alpha",
+              "clientMutationId": "name"
+            }
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "mutation CreateName($input: CreateNameInput!) {\n  createName(input: $input) {\n    clientMutationId\n    name {\n      id\n      name\n      createdAt\n      updatedAt\n      __typename\n    }\n    __typename\n  }\n}"
+        },
+        "body": {
+          "data": {
+            "createName": {
+              "__typename": "CreateNamePayload",
+              "clientMutationId": "name",
+              "name": {
+                "__typename": "Name",
+                "createdAt": "2026-10-20T11:12:43.809106Z",
+                "id": "TmFtZToxMDA6NDI=",
+                "name": "Alpha",
+                "updatedAt": "2026-10-20T11:12:43.809106Z"
+              }
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "offset": 50,
+        "responseKey": "createName"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "offset": 82,
+        "responseKey": "clientMutationId"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "offset": 103,
+        "responseKey": "name"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "offset": 116,
+        "responseKey": "id"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "offset": 125,
+        "responseKey": "name"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "offset": 136,
+        "responseKey": "createdAt"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-name.graphql",
+        "offset": 152,
+        "responseKey": "updatedAt"
+      },
+      {
+        "type": "dispatch",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "offset": 0,
+        "operationName": "CreateNames",
+        "variables": {
+          "input": {
+            "discordServerId": "42",
+            "names": [
+              {
+                "discordId": "200",
+                "name": "Beta"
+              }
+            ],
+            "clientMutationId": "batch"
+          }
+        },
+        "transmittedDocument": "mutation CreateNames($input: CreateNamesInput!) {\n  createNames(input: $input) {\n    clientMutationId\n    names {\n      id\n      name\n      createdAt\n      updatedAt\n      __typename\n    }\n    __typename\n  }\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "request": {
+          "operationName": "CreateNames",
+          "variables": {
+            "input": {
+              "discordServerId": "42",
+              "names": [
+                {
+                  "discordId": "200",
+                  "name": "Beta"
+                }
+              ],
+              "clientMutationId": "batch"
+            }
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "mutation CreateNames($input: CreateNamesInput!) {\n  createNames(input: $input) {\n    clientMutationId\n    names {\n      id\n      name\n      createdAt\n      updatedAt\n      __typename\n    }\n    __typename\n  }\n}"
+        },
+        "body": {
+          "data": {
+            "createNames": {
+              "__typename": "CreateNamesPayload",
+              "clientMutationId": "batch",
+              "names": [
+                {
+                  "__typename": "Name",
+                  "createdAt": "2026-10-20T11:12:43.811341Z",
+                  "id": "TmFtZToyMDA6NDI=",
+                  "name": "Beta",
+                  "updatedAt": "2026-10-20T11:12:43.811341Z"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "offset": 52,
+        "responseKey": "createNames"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "offset": 85,
+        "responseKey": "clientMutationId"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "offset": 106,
+        "responseKey": "names"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "offset": 120,
+        "responseKey": "id"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "offset": 129,
+        "responseKey": "name"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "offset": 140,
+        "responseKey": "createdAt"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/create-names.graphql",
+        "offset": 156,
+        "responseKey": "updatedAt"
+      },
+      {
+        "type": "dispatch",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 0,
+        "operationName": "GetDashboard",
+        "variables": {
+          "first": 10
+        },
+        "transmittedDocument": "query GetDashboard($first: Int!) {\n  servers(first: $first) {\n    totalCount\n    edges {\n      node {\n        id\n        serverId\n        displayName\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "request": {
+          "operationName": "GetDashboard",
+          "variables": {
+            "first": 10
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "query GetDashboard($first: Int!) {\n  servers(first: $first) {\n    totalCount\n    edges {\n      node {\n        id\n        serverId\n        displayName\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}"
+        },
+        "body": {
+          "data": {
+            "servers": {
+              "__typename": "ServerConnection",
+              "edges": [
+                {
+                  "__typename": "ServerEdge",
+                  "node": {
+                    "__typename": "Server",
+                    "displayName": "Research Server",
+                    "id": "U2VydmVyOjQy",
+                    "serverId": "42"
+                  }
+                }
+              ],
+              "totalCount": 1
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 37,
+        "responseKey": "servers"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 66,
+        "responseKey": "totalCount"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 81,
+        "responseKey": "edges"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 95,
+        "responseKey": "node"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 110,
+        "responseKey": "id"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 121,
+        "responseKey": "serverId"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 138,
+        "responseKey": "displayName"
+      },
+      {
+        "type": "dispatch",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 0,
+        "operationName": "GetServers",
+        "variables": {
+          "first": 10
+        },
+        "transmittedDocument": "query GetServers($first: Int!, $after: String) {\n  servers(first: $first, after: $after) {\n    edges {\n      cursor\n      node {\n        id\n        serverId\n        displayName\n        __typename\n      }\n      __typename\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n      __typename\n    }\n    __typename\n  }\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "request": {
+          "operationName": "GetServers",
+          "variables": {
+            "first": 10
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "query GetServers($first: Int!, $after: String) {\n  servers(first: $first, after: $after) {\n    edges {\n      cursor\n      node {\n        id\n        serverId\n        displayName\n        __typename\n      }\n      __typename\n    }\n    pageInfo {\n      hasNextPage\n      endCursor\n      __typename\n    }\n    __typename\n  }\n}"
+        },
+        "body": {
+          "data": {
+            "servers": {
+              "__typename": "ServerConnection",
+              "edges": [
+                {
+                  "__typename": "ServerEdge",
+                  "cursor": "eyJzZXJ2ZXJfaWQiOjQyfQ==",
+                  "node": {
+                    "__typename": "Server",
+                    "displayName": "Research Server",
+                    "id": "U2VydmVyOjQy",
+                    "serverId": "42"
+                  }
+                }
+              ],
+              "pageInfo": {
+                "__typename": "PageInfo",
+                "endCursor": "eyJzZXJ2ZXJfaWQiOjQyfQ==",
+                "hasNextPage": false
+              }
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 51,
+        "responseKey": "servers"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 95,
+        "responseKey": "edges"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 109,
+        "responseKey": "cursor"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 122,
+        "responseKey": "node"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 137,
+        "responseKey": "id"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 148,
+        "responseKey": "serverId"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 165,
+        "responseKey": "displayName"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 195,
+        "responseKey": "pageInfo"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 212,
+        "responseKey": "hasNextPage"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-servers.graphql",
+        "offset": 230,
+        "responseKey": "endCursor"
+      },
+      {
+        "type": "dispatch",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 0,
+        "operationName": "GetServerNames",
+        "variables": {
+          "id": "42",
+          "first": 10
+        },
+        "transmittedDocument": "query GetServerNames($id: ID!, $first: Int!, $after: String) {\n  server(id: $id) {\n    id\n    serverId\n    names(first: $first, after: $after) {\n      edges {\n        cursor\n        node {\n          id\n          name\n          createdAt\n          updatedAt\n          __typename\n        }\n        __typename\n      }\n      pageInfo {\n        hasNextPage\n        endCursor\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "request": {
+          "operationName": "GetServerNames",
+          "variables": {
+            "id": "42",
+            "first": 10
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "query GetServerNames($id: ID!, $first: Int!, $after: String) {\n  server(id: $id) {\n    id\n    serverId\n    names(first: $first, after: $after) {\n      edges {\n        cursor\n        node {\n          id\n          name\n          createdAt\n          updatedAt\n          __typename\n        }\n        __typename\n      }\n      pageInfo {\n        hasNextPage\n        endCursor\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}"
+        },
+        "body": {
+          "data": {
+            "server": {
+              "__typename": "Server",
+              "id": "U2VydmVyOjQy",
+              "names": {
+                "__typename": "NameConnection",
+                "edges": [
+                  {
+                    "__typename": "NameEdge",
+                    "cursor": "eyJkaXNjb3JkX2lkIjoxMDB9",
+                    "node": {
+                      "__typename": "Name",
+                      "createdAt": "2026-10-20T11:12:43.809106Z",
+                      "id": "TmFtZToxMDA6NDI=",
+                      "name": "Alpha",
+                      "updatedAt": "2026-10-20T11:12:43.809106Z"
+                    }
+                  },
+                  {
+                    "__typename": "NameEdge",
+                    "cursor": "eyJkaXNjb3JkX2lkIjoyMDB9",
+                    "node": {
+                      "__typename": "Name",
+                      "createdAt": "2026-10-20T11:12:43.811341Z",
+                      "id": "TmFtZToyMDA6NDI=",
+                      "name": "Beta",
+                      "updatedAt": "2026-10-20T11:12:43.811341Z"
+                    }
+                  }
+                ],
+                "pageInfo": {
+                  "__typename": "PageInfo",
+                  "endCursor": "eyJkaXNjb3JkX2lkIjoyMDB9",
+                  "hasNextPage": false
+                }
+              },
+              "serverId": "42"
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 65,
+        "responseKey": "server"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 87,
+        "responseKey": "id"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 94,
+        "responseKey": "serverId"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 107,
+        "responseKey": "names"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 151,
+        "responseKey": "edges"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 167,
+        "responseKey": "cursor"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 182,
+        "responseKey": "node"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 199,
+        "responseKey": "id"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 212,
+        "responseKey": "name"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 227,
+        "responseKey": "createdAt"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 247,
+        "responseKey": "updatedAt"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 167,
+        "responseKey": "cursor"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 182,
+        "responseKey": "node"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 199,
+        "responseKey": "id"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 212,
+        "responseKey": "name"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 227,
+        "responseKey": "createdAt"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 247,
+        "responseKey": "updatedAt"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 281,
+        "responseKey": "pageInfo"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 300,
+        "responseKey": "hasNextPage"
+      },
+      {
+        "type": "response-field",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-server-names.graphql",
+        "offset": 320,
+        "responseKey": "endCursor"
+      },
+      {
+        "type": "dispatch",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "offset": 0,
+        "operationName": "GetDashboard",
+        "variables": {
+          "first": 0
+        },
+        "transmittedDocument": "query GetDashboard($first: Int!) {\n  servers(first: $first) {\n    totalCount\n    edges {\n      node {\n        id\n        serverId\n        displayName\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "angular/projects/nicknamer2-web/src/app/graphql/get-dashboard.graphql",
+        "request": {
+          "operationName": "GetDashboard",
+          "variables": {
+            "first": 0
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "query GetDashboard($first: Int!) {\n  servers(first: $first) {\n    totalCount\n    edges {\n      node {\n        id\n        serverId\n        displayName\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}"
+        },
+        "body": {
+          "data": null,
+          "errors": [
+            {
+              "locations": [
+                {
+                  "column": 3,
+                  "line": 2
+                }
+              ],
+              "message": "Argument 'first' must be at least 1, got 0",
+              "path": [
+                "servers"
+              ]
+            }
+          ]
+        },
+        "status": 200
+      },
+      {
+        "type": "dispatch",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 0,
+        "operationName": "BusinessSelection",
+        "variables": {
+          "show": false,
+          "hide": false
+        },
+        "transmittedDocument": "query BusinessSelection($show: Boolean!, $hide: Boolean!) {\n  servers(first: 10) {\n    totalCount\n    edges {\n      node {\n        id\n        ...ServerDetails @include(if: $show)\n        displayName @skip(if: $hide)\n        ... on Server {\n          serverId\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment ServerDetails on Server {\n  createdAt\n  updatedAt\n  __typename\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "request": {
+          "operationName": "BusinessSelection",
+          "variables": {
+            "show": false,
+            "hide": false
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "query BusinessSelection($show: Boolean!, $hide: Boolean!) {\n  servers(first: 10) {\n    totalCount\n    edges {\n      node {\n        id\n        ...ServerDetails @include(if: $show)\n        displayName @skip(if: $hide)\n        ... on Server {\n          serverId\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment ServerDetails on Server {\n  createdAt\n  updatedAt\n  __typename\n}"
+        },
+        "body": {
+          "data": {
+            "servers": {
+              "__typename": "ServerConnection",
+              "edges": [
+                {
+                  "__typename": "ServerEdge",
+                  "node": {
+                    "__typename": "Server",
+                    "displayName": "Research Server",
+                    "id": "U2VydmVyOjQy",
+                    "serverId": "42"
+                  }
+                }
+              ],
+              "totalCount": 1
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 62,
+        "responseKey": "servers"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 87,
+        "responseKey": "totalCount"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 102,
+        "responseKey": "edges"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 116,
+        "responseKey": "node"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 131,
+        "responseKey": "id"
+      },
+      {
+        "type": "directive-decision",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 159,
+        "value": false
+      },
+      {
+        "type": "directive-decision",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 199,
+        "value": false
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 187,
+        "responseKey": "displayName"
+      },
+      {
+        "type": "inline-context",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 224
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 250,
+        "responseKey": "serverId"
+      },
+      {
+        "type": "dispatch",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 0,
+        "operationName": "BusinessSelection",
+        "variables": {
+          "show": true,
+          "hide": false
+        },
+        "transmittedDocument": "query BusinessSelection($show: Boolean!, $hide: Boolean!) {\n  servers(first: 10) {\n    totalCount\n    edges {\n      node {\n        id\n        ...ServerDetails @include(if: $show)\n        displayName @skip(if: $hide)\n        ... on Server {\n          serverId\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment ServerDetails on Server {\n  createdAt\n  updatedAt\n  __typename\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "request": {
+          "operationName": "BusinessSelection",
+          "variables": {
+            "show": true,
+            "hide": false
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "query BusinessSelection($show: Boolean!, $hide: Boolean!) {\n  servers(first: 10) {\n    totalCount\n    edges {\n      node {\n        id\n        ...ServerDetails @include(if: $show)\n        displayName @skip(if: $hide)\n        ... on Server {\n          serverId\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment ServerDetails on Server {\n  createdAt\n  updatedAt\n  __typename\n}"
+        },
+        "body": {
+          "data": {
+            "servers": {
+              "__typename": "ServerConnection",
+              "edges": [
+                {
+                  "__typename": "ServerEdge",
+                  "node": {
+                    "__typename": "Server",
+                    "createdAt": "2026-10-20T11:12:43.766539Z",
+                    "displayName": "Research Server",
+                    "id": "U2VydmVyOjQy",
+                    "serverId": "42",
+                    "updatedAt": "2026-10-20T11:12:43.766539Z"
+                  }
+                }
+              ],
+              "totalCount": 1
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 62,
+        "responseKey": "servers"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 87,
+        "responseKey": "totalCount"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 102,
+        "responseKey": "edges"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 116,
+        "responseKey": "node"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 131,
+        "responseKey": "id"
+      },
+      {
+        "type": "directive-decision",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 159,
+        "value": true
+      },
+      {
+        "type": "fragment-context",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 142
+      },
+      {
+        "type": "fragment-context",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 289
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 326,
+        "responseKey": "createdAt"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 338,
+        "responseKey": "updatedAt"
+      },
+      {
+        "type": "directive-decision",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 199,
+        "value": false
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 187,
+        "responseKey": "displayName"
+      },
+      {
+        "type": "inline-context",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 224
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 250,
+        "responseKey": "serverId"
+      },
+      {
+        "type": "dispatch",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 0,
+        "operationName": "BusinessSelection",
+        "variables": {
+          "show": true,
+          "hide": true
+        },
+        "transmittedDocument": "query BusinessSelection($show: Boolean!, $hide: Boolean!) {\n  servers(first: 10) {\n    totalCount\n    edges {\n      node {\n        id\n        ...ServerDetails @include(if: $show)\n        displayName @skip(if: $hide)\n        ... on Server {\n          serverId\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment ServerDetails on Server {\n  createdAt\n  updatedAt\n  __typename\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "request": {
+          "operationName": "BusinessSelection",
+          "variables": {
+            "show": true,
+            "hide": true
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "query BusinessSelection($show: Boolean!, $hide: Boolean!) {\n  servers(first: 10) {\n    totalCount\n    edges {\n      node {\n        id\n        ...ServerDetails @include(if: $show)\n        displayName @skip(if: $hide)\n        ... on Server {\n          serverId\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment ServerDetails on Server {\n  createdAt\n  updatedAt\n  __typename\n}"
+        },
+        "body": {
+          "data": {
+            "servers": {
+              "__typename": "ServerConnection",
+              "edges": [
+                {
+                  "__typename": "ServerEdge",
+                  "node": {
+                    "__typename": "Server",
+                    "createdAt": "2026-10-20T11:12:43.766539Z",
+                    "id": "U2VydmVyOjQy",
+                    "serverId": "42",
+                    "updatedAt": "2026-10-20T11:12:43.766539Z"
+                  }
+                }
+              ],
+              "totalCount": 1
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 62,
+        "responseKey": "servers"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 87,
+        "responseKey": "totalCount"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 102,
+        "responseKey": "edges"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 116,
+        "responseKey": "node"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 131,
+        "responseKey": "id"
+      },
+      {
+        "type": "directive-decision",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 159,
+        "value": true
+      },
+      {
+        "type": "fragment-context",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 142
+      },
+      {
+        "type": "fragment-context",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 289
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 326,
+        "responseKey": "createdAt"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 338,
+        "responseKey": "updatedAt"
+      },
+      {
+        "type": "directive-decision",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 199,
+        "value": true
+      },
+      {
+        "type": "inline-context",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 224
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 250,
+        "responseKey": "serverId"
+      },
+      {
+        "type": "dispatch",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 0,
+        "operationName": "BusinessSelection",
+        "variables": {
+          "show": false,
+          "hide": true
+        },
+        "transmittedDocument": "query BusinessSelection($show: Boolean!, $hide: Boolean!) {\n  servers(first: 10) {\n    totalCount\n    edges {\n      node {\n        id\n        ...ServerDetails @include(if: $show)\n        displayName @skip(if: $hide)\n        ... on Server {\n          serverId\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment ServerDetails on Server {\n  createdAt\n  updatedAt\n  __typename\n}"
+      },
+      {
+        "type": "router-result",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "request": {
+          "operationName": "BusinessSelection",
+          "variables": {
+            "show": false,
+            "hide": true
+          },
+          "extensions": {
+            "clientLibrary": {
+              "name": "@apollo/client",
+              "version": "4.3.4"
+            }
+          },
+          "query": "query BusinessSelection($show: Boolean!, $hide: Boolean!) {\n  servers(first: 10) {\n    totalCount\n    edges {\n      node {\n        id\n        ...ServerDetails @include(if: $show)\n        displayName @skip(if: $hide)\n        ... on Server {\n          serverId\n          __typename\n        }\n        __typename\n      }\n      __typename\n    }\n    __typename\n  }\n}\n\nfragment ServerDetails on Server {\n  createdAt\n  updatedAt\n  __typename\n}"
+        },
+        "body": {
+          "data": {
+            "servers": {
+              "__typename": "ServerConnection",
+              "edges": [
+                {
+                  "__typename": "ServerEdge",
+                  "node": {
+                    "__typename": "Server",
+                    "id": "U2VydmVyOjQy",
+                    "serverId": "42"
+                  }
+                }
+              ],
+              "totalCount": 1
+            }
+          }
+        },
+        "status": 200
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 62,
+        "responseKey": "servers"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 87,
+        "responseKey": "totalCount"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 102,
+        "responseKey": "edges"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 116,
+        "responseKey": "node"
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 131,
+        "responseKey": "id"
+      },
+      {
+        "type": "directive-decision",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 159,
+        "value": false
+      },
+      {
+        "type": "directive-decision",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 199,
+        "value": true
+      },
+      {
+        "type": "inline-context",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 224
+      },
+      {
+        "type": "response-field",
+        "path": "nicknamer2/research/graphql_business/selection.graphql",
+        "offset": 250,
+        "responseKey": "serverId"
+      }
+    ]
+  },
+  "completion": {
+    "functional": true,
+    "profile_sha256": "9cc99c5878002e59465f05aa6fa8d3b50882c369015756282cd138b8a00a661b"
+  }
+}

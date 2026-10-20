@@ -1,0 +1,98 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a' is dirty
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 99fb9361b60ef8626fc1c7728d5284c93a45de57..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  MODULE.bazel [+1 / -1] (changed)
+  nicknamer2/research/graphql_business/BUILD.bazel [+81 / -0] (changed)
+  nicknamer2/research/graphql_business/bridge.rs [+78 / -0] (changed)
+  nicknamer2/research/graphql_business/disconnected/unused.graphql [+5 / -0] (changed)
+  nicknamer2/research/graphql_business/documents/create-name.graphql [+11 / -0] (changed)
+  nicknamer2/research/graphql_business/documents/create-names.graphql [+11 / -0] (changed)
+  nicknamer2/research/graphql_business/documents/create-server.graphql [+12 / -0] (changed)
+  nicknamer2/research/graphql_business/documents/get-dashboard.graphql [+12 / -0] (changed)
+  nicknamer2/research/graphql_business/documents/get-server-names.graphql [+21 / -0] (changed)
+  nicknamer2/research/graphql_business/documents/get-servers.graphql [+16 / -0] (changed)
+  nicknamer2/research/graphql_business/probe.mjs [+538 / -0] (changed)
+  nicknamer2/research/graphql_business/selection.graphql [+19 / -0] (changed)
+  research/graphql-2486/evidence/fifth-test.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/fifth-test.stderr [+31 / -0] (changed)
+  research/graphql-2486/evidence/fifth-test.stdout [+6 / -0] (changed)
+  research/graphql-2486/evidence/first-test.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/first-test.stderr [+15 / -0] (changed)
+  research/graphql-2486/evidence/fourth-test.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/fourth-test.stderr [+107 / -0] (changed)
+  research/graphql-2486/evidence/fourth-test.stdout [+29 / -0] (changed)
+  research/graphql-2486/evidence/gazelle-bridge.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/gazelle-bridge.stderr [+34 / -0] (changed)
+  research/graphql-2486/evidence/gazelle-limits.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/gazelle-limits.stderr [+32 / -0] (changed)
+  research/graphql-2486/evidence/gazelle-probe.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/gazelle-probe.stderr [+31 / -0] (changed)
+  research/graphql-2486/evidence/gazelle-semantics.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/gazelle-semantics.stderr [+33 / -0] (changed)
+  research/graphql-2486/evidence/maintained-source-inventory.json [+32 / -0] (changed)
+  research/graphql-2486/evidence/sandbox-network-failure.log.txt [+24 / -0] (changed)
+  research/graphql-2486/evidence/second-test.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/second-test.stderr [+90 / -0] (changed)
+  research/graphql-2486/evidence/third-test.exit [+1 / -0] (changed)
+  research/graphql-2486/evidence/third-test.stderr [+16 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build options --java_language_version, --java_runtime_version, --tool_java_language_version, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: 4 targets (0 packages loaded, 0 targets configured)
+Analyzing: 4 targets (2 packages loaded, 140041 targets configured, 172 aspect applications)
+INFO: Analyzed 4 targets (2 packages loaded, 188762 targets configured, 2301 aspect applications).
+INFO: Found 4 targets...
+[0 / 1] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[4,713 / 4,722] Clippy //nicknamer2/src/graphql:graphql_model; 0s linux-sandbox ... (4 actions, 3 running)
+INFO: From Action nicknamer2/research/graphql_business/bridge.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+Aspect //tools/lint:linters.bzl%keep_sorted of //nicknamer2/research/graphql_business:collect up-to-date:
+  bazel-bin/nicknamer2/research/graphql_business/collect.AspectRulesLintKeepSorted.report
+  bazel-bin/nicknamer2/research/graphql_business/collect.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%clippy of //nicknamer2/research/graphql_business:bridge up-to-date:
+  bazel-bin/nicknamer2/research/graphql_business/bridge.AspectRulesLintClippy.report
+  bazel-bin/nicknamer2/research/graphql_business/bridge.AspectRulesLintClippy.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //nicknamer2/research/graphql_business:unused_input up-to-date:
+  bazel-bin/nicknamer2/research/graphql_business/unused_input.AspectRulesLintKeepSorted.report
+  bazel-bin/nicknamer2/research/graphql_business/unused_input.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //nicknamer2/research/graphql_business:bridge up-to-date:
+  bazel-bin/nicknamer2/research/graphql_business/bridge.AspectRulesLintKeepSorted.report
+  bazel-bin/nicknamer2/research/graphql_business/bridge.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //nicknamer2/research/graphql_business:selected_inputs up-to-date:
+  bazel-bin/nicknamer2/research/graphql_business/selected_inputs.AspectRulesLintKeepSorted.report
+  bazel-bin/nicknamer2/research/graphql_business/selected_inputs.AspectRulesLintKeepSorted.report.exit_code
+INFO: Elapsed time: 4.996s, Critical Path: 0.62s
+INFO: 33 processes: 4689 action cache hit, 1 internal, 32 linux-sandbox.
+INFO: Build completed successfully, 33 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (2): Clippy, KeepSorted
+
+→ ✅ Passed lint task in 5.6s · No findings
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  264ms  Detect changed files
+    🔬 Lint     5.3s  Run lint aspects
+    🔎 Filter    2ms  Filter diagnostics

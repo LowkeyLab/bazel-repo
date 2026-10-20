@@ -1,0 +1,12 @@
+query GetDashboard($first: Int!) {
+  servers(first: $first) {
+    totalCount
+    edges {
+      node {
+        id
+        serverId
+        displayName
+      }
+    }
+  }
+}

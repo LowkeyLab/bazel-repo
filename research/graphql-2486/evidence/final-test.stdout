@@ -1,0 +1,6 @@
+//nicknamer2/research/graphql_business:baseline_test                     PASSED in 0.1s
+  WARNING: //nicknamer2/research/graphql_business:baseline_test: Test execution time (0.1s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//nicknamer2/research/graphql_business:execute_test                      PASSED in 2.6s
+  WARNING: //nicknamer2/research/graphql_business:execute_test: Test execution time (2.6s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+
+Executed 2 out of 2 tests: 2 tests pass.

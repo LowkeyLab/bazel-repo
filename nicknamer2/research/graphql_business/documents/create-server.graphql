@@ -1,0 +1,12 @@
+mutation CreateServer($input: CreateServerInput!) {
+  createServer(input: $input) {
+    clientMutationId
+    server {
+      id
+      serverId
+      displayName
+      createdAt
+      updatedAt
+    }
+  }
+}

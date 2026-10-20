@@ -1,0 +1,7 @@
+{
+  "container": "c29e50383f72d8411fe5b709a584374f179dd04bfdd4a9d6ee9515be96408f4e",
+  "memory": 536870912,
+  "nano_cpus": 1000000000,
+  "path": "Apollo/HttpLink -> Axum oneshot -> Juniper -> services -> PostgreSQL",
+  "ready": true
+}

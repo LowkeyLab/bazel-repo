@@ -1,0 +1,35 @@
+[
+  {
+    "name": "noFields",
+    "rejected": true,
+    "functionalStillPassed": true
+  },
+  {
+    "name": "noFragments",
+    "rejected": true,
+    "functionalStillPassed": true
+  },
+  {
+    "name": "noDirectives",
+    "rejected": true,
+    "functionalStillPassed": true
+  },
+  {
+    "name": "missingResponse",
+    "rejected": true,
+    "functionalStillPassed": true
+  },
+  {
+    "name": "wrongSource",
+    "rejected": true,
+    "functionalStillPassed": true
+  },
+  {
+    "name": "incomplete",
+    "rejected": true
+  },
+  {
+    "name": "corruptHash",
+    "rejected": true
+  }
+]

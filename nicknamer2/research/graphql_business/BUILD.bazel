@@ -1,0 +1,81 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_test")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
+
+# gazelle:ignore
+
+rust_binary(
+    name = "bridge",
+    testonly = True,
+    srcs = ["bridge.rs"],
+    crate_root = "bridge.rs",
+    deps = [
+        "//nicknamer2/src/auth:auth_claims",
+        "//nicknamer2/src/discord_server:discord_server_repo",
+        "//nicknamer2/src/discord_server:discord_server_service",
+        "//nicknamer2/src/graphql:graphql_schema",
+        "//nicknamer2/src/migrations",
+        "//nicknamer2/src/name:name_repo",
+        "//nicknamer2/src/name:name_service",
+        "//nicknamer2/src/server",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:axum",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:tower",
+    ],
+)
+
+copy_to_bin(
+    name = "selected_inputs",
+    srcs = glob(["documents/*.graphql"]) + ["selection.graphql"],
+)
+
+copy_to_bin(
+    name = "unused_input",
+    srcs = ["disconnected/unused.graphql"],
+)
+
+js_test(
+    name = "execute_test",
+    args = [
+        "execute",
+        "$(rootpath :bridge)",
+    ],
+    data = [
+        ":bridge",
+        ":selected_inputs",
+        "//angular:node_modules/@apollo/client",
+        "//angular:node_modules/graphql",
+    ] + image_data("postgres_18"),
+    entry_point = "probe.mjs",
+    env = image_env("postgres_18") | {"TESTCONTAINERS_RYUK_DISABLED": "true"},
+    tags = ["manual"],
+)
+
+js_test(
+    name = "baseline_test",
+    args = ["baseline"],
+    data = [
+        ":selected_inputs",
+        ":unused_input",
+        "//angular:node_modules/graphql",
+    ],
+    entry_point = "probe.mjs",
+    tags = ["manual"],
+)
+
+js_binary(
+    name = "collect",
+    args = ["collect"],
+    data = [
+        ":selected_inputs",
+        ":unused_input",
+        "//angular:node_modules/graphql",
+    ],
+    entry_point = "probe.mjs",
+)

@@ -1,0 +1,29 @@
+==================== Test output for //nicknamer2/research/graphql_business:execute_test:
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Error: pool timed out while waiting for an open connection
+
+
+true !== false
+
+    at next (file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/sandbox/linux-sandbox/5763/execroot/_main/bazel-out/k8-fastbuild/bin/nicknamer2/research/graphql_business/execute_test_/execute_test.runfiles/_main/nicknamer2/research/graphql_business/probe.mjs:89:61)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/sandbox/linux-sandbox/5763/execroot/_main/bazel-out/k8-fastbuild/bin/nicknamer2/research/graphql_business/execute_test_/execute_test.runfiles/_main/nicknamer2/research/graphql_business/probe.mjs:90:17 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: true,
+  expected: false,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.15.0
+================================================================================
+//nicknamer2/research/graphql_business:baseline_test                     PASSED in 0.1s
+  WARNING: //nicknamer2/research/graphql_business:baseline_test: Test execution time (0.1s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//nicknamer2/research/graphql_business:execute_test                      FAILED in 32.9s
+  /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.log
+
+Executed 2 out of 2 tests: 1 test passes and 1 fails locally.

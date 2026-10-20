@@ -1,0 +1,34 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build options --java_language_version, --java_runtime_version, --tool_java_language_version, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //:gazelle (1 packages loaded, 0 targets configured)
+Analyzing: target //:gazelle (2 packages loaded, 115702 targets configured, 95 aspect applications)
+INFO: Analyzed target //:gazelle (2 packages loaded, 188562 targets configured, 634 aspect applications).
+INFO: Found 1 target...
+[3 / 55] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[4,546 / 4,567] [Prepa] Extracting interfaces from external/rules_java+/toolchains/platformclasspath_unstripped.jar
+Target //:gazelle up-to-date:
+  bazel-bin/gazelle-runner.bash
+  bazel-bin/gazelle
+INFO: Elapsed time: 5.736s, Critical Path: 1.43s
+INFO: 3 processes: 4564 action cache hit, 1 internal, 2 linux-sandbox.
+INFO: Build completed successfully, 3 total actions
+INFO: Running command line: bazel-bin/gazelle
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.PlatformDependent0$4 (file:/home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/bin/external/rules_jvm_external++maven+contrib_rules_jvm_deps/io/netty/netty-common/4.1.110.Final/processed_netty-common-4.1.110.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$4
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release

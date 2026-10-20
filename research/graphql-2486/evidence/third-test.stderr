@@ -1,0 +1,16 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 2 targets (1 packages loaded, 0 targets configured)
+INFO: Analyzed 2 targets (2 packages loaded, 15 targets configured).
+INFO: Found 2 test targets...
+ERROR: No context of type TestActionContext registered for requested value 'local', available identifiers are: [exclusive, standalone]
+unused [interface com.google.devtools.build.lib.analysis.test.TestActionContext]
+INFO: Elapsed time: 0.991s, Critical Path: 0.00s
+INFO: 0 processes.
+ERROR: Build did NOT complete successfully
+
+ERROR: Couldn't start the build. Unable to run tests
+INFO: Build Event Protocol files produced successfully.

@@ -1,0 +1,28 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target //nicknamer2/research/graphql_business:collect (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //nicknamer2/research/graphql_business:collect (1 packages loaded, 1 target configured).
+INFO: Found 1 target...
+[1 / 7] [Prepa] Expanding template nicknamer2/research/graphql_business/collect_/collect
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //nicknamer2/research/graphql_business:collect up-to-date:
+  bazel-bin/nicknamer2/research/graphql_business/collect_/collect
+INFO: Elapsed time: 1.169s, Critical Path: 0.01s
+INFO: 5 processes: 1 action cache hit, 5 internal.
+INFO: Build completed successfully, 5 total actions
+INFO: Running command line: bazel-bin/nicknamer2/research/graphql_business/collect_/collect collect <args omitted>

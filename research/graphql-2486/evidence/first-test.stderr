@@ -1,0 +1,15 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 2 targets (1 packages loaded, 0 targets configured)
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a/nicknamer2/research/graphql_business/BUILD.bazel:8:12: in rust_binary rule //nicknamer2/research/graphql_business:bridge: non-test target '//nicknamer2/research/graphql_business:bridge' depends on testonly target '//test_images/rust:test_images' and doesn't have testonly attribute set
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a/nicknamer2/research/graphql_business/BUILD.bazel:8:12: Analysis of target '//nicknamer2/research/graphql_business:bridge' (config: 5912237) failed
+ERROR: Analysis of target '//nicknamer2/research/graphql_business:execute_test' failed; build aborted: Analysis failed
+INFO: Elapsed time: 1.419s
+INFO: 0 processes.
+ERROR: Build did NOT complete successfully
+Loading: 129 packages loaded
+ERROR: Couldn't start the build. Unable to run tests
+INFO: Build Event Protocol files produced successfully.

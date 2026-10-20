@@ -1,0 +1,107 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 2 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 2 targets (1 packages loaded, 0 targets configured).
+INFO: Found 2 test targets...
+[0 / 8] [Prepa] Expanding template nicknamer2/research/graphql_business/execute_test_/execute_test ... (2 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[2,013 / 2,095] 1 / 2 tests; Compiling Rust bin @@rules_rs++crate+crates__httparse-1.10.1//:_bs_ (12 files) [for tool]; 0s linux-sandbox ... (3 actions running)
+[2,281 / 2,787] 1 / 2 tests; Compiling Rust bin @@rules_rs++crate+crates__rust_decimal-1.43.0//:_bs_ (39 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[2,323 / 2,807] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__regex-syntax-0.8.11//:regex-syntax v0.8.11 (34 files) [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[2,330 / 2,813] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__darling_core-0.24.1//:darling_core v0.24.1 (79 files) [for tool]; 1s linux-sandbox ... (4 actions, 2 running)
+[2,333 / 2,813] 1 / 2 tests; Generating Rust bindings for ../rules_rs++crate+crates__aws-lc-sys-0.46.0/include/rust_wrapper.h; 1s linux-sandbox ... (4 actions, 3 running)
+INFO: From Generating Rust bindings for ../rules_rs++crate+crates__aws-lc-sys-0.46.0/include/rust_wrapper.h:
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+clang diag: warning: redefining builtin macro [-Wbuiltin-macro-redefined]
+[2,340 / 2,813] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__regex-automata-0.4.18//:regex-automata v0.4.18 (100 files) [for tool]; 2s linux-sandbox ... (4 actions, 2 running)
+[2,349 / 2,813] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__serde_with_macros-3.24.0//:serde_with_macros v3.24.0 (10 files) [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[2,359 / 2,844] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__async-trait-0.1.92//:async-trait v0.1.92 (27 files) [for tool]; 2s linux-sandbox ... (4 actions, 2 running)
+[2,364 / 2,886] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__async-trait-0.1.92//:async-trait v0.1.92 (27 files) [for tool]; 3s linux-sandbox ... (4 actions, 3 running)
+[2,374 / 2,902] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__async-trait-0.1.92//:async-trait v0.1.92 (27 files) [for tool]; 4s linux-sandbox ... (4 actions, 3 running)
+[2,809 / 3,422] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__zerotrie-0.2.5//:zerotrie v0.2.5 (33 files) [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[2,826 / 3,489] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__uuid-1.28.0//:uuid v1.28.0 (23 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[2,854 / 3,510] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__deranged-0.5.9//:deranged v0.5.9 (3 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[2,864 / 3,511] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__time-0.3.55//:time v0.3.55 (164 files) [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[2,876 / 3,516] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__futures-intrusive-0.5.0//:futures-intrusive v0.5.0 (35 files) [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[2,905 / 3,537] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__url-2.5.8//:url v2.5.8 (9 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[2,914 / 3,538] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__num-traits-0.2.19//:num-traits v0.2.19 (21 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[2,917 / 3,538] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__auto_enums-0.8.10//:auto_enums v0.8.10 (113 files) [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[2,935 / 3,542] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__auto_enums-0.8.10//:auto_enums v0.8.10 (113 files) [for tool]; 2s linux-sandbox ... (4 actions, 3 running)
+[2,946 / 3,545] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__sha2-0.10.9//:sha2 v0.10.9 (17 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[2,951 / 3,545] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__sqlx-core-0.9.0//:sqlx-core v0.9.0 (103 files) [for tool]; 0s linux-sandbox ... (4 actions, 2 running)
+[2,961 / 3,614] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__derive_more-impl-2.1.1//:derive_more-impl v2.1.1 (35 files) [for tool]; 1s linux-sandbox ... (3 actions, 2 running)
+[3,033 / 3,621] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__derive_more-impl-2.1.1//:derive_more-impl v2.1.1 (35 files) [for tool]; 3s linux-sandbox ... (4 actions, 3 running)
+[3,045 / 3,621] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__sqlx-postgres-0.9.0//:sqlx-postgres v0.9.0 (110 files) [for tool]; 2s linux-sandbox ... (4 actions, 2 running)
+[3,045 / 3,621] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__sqlx-postgres-0.9.0//:sqlx-postgres v0.9.0 (110 files) [for tool]; 4s linux-sandbox ... (4 actions, 3 running)
+[3,056 / 3,621] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__juniper_codegen-0.17.0//:juniper_codegen v0.17.0 (34 files) [for tool]; 4s linux-sandbox ... (4 actions, 3 running)
+[3,071 / 3,623] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__sqlx-macros-core-0.9.0//:sqlx-macros-core v0.9.0 (19 files) [for tool]; 1s linux-sandbox ... (4 actions, 3 running)
+[3,089 / 3,623] 1 / 2 tests; Compiling Rust proc-macro @@rules_rs++crate+crates__sqlx-macros-0.9.0//:sqlx-macros v0.9.0 (1 file) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[3,196 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__zerocopy-0.8.63//:zerocopy v0.8.63 (142 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,202 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__zerocopy-0.8.63//:zerocopy v0.8.63 (142 files); 1s linux-sandbox ... (4 actions, 3 running)
+[3,226 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__brotli-decompressor-6.0.1//:brotli-decompressor v6.0.1 (28 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,236 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__brotli-9.0.0//:brotli v9.0.0 (69 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,244 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__serde_with-3.24.0//:serde_with v3.24.0 (77 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,266 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__prost-types-0.14.4//:prost-types v0.14.4 (9 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,273 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__tokio-1.54.0//:tokio v1.54.0 (573 files); 1s linux-sandbox ... (4 actions, 2 running)
+[3,282 / 3,760] 1 / 2 tests; Compiling ssl/ssl_lib.cc; 0s linux-sandbox ... (4 actions, 2 running)
+[3,294 / 3,760] 1 / 2 tests; Compiling ssl/ssl_key_share.cc; 0s linux-sandbox ... (4 actions, 3 running)
+[3,323 / 3,760] 1 / 2 tests; Compiling ssl/ssl_cipher.cc; 0s linux-sandbox ... (4 actions, 3 running)
+[3,328 / 3,760] 1 / 2 tests; Compiling ssl/ssl_cert.cc; 0s linux-sandbox ... (4 actions, 3 running)
+[3,357 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__base64-0.22.1//:base64 v0.22.1 (25 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,382 / 3,760] 1 / 2 tests; Running Cargo build script @@rules_rs++crate+crates__ring-0.17.14//:_bs_x86_64-unknown-linux-gnu; 0s linux-sandbox ... (4 actions, 3 running)
+[3,403 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__rand-0.9.5//:rand v0.9.5 (31 files); 0s linux-sandbox ... (4 actions, 2 running)
+[3,412 / 3,760] 1 / 2 tests; Compiling ssl/handshake_client.cc; 0s linux-sandbox ... (4 actions, 3 running)
+[3,421 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__rustls-0.23.46//:rustls v0.23.46 (110 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,458 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__futures-intrusive-0.5.0//:futures-intrusive v0.5.0 (35 files); 0s linux-sandbox ... (4 actions, 2 running)
+[3,480 / 3,760] 1 / 2 tests; Compiling ssl/d1_srtp.cc; 0s linux-sandbox ... (4 actions, 3 running)
+[3,496 / 3,760] 1 / 2 tests; Compiling ssl/d1_lib.cc; 0s linux-sandbox ... (4 actions, 2 running)
+[3,502 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__h2-0.4.20//:h2 v0.4.20 (58 files); 1s linux-sandbox ... (4 actions, 2 running)
+[3,518 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__tower-http-0.7.1//:tower-http v0.7.1 (115 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,528 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__sqlx-core-0.9.0//:sqlx-core v0.9.0 (103 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,535 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__sqlx-postgres-0.9.0//:sqlx-postgres v0.9.0 (110 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,541 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__sqlx-postgres-0.9.0//:sqlx-postgres v0.9.0 (110 files); 1s linux-sandbox ... (4 actions, 3 running)
+[3,563 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__tonic-0.14.6//:tonic v0.14.6 (61 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,575 / 3,760] 1 / 2 tests; Compiling Rust rlib //nicknamer2/src/graphql:graphql_mutation (1 file); 0s linux-sandbox ... (4 actions, 3 running)
+[3,587 / 3,760] 1 / 2 tests; Compiling Rust rlib //nicknamer2/src/server:server (1 file); 0s linux-sandbox ... (4 actions, 2 running)
+[3,605 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__bollard-stubs-1.52.1-rc.29.1.3//:bollard-stubs v1.52.1-rc.29.1.3 (4 files); 1s linux-sandbox ... (4 actions, 3 running)
+[3,633 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__bollard-stubs-1.52.1-rc.29.1.3//:bollard-stubs v1.52.1-rc.29.1.3 (4 files); 2s linux-sandbox ... (4 actions, 3 running)
+[3,660 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__bollard-stubs-1.52.1-rc.29.1.3//:bollard-stubs v1.52.1-rc.29.1.3 (4 files); 3s linux-sandbox ... (4 actions, 3 running)
+[3,690 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__bollard-0.20.2//:bollard v0.20.2 (69 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,716 / 3,760] 1 / 2 tests; Compiling Rust rlib @@rules_rs++crate+crates__testcontainers-0.27.3//:testcontainers v0.27.3 (62 files); 0s linux-sandbox ... (4 actions, 3 running)
+[3,729 / 3,760] 1 / 2 tests; Compiling crypto/fipsmodule/bcm.c; 0s linux-sandbox ... (4 actions, 3 running)
+INFO: From Compiling Rust bin //nicknamer2/research/graphql_business:bridge (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[3,759 / 3,760] 1 / 2 tests; [Prepa] runfiles for //nicknamer2/research/graphql_business:execute_test
+[3,760 / 3,761] 1 / 2 tests; Testing //nicknamer2/research/graphql_business:execute_test; 1s linux-sandbox
+[3,760 / 3,761] 1 / 2 tests; Testing //nicknamer2/research/graphql_business:execute_test; 10s linux-sandbox
+[3,760 / 3,761] 1 / 2 tests; Testing //nicknamer2/research/graphql_business:execute_test; 32s linux-sandbox
+FAIL: //nicknamer2/research/graphql_business:execute_test (Exit 1) (see /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/nicknamer2/research/graphql_business/execute_test/test.log)
+INFO: From Testing //nicknamer2/research/graphql_business:execute_test:
+Target //nicknamer2/research/graphql_business:baseline_test up-to-date:
+  bazel-bin/nicknamer2/research/graphql_business/baseline_test_/baseline_test
+Target //nicknamer2/research/graphql_business:execute_test up-to-date:
+  bazel-bin/nicknamer2/research/graphql_business/execute_test_/execute_test
+INFO: Elapsed time: 107.603s, Critical Path: 52.58s
+INFO: 941 processes: 2819 action cache hit, 205 internal, 738 linux-sandbox.
+INFO: Build completed, 1 test FAILED, 941 total actions
+
+INFO: Build Event Protocol files produced successfully.

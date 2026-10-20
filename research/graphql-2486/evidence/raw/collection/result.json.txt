@@ -1,0 +1,7 @@
+{
+  "boundedResponseContextComplete": true,
+  "directResolverEntryObserved": false,
+  "bothOrdersEqual": true,
+  "documents": 8,
+  "semantics": "Operation dispatch, response field presence, response-context fragment traversal, and client directive decisions. These are not resolver-entry counters."
+}
