@@ -130,7 +130,7 @@ git_override(
 bazel_dep(name = "contrib_rules_jvm")
 git_override(
     module_name = "contrib_rules_jvm",
-    commit = "df0cd35879448e92acf87e701a307b33a31f4a4e",
+    commit = "ec7b274c94d5b289c75092ce54558ba2b239f3e6",
     remote = "https://github.com/bazel-contrib/rules_jvm.git",
 )
 
