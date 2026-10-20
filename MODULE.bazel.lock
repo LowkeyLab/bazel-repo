@@ -5216,6 +5216,11 @@
           "version": "v3.0.1"
         },
         {
+          "importpath": "github.com/pganalyze/pg_query_go/v6",
+          "sha256": "60df41bc275cdbd1ed0e662ce133ce6e229217fe1b69233d58c4e549e6e45b39",
+          "version": "v6.2.5"
+        },
+        {
           "importpath": "github.com/onsi/gomega",
           "sha256": "f2a2f2b30ffe5ba36a977232e07f9156b882d4ccb073e26f770b7136274899f3",
           "version": "v1.37.0"

@@ -191,3 +191,6 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// Research-only PostgreSQL parser.
+require github.com/pganalyze/pg_query_go/v6 v6.2.5

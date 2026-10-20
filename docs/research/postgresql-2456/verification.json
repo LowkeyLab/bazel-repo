@@ -1,0 +1,35 @@
+{
+  "archive_members": 464,
+  "final_sources": 23,
+  "all_member_hashes": "passed",
+  "exact_source_hashes": "passed",
+  "extracted_artifact_verifier": "passed",
+  "archive_sha256": "50359197b5d78e91199443678c12a900a60e86d769bd67fc5755a7218153fda1",
+  "checks": {
+    "checks": {
+      "final-test": 0,
+      "export-valid-final": 0,
+      "export-final-source": 0,
+      "merge-ab": 0,
+      "merge-ba": 0,
+      "gazelle-14": 0,
+      "final-build-3": 0,
+      "final-profiler-build": 0,
+      "format-6": 0,
+      "lint-4": 0,
+      "strict-english": 0,
+      "final-artifact-validation": 0,
+      "shutdown": 0,
+      "export-missing": 1,
+      "export-empty": 1,
+      "export-corrupt": 1,
+      "export-partial": 1,
+      "export-historical-metadata": 1
+    },
+    "database_execution": "fresh remote",
+    "database_stopped": true,
+    "final_build": "412 action-cache hits, one internal process",
+    "conversion_execution": "local subprocesses with Bazel-managed tools",
+    "upload": "no coverage upload"
+  }
+}
