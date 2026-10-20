@@ -57,7 +57,7 @@ nix develop --command bazel run //tools/python:coverage_membership_test -- /abso
 
 The remote mode uses `--config=ci`, `--nocache_test_results`, and
 `--remote_accept_cached=false`. It requires remote execution metadata for every
-selected test. A cached result cannot establish fresh remote acceptance.
+selected test. Fresh remote acceptance requires executed tests.
 Bazel supplies the interpreter, collector, production sources, and subprocess
 inputs through the declared targets.
 
@@ -70,7 +70,7 @@ The command also checks four coverage failures with real collector processes:
 missing collector dependencies, child collection errors, corrupt subprocess data,
 and report exclusion errors. Each underlying ordinary test must pass first.
 The corresponding coverage command must return a nonzero exit status and the
-expected error. The invalid-source check separately requires a baseline failure.
+expected error. The invalid-source case requires a baseline failure.
 
 The evidence directory also retains `commands.jsonl`, `revision.txt`,
 `working-tree.patch`, dependency-query results, and failure logs with exit status.
