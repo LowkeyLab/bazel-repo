@@ -42,4 +42,37 @@ merged records through `bazel coverage`. The production module with zero hits re
 
 The test then introduces invalid syntax and requires a baseline failure. It removes
 its temporary packages. The report and logs remain in the supplied evidence
-directory. The configured remote profile can use cached test results.
+directory.
+
+The command defaults to local sandbox execution. It disables remote execution,
+remote cache access, and the build-event service for its nested commands.
+Each test executes again. The report uses the existing coverage helper.
+A Go test checks that aggregation preserves another language.
+
+Use the configured remote service for fresh execution:
+
+```bash
+nix develop --command bazel run //tools/python:coverage_membership_test -- /absolute/evidence/directory --execution remote
+```
+
+The remote mode uses `--config=ci`, `--nocache_test_results`, and
+`--remote_accept_cached=false`. It requires remote execution metadata for every
+selected test. A cached result cannot establish fresh remote acceptance.
+Bazel supplies the interpreter, collector, production sources, and subprocess
+inputs through the declared targets.
+
+Both modes retain `coverage.log`, `coverage.exit`, `coverage.bep.json`,
+`test-results.json`, and `combined.lcov`. The build events identify test execution
+strategies and cache status. Keep local and remote evidence in separate directories.
+Hosted workflow and Codecov upload acceptance require separate evidence.
+
+The command also checks four coverage failures with real collector processes:
+missing collector dependencies, child collection errors, corrupt subprocess data,
+and report exclusion errors. Each underlying ordinary test must pass first.
+The corresponding coverage command must return a nonzero exit status and the
+expected error. The invalid-source check separately requires a baseline failure.
+
+The evidence directory also retains `commands.jsonl`, `revision.txt`,
+`working-tree.patch`, dependency-query results, and failure logs with exit status.
+Run acceptance alone in the assigned checkout. Temporary invalid sources can
+cause concurrent formatting, lint, or build commands to fail.

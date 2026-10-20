@@ -1,9 +1,10 @@
 """Check complete coverage through Bazel with temporary production packages."""
 
+import argparse
+import json
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 from pathlib import Path
 
@@ -14,14 +15,26 @@ SOURCE = """def choose(value):
 """
 
 
+BAZEL_OPTIONS: list[str] = []
+COMMAND_LOG: Path | None = None
+
+
 def command(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["bazel", *arguments],
+    options = [] if arguments[0] == "query" else BAZEL_OPTIONS
+    invocation = ["bazel", arguments[0], *options, *arguments[1:]]
+    result = subprocess.run(
+        invocation,
         cwd=root,
         capture_output=True,
         text=True,
         check=False,
     )
+    if COMMAND_LOG is not None:
+        with COMMAND_LOG.open("a") as output:
+            output.write(
+                json.dumps({"command": invocation, "exit": result.returncode}) + "\n"
+            )
+    return result
 
 
 def generate(root: Path, path: Path, text: str) -> None:
@@ -60,12 +73,107 @@ def check_report(report: str, ordinary: str, hidden: str) -> None:
     assert "DA:3,2" in records["python_sample/versions.py"]
     assert "DA:6,2" in records["python_sample/__main__.py"]
     assert "DA:43,1" in records[".github/scripts/bazel_dependencies.py"]
+    assert any(
+        source.endswith("predix/internal/domain/user/user.go") for source in records
+    )
+
+
+def check_failures(root: Path, evidence: Path, package: Path) -> None:
+    build = package / "BUILD.bazel"
+    text = (
+        'load("@aspect_rules_py//py:defs.bzl", raw_py_test = "py_test")\n'
+        + build.read_text()
+    )
+    text += '\nraw_py_test(name = "missing_collector_test", srcs = ["fault_test.py"], pytest_main = True, deps = ["@pypi//pytest"], args = ["-o", "python_files=fault_test.py"])\n'
+    build.write_text(text)
+    target = f"//{package.relative_to(root)}:fault_test"
+    cases = [
+        (
+            "collection",
+            target,
+            ["--test_env=COVERAGE_TEST_FAULT=collection"],
+            "Python child coverage did not finish",
+        ),
+        (
+            "combination",
+            target,
+            ["--test_env=COVERAGE_TEST_FAULT=combination"],
+            "Couldn't use data file",
+        ),
+        (
+            "report",
+            target,
+            [
+                f"--test_env=COVERAGE_RCFILE={package.relative_to(root)}/report.coveragerc"
+            ],
+            "No data to report",
+        ),
+        (
+            "dependency",
+            f"//{package.relative_to(root)}:missing_collector_test",
+            [],
+            "No module named 'coverage'",
+        ),
+    ]
+    for name, selected, flags, message in cases:
+        ordinary = command(
+            root, "test", selected, "--nocache_test_results", "--test_output=all"
+        )
+        (evidence / f"{name}-ordinary.log").write_text(
+            ordinary.stdout + ordinary.stderr
+        )
+        assert ordinary.returncode == 0, ordinary.stdout + ordinary.stderr
+        result = command(
+            root,
+            "coverage",
+            selected,
+            "--nocache_test_results",
+            "--test_output=all",
+            *flags,
+        )
+        text = result.stdout + result.stderr
+        (evidence / f"{name}.log").write_text(text)
+        (evidence / f"{name}.exit").write_text(f"{result.returncode}\n")
+        assert result.returncode != 0, text
+        assert message in text, text
+        if name != "dependency":
+            assert "1 passed" in text, text
 
 
 def main() -> None:
+    global COMMAND_LOG
+
     root = Path(os.environ["BUILD_WORKSPACE_DIRECTORY"])
-    evidence = Path(sys.argv[1]).absolute()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("evidence", type=Path)
+    parser.add_argument("--execution", choices=("local", "remote"), default="local")
+    arguments = parser.parse_args()
+    evidence = arguments.evidence.absolute()
+    if arguments.execution == "local":
+        BAZEL_OPTIONS.extend(
+            [
+                "--remote_cache=",
+                "--bes_backend=",
+                "--remote_executor=",
+                "--spawn_strategy=sandboxed",
+            ]
+        )
+    else:
+        BAZEL_OPTIONS.append("--config=ci")
     evidence.mkdir(parents=True, exist_ok=True)
+    COMMAND_LOG = evidence / "commands.jsonl"
+    revision = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=True,
+    )
+    (evidence / "revision.txt").write_text(revision.stdout)
+    diff = subprocess.run(
+        ["git", "diff", "HEAD"], cwd=root, text=True, capture_output=True, check=True
+    )
+    (evidence / "working-tree.patch").write_text(diff.stdout)
     with (
         tempfile.TemporaryDirectory(
             prefix="coverage_fixture_", dir=root
@@ -113,15 +221,58 @@ genrule(
 )
 py_library(name = "generated", srcs = [":generated.py"])
 """)
+        fault_package = ordinary / "faults"
+        fault_package.mkdir()
+        generate(
+            root,
+            fault_package / "fault_test.py",
+            (root / "tools/python/coverage_fixture_test.py").read_text(),
+        )
+        (fault_package / "report.coveragerc").write_text("[report]\nomit = *\n")
+        fault_build = fault_package / "BUILD.bazel"
+        text = fault_build.read_text()
+        text = text.replace(
+            'name = "fault_test",',
+            'name = "fault_test",\n    data = ["report.coveragerc"],',
+        )
+        fault_build.write_text(text)
         targets = [
             "//python_sample/...",
             "//.github/...",
             "//tools/python/...",
+            "//predix/internal/domain/user:user_test",
             f"//{ordinary.relative_to(root)}/...",
         ]
-        result = command(root, "coverage", *targets, "--config=ci")
+        flags = ["--nocache_test_results", "--remote_accept_cached=false"]
+        events = evidence / "coverage.bep.json"
+        flags.append(f"--build_event_json_file={events}")
+        result = command(
+            root, "run", "//tools/coverage", "--", *targets, *BAZEL_OPTIONS, *flags
+        )
         (evidence / "coverage.log").write_text(result.stdout + result.stderr)
+        (evidence / "coverage.exit").write_text(f"{result.returncode}\n")
         assert result.returncode == 0, result.stdout + result.stderr
+        executions = []
+        for line in events.read_text().splitlines():
+            event = json.loads(line)
+            if "testResult" in event:
+                executions.append({"id": event["id"], **event["testResult"]})
+        (evidence / "test-results.json").write_text(json.dumps(executions, indent=2))
+        assert executions, "No test execution metadata"
+        assert all(not item.get("cachedLocally", False) for item in executions)
+        if arguments.execution == "remote":
+            assert all(
+                item["executionInfo"]["strategy"] == "remote" for item in executions
+            ), executions
+            assert all(
+                not item["executionInfo"].get("cachedRemotely", False)
+                for item in executions
+            )
+        else:
+            assert all(
+                item["executionInfo"]["strategy"] == "linux-sandbox"
+                for item in executions
+            ), executions
         output = command(root, "info", "output_path")
         assert output.returncode == 0, output.stdout + output.stderr
         report = Path(output.stdout.strip()) / "_coverage/_coverage_report.dat"
@@ -131,17 +282,18 @@ py_library(name = "generated", srcs = [":generated.py"])
             str(ordinary.relative_to(root)),
             str(hidden.relative_to(root)),
         )
-        # The new packages must not become dependencies of any test.
-        query = command(
-            root,
-            "query",
-            f'kind("py_test rule", rdeps(//..., //{ordinary.relative_to(root)}:untested.py))',
-        )
-        assert query.returncode == 0, query.stdout + query.stderr
-        assert not query.stdout.strip(), query.stdout
-        (evidence / "outside-test-dependencies.log").write_text(
-            query.stdout + query.stderr
-        )
+        for package in (ordinary, hidden):
+            query = command(
+                root,
+                "query",
+                f'kind("py_test rule", rdeps(//..., //{package.relative_to(root)}:untested.py))',
+            )
+            assert query.returncode == 0, query.stdout + query.stderr
+            assert not query.stdout.strip(), query.stdout
+            (evidence / f"{package.name}-outside-test-dependencies.log").write_text(
+                query.stdout + query.stderr
+            )
+        check_failures(root, evidence, fault_package)
         source = ordinary / "untested.py"
         source.write_text("def broken(\n")
         # Gazelle must run immediately, including after a deliberate source fault.
@@ -149,7 +301,7 @@ py_library(name = "generated", srcs = [":generated.py"])
         (evidence / "invalid-source-gazelle.log").write_text(
             generation.stdout + generation.stderr
         )
-        result = command(root, "coverage", *targets, "--config=ci", "--keep_going")
+        result = command(root, "coverage", *targets, "--keep_going")
         text = result.stdout + result.stderr
         (evidence / "invalid-source.log").write_text(text)
         assert result.returncode != 0, text
