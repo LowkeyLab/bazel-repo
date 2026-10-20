@@ -1,0 +1,91 @@
+{
+  "files": [
+    {
+      "nodes": [
+        {
+          "arms": 0,
+          "column": 24,
+          "end": 25,
+          "id": 24,
+          "kind": "expression",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 13,
+          "end": 47,
+          "id": 46,
+          "kind": "expression",
+          "line": 2
+        },
+        {
+          "arms": 0,
+          "column": 13,
+          "end": 80,
+          "id": 79,
+          "kind": "expression",
+          "line": 3
+        },
+        {
+          "arms": 0,
+          "column": 27,
+          "end": 143,
+          "id": 142,
+          "kind": "expression",
+          "line": 6
+        },
+        {
+          "arms": 0,
+          "column": 28,
+          "end": 179,
+          "id": 178,
+          "kind": "expression",
+          "line": 7
+        },
+        {
+          "arms": 0,
+          "column": 22,
+          "end": 350,
+          "id": 349,
+          "kind": "expression",
+          "line": 15
+        },
+        {
+          "arms": 0,
+          "column": 58,
+          "end": 514,
+          "id": 513,
+          "kind": "expression",
+          "line": 19
+        },
+        {
+          "arms": 0,
+          "column": 29,
+          "end": 620,
+          "id": 619,
+          "kind": "expression",
+          "line": 25
+        },
+        {
+          "arms": 0,
+          "column": 28,
+          "end": 1121,
+          "id": 1120,
+          "kind": "expression",
+          "line": 47
+        },
+        {
+          "arms": 0,
+          "column": 34,
+          "end": 1163,
+          "id": 1162,
+          "kind": "expression",
+          "line": 48
+        }
+      ],
+      "path": "nicknamer/server/lib/templates/names/edit_name_form.html",
+      "sha256": "e495afd9464dfc18587aad0692d87921763a475386642179c8ea3dd7fc0bbf93"
+    }
+  ],
+  "schema": 1
+}

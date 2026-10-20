@@ -1,0 +1,182 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 99fb9361b60ef8626fc1c7728d5284c93a45de57..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  .prettierignore [+3 / -0] (changed)
+  MODULE.bazel [+1 / -1] (changed)
+  research/askama-2485/evidence/collection.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/collection.stderr [+32 / -0] (changed)
+  research/askama-2485/evidence/collection.stdout [+4 / -0] (changed)
+  research/askama-2485/evidence/gazelle-collector.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/gazelle-collector.stderr [+32 / -0] (changed)
+  research/askama-2485/evidence/gazelle-escape.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/gazelle-escape.stderr [+32 / -0] (changed)
+  research/askama-2485/evidence/gazelle-expectations.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/gazelle-expectations.stderr [+33 / -0] (changed)
+  research/askama-2485/evidence/gazelle-header.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/gazelle-header.stderr [+32 / -0] (changed)
+  research/askama-2485/evidence/gazelle-matrix.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/gazelle-matrix.stderr [+31 / -0] (changed)
+  research/askama-2485/evidence/gazelle-source.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/gazelle-source.stderr [+31 / -0] (changed)
+  research/askama-2485/evidence/maintained-source-inventory.json [+82 / -0] (changed)
+  research/askama-2485/evidence/maintained_native-initial-failure.txt [+48 / -0] (changed)
+  research/askama-2485/evidence/matrix-2.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/matrix-2.stderr [+69 / -0] (changed)
+  research/askama-2485/evidence/matrix-2.stdout [+7 / -0] (changed)
+  research/askama-2485/evidence/matrix-3.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/matrix-3.stderr [+94 / -0] (changed)
+  research/askama-2485/evidence/matrix-3.stdout [+65 / -0] (changed)
+  research/askama-2485/evidence/matrix-4.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/matrix-4.stderr [+73 / -0] (changed)
+  research/askama-2485/evidence/matrix-4.stdout [+10 / -0] (changed)
+  research/askama-2485/evidence/matrix.exit [+1 / -0] (changed)
+  research/askama-2485/evidence/matrix.stderr [+19 / -0] (changed)
+  research/askama-2485/evidence/matrix.stdout [+6 / -0] (changed)
+  research/askama-2485/evidence/subset_comparison-initial-failure.txt [+5 / -0] (changed)
+  research/askama-2485/evidence/whitespace_comparison-initial-failure.txt [+5 / -0] (changed)
+  tools/research_askama/BUILD.bazel [+337 / -0] (changed)
+  tools/research_askama/REPRODUCE.md [+17 / -0] (changed)
+  tools/research_askama/adapter.rs [+87 / -0] (changed)
+  tools/research_askama/adapter_test.sh [+45 / -0] (changed)
+  tools/research_askama/askama.toml [+2 / -0] (changed)
+  tools/research_askama/collect.rs [+161 / -0] (changed)
+  tools/research_askama/collection.sh [+18 / -0] (changed)
+  tools/research_askama/compare.sh [+24 / -0] (changed)
+  tools/research_askama/expected.lcov [+24 / -0] (changed)
+  tools/research_askama/instrument.bzl [+32 / -0] (changed)
+  tools/research_askama/instrument.rs [+155 / -0] (changed)
+  tools/research_askama/instrument_original.rs [+138 / -0] (changed)
+  tools/research_askama/maintained.rs [+155 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/index.html [+17 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/layout.html [+39 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/login.html [+61 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/login/login_error_message.html [+3 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/login/login_success.html [+7 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names.html [+115 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/add_name_form.html [+75 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/bulk_add_form.html [+119 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/bulk_add_success.html [+95 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/bulk_delete.html [+60 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/bulk_delete_table.html [+129 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/edit_name_form.html [+54 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/error_message.html [+16 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/name_row.html [+51 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/names/names_table.html [+44 / -0] (changed)
+  tools/research_askama/maintained_fixture/templates/welcome/call_to_action.html [+23 / -0] (changed)
+  tools/research_askama/native.rs [+55 / -0] (changed)
+  tools/research_askama/native_export.sh [+13 / -0] (changed)
+  tools/research_askama/subset.rs [+73 / -0] (changed)
+  tools/research_askama/subset_collect.rs [+194 / -0] (changed)
+  tools/research_askama/syntax.sh [+18 / -0] (changed)
+  tools/research_askama/templates/included.html [+1 / -0] (changed)
+  tools/research_askama/templates/main.html [+8 / -0] (changed)
+  tools/research_askama/templates/unused.html [+5 / -0] (changed)
+  tools/research_askama/unsupported/templates/if_let.html [+1 / -0] (changed)
+  tools/research_askama/unsupported/templates/loop_else.html [+1 / -0] (changed)
+  tools/research_askama/unsupported/templates/match.html [+1 / -0] (changed)
+  tools/research_askama/unsupported/templates/raw.html [+1 / -0] (changed)
+  tools/research_askama/whitespace.rs [+72 / -0] (changed)
+  tools/research_askama/whitespace_fixture/templates/included.html [+3 / -0] (changed)
+  tools/research_askama/whitespace_fixture/templates/main.html [+13 / -0] (changed)
+  tools/research_askama/whitespace_fixture/templates/unused.html [+1 / -0] (changed)
+
+→ 🔬 Lint · Running lint aspects
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build options --java_language_version, --java_runtime_version, --tool_java_language_version, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: 27 targets (1 packages loaded, 0 targets configured)
+Analyzing: 27 targets (3 packages loaded, 93777 targets configured, 54 aspect applications)
+INFO: Analyzed 27 targets (4 packages loaded, 187495 targets configured, 942 aspect applications).
+ no actions running
+INFO: Found 27 targets...
+[0 / 1] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+INFO: From Action tools/research_askama/collector.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/instrumenter.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Compiling Rust bin //tools/research_askama:instrumenter (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Action tools/research_askama/instrumenter_original.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/maintained_native_test.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/native_test.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+[3,125 / 3,133] Clippy //tools/research_askama:adapter_test; 0s linux-sandbox ... (4 actions, 3 running)
+INFO: From Action tools/research_askama/adapter_test.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/subset_adapter_test.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/subset_collector.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/subset_native_test.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/whitespace_fixed_test.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/whitespace_native_test.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: From Action tools/research_askama/whitespace_original_test.AspectRulesLintClippy.report:
+bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec/bin/external/aspect_rules_lint_rust+/cli_/cli: line 172: uname: command not found
+INFO: Elapsed time: 5.763s, Critical Path: 0.66s
+INFO: 167 processes: 3064 action cache hit, 14 internal, 153 linux-sandbox.
+INFO: Build completed successfully, 167 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (3): Clippy, KeepSorted, ShellCheck
+
+Lint findings after hold-the-line (22)
+  ⚠️ tools/research_askama/collect.rs:9 · clippy · clippy::format_collect — use of `format!` to build up a string from an iterator
+  ⚠️ tools/research_askama/collect.rs:21 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/collect.rs:33 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/collect.rs:38 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/collect.rs:50 · clippy · clippy::too_many_lines — this function has too many lines (110/100)
+  ⚠️ tools/research_askama/instrument.rs:10 · clippy · clippy::format_collect — use of `format!` to build up a string from an iterator
+  ⚠️ tools/research_askama/instrument.rs:141 · clippy · clippy::unnecessary_sort_by — consider using `sort_by_key`
+  ⚠️ tools/research_askama/instrument_original.rs:10 · clippy · clippy::format_collect — use of `format!` to build up a string from an iterator
+  ⚠️ tools/research_askama/instrument_original.rs:121 · clippy · clippy::unnecessary_sort_by — consider using `sort_by_key`
+  ⚠️ tools/research_askama/maintained.rs:10 · clippy · clippy::struct_field_names — field name starts with the struct's name
+  ⚠️ tools/research_askama/subset_collect.rs:9 · clippy · clippy::format_collect — use of `format!` to build up a string from an iterator
+  ⚠️ tools/research_askama/subset_collect.rs:21 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/subset_collect.rs:33 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/subset_collect.rs:38 · clippy · clippy::format_push_string — `format!(..)` appended to existing `String`
+  ⚠️ tools/research_askama/subset_collect.rs:50 · clippy · clippy::too_many_lines — this function has too many lines (143/100)
+  ⚠️ tools/research_askama/subset_collect.rs:136 · clippy · clippy::option_if_let_else — use Option::map_or_else instead of an if let/else
+  ⚠️ tools/research_askama/subset.rs:10 · clippy · clippy::missing_panics_doc — docs for function which may panic missing `# Panics` section
+  ⚠️ tools/research_askama/subset.rs:15 · clippy · clippy::missing_panics_doc — docs for function which may panic missing `# Panics` section
+  ⚠️ tools/research_askama/subset.rs:28 · clippy · clippy::struct_field_names — field name starts with the struct's name
+  ⚠️ tools/research_askama/subset.rs:60 · clippy · clippy::format_collect — use of `format!` to build up a string from an iterator
+  ⚠️ tools/research_askama/whitespace.rs:9 · clippy · clippy::missing_panics_doc — docs for function which may panic missing `# Panics` section
+  ⚠️ tools/research_askama/whitespace.rs:14 · clippy · clippy::missing_panics_doc — docs for function which may panic missing `# Panics` section
+
+→ ⚠️  Flagged lint task in 6.1s · 22 warnings
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  267ms  Detect changed files
+    🔬 Lint     5.8s  Run lint aspects
+    🔎 Filter    5ms  Filter diagnostics

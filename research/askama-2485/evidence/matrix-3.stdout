@@ -1,0 +1,65 @@
+==================== Test output for //tools/research_askama:maintained_native_test:
+
+running 1 test
+test render_maintained_syntax ... FAILED
+
+failures:
+
+---- render_maintained_syntax stdout ----
+
+thread 'render_maintained_syntax' (16) panicked at tools/research_askama/maintained.rs:67:5:
+
+Value of: NameRow{name:&names[0]}.render()?
+Expected: contains a substring "&lt;&amp;&gt;"
+Actual: "<tr id=\"name-row-42\">\n  <td>discord</td>\n  <td>server</td>\n  <td class=\"font-semibold\">&#60;&#38;&#62;</td>\n  <th>\n    <button\n      class=\"btn btn-warning btn-sm mr-2\"\n      hx-get=\"/names/42/edit\"\n      hx-target=\"closest tr\"\n      hx-swap=\"outerHTML\"\n    >\n      <svg\n        xmlns=\"http://www.w3.org/2000/svg\"\n        class=\"h-4 w-4\"\n        fill=\"none\"\n        viewBox=\"0 0 24 24\"\n        stroke=\"currentColor\"\n      >\n        <path\n          stroke-linecap=\"round\"\n          stroke-linejoin=\"round\"\n          stroke-width=\"2\"\n          d=\"M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z\"\n        />\n      </svg>\n      Edit\n    </button>\n    <button\n      class=\"btn btn-error btn-sm\"\n      hx-delete=\"/names/42\"\n      hx-target=\"#names-table\"\n      hx-confirm=\"Are you sure you want to delete this name entry?\"\n    >\n      <svg\n        xmlns=\"http://www.w3.org/2000/svg\"\n        class=\"h-4 w-4\"\n        fill=\"none\"\n        viewBox=\"0 0 24 24\"\n        stroke=\"currentColor\"\n      >\n        <path\n          stroke-linecap=\"round\"\n          stroke-linejoin=\"round\"\n          stroke-width=\"2\"\n          d=\"M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16\"\n        />\n      </svg>\n      Delete\n    </button>\n  </th>\n</tr>",
+  which does not contain a substring "&lt;&amp;&gt;"
+  at tools/research_askama/maintained.rs:67:5
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    render_maintained_syntax
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+================================================================================
+==================== Test output for //tools/research_askama:whitespace_comparison_test:
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+================================================================================
+==================== Test output for //tools/research_askama:subset_comparison_test:
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+================================================================================
+//tools/research_askama:syntax_test                                      PASSED in 0.3s
+  WARNING: //tools/research_askama:syntax_test: Test execution time (0.3s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//tools/research_askama:maintained_native_test                           FAILED in 0.1s
+  /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.log
+//tools/research_askama:subset_comparison_test                           FAILED in 0.0s
+  /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.log
+//tools/research_askama:whitespace_comparison_test                       FAILED in 0.0s
+  /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.log
+
+Executed 4 out of 4 tests: 1 test passes and 3 fail locally.

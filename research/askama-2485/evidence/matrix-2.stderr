@@ -1,0 +1,69 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 4 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 4 targets (1 packages loaded, 0 targets configured).
+INFO: Found 4 test targets...
+[2 / 185] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (3 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[2,044 / 2,078] Compiling Rust proc-macro @@rules_rs++crate+crates__googletest_macro-0.14.3//:googletest_macro v0.14.3 (3 files) [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[2,052 / 2,078] Compiling Rust rlib @@rules_rs++crate+crates__askama_parser-0.16.1//:askama_parser v0.16.1 (8 files) [for tool]; 0s linux-sandbox ... (3 actions running)
+INFO: From Compiling Rust bin //tools/research_askama:instrumenter (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[2,057 / 2,079] Compiling Rust rlib @@rules_rs++crate+crates__askama_parser-0.16.1//:askama_parser v0.16.1 (8 files) [for tool]; 1s linux-sandbox ... (3 actions running)
+[2,060 / 2,079] 1 / 4 tests; Compiling Rust rlib @@rules_rs++crate+crates__askama_derive-0.16.1//:askama_derive v0.16.1 (20 files) [for tool]; 0s linux-sandbox ... (3 actions, 2 running)
+INFO: From Compiling Rust bin //tools/research_askama:instrumenter_original (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Compiling Rust bin //tools/research_askama:instrumenter (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+[2,067 / 2,079] 1 / 4 tests; Compiling Rust rlib @@rules_rs++crate+crates__askama_derive-0.16.1//:askama_derive v0.16.1 (20 files) [for tool]; 1s linux-sandbox
+[2,068 / 2,079] 1 / 4 tests; [Prepa] Compiling Rust proc-macro @@rules_rs++crate+crates__askama_macros-0.16.1//:askama_macros v0.16.1 (1 file) [for tool]
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a/tools/research_askama/BUILD.bazel:151:10: Compiling Rust bin //tools/research_askama:subset_adapter_test (1 file) failed: (Exit 1): process_wrapper failed: error executing Rustc command (from rust_test rule target //tools/research_askama:subset_adapter_test) bazel-out/remote_linux_x86_64_gnu_llvm-opt-exec-ST-fd45d9624a1f/bin/external/rules_rs++rules_rust+rules_rust/util/process_wrapper/process_wrapper --env-file ... (remaining 124 arguments skipped)
+
+Use --sandbox_debug to see verbose messages from the sandbox and retain the sandbox build root for debugging
+error: unknown node `branch`
+         --> execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_askama/subset_instrumented/templates/names/names_table.html:1:27
+       "branch(\"nicknamer/server/lib/templates/names/names_table.html\", 3, (())) %}\n<div"...
+  --> bazel-out/k8-fastbuild/bin/tools/research_askama/subset.rs:23:17
+   |
+23 | #[template(path="names/names_table.html")]
+   |                 ^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 1 previous error
+
+Target //tools/research_askama:syntax_test up-to-date:
+  bazel-bin/tools/research_askama/syntax_test
+Target //tools/research_askama:whitespace_comparison_test failed to build
+Target //tools/research_askama:subset_comparison_test failed to build
+Target //tools/research_askama:maintained_native_test failed to build
+Use --verbose_failures to see the command lines of failed build steps.
+INFO: Elapsed time: 10.000s, Critical Path: 6.83s
+INFO: 68 processes: 1468 action cache hit, 36 internal, 33 linux-sandbox.
+ERROR: Build did NOT complete successfully

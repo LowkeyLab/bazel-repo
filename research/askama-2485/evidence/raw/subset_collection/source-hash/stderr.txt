@@ -1,0 +1,1 @@
+Error: Original source hash mismatch: nicknamer/server/lib/templates/names/name_row.html

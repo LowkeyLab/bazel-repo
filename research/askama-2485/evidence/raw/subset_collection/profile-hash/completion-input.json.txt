@@ -1,0 +1,4 @@
+{
+  "events_sha256": "wrong",
+  "functional": true
+}

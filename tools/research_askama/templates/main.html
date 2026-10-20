@@ -1,0 +1,8 @@
+{# This comment is not executable. #} {% if enabled %}
+<p>yes {{ label }}</p>
+{% else %}
+<p>no {{ label }}</p>
+{% endif %} {% for item in items %}
+<span>{{ item }}</span>
+{% endfor %} {% include "included.html" %}
+<footer>static</footer>

@@ -1,0 +1,6 @@
+//tools/research_askama:maintained_native_test                        NO STATUS
+//tools/research_askama:subset_comparison_test                        NO STATUS
+//tools/research_askama:whitespace_comparison_test                    NO STATUS
+//tools/research_askama:syntax_test                             FAILED TO BUILD
+
+Executed 0 out of 4 tests: 1 fails to build and 3 were skipped.

@@ -1,0 +1,12 @@
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/collector.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/instrumenter.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/instrumenter_original.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/maintained_native_test.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/native_test.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/adapter_test.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/subset_adapter_test.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/subset_collector.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/subset_native_test.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/whitespace_fixed_test.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/whitespace_native_test.AspectRulesLintClippy.report
+Successfully wrote output to bazel-out/k8-fastbuild/bin/tools/research_askama/whitespace_original_test.AspectRulesLintClippy.report

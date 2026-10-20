@@ -1,0 +1,7 @@
+//tools/research_askama:maintained_native_test                        NO STATUS
+//tools/research_askama:whitespace_comparison_test                    NO STATUS
+//tools/research_askama:subset_comparison_test                  FAILED TO BUILD
+//tools/research_askama:syntax_test                                      PASSED in 0.3s
+  WARNING: //tools/research_askama:syntax_test: Test execution time (0.3s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+
+Executed 1 out of 4 tests: 1 test passes, 1 fails to build, and 2 were skipped.

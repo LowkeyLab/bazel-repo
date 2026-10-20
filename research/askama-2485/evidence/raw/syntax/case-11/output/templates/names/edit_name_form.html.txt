@@ -1,0 +1,54 @@
+<tr id="name-row-{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 24) }}{{ name.id }}">
+  <td>{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 46) }}{{ name.discord_id }}</td>
+  <td>{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 79) }}{{ name.server_id }}</td>
+  <td>
+    <form
+      id="edit-form-{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 142) }}{{ name.id }}"
+      hx-put="/names/{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 178) }}{{ name.id }}"
+      hx-target="closest tr"
+      hx-swap="outerHTML"
+      class="inline-block"
+    >
+      <input
+        type="text"
+        name="name"
+        value="{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 349) }}{{ name.name }}"
+        class="input input-bordered input-sm w-full max-w-xs min-w-0"
+        required
+      />
+      <input type="hidden" name="server_id" value="{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 513) }}{{ name.server_id }}" />
+    </form>
+  </td>
+  <th>
+    <button
+      type="submit"
+      form="edit-form-{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 619) }}{{ name.id }}"
+      class="btn btn-success btn-sm mr-2"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M5 13l4 4L19 7"
+        />
+      </svg>
+      Save
+    </button>
+    <button
+      type="button"
+      class="btn btn-ghost btn-sm"
+      hx-get="/names/{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 1120) }}{{ name.id }}"
+      hx-target="#name-row-{{ crate::hit("nicknamer/server/lib/templates/names/edit_name_form.html", 1162) }}{{ name.id }}"
+      hx-swap="outerHTML"
+    >
+      Cancel
+    </button>
+  </th>
+</tr>

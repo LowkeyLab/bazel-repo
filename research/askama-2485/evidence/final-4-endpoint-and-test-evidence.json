@@ -1,0 +1,1309 @@
+{
+  "canonical_options": [
+    {
+      "combinedForm": "--remote_executor=",
+      "optionName": "remote_executor",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--remote_cache=",
+      "optionName": "remote_cache",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--bes_backend=",
+      "optionName": "bes_backend",
+      "effectTags": ["AFFECTS_OUTPUTS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--remote_upload_local_results=false",
+      "optionName": "remote_upload_local_results",
+      "optionValue": "false",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--jobs=4",
+      "optionName": "jobs",
+      "optionValue": "4",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS", "EXECUTION"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--local_resources=cpu=2",
+      "optionName": "local_resources",
+      "optionValue": "cpu=2",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--local_resources=memory=2048",
+      "optionName": "local_resources",
+      "optionValue": "memory=2048",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--cache_test_results=no",
+      "optionName": "cache_test_results",
+      "optionValue": "no",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    }
+  ],
+  "tests": [
+    {
+      "id": {
+        "testResult": {
+          "label": "//tools/research_askama:maintained_native_test",
+          "run": 1,
+          "shard": 1,
+          "attempt": 1,
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testResult": {
+        "testActionOutput": [
+          {
+            "name": "test.log",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.log"
+          },
+          {
+            "name": "test.xml",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.xml"
+          },
+          {
+            "name": "test.outputs/add-form.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/add-form.html"
+          },
+          {
+            "name": "test.outputs/bulk-add-form.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/bulk-add-form.html"
+          },
+          {
+            "name": "test.outputs/bulk-delete.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/bulk-delete.html"
+          },
+          {
+            "name": "test.outputs/bulk-success-errors.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/bulk-success-errors.html"
+          },
+          {
+            "name": "test.outputs/bulk-success-zero.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/bulk-success-zero.html"
+          },
+          {
+            "name": "test.outputs/delete-empty.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/delete-empty.html"
+          },
+          {
+            "name": "test.outputs/delete-populated.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/delete-populated.html"
+          },
+          {
+            "name": "test.outputs/edit-name.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/edit-name.html"
+          },
+          {
+            "name": "test.outputs/error-message.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/error-message.html"
+          },
+          {
+            "name": "test.outputs/functional.txt",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/functional.txt"
+          },
+          {
+            "name": "test.outputs/index.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/index.html"
+          },
+          {
+            "name": "test.outputs/layout.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/layout.html"
+          },
+          {
+            "name": "test.outputs/login-error.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/login-error.html"
+          },
+          {
+            "name": "test.outputs/login-none.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/login-none.html"
+          },
+          {
+            "name": "test.outputs/login-some.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/login-some.html"
+          },
+          {
+            "name": "test.outputs/login-success.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/login-success.html"
+          },
+          {
+            "name": "test.outputs/name-row.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/name-row.html"
+          },
+          {
+            "name": "test.outputs/names.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/names.html"
+          },
+          {
+            "name": "test.outputs/renders.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/renders.json"
+          },
+          {
+            "name": "test.outputs/table-empty.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/table-empty.html"
+          },
+          {
+            "name": "test.outputs/table-populated.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/table-populated.html"
+          },
+          {
+            "name": "test.outputs/welcome-none.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/welcome-none.html"
+          },
+          {
+            "name": "test.outputs/welcome-some.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs/welcome-some.html"
+          },
+          {
+            "name": "test.outputs_manifest__MANIFEST",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.outputs_manifest/MANIFEST"
+          }
+        ],
+        "testAttemptDurationMillis": "75",
+        "status": "PASSED",
+        "testAttemptStartMillisEpoch": "1792493738334",
+        "executionInfo": {
+          "strategy": "linux-sandbox",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0s"
+              },
+              {
+                "name": "setupTime",
+                "time": "0s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "0.075s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "0.075s"
+          }
+        },
+        "testAttemptStart": "2026-10-20T10:55:38.334Z",
+        "testAttemptDuration": "0.075s"
+      }
+    },
+    {
+      "id": {
+        "testSummary": {
+          "label": "//tools/research_askama:maintained_native_test",
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testSummary": {
+        "totalRunCount": 1,
+        "passed": [
+          {
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.log"
+          }
+        ],
+        "overallStatus": "PASSED",
+        "firstStartTimeMillis": "1792493738334",
+        "lastStopTimeMillis": "1792493738409",
+        "totalRunDurationMillis": "75",
+        "runCount": 1,
+        "totalRunDuration": "0.075s",
+        "firstStartTime": "2026-10-20T10:55:38.334Z",
+        "lastStopTime": "2026-10-20T10:55:38.409Z",
+        "attemptCount": 1
+      }
+    },
+    {
+      "id": {
+        "testResult": {
+          "label": "//tools/research_askama:subset_collection_test",
+          "run": 1,
+          "shard": 1,
+          "attempt": 1,
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testResult": {
+        "testActionOutput": [
+          {
+            "name": "test.log",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.log"
+          },
+          {
+            "name": "test.xml",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.xml"
+          },
+          {
+            "name": "test.outputs/incomplete/baseline-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/incomplete/baseline-input.json"
+          },
+          {
+            "name": "test.outputs/incomplete/completion-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/incomplete/completion-input.json"
+          },
+          {
+            "name": "test.outputs/incomplete/events-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/incomplete/events-input.json"
+          },
+          {
+            "name": "test.outputs/incomplete/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/incomplete/exit"
+          },
+          {
+            "name": "test.outputs/incomplete/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/incomplete/stderr"
+          },
+          {
+            "name": "test.outputs/incomplete/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/incomplete/stdout"
+          },
+          {
+            "name": "test.outputs/missing-include/baseline-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/missing-include/baseline-input.json"
+          },
+          {
+            "name": "test.outputs/missing-include/completion-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/missing-include/completion-input.json"
+          },
+          {
+            "name": "test.outputs/missing-include/events-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/missing-include/events-input.json"
+          },
+          {
+            "name": "test.outputs/missing-include/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/missing-include/exit"
+          },
+          {
+            "name": "test.outputs/missing-include/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/missing-include/stderr"
+          },
+          {
+            "name": "test.outputs/missing-include/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/missing-include/stdout"
+          },
+          {
+            "name": "test.outputs/profile-hash/baseline-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/profile-hash/baseline-input.json"
+          },
+          {
+            "name": "test.outputs/profile-hash/completion-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/profile-hash/completion-input.json"
+          },
+          {
+            "name": "test.outputs/profile-hash/events-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/profile-hash/events-input.json"
+          },
+          {
+            "name": "test.outputs/profile-hash/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/profile-hash/exit"
+          },
+          {
+            "name": "test.outputs/profile-hash/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/profile-hash/stderr"
+          },
+          {
+            "name": "test.outputs/profile-hash/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/profile-hash/stdout"
+          },
+          {
+            "name": "test.outputs/render/completion.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/render/completion.json"
+          },
+          {
+            "name": "test.outputs/render/events.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/render/events.json"
+          },
+          {
+            "name": "test.outputs/render/functional.txt",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/render/functional.txt"
+          },
+          {
+            "name": "test.outputs/render/render-0.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/render/render-0.html"
+          },
+          {
+            "name": "test.outputs/render/render-1.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/render/render-1.html"
+          },
+          {
+            "name": "test.outputs/render/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/render/stderr"
+          },
+          {
+            "name": "test.outputs/render/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/render/stdout"
+          },
+          {
+            "name": "test.outputs/source-hash/baseline-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/source-hash/baseline-input.json"
+          },
+          {
+            "name": "test.outputs/source-hash/completion-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/source-hash/completion-input.json"
+          },
+          {
+            "name": "test.outputs/source-hash/events-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/source-hash/events-input.json"
+          },
+          {
+            "name": "test.outputs/source-hash/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/source-hash/exit"
+          },
+          {
+            "name": "test.outputs/source-hash/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/source-hash/stderr"
+          },
+          {
+            "name": "test.outputs/source-hash/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/source-hash/stdout"
+          },
+          {
+            "name": "test.outputs/unknown-event/baseline-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/unknown-event/baseline-input.json"
+          },
+          {
+            "name": "test.outputs/unknown-event/completion-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/unknown-event/completion-input.json"
+          },
+          {
+            "name": "test.outputs/unknown-event/events-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/unknown-event/events-input.json"
+          },
+          {
+            "name": "test.outputs/unknown-event/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/unknown-event/exit"
+          },
+          {
+            "name": "test.outputs/unknown-event/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/unknown-event/stderr"
+          },
+          {
+            "name": "test.outputs/unknown-event/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/unknown-event/stdout"
+          },
+          {
+            "name": "test.outputs/valid/baseline-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/valid/baseline-input.json"
+          },
+          {
+            "name": "test.outputs/valid/baseline.lcov",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/valid/baseline.lcov"
+          },
+          {
+            "name": "test.outputs/valid/collection-result.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/valid/collection-result.json"
+          },
+          {
+            "name": "test.outputs/valid/combined-zero-first.lcov",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/valid/combined-zero-first.lcov"
+          },
+          {
+            "name": "test.outputs/valid/combined-zero-last.lcov",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/valid/combined-zero-last.lcov"
+          },
+          {
+            "name": "test.outputs/valid/completion-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/valid/completion-input.json"
+          },
+          {
+            "name": "test.outputs/valid/events-input.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/valid/events-input.json"
+          },
+          {
+            "name": "test.outputs/valid/measured.lcov",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs/valid/measured.lcov"
+          },
+          {
+            "name": "test.outputs_manifest__MANIFEST",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.outputs_manifest/MANIFEST"
+          }
+        ],
+        "testAttemptDurationMillis": "150",
+        "status": "PASSED",
+        "testAttemptStartMillisEpoch": "1792493738334",
+        "executionInfo": {
+          "strategy": "linux-sandbox",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0s"
+              },
+              {
+                "name": "setupTime",
+                "time": "0s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "0.150s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "0.150s"
+          }
+        },
+        "testAttemptStart": "2026-10-20T10:55:38.334Z",
+        "testAttemptDuration": "0.150s"
+      }
+    },
+    {
+      "id": {
+        "testSummary": {
+          "label": "//tools/research_askama:subset_collection_test",
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testSummary": {
+        "totalRunCount": 1,
+        "passed": [
+          {
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.log"
+          }
+        ],
+        "overallStatus": "PASSED",
+        "firstStartTimeMillis": "1792493738334",
+        "lastStopTimeMillis": "1792493738484",
+        "totalRunDurationMillis": "150",
+        "runCount": 1,
+        "totalRunDuration": "0.150s",
+        "firstStartTime": "2026-10-20T10:55:38.334Z",
+        "lastStopTime": "2026-10-20T10:55:38.484Z",
+        "attemptCount": 1
+      }
+    },
+    {
+      "id": {
+        "testResult": {
+          "label": "//tools/research_askama:whitespace_comparison_test",
+          "run": 1,
+          "shard": 1,
+          "attempt": 1,
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testResult": {
+        "testActionOutput": [
+          {
+            "name": "test.log",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.log"
+          },
+          {
+            "name": "test.xml",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.xml"
+          },
+          {
+            "name": "test.outputs/comparison.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/comparison.json"
+          },
+          {
+            "name": "test.outputs/run-0/events.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-0/events.json"
+          },
+          {
+            "name": "test.outputs/run-0/functional.txt",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-0/functional.txt"
+          },
+          {
+            "name": "test.outputs/run-0/render-0.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-0/render-0.html"
+          },
+          {
+            "name": "test.outputs/run-0/render-1.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-0/render-1.html"
+          },
+          {
+            "name": "test.outputs/run-0/render-2.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-0/render-2.html"
+          },
+          {
+            "name": "test.outputs/run-0/render-3.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-0/render-3.html"
+          },
+          {
+            "name": "test.outputs/run-0/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-0/stderr"
+          },
+          {
+            "name": "test.outputs/run-0/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-0/stdout"
+          },
+          {
+            "name": "test.outputs/run-1/events.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-1/events.json"
+          },
+          {
+            "name": "test.outputs/run-1/functional.txt",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-1/functional.txt"
+          },
+          {
+            "name": "test.outputs/run-1/render-0.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-1/render-0.html"
+          },
+          {
+            "name": "test.outputs/run-1/render-1.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-1/render-1.html"
+          },
+          {
+            "name": "test.outputs/run-1/render-2.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-1/render-2.html"
+          },
+          {
+            "name": "test.outputs/run-1/render-3.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-1/render-3.html"
+          },
+          {
+            "name": "test.outputs/run-1/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-1/stderr"
+          },
+          {
+            "name": "test.outputs/run-1/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-1/stdout"
+          },
+          {
+            "name": "test.outputs/run-2/events.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-2/events.json"
+          },
+          {
+            "name": "test.outputs/run-2/functional.txt",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-2/functional.txt"
+          },
+          {
+            "name": "test.outputs/run-2/render-0.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-2/render-0.html"
+          },
+          {
+            "name": "test.outputs/run-2/render-1.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-2/render-1.html"
+          },
+          {
+            "name": "test.outputs/run-2/render-2.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-2/render-2.html"
+          },
+          {
+            "name": "test.outputs/run-2/render-3.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-2/render-3.html"
+          },
+          {
+            "name": "test.outputs/run-2/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-2/stderr"
+          },
+          {
+            "name": "test.outputs/run-2/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs/run-2/stdout"
+          },
+          {
+            "name": "test.outputs_manifest__MANIFEST",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.outputs_manifest/MANIFEST"
+          }
+        ],
+        "testAttemptDurationMillis": "95",
+        "status": "PASSED",
+        "testAttemptStartMillisEpoch": "1792493738334",
+        "executionInfo": {
+          "strategy": "linux-sandbox",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0s"
+              },
+              {
+                "name": "setupTime",
+                "time": "0s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "0.095s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "0.095s"
+          }
+        },
+        "testAttemptStart": "2026-10-20T10:55:38.334Z",
+        "testAttemptDuration": "0.095s"
+      }
+    },
+    {
+      "id": {
+        "testSummary": {
+          "label": "//tools/research_askama:whitespace_comparison_test",
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testSummary": {
+        "totalRunCount": 1,
+        "passed": [
+          {
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.log"
+          }
+        ],
+        "overallStatus": "PASSED",
+        "firstStartTimeMillis": "1792493738334",
+        "lastStopTimeMillis": "1792493738429",
+        "totalRunDurationMillis": "95",
+        "runCount": 1,
+        "totalRunDuration": "0.095s",
+        "firstStartTime": "2026-10-20T10:55:38.334Z",
+        "lastStopTime": "2026-10-20T10:55:38.429Z",
+        "attemptCount": 1
+      }
+    },
+    {
+      "id": {
+        "testResult": {
+          "label": "//tools/research_askama:subset_comparison_test",
+          "run": 1,
+          "shard": 1,
+          "attempt": 1,
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testResult": {
+        "testActionOutput": [
+          {
+            "name": "test.log",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.log"
+          },
+          {
+            "name": "test.xml",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.xml"
+          },
+          {
+            "name": "test.outputs/comparison.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/comparison.json"
+          },
+          {
+            "name": "test.outputs/run-0/completion.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-0/completion.json"
+          },
+          {
+            "name": "test.outputs/run-0/events.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-0/events.json"
+          },
+          {
+            "name": "test.outputs/run-0/functional.txt",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-0/functional.txt"
+          },
+          {
+            "name": "test.outputs/run-0/render-0.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-0/render-0.html"
+          },
+          {
+            "name": "test.outputs/run-0/render-1.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-0/render-1.html"
+          },
+          {
+            "name": "test.outputs/run-0/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-0/stderr"
+          },
+          {
+            "name": "test.outputs/run-0/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-0/stdout"
+          },
+          {
+            "name": "test.outputs/run-1/completion.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-1/completion.json"
+          },
+          {
+            "name": "test.outputs/run-1/events.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-1/events.json"
+          },
+          {
+            "name": "test.outputs/run-1/functional.txt",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-1/functional.txt"
+          },
+          {
+            "name": "test.outputs/run-1/render-0.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-1/render-0.html"
+          },
+          {
+            "name": "test.outputs/run-1/render-1.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-1/render-1.html"
+          },
+          {
+            "name": "test.outputs/run-1/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-1/stderr"
+          },
+          {
+            "name": "test.outputs/run-1/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs/run-1/stdout"
+          },
+          {
+            "name": "test.outputs_manifest__MANIFEST",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.outputs_manifest/MANIFEST"
+          }
+        ],
+        "testAttemptDurationMillis": "59",
+        "status": "PASSED",
+        "testAttemptStartMillisEpoch": "1792493738518",
+        "executionInfo": {
+          "strategy": "linux-sandbox",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0s"
+              },
+              {
+                "name": "setupTime",
+                "time": "0s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "0.059s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "0.059s"
+          }
+        },
+        "testAttemptStart": "2026-10-20T10:55:38.518Z",
+        "testAttemptDuration": "0.059s"
+      }
+    },
+    {
+      "id": {
+        "testSummary": {
+          "label": "//tools/research_askama:subset_comparison_test",
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testSummary": {
+        "totalRunCount": 1,
+        "passed": [
+          {
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.log"
+          }
+        ],
+        "overallStatus": "PASSED",
+        "firstStartTimeMillis": "1792493738518",
+        "lastStopTimeMillis": "1792493738577",
+        "totalRunDurationMillis": "59",
+        "runCount": 1,
+        "totalRunDuration": "0.059s",
+        "firstStartTime": "2026-10-20T10:55:38.518Z",
+        "lastStopTime": "2026-10-20T10:55:38.577Z",
+        "attemptCount": 1
+      }
+    },
+    {
+      "id": {
+        "testResult": {
+          "label": "//tools/research_askama:syntax_test",
+          "run": 1,
+          "shard": 1,
+          "attempt": 1,
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testResult": {
+        "testActionOutput": [
+          {
+            "name": "test.log",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.log"
+          },
+          {
+            "name": "test.xml",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.xml"
+          },
+          {
+            "name": "test.outputs/results.tsv",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/results.tsv"
+          },
+          {
+            "name": "test.outputs/case-0/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-0/exit"
+          },
+          {
+            "name": "test.outputs/case-0/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-0/stderr"
+          },
+          {
+            "name": "test.outputs/case-0/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-0/stdout"
+          },
+          {
+            "name": "test.outputs/case-1/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-1/exit"
+          },
+          {
+            "name": "test.outputs/case-1/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-1/stderr"
+          },
+          {
+            "name": "test.outputs/case-1/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-1/stdout"
+          },
+          {
+            "name": "test.outputs/case-10/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-10/exit"
+          },
+          {
+            "name": "test.outputs/case-10/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-10/stderr"
+          },
+          {
+            "name": "test.outputs/case-10/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-10/stdout"
+          },
+          {
+            "name": "test.outputs/case-11/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-11/exit"
+          },
+          {
+            "name": "test.outputs/case-11/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-11/stderr"
+          },
+          {
+            "name": "test.outputs/case-11/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-11/stdout"
+          },
+          {
+            "name": "test.outputs/case-12/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-12/exit"
+          },
+          {
+            "name": "test.outputs/case-12/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-12/stderr"
+          },
+          {
+            "name": "test.outputs/case-12/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-12/stdout"
+          },
+          {
+            "name": "test.outputs/case-13/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-13/exit"
+          },
+          {
+            "name": "test.outputs/case-13/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-13/stderr"
+          },
+          {
+            "name": "test.outputs/case-13/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-13/stdout"
+          },
+          {
+            "name": "test.outputs/case-14/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-14/exit"
+          },
+          {
+            "name": "test.outputs/case-14/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-14/stderr"
+          },
+          {
+            "name": "test.outputs/case-14/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-14/stdout"
+          },
+          {
+            "name": "test.outputs/case-15/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-15/exit"
+          },
+          {
+            "name": "test.outputs/case-15/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-15/stderr"
+          },
+          {
+            "name": "test.outputs/case-15/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-15/stdout"
+          },
+          {
+            "name": "test.outputs/case-16/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-16/exit"
+          },
+          {
+            "name": "test.outputs/case-16/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-16/stderr"
+          },
+          {
+            "name": "test.outputs/case-16/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-16/stdout"
+          },
+          {
+            "name": "test.outputs/case-17/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-17/exit"
+          },
+          {
+            "name": "test.outputs/case-17/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-17/stderr"
+          },
+          {
+            "name": "test.outputs/case-17/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-17/stdout"
+          },
+          {
+            "name": "test.outputs/case-18/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-18/exit"
+          },
+          {
+            "name": "test.outputs/case-18/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-18/stderr"
+          },
+          {
+            "name": "test.outputs/case-18/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-18/stdout"
+          },
+          {
+            "name": "test.outputs/case-19/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-19/exit"
+          },
+          {
+            "name": "test.outputs/case-19/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-19/stderr"
+          },
+          {
+            "name": "test.outputs/case-19/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-19/stdout"
+          },
+          {
+            "name": "test.outputs/case-2/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-2/exit"
+          },
+          {
+            "name": "test.outputs/case-2/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-2/stderr"
+          },
+          {
+            "name": "test.outputs/case-2/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-2/stdout"
+          },
+          {
+            "name": "test.outputs/case-3/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-3/exit"
+          },
+          {
+            "name": "test.outputs/case-3/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-3/stderr"
+          },
+          {
+            "name": "test.outputs/case-3/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-3/stdout"
+          },
+          {
+            "name": "test.outputs/case-4/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-4/exit"
+          },
+          {
+            "name": "test.outputs/case-4/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-4/stderr"
+          },
+          {
+            "name": "test.outputs/case-4/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-4/stdout"
+          },
+          {
+            "name": "test.outputs/case-5/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-5/exit"
+          },
+          {
+            "name": "test.outputs/case-5/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-5/stderr"
+          },
+          {
+            "name": "test.outputs/case-5/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-5/stdout"
+          },
+          {
+            "name": "test.outputs/case-6/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-6/exit"
+          },
+          {
+            "name": "test.outputs/case-6/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-6/stderr"
+          },
+          {
+            "name": "test.outputs/case-6/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-6/stdout"
+          },
+          {
+            "name": "test.outputs/case-7/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-7/exit"
+          },
+          {
+            "name": "test.outputs/case-7/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-7/stderr"
+          },
+          {
+            "name": "test.outputs/case-7/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-7/stdout"
+          },
+          {
+            "name": "test.outputs/case-8/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-8/exit"
+          },
+          {
+            "name": "test.outputs/case-8/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-8/stderr"
+          },
+          {
+            "name": "test.outputs/case-8/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-8/stdout"
+          },
+          {
+            "name": "test.outputs/case-9/exit",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-9/exit"
+          },
+          {
+            "name": "test.outputs/case-9/stderr",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-9/stderr"
+          },
+          {
+            "name": "test.outputs/case-9/stdout",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-9/stdout"
+          },
+          {
+            "name": "test.outputs/case-10/output/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-10/output/baseline.json"
+          },
+          {
+            "name": "test.outputs/case-11/output/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-11/output/baseline.json"
+          },
+          {
+            "name": "test.outputs/case-12/output/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-12/output/baseline.json"
+          },
+          {
+            "name": "test.outputs/case-13/output/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-13/output/baseline.json"
+          },
+          {
+            "name": "test.outputs/case-14/output/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-14/output/baseline.json"
+          },
+          {
+            "name": "test.outputs/case-3/output/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-3/output/baseline.json"
+          },
+          {
+            "name": "test.outputs/case-4/output/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-4/output/baseline.json"
+          },
+          {
+            "name": "test.outputs/case-6/output/baseline.json",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-6/output/baseline.json"
+          },
+          {
+            "name": "test.outputs/case-10/output/templates/names/bulk_delete_table.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-10/output/templates/names/bulk_delete_table.html"
+          },
+          {
+            "name": "test.outputs/case-11/output/templates/names/edit_name_form.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-11/output/templates/names/edit_name_form.html"
+          },
+          {
+            "name": "test.outputs/case-12/output/templates/names/error_message.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-12/output/templates/names/error_message.html"
+          },
+          {
+            "name": "test.outputs/case-13/output/templates/names/name_row.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-13/output/templates/names/name_row.html"
+          },
+          {
+            "name": "test.outputs/case-14/output/templates/names/names_table.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-14/output/templates/names/names_table.html"
+          },
+          {
+            "name": "test.outputs/case-3/output/templates/login/login_error_message.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-3/output/templates/login/login_error_message.html"
+          },
+          {
+            "name": "test.outputs/case-4/output/templates/login/login_success.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-4/output/templates/login/login_success.html"
+          },
+          {
+            "name": "test.outputs/case-6/output/templates/names/add_name_form.html",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs/case-6/output/templates/names/add_name_form.html"
+          },
+          {
+            "name": "test.outputs_manifest__MANIFEST",
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.outputs_manifest/MANIFEST"
+          }
+        ],
+        "testAttemptDurationMillis": "262",
+        "status": "PASSED",
+        "testAttemptStartMillisEpoch": "1792493738336",
+        "executionInfo": {
+          "strategy": "linux-sandbox",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0s"
+              },
+              {
+                "name": "setupTime",
+                "time": "0s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "0.262s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "0.262s"
+          }
+        },
+        "testAttemptStart": "2026-10-20T10:55:38.336Z",
+        "testAttemptDuration": "0.262s"
+      }
+    },
+    {
+      "id": {
+        "testSummary": {
+          "label": "//tools/research_askama:syntax_test",
+          "configuration": {
+            "id": "5355659cde5598252d9c3896feff1feb7c2aa53325931027fdcac627086eea8b"
+          }
+        }
+      },
+      "testSummary": {
+        "totalRunCount": 1,
+        "passed": [
+          {
+            "uri": "file:///home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/syntax_test/test.log"
+          }
+        ],
+        "overallStatus": "PASSED",
+        "firstStartTimeMillis": "1792493738336",
+        "lastStopTimeMillis": "1792493738598",
+        "totalRunDurationMillis": "262",
+        "runCount": 1,
+        "totalRunDuration": "0.262s",
+        "firstStartTime": "2026-10-20T10:55:38.336Z",
+        "lastStopTime": "2026-10-20T10:55:38.598Z",
+        "attemptCount": 1
+      }
+    }
+  ]
+}

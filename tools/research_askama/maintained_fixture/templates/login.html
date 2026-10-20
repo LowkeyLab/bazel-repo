@@ -1,0 +1,61 @@
+{% extends "layout.html" %} {% block title %}Login - Nicknamer{% endblock %} {%
+block content %}
+<div class="hero">
+  <div class="hero-content text-center">
+    <div class="max-w-md">
+      <h1 class="text-5xl font-bold mb-8">Nicknamer</h1>
+      <div
+        id="login-widget"
+        class="card w-full max-w-sm shadow-2xl bg-base-100"
+      >
+        <div id="login-content" class="card-body">
+          {% if let Some(user) = username %}
+          <h2 class="card-title text-2xl font-bold">Welcome back!</h2>
+          <p class="mb-4">
+            You are already logged in as
+            <strong>{{ user }}</strong>.
+          </p>
+          <div class="form-control">
+            <a href="/" class="btn btn-primary">Go to Homepage</a>
+          </div>
+          {% else %}
+          <form hx-post="/login" hx-target="#login-content">
+            <h2 class="card-title text-2xl font-bold">Login</h2>
+            <div class="form-control text-left">
+              <label class="label" for="username">
+                <span class="label-text">Username</span>
+              </label>
+              <input
+                type="text"
+                name="username"
+                id="username"
+                placeholder="username"
+                class="input input-bordered"
+                required
+              />
+            </div>
+            <div class="form-control text-left">
+              <label class="label" for="password">
+                <span class="label-text">Password</span>
+              </label>
+              <input
+                type="password"
+                name="password"
+                id="password"
+                placeholder="password"
+                class="input input-bordered"
+                required
+              />
+            </div>
+            <div class="form-control mt-6">
+              <button class="btn btn-primary">Login</button>
+            </div>
+          </form>
+          <div id="login-message" class="hidden"></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

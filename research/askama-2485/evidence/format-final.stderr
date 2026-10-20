@@ -1,0 +1,107 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a' is dirty
+→ 🎬 Running format task
+
+→ 🔧 Setup · Running setup
+
+→ 🔨 Build · Building formatter (//tools/format:format)
+INFO: Spawning: bazel --host_jvm_args=-Xmx1536m --max_idle_secs=900 --shutdown_on_low_sys_mem --ignore_all_rc_files build --default_override=0:common=--extra_execution_platforms=//platforms:local_gnu_llvm --default_override=0:common=--platforms=//platforms:local_gnu_llvm --default_override=0:common=--host_platform=//platforms:local_gnu_llvm --default_override=0:common=--@llvm//config:experimental_stub_libgcc_s=True --default_override=0:common=--@rules_rust//rust/settings:experimental_use_allocator_libraries_with_mangled_symbols --default_override=0:common=--@rules_go//go/config:linkmode=pie --default_override=0:common=--nobuild_runfile_links --default_override=0:common=--enable_platform_specific_config --default_override=0:common=--noexperimental_check_external_repository_files --default_override=0:common=--experimental_fetch_all_coverage_outputs --default_override=0:common=--heap_dump_on_oom --default_override=0:common=--incompatible_default_to_explicit_init_py --default_override=0:common=--incompatible_enforce_starlark_utf8=error --default_override=0:common=--incompatible_modify_execution_info_additive --default_override=0:common=--module_mirrors=https://bcr.cloudflaremirrors.com --default_override=0:common=--noremote_upload_local_results --default_override=0:common=--repo_env=JAVA_HOME=../bazel_tools/jdk --default_override=0:common=--repo_env=DO_NOT_TRACK=1 --default_override=0:common=--reuse_sandbox_directories --default_override=0:common=--nosandbox_default_allow_network --default_override=0:common=--show_result=20 --default_override=0:common=--test_output=errors --default_override=0:common=--java_language_version=25 --default_override=0:common=--tool_java_language_version=25 --default_override=0:common=--java_runtime_version=remotejdk_25 --default_override=0:common=--tool_java_runtime_version=remotejdk_25 --default_override=0:common=--bes_results_url=https://app.buildbuddy.io/invocation/ --default_override=0:common=--bes_backend=grpcs://remote.buildbuddy.io --default_override=0:common=--remote_cache=grpcs://remote.buildbuddy.io --default_override=0:common=--remote_cache_compression --default_override=0:common=--experimental_remote_cache_chunking --default_override=0:common=--remote_grpc_log=bazel-remote-grpc.log --default_override=0:common=--execution_log_compact_file=execution_log.binpb.zst --default_override=0:common=--noslim_profile --default_override=0:common=--experimental_profile_include_primary_output --default_override=0:common=--experimental_profile_include_target_label --default_override=0:common=--experimental_isolated_extension_usages --default_override=0:common=--workspace_status_command=githooks/check-config.sh --default_override=0:common=--noexperimental_merged_skyframe_analysis_execution --default_override=0:common=--@aspect_rules_ts//ts:skipLibCheck=always --default_override=0:common=--@aspect_rules_ts//ts:default_to_tsc_transpiler --default_override=0:common=--@rules_python//python/config_settings:bootstrap_impl=script --default_override=0:common=--@rules_python//python/config_settings:python_version=3.15 --default_override=0:common=--@pypi//venv=default --default_override=0:common=--remote_executor=grpcs://remote.buildbuddy.io --default_override=0:common=--platforms=//platforms:remote_linux_x86_64_gnu_llvm --default_override=0:common=--extra_execution_platforms=//platforms:remote_linux_x86_64_gnu_llvm --default_override=0:common=--jobs=100 --default_override=0:common=--host_platform=//platforms:remote_linux_x86_64_gnu_llvm --default_override=0:common=--remote_header=<REDACTED> --default_override=0:common=--remote_executor=grpcs://remote.buildbuddy.io --default_override=0:common=--platforms=//platforms:remote_linux_x86_64_gnu_llvm --default_override=0:common=--extra_execution_platforms=//platforms:remote_linux_x86_64_gnu_llvm --default_override=0:common=--jobs=100 --default_override=0:common=--host_platform=//platforms:remote_linux_x86_64_gnu_llvm --default_override=0:common=--remote_timeout=3600 --default_override=0:common=--incompatible_strict_action_env --default_override=0:common=--remote_local_fallback_strategy=sandboxed --repo_env=JAVA_HOME=<REDACTED> --remote_cache= --remote_executor= --bes_backend= --remote_upload_local_results=false --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --java_runtime_version=remotejdk_21 --tool_java_runtime_version=remotejdk_21 --java_language_version=21 --tool_java_language_version=21 --build_event_json_file=/tmp/askama-2485-format-bep.json --aspects=@bazel_tools//aspect_932a1c220d46ba72:aspect.bzl%runinfo --output_groups=+aspect_runinfo --build_event_binary_file_upload_mode=fully_async --build_event_binary_file /tmp/nix-shell.vRo7QV/build-event-out-f435bf5e-c413-4a07-8a33-4cf17eb17fb2.bin -- //tools/format:format
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build options --java_language_version, --java_runtime_version, --tool_java_language_version, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //tools/format:format (0 packages loaded, 0 targets configured)
+Analyzing: target //tools/format:format (2 packages loaded, 61237 targets configured, 29 aspect applications)
+INFO: Analyzed target //tools/format:format (2 packages loaded, 95716 targets configured, 180 aspect applications).
+INFO: Found 1 target...
+[17 / 32] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,864 / 1,868] [Prepa] Extracting interfaces from external/rules_java+/toolchains/platformclasspath_unstripped.jar
+Target //tools/format:format up-to-date:
+  bazel-bin/tools/format/format.bash
+Aspect @@bazel_tools//aspect_932a1c220d46ba72:aspect.bzl%runinfo of //tools/format:format up-to-date:
+  bazel-bin/tools/format/format.aspect_runinfo.json
+INFO: Elapsed time: 5.161s, Critical Path: 1.44s
+INFO: 3 processes: 1865 action cache hit, 1 internal, 2 linux-sandbox.
+INFO: Build completed successfully, 3 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ ✨ Format · Formatting all files
+Formatted JavaScript in 0m0.153s
+Formatted JSON in 0m0.359s
+Formatted JSON with Comments in 0m0.103s
+Formatted TypeScript in 0m1.807s
+Formatted Markdown in 0m1.357s
+Formatted CSS in 0m0.186s
+Formatted HTML in 0m0.561s
+20 files left unchanged
+Formatted Python in 0m0.008s
+Formatted Starlark in 0m0.030s
+Done formatting ktor_tutorial/src/Databases.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/ApplicationTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Routing.kt
+Done formatting ktor_tutorial/src/model/TaskRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Serialization.kt
+Done formatting ktor_tutorial/test/ApplicationTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Observability.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/InMemoryGameRepository.kt
+Done formatting ktor_tutorial/test/model/FakeTaskRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Security.kt
+Done formatting ktor_tutorial/src/model/Task.kt
+Done formatting ktor_tutorial/src/db/Mapping.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/PlayerFactory.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/GameRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/Player.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/Game.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/app/Application.kt
+Done formatting ktor_tutorial/src/Routing.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Sockets.kt
+Done formatting ktor_tutorial/src/Application.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesSummaryTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/ResourcePlayerFactory.kt
+Done formatting ktor_tutorial/src/model/PostgresTaskRepository.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/CalculateAllowedOriginsTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Games.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/GameService.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesWebSocketTest.kt
+Done formatting ktor_tutorial/src/Serialization.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/game/GameServiceTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/game/GameTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesHttpTest.kt
+Formatted Kotlin in 0m0.634s
+Formatted Go in 0m0.013s
+Formatted Shell in 0m0.004s
+Formatted YAML in 0m0.007s
+Formatted Rust in 0m2.284s
+
+→ 📋 Diff · Computing format diff
+1 file was modified:
+  - tools/research_askama/subset_collect.rs
+Formatted 1 file(s). Review and commit the changes.
+
+🛠️ Fix:
+```
+aspect format --severity=info -- tools/research_askama/subset_collect.rs
+```
+
+```
+bazel run //tools/format:format -- tools/research_askama/subset_collect.rs
+```
+
+
+→ ✅ Passed format task in 14.6s · Reformatted 1 file
+    🔧 Setup    1ms  Prepare the task environment
+    🔨 Build   5.4s  Build formatter
+    ✨ Format  9.1s  Format files
+    📋 Diff    53ms  Detect formatter-induced changes

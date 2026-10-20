@@ -1,0 +1,75 @@
+{
+  "files": [
+    {
+      "nodes": [
+        {
+          "arms": 2,
+          "column": 3,
+          "end": 5,
+          "id": 3,
+          "kind": "if",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 11,
+          "end": 1821,
+          "id": 1818,
+          "kind": "loop",
+          "line": 71
+        },
+        {
+          "arms": 0,
+          "column": 32,
+          "end": 1872,
+          "id": 1871,
+          "kind": "expression",
+          "line": 72
+        },
+        {
+          "arms": 0,
+          "column": 30,
+          "end": 2068,
+          "id": 2067,
+          "kind": "expression",
+          "line": 79
+        },
+        {
+          "arms": 0,
+          "column": 21,
+          "end": 2199,
+          "id": 2198,
+          "kind": "expression",
+          "line": 84
+        },
+        {
+          "arms": 0,
+          "column": 21,
+          "end": 2240,
+          "id": 2239,
+          "kind": "expression",
+          "line": 85
+        },
+        {
+          "arms": 0,
+          "column": 43,
+          "end": 2302,
+          "id": 2301,
+          "kind": "expression",
+          "line": 86
+        },
+        {
+          "arms": 0,
+          "column": 40,
+          "end": 3442,
+          "id": 3441,
+          "kind": "expression",
+          "line": 126
+        }
+      ],
+      "path": "nicknamer/server/lib/templates/names/bulk_delete_table.html",
+      "sha256": "9bc370adcd01e500796824b3f82848a606ab84edd9f56cb1d1219c443b7897b2"
+    }
+  ],
+  "schema": 1
+}

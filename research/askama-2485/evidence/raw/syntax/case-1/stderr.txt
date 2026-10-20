@@ -1,0 +1,1 @@
+Error: Unsupported bounded adapter node: BlockDef(BlockDef { ws1: Ws(None, None), name: "theme", nodes: [Lit(Lit { lws: "", val: "light", rws: "" })], ws2: Ws(None, None) })

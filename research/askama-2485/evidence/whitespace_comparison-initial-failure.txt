@@ -1,0 +1,5 @@
+exec ${PAGER:-/usr/bin/less} "$0" || exit 1
+Executing tests from //tools/research_askama:whitespace_comparison_test
+-----------------------------------------------------------------------------
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found

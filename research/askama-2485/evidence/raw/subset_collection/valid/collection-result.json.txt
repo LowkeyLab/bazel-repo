@@ -1,0 +1,7 @@
+{
+  "both_orders_equal": true,
+  "bounded_subset_complete": true,
+  "loop_branches": "not measured",
+  "original_template_files": 3,
+  "supported_branch": "simple Boolean if/else"
+}

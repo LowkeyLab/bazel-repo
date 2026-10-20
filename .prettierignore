@@ -2,3 +2,6 @@ rbe-image/bookworm.lock.json
 MODULE.bazel.lock
 maven_install.json
 flake.lock
+
+# Research fixtures require exact whitespace bytes.
+tools/research_askama/whitespace_fixture/templates/*.html

@@ -1,0 +1,25 @@
+==================== Test output for //tools/research_askama:subset_collection_test:
+Error: Unexpected source identity
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+external/bazel_tools/tools/test/test-setup.sh: line 331: file: command not found
+================================================================================
+//tools/research_askama:maintained_native_test                           PASSED in 0.1s
+  WARNING: //tools/research_askama:maintained_native_test: Test execution time (0.1s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//tools/research_askama:subset_comparison_test                           PASSED in 0.1s
+  WARNING: //tools/research_askama:subset_comparison_test: Test execution time (0.1s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//tools/research_askama:syntax_test                                      PASSED in 0.3s
+  WARNING: //tools/research_askama:syntax_test: Test execution time (0.3s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//tools/research_askama:whitespace_comparison_test                       PASSED in 0.1s
+  WARNING: //tools/research_askama:whitespace_comparison_test: Test execution time (0.1s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//tools/research_askama:subset_collection_test                           FAILED in 0.0s
+  /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_collection_test/test.log
+
+Executed 5 out of 5 tests: 4 tests pass and 1 fails locally.

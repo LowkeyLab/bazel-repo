@@ -1,0 +1,19 @@
+{
+  "files": [
+    {
+      "nodes": [
+        {
+          "arms": 0,
+          "column": 11,
+          "end": 371,
+          "id": 364,
+          "kind": "expression",
+          "line": 15
+        }
+      ],
+      "path": "nicknamer/server/lib/templates/names/error_message.html",
+      "sha256": "579546061b3068b7d3694413d1e83c98eedd2d6c5a54b9f25ea02ee78e1710a1"
+    }
+  ],
+  "schema": 1
+}

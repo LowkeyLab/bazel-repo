@@ -1,0 +1,10 @@
+
+<div class="card w-full max-w-md shadow-2xl bg-base-100 mb-6">
+  <div class="card-body text-center">
+    <h1 class="card-title text-3xl font-bold mb-4">Welcome, &#60;&#38;&#62;!</h1>
+    <p class="text-lg mb-4">You can manage Nicknamer's settings from here.</p>
+    <div class="card-actions justify-center">
+      <a href="/names" class="btn btn-primary">Manage Names</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,2 @@
+[general]
+dirs = ["maintained_fixture/templates", "templates"]

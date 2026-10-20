@@ -1,0 +1,94 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 4 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 4 targets (1 packages loaded, 147 targets configured).
+INFO: Found 4 test targets...
+[142 / 386] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+INFO: From Compiling Rust bin //tools/research_askama:whitespace_original_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Compiling Rust bin //tools/research_askama:maintained_native_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Compiling Rust bin //tools/research_askama:instrumenter (1 file) [for tool]:
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Compiling Rust bin //tools/research_askama:instrumenter (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Compiling Rust bin //tools/research_askama:whitespace_native_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+INFO: From Compiling Rust bin //tools/research_askama:subset_native_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+FAIL: //tools/research_askama:maintained_native_test (Exit 101) (see /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/maintained_native_test/test.log)
+INFO: From Testing //tools/research_askama:maintained_native_test:
+INFO: From Compiling Rust bin //tools/research_askama:whitespace_fixed_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+FAIL: //tools/research_askama:whitespace_comparison_test (Exit 101) (see /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/whitespace_comparison_test/test.log)
+[2,100 / 2,103] 3 / 4 tests, 2 failed; Compiling Rust bin //tools/research_askama:subset_adapter_test (1 file); 0s linux-sandbox ... (2 actions running)
+INFO: From Testing //tools/research_askama:whitespace_comparison_test:
+INFO: From Compiling Rust bin //tools/research_askama:subset_adapter_test (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+FAIL: //tools/research_askama:subset_comparison_test (Exit 101) (see /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_askama/subset_comparison_test/test.log)
+INFO: From Testing //tools/research_askama:subset_comparison_test:
+Target //tools/research_askama:whitespace_comparison_test up-to-date:
+  bazel-bin/tools/research_askama/whitespace_comparison_test
+Target //tools/research_askama:subset_comparison_test up-to-date:
+  bazel-bin/tools/research_askama/subset_comparison_test
+Target //tools/research_askama:maintained_native_test up-to-date:
+  bazel-bin/tools/research_askama/maintained_native_test
+Target //tools/research_askama:syntax_test up-to-date:
+  bazel-bin/tools/research_askama/syntax_test
+INFO: Elapsed time: 2.736s, Critical Path: 0.95s
+INFO: 20 processes: 104 action cache hit, 6 internal, 18 linux-sandbox.
+INFO: Build completed, 3 tests FAILED, 20 total actions

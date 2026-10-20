@@ -1,0 +1,1 @@
+{"native_adapter_exact_matches":2,"functional":true}

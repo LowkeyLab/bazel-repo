@@ -1,0 +1,59 @@
+{
+  "files": [
+    {
+      "nodes": [
+        {
+          "arms": 0,
+          "column": 24,
+          "end": 25,
+          "id": 24,
+          "kind": "expression",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 13,
+          "end": 47,
+          "id": 46,
+          "kind": "expression",
+          "line": 2
+        },
+        {
+          "arms": 0,
+          "column": 13,
+          "end": 80,
+          "id": 79,
+          "kind": "expression",
+          "line": 3
+        },
+        {
+          "arms": 0,
+          "column": 35,
+          "end": 134,
+          "id": 133,
+          "kind": "expression",
+          "line": 4
+        },
+        {
+          "arms": 0,
+          "column": 28,
+          "end": 237,
+          "id": 236,
+          "kind": "expression",
+          "line": 8
+        },
+        {
+          "arms": 0,
+          "column": 31,
+          "end": 843,
+          "id": 842,
+          "kind": "expression",
+          "line": 30
+        }
+      ],
+      "path": "nicknamer/server/lib/templates/names/name_row.html",
+      "sha256": "329e8826c1b7f7deb518d68a5c1d545d173ca36d1531abf0c6d46fd319e1a475"
+    }
+  ],
+  "schema": 1
+}

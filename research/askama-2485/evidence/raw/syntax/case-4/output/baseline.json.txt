@@ -1,0 +1,19 @@
+{
+  "files": [
+    {
+      "nodes": [
+        {
+          "arms": 0,
+          "column": 17,
+          "end": 118,
+          "id": 114,
+          "kind": "expression",
+          "line": 3
+        }
+      ],
+      "path": "nicknamer/server/lib/templates/login/login_success.html",
+      "sha256": "d2bb399740f5b2dab07ff17471954191e4525eca5894ebaf0a9f79c3204a4466"
+    }
+  ],
+  "schema": 1
+}

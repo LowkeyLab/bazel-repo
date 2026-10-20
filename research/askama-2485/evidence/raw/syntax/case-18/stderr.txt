@@ -1,0 +1,1 @@
+Error: Unsupported bounded adapter node: Match(Match { ws1: Ws(None, None), expr: Var("value"), arms: [When { ws: Ws(None, None), target: [NumLit("1", Int("1", None))], nodes: [Lit(Lit { lws: "", val: "one", rws: "" })] }, When { ws: Ws(None, None), target: [Placeholder(())], nodes: [Lit(Lit { lws: "", val: "other", rws: "" })] }], ws2: Ws(None, None) })

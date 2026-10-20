@@ -1,0 +1,1 @@
+Error: Unsupported bounded adapter node: Extends(Extends { path: "layout.html" })

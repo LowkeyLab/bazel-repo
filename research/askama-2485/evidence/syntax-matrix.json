@@ -1,0 +1,102 @@
+[
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/index.html",
+    "exit": 1,
+    "classification": "Extends"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/layout.html",
+    "exit": 1,
+    "classification": "BlockDef"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/login.html",
+    "exit": 1,
+    "classification": "Extends"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/login/login_error_message.html",
+    "exit": 0,
+    "classification": "accepted"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/login/login_success.html",
+    "exit": 0,
+    "classification": "accepted"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names.html",
+    "exit": 1,
+    "classification": "Extends"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/add_name_form.html",
+    "exit": 0,
+    "classification": "accepted"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/bulk_add_form.html",
+    "exit": 1,
+    "classification": "Extends"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/bulk_add_success.html",
+    "exit": 1,
+    "classification": "The bounded fixture requires one if/else pair"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/bulk_delete.html",
+    "exit": 1,
+    "classification": "Extends"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/bulk_delete_table.html",
+    "exit": 0,
+    "classification": "accepted"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/edit_name_form.html",
+    "exit": 0,
+    "classification": "accepted"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/error_message.html",
+    "exit": 0,
+    "classification": "accepted"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/name_row.html",
+    "exit": 0,
+    "classification": "accepted"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/names/names_table.html",
+    "exit": 0,
+    "classification": "accepted"
+  },
+  {
+    "source": "tools/research_askama/maintained_fixture/templates/welcome/call_to_action.html",
+    "exit": 1,
+    "classification": "Only a simple Boolean condition is supported"
+  },
+  {
+    "source": "tools/research_askama/unsupported/templates/if_let.html",
+    "exit": 1,
+    "classification": "Only a simple Boolean condition is supported"
+  },
+  {
+    "source": "tools/research_askama/unsupported/templates/loop_else.html",
+    "exit": 1,
+    "classification": "Filtered and else loops are outside the bounded adapter"
+  },
+  {
+    "source": "tools/research_askama/unsupported/templates/match.html",
+    "exit": 1,
+    "classification": "Match"
+  },
+  {
+    "source": "tools/research_askama/unsupported/templates/raw.html",
+    "exit": 1,
+    "classification": "Raw"
+  }
+]

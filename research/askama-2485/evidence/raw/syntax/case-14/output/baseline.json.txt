@@ -1,0 +1,43 @@
+{
+  "files": [
+    {
+      "nodes": [
+        {
+          "arms": 2,
+          "column": 3,
+          "end": 5,
+          "id": 3,
+          "kind": "if",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 9,
+          "end": 765,
+          "id": 762,
+          "kind": "loop",
+          "line": 31
+        },
+        {
+          "arms": 0,
+          "column": 32,
+          "end": 816,
+          "id": 785,
+          "kind": "include",
+          "line": 31
+        },
+        {
+          "arms": 0,
+          "column": 40,
+          "end": 1034,
+          "id": 1033,
+          "kind": "expression",
+          "line": 41
+        }
+      ],
+      "path": "nicknamer/server/lib/templates/names/names_table.html",
+      "sha256": "5d2944f6696b0cb3d2452fb891511f11fd6a78c5a0d4cb0923b78457afe295f7"
+    }
+  ],
+  "schema": 1
+}

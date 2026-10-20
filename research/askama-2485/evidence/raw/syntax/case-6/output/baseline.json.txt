@@ -1,0 +1,10 @@
+{
+  "files": [
+    {
+      "nodes": [],
+      "path": "nicknamer/server/lib/templates/names/add_name_form.html",
+      "sha256": "3fe869bf7cf40dd339e09eb0473de83f3a190ca618688a574ef2a2797f947eba"
+    }
+  ],
+  "schema": 1
+}

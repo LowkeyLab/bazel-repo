@@ -1,0 +1,19 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: 4 targets (1 packages loaded, 0 targets configured)
+INFO: Analyzed 4 targets (11 packages loaded, 777 targets configured).
+INFO: Found 4 test targets...
+[14 / 189] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (3 actions, 0 running)
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a/tools/research_askama/BUILD.bazel:157:8: Creating symlink tools/research_askama/whitespace_comparison_test failed: failed to create symbolic link 'bazel-out/k8-fastbuild/bin/tools/research_askama/whitespace_comparison_test': file 'tools/research_askama/compare.sh' is not executable
+ERROR: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a/tools/research_askama/BUILD.bazel:159:8: Creating symlink tools/research_askama/syntax_test failed: failed to create symbolic link 'bazel-out/k8-fastbuild/bin/tools/research_askama/syntax_test': file 'tools/research_askama/syntax.sh' is not executable
+Target //tools/research_askama:whitespace_comparison_test failed to build
+Target //tools/research_askama:subset_comparison_test failed to build
+Target //tools/research_askama:maintained_native_test failed to build
+Target //tools/research_askama:syntax_test failed to build
+Use --verbose_failures to see the command lines of failed build steps.
+INFO: Elapsed time: 1.265s, Critical Path: 0.01s
+INFO: 3 processes: 3 internal.
+ERROR: Build did NOT complete successfully

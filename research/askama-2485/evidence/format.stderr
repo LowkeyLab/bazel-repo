@@ -1,0 +1,9 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+error: unexpected argument '--bazel-flag' found
+
+  tip: 'format --bazel-flag' exists
+
+Usage: aspect [TASK|GROUP|COMMAND]
+
+For more information, try '--help'.

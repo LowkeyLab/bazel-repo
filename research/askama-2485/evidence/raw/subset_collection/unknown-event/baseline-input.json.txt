@@ -1,0 +1,119 @@
+{
+  "files": [
+    {
+      "nodes": [
+        {
+          "arms": 0,
+          "column": 24,
+          "end": 25,
+          "id": 24,
+          "kind": "expression",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 13,
+          "end": 47,
+          "id": 46,
+          "kind": "expression",
+          "line": 2
+        },
+        {
+          "arms": 0,
+          "column": 13,
+          "end": 80,
+          "id": 79,
+          "kind": "expression",
+          "line": 3
+        },
+        {
+          "arms": 0,
+          "column": 35,
+          "end": 134,
+          "id": 133,
+          "kind": "expression",
+          "line": 4
+        },
+        {
+          "arms": 0,
+          "column": 28,
+          "end": 237,
+          "id": 236,
+          "kind": "expression",
+          "line": 8
+        },
+        {
+          "arms": 0,
+          "column": 31,
+          "end": 843,
+          "id": 842,
+          "kind": "expression",
+          "line": 30
+        }
+      ],
+      "path": "nicknamer/server/lib/templates/names/name_row.html",
+      "sha256": "329e8826c1b7f7deb518d68a5c1d545d173ca36d1531abf0c6d46fd319e1a475"
+    },
+    {
+      "nodes": [
+        {
+          "arms": 2,
+          "column": 3,
+          "end": 5,
+          "id": 3,
+          "kind": "if",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 9,
+          "end": 765,
+          "id": 762,
+          "kind": "loop",
+          "line": 31
+        },
+        {
+          "arms": 0,
+          "column": 32,
+          "end": 816,
+          "id": 785,
+          "kind": "include",
+          "line": 31
+        },
+        {
+          "arms": 0,
+          "column": 40,
+          "end": 1034,
+          "id": 1033,
+          "kind": "expression",
+          "line": 41
+        }
+      ],
+      "path": "nicknamer/server/lib/templates/names/names_table.html",
+      "sha256": "5d2944f6696b0cb3d2452fb891511f11fd6a78c5a0d4cb0923b78457afe295f7"
+    },
+    {
+      "nodes": [
+        {
+          "arms": 2,
+          "column": 3,
+          "end": 5,
+          "id": 3,
+          "kind": "if",
+          "line": 1
+        },
+        {
+          "arms": 0,
+          "column": 13,
+          "end": 35,
+          "id": 30,
+          "kind": "expression",
+          "line": 2
+        }
+      ],
+      "path": "tools/research_askama/templates/unused.html",
+      "sha256": "b6538feec72276c963218a5015e8f645b4f4ed255aacefa810e5a45be65a854f"
+    }
+  ],
+  "schema": 1
+}

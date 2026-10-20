@@ -1,0 +1,10 @@
+//tools/research_askama:maintained_native_test                           PASSED in 0.1s
+  WARNING: //tools/research_askama:maintained_native_test: Test execution time (0.1s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//tools/research_askama:subset_comparison_test                           PASSED in 0.1s
+  WARNING: //tools/research_askama:subset_comparison_test: Test execution time (0.1s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//tools/research_askama:syntax_test                                      PASSED in 0.3s
+  WARNING: //tools/research_askama:syntax_test: Test execution time (0.3s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+//tools/research_askama:whitespace_comparison_test                       PASSED in 0.1s
+  WARNING: //tools/research_askama:whitespace_comparison_test: Test execution time (0.1s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+
+Executed 4 out of 4 tests: 4 tests pass.

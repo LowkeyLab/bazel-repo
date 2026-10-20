@@ -1,0 +1,10 @@
+{
+  "files": [
+    {
+      "nodes": [],
+      "path": "nicknamer/server/lib/templates/login/login_error_message.html",
+      "sha256": "f953de256e5eb02dfaf6ebaed60bdc4f3d0c35fd58e2c72b8a9dab6a5145496b"
+    }
+  ],
+  "schema": 1
+}

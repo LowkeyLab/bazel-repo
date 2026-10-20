@@ -1,0 +1,94 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+→ 🎬 Running format task
+
+→ 🔧 Setup · Running setup
+
+→ 🔨 Build · Building formatter (//tools/format:format)
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+WARNING: Build options --java_language_version, --java_runtime_version, --tool_java_language_version, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //tools/format:format (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/format:format (3 packages loaded, 95716 targets configured, 180 aspect applications).
+ no actions running
+INFO: Found 1 target...
+[17 / 21] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //tools/format:format up-to-date:
+  bazel-bin/tools/format/format.bash
+Aspect @@bazel_tools//aspect_932a1c220d46ba72:aspect.bzl%runinfo of //tools/format:format up-to-date:
+  bazel-bin/tools/format/format.aspect_runinfo.json
+INFO: Elapsed time: 2.812s, Critical Path: 0.10s
+INFO: 1 process: 1867 action cache hit, 1 internal.
+INFO: Build completed successfully, 1 total action
+
+INFO: Build Event Protocol files produced successfully.
+
+→ ✨ Format · Formatting all files
+Formatted JavaScript in 0m0.145s
+Formatted JSON in 0m0.238s
+Formatted JSON with Comments in 0m0.096s
+Formatted TypeScript in 0m1.215s
+Formatted Markdown in 0m1.258s
+Formatted CSS in 0m0.176s
+Formatted HTML in 0m0.530s
+20 files left unchanged
+Formatted Python in 0m0.007s
+Formatted Starlark in 0m0.029s
+Done formatting ktor_tutorial/src/model/Task.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/ApplicationTest.kt
+Done formatting ktor_tutorial/src/db/Mapping.kt
+Done formatting ktor_tutorial/test/model/FakeTaskRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Security.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/InMemoryGameRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Routing.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/CalculateAllowedOriginsTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Observability.kt
+Done formatting ktor_tutorial/src/Databases.kt
+Done formatting ktor_tutorial/test/ApplicationTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Serialization.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/PlayerFactory.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/Player.kt
+Done formatting ktor_tutorial/src/model/TaskRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/Game.kt
+Done formatting ktor_tutorial/src/Routing.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/GameRepository.kt
+Done formatting ktor_tutorial/src/Application.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Sockets.kt
+Done formatting ktor_tutorial/src/model/PostgresTaskRepository.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/app/Application.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/ResourcePlayerFactory.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/game/GameService.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesSummaryTest.kt
+Done formatting ktor_tutorial/src/Serialization.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesWebSocketTest.kt
+Done formatting mindreadr/src/main/io/lowkeylab/mindreadr/Games.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/game/GameServiceTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/game/GameTest.kt
+Done formatting mindreadr/src/test/io/lowkeylab/mindreadr/app/GamesHttpTest.kt
+Formatted Kotlin in 0m0.556s
+Formatted Go in 0m0.013s
+Formatted Shell in 0m0.004s
+Formatted YAML in 0m0.007s
+Formatted Rust in 0m2.276s
+
+→ 📋 Diff · Computing format diff
+No files were modified.
+
+→ ✅ Passed format task in 11.4s · All files are properly formatted
+    🔧 Setup    1ms  Prepare the task environment
+    🔨 Build   3.2s  Build formatter
+    ✨ Format  8.2s  Format files
+    📋 Diff    26ms  Detect formatter-induced changes

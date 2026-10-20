@@ -1,0 +1,337 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":instrument.bzl", "instrument")
+
+# gazelle:ignore
+
+rust_test(
+    name = "native_test",
+    srcs = ["native.rs"],
+    compile_data = glob(["templates/*.html"]),
+    crate_root = "native.rs",
+    rustc_env = {"CARGO_MANIFEST_DIR": "tools/research_askama"},
+    rustc_flags = ["-Cinstrument-coverage"],
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+    ],
+)
+
+sh_test(
+    name = "native_export_test",
+    srcs = ["native_export.sh"],
+    args = [
+        "$(rootpath :native_test)",
+        "$(rootpath @llvm//tools:llvm-profdata)",
+        "$(rootpath @llvm//tools:llvm-cov)",
+    ],
+    data = [
+        ":native_test",
+        "@llvm//tools:llvm-cov",
+        "@llvm//tools:llvm-profdata",
+    ],
+)
+
+rust_binary(
+    name = "instrumenter",
+    srcs = ["instrument.rs"],
+    crate_root = "instrument.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:askama_parser-0.16.1",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+instrument(
+    name = "instrumented",
+    srcs = glob(["templates/*.html"]),
+    tool = ":instrumenter",
+)
+
+filegroup(
+    name = "instrumented_env",
+    srcs = [":instrumented"],
+    output_group = "env",
+)
+
+rust_test(
+    name = "adapter_test",
+    srcs = ["adapter.rs"],
+    compile_data = [":instrumented"],
+    crate_root = "adapter.rs",
+    data = [":instrumented"],
+    rustc_env_files = [":instrumented_env"],
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+rust_binary(
+    name = "collector",
+    srcs = ["collect.rs"],
+    crate_root = "collect.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+sh_test(
+    name = "adapter_collection_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "$(rootpath :native_export.sh)",
+        "$(rootpath :native_test)",
+        "$(rootpath @llvm//tools:llvm-profdata)",
+        "$(rootpath @llvm//tools:llvm-cov)",
+        "$(rootpath :adapter_test)",
+        "$(rootpath :collector)",
+        "$(rootpath :instrumented)",
+        "$(rootpath :compiler_metadata)",
+    ],
+    data = [
+        "instrument.bzl",
+        ":adapter_test",
+        ":collector",
+        ":compiler_metadata",
+        ":instrumented",
+        ":native_test",
+        "@llvm//tools:llvm-cov",
+        "@llvm//tools:llvm-profdata",
+    ] + glob([
+        "templates/*.html",
+        "*.rs",
+        "*.sh",
+    ]),
+)
+
+filegroup(
+    name = "compiler_metadata",
+    srcs = [":instrumented"],
+    output_group = "compiler",
+)
+
+rust_binary(
+    name = "instrumenter_original",
+    srcs = ["instrument_original.rs"],
+    crate_root = "instrument_original.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:askama_parser-0.16.1",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+instrument(
+    name = "whitespace_original",
+    srcs = glob(["whitespace_fixture/templates/*.html"]),
+    tool = ":instrumenter_original",
+)
+
+filegroup(
+    name = "whitespace_original_env",
+    srcs = [":whitespace_original"],
+    output_group = "env",
+)
+
+instrument(
+    name = "whitespace_fixed",
+    srcs = glob(["whitespace_fixture/templates/*.html"]),
+    tool = ":instrumenter",
+)
+
+filegroup(
+    name = "whitespace_fixed_env",
+    srcs = [":whitespace_fixed"],
+    output_group = "env",
+)
+
+rust_test(
+    name = "whitespace_native_test",
+    srcs = ["whitespace.rs"],
+    compile_data = glob(["whitespace_fixture/templates/*.html"]),
+    crate_root = "whitespace.rs",
+    data = glob(["whitespace_fixture/templates/*.html"]),
+    rustc_env = {"CARGO_MANIFEST_DIR": "tools/research_askama/whitespace_fixture"},
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+rust_test(
+    name = "whitespace_original_test",
+    srcs = ["whitespace.rs"],
+    compile_data = [":whitespace_original"],
+    crate_root = "whitespace.rs",
+    data = [":whitespace_original"],
+    rustc_env_files = [":whitespace_original_env"],
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+rust_test(
+    name = "whitespace_fixed_test",
+    srcs = ["whitespace.rs"],
+    compile_data = [":whitespace_fixed"],
+    crate_root = "whitespace.rs",
+    data = [":whitespace_fixed"],
+    rustc_env_files = [":whitespace_fixed_env"],
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+rust_test(
+    name = "maintained_native_test",
+    srcs = ["maintained.rs"],
+    compile_data = glob(["maintained_fixture/templates/**/*.html"]),
+    crate_root = "maintained.rs",
+    data = glob(["maintained_fixture/templates/**/*.html"]),
+    rustc_env = {"CARGO_MANIFEST_DIR": "tools/research_askama/maintained_fixture"},
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+rust_test(
+    name = "subset_native_test",
+    srcs = ["subset.rs"],
+    compile_data = ["askama.toml"] + glob([
+        "maintained_fixture/templates/**/*.html",
+        "templates/*.html",
+    ]),
+    crate_root = "subset.rs",
+    data = ["askama.toml"] + glob([
+        "maintained_fixture/templates/**/*.html",
+        "templates/*.html",
+    ]),
+    rustc_env = {"CARGO_MANIFEST_DIR": "tools/research_askama"},
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+rust_test(
+    name = "subset_adapter_test",
+    srcs = ["subset.rs"],
+    compile_data = [":subset_instrumented"],
+    crate_root = "subset.rs",
+    data = [":subset_instrumented"],
+    rustc_env_files = [":subset_env"],
+    deps = [
+        "@crates//:askama",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+instrument(
+    name = "subset_instrumented",
+    srcs = [
+        "maintained_fixture/templates/names/name_row.html",
+        "maintained_fixture/templates/names/names_table.html",
+        "templates/unused.html",
+    ],
+    tool = ":instrumenter",
+)
+
+filegroup(
+    name = "subset_env",
+    srcs = [":subset_instrumented"],
+    output_group = "env",
+)
+
+sh_test(
+    name = "whitespace_comparison_test",
+    srcs = ["compare.sh"],
+    args = ["whitespace"] + [
+        "$(rootpath :whitespace_native_test)",
+        "$(rootpath :whitespace_original_test)",
+        "$(rootpath :whitespace_fixed_test)",
+    ],
+    data = [
+        ":whitespace_fixed_test",
+        ":whitespace_native_test",
+        ":whitespace_original_test",
+    ],
+)
+
+sh_test(
+    name = "subset_comparison_test",
+    srcs = ["compare.sh"],
+    args = ["subset"] + [
+        "$(rootpath :subset_native_test)",
+        "$(rootpath :subset_adapter_test)",
+    ],
+    data = [
+        ":subset_adapter_test",
+        ":subset_native_test",
+    ],
+)
+
+sh_test(
+    name = "syntax_test",
+    srcs = ["syntax.sh"],
+    args = ["$(rootpath :instrumenter)"] + ["$(rootpath " + source + ")" for source in glob([
+        "maintained_fixture/templates/**/*.html",
+        "unsupported/templates/*.html",
+    ])],
+    data = [":instrumenter"] + glob([
+        "maintained_fixture/templates/**/*.html",
+        "unsupported/templates/*.html",
+    ]),
+)
+
+rust_binary(
+    name = "subset_collector",
+    srcs = ["subset_collect.rs"],
+    crate_root = "subset_collect.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+    ],
+)
+
+sh_test(
+    name = "subset_collection_test",
+    srcs = ["collection.sh"],
+    args = [
+        "$(rootpath :subset_adapter_test)",
+        "$(rootpath :subset_collector)",
+        "$(rootpath :subset_instrumented)",
+        "$(rootpath expected.lcov)",
+    ],
+    data = [
+        "expected.lcov",
+        "templates/unused.html",
+        ":subset_adapter_test",
+        ":subset_collector",
+        ":subset_instrumented",
+    ] + glob(["maintained_fixture/templates/**/*.html"]),
+)

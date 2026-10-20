@@ -1,0 +1,13 @@
+<!-- Static markup and this comment do not need counters. -->
+A
+  {{- label -}}
+ B
+C
+  {{~ label ~}}
+ D
+E
+  {{+ label +}}
+ F
+{% if enabled %}yes {{ label }}{% else %}no{% endif %}
+{% for item in items %}<x>{{ item }}</x>{% endfor %}
+{% include "included.html" %}

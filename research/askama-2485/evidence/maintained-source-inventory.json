@@ -1,0 +1,82 @@
+[
+  {
+    "original": "nicknamer/server/lib/templates/index.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/index.html",
+    "sha256": "68020b34c62d54318cdc2bc9d3d3bc515e0f49638e4f21b3927a44f7f88301cf"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/layout.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/layout.html",
+    "sha256": "8886fdf7169533fb0d2599f4d85c4c2809810cf2343ec4fe4080c713a01047bd"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/login/login_error_message.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/login/login_error_message.html",
+    "sha256": "f953de256e5eb02dfaf6ebaed60bdc4f3d0c35fd58e2c72b8a9dab6a5145496b"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/login/login_success.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/login/login_success.html",
+    "sha256": "d2bb399740f5b2dab07ff17471954191e4525eca5894ebaf0a9f79c3204a4466"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/login.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/login.html",
+    "sha256": "b2976308aadd9ed637a3aa75ead8ecc655a87c6d8a03caa3be31e8e663518fc6"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/add_name_form.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/add_name_form.html",
+    "sha256": "3fe869bf7cf40dd339e09eb0473de83f3a190ca618688a574ef2a2797f947eba"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/bulk_add_form.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/bulk_add_form.html",
+    "sha256": "2d2379bc0b9deab73e23e7b71083505c61d27c75151e7adee28d2d1dcb2bdb7b"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/bulk_add_success.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/bulk_add_success.html",
+    "sha256": "2b299595661b53788d759c98a6ae49182d8f1ffccb3181d15b4a2cc218762c26"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/bulk_delete.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/bulk_delete.html",
+    "sha256": "552b42b96f136d8b5485ed49a5f728b6d2ab0c209eabd6c4732ad097012e88f6"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/bulk_delete_table.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/bulk_delete_table.html",
+    "sha256": "9bc370adcd01e500796824b3f82848a606ab84edd9f56cb1d1219c443b7897b2"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/edit_name_form.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/edit_name_form.html",
+    "sha256": "e495afd9464dfc18587aad0692d87921763a475386642179c8ea3dd7fc0bbf93"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/error_message.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/error_message.html",
+    "sha256": "579546061b3068b7d3694413d1e83c98eedd2d6c5a54b9f25ea02ee78e1710a1"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/name_row.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/name_row.html",
+    "sha256": "329e8826c1b7f7deb518d68a5c1d545d173ca36d1531abf0c6d46fd319e1a475"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names/names_table.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names/names_table.html",
+    "sha256": "5d2944f6696b0cb3d2452fb891511f11fd6a78c5a0d4cb0923b78457afe295f7"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/names.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/names.html",
+    "sha256": "a1b9a212a5939b1efd9eaf59924573605c541f25aa643439a9b16051ddc9ada0"
+  },
+  {
+    "original": "nicknamer/server/lib/templates/welcome/call_to_action.html",
+    "snapshot": "tools/research_askama/maintained_fixture/templates/welcome/call_to_action.html",
+    "sha256": "f8257b16d3578de090773e7badf338b307af6399dea89ebba24b488777d554a3"
+  }
+]

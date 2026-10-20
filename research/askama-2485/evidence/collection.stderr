@@ -1,0 +1,32 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping: 
+Loading: 
+Loading: 0 packages loaded
+Analyzing: target //tools/research_askama:subset_collection_test (1 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_askama:subset_collection_test (2 packages loaded, 156 targets configured).
+INFO: Found 1 test target...
+[0 / 12] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (3 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+INFO: From Compiling Rust bin //tools/research_askama:subset_collector (1 file):
+warning: linker stderr: clang++: argument unused during compilation: '--unwindlib=none' [-Wunused-command-line-argument]
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: 1 warning emitted
+
+Target //tools/research_askama:subset_collection_test up-to-date:
+  bazel-bin/tools/research_askama/subset_collection_test
+INFO: Elapsed time: 1.520s, Critical Path: 0.33s
+INFO: 7 processes: 87 action cache hit, 5 internal, 3 linux-sandbox.
+INFO: Build completed successfully, 7 total actions
