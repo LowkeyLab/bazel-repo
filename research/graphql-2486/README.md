@@ -1,5 +1,8 @@
 # GraphQL business operations and original-source observations
 
+The [supplemental configured-remote validation](REMOTE-VALIDATION.md) adds later execution evidence.
+The sections below retain the original local experiment and its attribution limits.
+
 The bridge observes original field locations through response materialization. It also records fragment context and client directive decisions. These events do not establish direct resolver-entry counts.
 
 All six maintained business documents pass through Apollo, the maintained Axum/Juniper router, the application services, the repositories, and PostgreSQL. A separate business-shaped document tests fragments and directives. Complete resolver attribution remains an open feasibility question.
