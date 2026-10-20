@@ -1,0 +1,14 @@
+node:fs:441
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '<ARTIFACTS>/controls-isolated/missing-script/browser/astro-script-0.js'
+    at readFileSync (node:fs:441:20)
+    at file://<CHECKOUT>/bazel-bin/tools/research_astro/merge_/merge.runfiles/_main/tools/research_astro/merge.mjs:119:18 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '<ARTIFACTS>/controls-isolated/missing-script/browser/astro-script-0.js'
+}
+
+Node.js v24.15.0

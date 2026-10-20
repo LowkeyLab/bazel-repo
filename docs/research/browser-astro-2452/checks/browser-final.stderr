@@ -1,0 +1,37 @@
+warning: Git tree '<CHECKOUT>' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: 6b7c0434-62d4-4077-a696-e4b8113d149b
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/6b7c0434-62d4-4077-a696-e4b8113d149b
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_astro:browser_test (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_astro:browser_test (5 packages loaded, 837 targets configured).
+INFO: Found 1 test target...
+[4 / 10] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,099 / 1,101] [Prepa] JsRunBinary tools/research_astro/dist
+[1,099 / 1,101] JsRunBinary tools/research_astro/dist; 1s remote, remote-cache
+[1,099 / 1,101] JsRunBinary tools/research_astro/dist; 0s remote, remote-cache
+[1,100 / 1,101] [Prepa] runfiles for //tools/research_astro:browser_test
+[1,101 / 1,102] Testing //tools/research_astro:browser_test; 0s remote-cache, linux-sandbox
+Target //tools/research_astro:browser_test up-to-date:
+  bazel-bin/tools/research_astro/browser_test
+INFO: Elapsed time: 13.310s, Critical Path: 11.32s
+INFO: 9 processes: 547 action cache hit, 4 internal, 2 linux-sandbox, 4 remote.
+INFO: Build completed successfully, 9 total actions
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/6b7c0434-62d4-4077-a696-e4b8113d149b

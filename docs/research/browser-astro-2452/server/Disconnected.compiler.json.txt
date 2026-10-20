@@ -1,0 +1,19 @@
+{
+  "code": "import { render as $$render, createComponent as $$createComponent, maybeRenderHead as $$maybeRenderHead, renderScript as $$renderScript } from \"astro/compiler-runtime\";\nconst $$Disconnected = $$createComponent(($$result, $$props, $$slots) => {\n\tthrow new Error(\"Baseline compilation must not execute this component.\");\n\tconst enabled = false;\n\treturn $$render`${$$maybeRenderHead($$result)}<p>${enabled ? \"yes\" : \"no\"}</p>\n${$$renderScript($$result, \"<RUNFILES>/tools/research_astro/fixtures/Disconnected.astro?astro&type=script&index=0&lang.ts\")}`;\n}, \"<RUNFILES>/tools/research_astro/fixtures/Disconnected.astro\", undefined);\nexport default $$Disconnected;\n",
+  "map": "{\"version\":3,\"names\":[],\"sources\":[\"<RUNFILES>/tools/research_astro/fixtures/Disconnected.astro\"],\"sourcesContent\":[\"---\\nthrow new Error(\\\"Baseline compilation must not execute this component.\\\");\\nconst enabled = false;\\n---\\n<p>{enabled ? \\\"yes\\\" : \\\"no\\\"}</p>\\n<script>window.disconnected = true;</script>\\n\"],\"mappings\":\";;AACA,OAAA,IAAA,MAAA,wDAAA;CACA,MAAA,UAAA;+CAEA,GAAG,EAAC,UAAU,QAAQ,KAAK,IAAI;AAC/B,EAAA,eAAA,UAAA,+PAAA\"}",
+  "scope": "oigsmigz",
+  "css": [],
+  "scripts": [
+    {
+      "type": "inline",
+      "code": "window.disconnected = true;"
+    }
+  ],
+  "hydratedComponents": [],
+  "clientOnlyComponents": [],
+  "serverComponents": [],
+  "containsHead": false,
+  "propagation": false,
+  "styleError": [],
+  "diagnostics": []
+}

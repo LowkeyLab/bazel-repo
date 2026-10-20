@@ -1,0 +1,4 @@
+//tools/research_astro:browser_test                                      PASSED in 0.8s
+  WARNING: //tools/research_astro:browser_test: Test execution time (0.8s excluding execution overhead) outside of range for MODERATE tests. Consider setting timeout="short" or size="small".
+
+Executed 1 out of 1 test: 1 test passes.

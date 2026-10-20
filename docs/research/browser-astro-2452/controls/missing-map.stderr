@@ -1,0 +1,15 @@
+node:fs:441
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '<ARTIFACTS>/controls-isolated/missing-map/browser/Main.astro_astro_type_script_index_0_lang.Bb-C5Svw.js.map'
+    at readFileSync (node:fs:441:20)
+    at read (file://<CHECKOUT>/bazel-bin/tools/research_astro/merge_/merge.runfiles/_main/tools/research_astro/merge.mjs:23:35)
+    at file://<CHECKOUT>/bazel-bin/tools/research_astro/merge_/merge.runfiles/_main/tools/research_astro/merge.mjs:134:19 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '<ARTIFACTS>/controls-isolated/missing-map/browser/Main.astro_astro_type_script_index_0_lang.Bb-C5Svw.js.map'
+}
+
+Node.js v24.15.0

@@ -1,0 +1,833 @@
+{
+  "base": "df390e4205234e7ea4d8b09be436739a23de27a2",
+  "artifacts": {
+    "server/Disconnected.ast.json.txt": {
+      "raw_sha256": "3ba45f9fc7b5676acbaea069ea33b2f89c6450d6b22c5405b27948f1fcff7ec0",
+      "sanitized_sha256": "3ba45f9fc7b5676acbaea069ea33b2f89c6450d6b22c5405b27948f1fcff7ec0",
+      "bytes": 6862
+    },
+    "server/Disconnected.compiler.json.txt": {
+      "raw_sha256": "78c998b0da5dc13cb41dcce4073a562fca651a2dbb5feab8147971db0e9ce64c",
+      "sanitized_sha256": "a1d82dc07574d2535ba4a61811e53be711f65ae1131c7f628a79c4733189c616",
+      "bytes": 1488
+    },
+    "server/Main.ast.json.txt": {
+      "raw_sha256": "e50953f29dd70a8f2c532f2fd8198dbd076dae600cc44d602ed2bb22339abf74",
+      "sanitized_sha256": "e50953f29dd70a8f2c532f2fd8198dbd076dae600cc44d602ed2bb22339abf74",
+      "bytes": 34463
+    },
+    "server/Main.compiler.json.txt": {
+      "raw_sha256": "8c0b821af3cdfaaf90463dc4c4188cb970de757f459891963f72eb56cd507baf",
+      "sanitized_sha256": "eb00819acc9c7911992a5ea54412435c8f31a3b3f515aa953c777fa5b7abd8d9",
+      "bytes": 2917
+    },
+    "server/TestOnly.ast.json.txt": {
+      "raw_sha256": "d2e538504be18bc2bdb861708ba6ed860fb628f67a5e7d0959f2e665a62843f6",
+      "sanitized_sha256": "d2e538504be18bc2bdb861708ba6ed860fb628f67a5e7d0959f2e665a62843f6",
+      "bytes": 5439
+    },
+    "server/TestOnly.compiler.json.txt": {
+      "raw_sha256": "35412bd45958d1ffbcb1cee342f4312b5b493f01d03a43d3c1449e879c7e191f",
+      "sanitized_sha256": "3ffa68e71e7ffd98ce890b3ab8b100bce29fea24d050fe6fc8cccb05b911f16d",
+      "bytes": 1234
+    },
+    "server/baseline.json.txt": {
+      "raw_sha256": "a615c6b82d057573d7c39887acfcdb17008be1dbe64b901830e008b5b533688d",
+      "sanitized_sha256": "4de40c900ad5de7f1a3beb4a1208ea1638c29e47d84fe5f4494fd35453485d00",
+      "bytes": 8104
+    },
+    "server/rendered.json.txt": {
+      "raw_sha256": "e41bbc616b49308daa02bd91767ba2f60ce1133946ccdbdae056ec59aa00a5f2",
+      "sanitized_sha256": "0d7033754d7bd5eac62f2e7ee40b438fa8f338e78946ac78d9b80568eb71b123",
+      "bytes": 762
+    },
+    "server/server-completion.json.txt": {
+      "raw_sha256": "884513614d4e15ea8d1bd6e9245d73e083c14ba858b491158f4df1b23377c35b",
+      "sanitized_sha256": "884513614d4e15ea8d1bd6e9245d73e083c14ba858b491158f4df1b23377c35b",
+      "bytes": 100
+    },
+    "server/server-measured.json.txt": {
+      "raw_sha256": "1dc839b290ece2250fb5bdac0afe59e7551871d02d42fad043394c530d809577",
+      "sanitized_sha256": "2132da07f1dbceb568948e52a577debc2ab68df140bebaad58d72fd39b062c1e",
+      "bytes": 6070
+    },
+    "server/server-profile.json.txt": {
+      "raw_sha256": "bbca2703c0cdc6c5ca19ee8fcaaaf3e2e0c0a15345729ffbcff0a9c1e4dd8c64",
+      "sanitized_sha256": "6cedcb1ed7f5c1c0dccc3473eb0dc918b5aed1394aae5e85848be936b2874feb",
+      "bytes": 2728
+    },
+    "browser/Main.astro_astro_type_script_index_0_lang.Bb-C5Svw.js.map.txt": {
+      "raw_sha256": "deb5d03f261a34c1d85c728b99b99ba2f10a18e57dc285cda1ce2aed31db693f",
+      "sanitized_sha256": "deb5d03f261a34c1d85c728b99b99ba2f10a18e57dc285cda1ce2aed31db693f",
+      "bytes": 695
+    },
+    "browser/application-completion.json.txt": {
+      "raw_sha256": "c537b58609dbb59a9640cf1561f378b5d459ddda300bbcdc984173cf424d78f0",
+      "sanitized_sha256": "c537b58609dbb59a9640cf1561f378b5d459ddda300bbcdc984173cf424d78f0",
+      "bytes": 64
+    },
+    "browser/application-functional.json.txt": {
+      "raw_sha256": "3dcac20b39db21e07313b9d0b87578b0c340bc2ef0a629e10c05703b27ba0041",
+      "sanitized_sha256": "3dcac20b39db21e07313b9d0b87578b0c340bc2ef0a629e10c05703b27ba0041",
+      "bytes": 20
+    },
+    "browser/application-profile.json.txt": {
+      "raw_sha256": "c30f0ccdbd41db833fcf21eae5ebdc894cbd483fb406ac9c09e4e311fb1bbd19",
+      "sanitized_sha256": "bf59fb45ca5e9944209e71f82949288ac9a90be1705e5f65e1a8bbce05a3888c",
+      "bytes": 1723
+    },
+    "browser/application-script-0.js.txt": {
+      "raw_sha256": "5a918a356bdf7af328b1d802ef8df521a937e8a64b05cb49881c40d29853f4df",
+      "sanitized_sha256": "5a918a356bdf7af328b1d802ef8df521a937e8a64b05cb49881c40d29853f4df",
+      "bytes": 1125
+    },
+    "browser/application-submitting.js.txt": {
+      "raw_sha256": "5a918a356bdf7af328b1d802ef8df521a937e8a64b05cb49881c40d29853f4df",
+      "sanitized_sha256": "5a918a356bdf7af328b1d802ef8df521a937e8a64b05cb49881c40d29853f4df",
+      "bytes": 1125
+    },
+    "browser/astro-completion.json.txt": {
+      "raw_sha256": "247f4b9cd4f8487049d063fea5a55d8c079ad6b37ade4074d0c9d2ccab04abfd",
+      "sanitized_sha256": "247f4b9cd4f8487049d063fea5a55d8c079ad6b37ade4074d0c9d2ccab04abfd",
+      "bytes": 64
+    },
+    "browser/astro-functional.json.txt": {
+      "raw_sha256": "3dcac20b39db21e07313b9d0b87578b0c340bc2ef0a629e10c05703b27ba0041",
+      "sanitized_sha256": "3dcac20b39db21e07313b9d0b87578b0c340bc2ef0a629e10c05703b27ba0041",
+      "bytes": 20
+    },
+    "browser/astro-profile.json.txt": {
+      "raw_sha256": "3b1388bc44dc37477d71008be92fd396be7d51f253c5d5f9f53f1bc37634caff",
+      "sanitized_sha256": "05133a4a76795a6de441c0402bcf9db95fe870f8198df9ff0f3e5f73d978ee7c",
+      "bytes": 3255
+    },
+    "browser/astro-script-0.js.txt": {
+      "raw_sha256": "1d7c891dbb2efa1beba2aa70720d7bad90555ad547afbda2339cceb31f178092",
+      "sanitized_sha256": "1d7c891dbb2efa1beba2aa70720d7bad90555ad547afbda2339cceb31f178092",
+      "bytes": 241
+    },
+    "browser/astro-script-1.js.txt": {
+      "raw_sha256": "b8ff6bdd427cdb6f107a77501be9ad21dccd7c91e006db771769df85a9716d57",
+      "sanitized_sha256": "b8ff6bdd427cdb6f107a77501be9ad21dccd7c91e006db771769df85a9716d57",
+      "bytes": 60
+    },
+    "browser/astro-script-2.js.txt": {
+      "raw_sha256": "8c7440ed531433ae1ccfaa57bfb9c83dd4e2163437cd7cc9853bf895a0502c41",
+      "sanitized_sha256": "8c7440ed531433ae1ccfaa57bfb9c83dd4e2163437cd7cc9853bf895a0502c41",
+      "bytes": 106
+    },
+    "browser/browser-version.json.txt": {
+      "raw_sha256": "3a541b2d03b5f3f219e2c558770bac5f0427d213e24565e9b375404148dd1c6b",
+      "sanitized_sha256": "3a541b2d03b5f3f219e2c558770bac5f0427d213e24565e9b375404148dd1c6b",
+      "bytes": 90
+    },
+    "browser/built-index.html.txt": {
+      "raw_sha256": "f6d65f8c2e90369eeb687835952ba53c8570510a748f4fd035d0282cec3f10a4",
+      "sanitized_sha256": "f6d65f8c2e90369eeb687835952ba53c8570510a748f4fd035d0282cec3f10a4",
+      "bytes": 579
+    },
+    "browser/interrupted-functional.json.txt": {
+      "raw_sha256": "3dcac20b39db21e07313b9d0b87578b0c340bc2ef0a629e10c05703b27ba0041",
+      "sanitized_sha256": "3dcac20b39db21e07313b9d0b87578b0c340bc2ef0a629e10c05703b27ba0041",
+      "bytes": 20
+    },
+    "browser/interrupted-interrupted.txt": {
+      "raw_sha256": "5de2fd2243b5e142828d050b9868ef7eed6a3e2a9d91b65e7ea1806677b5ae29",
+      "sanitized_sha256": "5de2fd2243b5e142828d050b9868ef7eed6a3e2a9d91b65e7ea1806677b5ae29",
+      "bytes": 71
+    },
+    "merge/baseline.json.txt": {
+      "raw_sha256": "cd36f986d8405432459cd133e10ea09595a3b0c33d4698b40b5eed7233c5e41f",
+      "sanitized_sha256": "cd36f986d8405432459cd133e10ea09595a3b0c33d4698b40b5eed7233c5e41f",
+      "bytes": 14127
+    },
+    "merge/baseline.lcov": {
+      "raw_sha256": "d2ec7bcd097e34c1572971ba855b8ad7efdecdd77e7d1cbbc02aebabe1e820d0",
+      "sanitized_sha256": "d2ec7bcd097e34c1572971ba855b8ad7efdecdd77e7d1cbbc02aebabe1e820d0",
+      "bytes": 827
+    },
+    "merge/browser.json.txt": {
+      "raw_sha256": "da519b29afdf402846871fd3fa81eae393c3fcff2260fb94af3875b585708aff",
+      "sanitized_sha256": "da519b29afdf402846871fd3fa81eae393c3fcff2260fb94af3875b585708aff",
+      "bytes": 15204
+    },
+    "merge/browser.lcov": {
+      "raw_sha256": "ec8ab9656c2bc2398ad272fc42884adbc0f2b2b88f677a5383c633801028682a",
+      "sanitized_sha256": "ec8ab9656c2bc2398ad272fc42884adbc0f2b2b88f677a5383c633801028682a",
+      "bytes": 716
+    },
+    "merge/combined-zero-first.json.txt": {
+      "raw_sha256": "dee2126041be9baa19203fedf49cd6b58a0e72b42cced552f25c77c61d4e57c2",
+      "sanitized_sha256": "dee2126041be9baa19203fedf49cd6b58a0e72b42cced552f25c77c61d4e57c2",
+      "bytes": 26420
+    },
+    "merge/combined-zero-first.lcov": {
+      "raw_sha256": "db955d33b3f906ae0a214b37c4986930117f0a17350e0c69d66095242a30f001",
+      "sanitized_sha256": "db955d33b3f906ae0a214b37c4986930117f0a17350e0c69d66095242a30f001",
+      "bytes": 1284
+    },
+    "merge/combined-zero-last.json.txt": {
+      "raw_sha256": "39569d7931aebe2d050d42b2281d12f33568237f5ca9aa785570a009aa7b7e2a",
+      "sanitized_sha256": "39569d7931aebe2d050d42b2281d12f33568237f5ca9aa785570a009aa7b7e2a",
+      "bytes": 26415
+    },
+    "merge/combined-zero-last.lcov": {
+      "raw_sha256": "92bf3ae5276416d4063536afbeaf74550090190699b112b4e7db465a3c472fc8",
+      "sanitized_sha256": "92bf3ae5276416d4063536afbeaf74550090190699b112b4e7db465a3c472fc8",
+      "bytes": 1284
+    },
+    "merge/merge-order-summary.json.txt": {
+      "raw_sha256": "53758e8eee3a44511e66eeb657c49203fc53f9be54405b266e04485b4dae3807",
+      "sanitized_sha256": "53758e8eee3a44511e66eeb657c49203fc53f9be54405b266e04485b4dae3807",
+      "bytes": 19193
+    },
+    "merge/merge-result.json.txt": {
+      "raw_sha256": "a2c621e0eebd7c72e4282cad62e3e8a061db98187aec91bd3bb7f9acc45898c2",
+      "sanitized_sha256": "a2c621e0eebd7c72e4282cad62e3e8a061db98187aec91bd3bb7f9acc45898c2",
+      "bytes": 164
+    },
+    "merge/server.json.txt": {
+      "raw_sha256": "b744a2039a67d20e9c901c2049257e1d1184319ce8f02bbdd8b9d9b942397fab",
+      "sanitized_sha256": "b744a2039a67d20e9c901c2049257e1d1184319ce8f02bbdd8b9d9b942397fab",
+      "bytes": 7254
+    },
+    "merge/server.lcov": {
+      "raw_sha256": "5fba0d9b04b7b066a41e0c4f9f7ac095d6d112b9966b2aaa0e5c1d5e16eeaec4",
+      "sanitized_sha256": "5fba0d9b04b7b066a41e0c4f9f7ac095d6d112b9966b2aaa0e5c1d5e16eeaec4",
+      "bytes": 379
+    },
+    "merge/virtual-unresolved.json.txt": {
+      "raw_sha256": "c6f6d2d419db13e02cb9567903722e826feec54fc655e04fc873a022dacaf22c",
+      "sanitized_sha256": "c6f6d2d419db13e02cb9567903722e826feec54fc655e04fc873a022dacaf22c",
+      "bytes": 1305
+    },
+    "merge/virtual-unresolved.lcov": {
+      "raw_sha256": "3ff3e75e009d66e43c373716817f246f7dd723f5619bb905678a3c16d334240d",
+      "sanitized_sha256": "3ff3e75e009d66e43c373716817f246f7dd723f5619bb905678a3c16d334240d",
+      "bytes": 95
+    },
+    "controls/controls.json.txt": {
+      "raw_sha256": "12657e0c6e300885e6844b7a95fdaa68429a4c1eceb0f19487115f4f805db387",
+      "sanitized_sha256": "12657e0c6e300885e6844b7a95fdaa68429a4c1eceb0f19487115f4f805db387",
+      "bytes": 518
+    },
+    "controls/missing-completion.stderr": {
+      "raw_sha256": "7620c3ae68ae5774b955ed20329aa9810a404bfa1447153465f9de409c5aa721",
+      "sanitized_sha256": "bbd149079a45415a2825b1bb678bcec4c7defd7c5dc95b8b8e951b024304ba43",
+      "bytes": 677
+    },
+    "controls/interrupted.stderr": {
+      "raw_sha256": "37ea7acb0a3e18ff720f4e1dc3e47ddcec1f886b5f99d2a7905166e5468d978a",
+      "sanitized_sha256": "6a5d063e5e6b422adbd2275568866e204d76f66130b2b8183ea00aa5b4b77296",
+      "bytes": 663
+    },
+    "controls/missing-profile.stderr": {
+      "raw_sha256": "ce99e1ce0ae3df642e3b8a1c21009f3c3198ebf942d739be1b7189fb9d62fc04",
+      "sanitized_sha256": "69d049136d01218e226d5634e9eb519197a2f03e2098f10a1658a0bf1817f9d7",
+      "bytes": 666
+    },
+    "controls/missing-script.stderr": {
+      "raw_sha256": "29e920fbdc0cca8eda4fe6eb8f8b6eb25eecec0f74536969544491d5361dd8eb",
+      "sanitized_sha256": "e8698a23fa8fb03beede6f56e72fa38c26b6e5a8d3881987075a66db0696d745",
+      "bytes": 534
+    },
+    "controls/corrupt-profile.stderr": {
+      "raw_sha256": "4efb7ba913f6d4c8faf847f79a40a5c972ea3808846e48c64a4af20a34d74c88",
+      "sanitized_sha256": "0da2c0c65256e4342ee24345dca5aeba0bc139494ef4d11ae40a52cbd7183695",
+      "bytes": 417
+    },
+    "controls/missing-map.stderr": {
+      "raw_sha256": "170b80c72ddd877c240dd55afdc26d9135581a43da94cd9c844193f6ea956f4a",
+      "sanitized_sha256": "774c0ad66b47dde1741957ff6bf1b7bb1372bd37440108355636b8d809c44c6a",
+      "bytes": 736
+    },
+    "checks/site-build.stdout": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    "checks/site-build.stderr": {
+      "raw_sha256": "44826cb971be84ffae88a7484c24afc0e5b9830fa7662f7b0d6eac263ff7f265",
+      "sanitized_sha256": "40b123e17628a39723a0641b82ac74fed9a9595c21658f5dfafe454f44bf3592",
+      "bytes": 1859
+    },
+    "checks/server-final.stdout": {
+      "raw_sha256": "5cd4ba25751cff95d16791dfeccedb9cf3d14bd78605c250331c1964cfe289e9",
+      "sanitized_sha256": "5cd4ba25751cff95d16791dfeccedb9cf3d14bd78605c250331c1964cfe289e9",
+      "bytes": 113
+    },
+    "checks/server-final.stderr": {
+      "raw_sha256": "1d39ab0149d78fb0879f341fa7ab098a6492aaf0354cedf746dc62fe1aefb923",
+      "sanitized_sha256": "eaa01741113a8d09a4d9c5ea040510f8f306805b0faf4fb6ca7b08dddddac185",
+      "bytes": 1780
+    },
+    "checks/browser-final.stdout": {
+      "raw_sha256": "0b8655d1471b5411e98a8515a801e4a97314e5281312fb0463e5d0dbfcd17887",
+      "sanitized_sha256": "0b8655d1471b5411e98a8515a801e4a97314e5281312fb0463e5d0dbfcd17887",
+      "bytes": 321
+    },
+    "checks/browser-final.stderr": {
+      "raw_sha256": "3144953086695cdba11007b004c2d6204da097d4dcba6fbacecfa3b4df7c3c91",
+      "sanitized_sha256": "f90e6efe56f25c767272836ca474deb27cce4f4ee6f9e805bee370ae326b9823",
+      "bytes": 2082
+    },
+    "checks/merge-isolated.stdout": {
+      "raw_sha256": "8a5941d8a283e6fa344f973bdf69d075b64589a30d6302f14382b38928d13330",
+      "sanitized_sha256": "8a5941d8a283e6fa344f973bdf69d075b64589a30d6302f14382b38928d13330",
+      "bytes": 464
+    },
+    "checks/merge-isolated.stderr": {
+      "raw_sha256": "6187685d77e69f3af4ad669449ca006b0f0f3f07f48cbe262fd761f272517d7e",
+      "sanitized_sha256": "06ce1c20832f4232ab8fcbe8ce6fb3a9931a2d07e5613735424ef1ca743823a6",
+      "bytes": 1914
+    },
+    "checks/controls-isolated.stdout": {
+      "raw_sha256": "622194a89c514cd88420a3569bf0a4d66c568d3649015e5ecd24d801a868f5e4",
+      "sanitized_sha256": "622194a89c514cd88420a3569bf0a4d66c568d3649015e5ecd24d801a868f5e4",
+      "bytes": 374
+    },
+    "checks/controls-isolated.stderr": {
+      "raw_sha256": "36a58c894e1752e3109417c2121a3577a3b2687c6893d27fbeaabea6962d9117",
+      "sanitized_sha256": "f07e3b79fab82c023cc304afa16b0695d5ab7339ad28ef052a72f1f03c7a51a7",
+      "bytes": 1620
+    },
+    "checks/lint-isolated.stdout": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    "checks/lint-isolated.stderr": {
+      "raw_sha256": "d5ff21d895f22fcab0f67811da4ad108745ba131caa99973ca9cb3327b12de4a",
+      "sanitized_sha256": "aaf7800b43721e6c250edc6e2a8c250377a7c8fc145dd5f2d1ec17edeced5b47",
+      "bytes": 10772
+    },
+    "checks/format-isolation.stdout": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    "checks/format-isolation.stderr": {
+      "raw_sha256": "5738aa4aea7e974727e0a0e44378c211968f44e3d9a6d8156e73a110e67ac44f",
+      "sanitized_sha256": "fb3e4a52c92f828b65bfa79dbeae56809a5ffbdae7351bed1d4ede2383e06bf3",
+      "bytes": 4947
+    },
+    "checks/gazelle-isolation.stdout": {
+      "raw_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sanitized_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    "checks/gazelle-isolation.stderr": {
+      "raw_sha256": "d4db3c374297159dc27b71c2fb59d4243ff1e0ee62656a424330662a1df1a3c6",
+      "sanitized_sha256": "aaa73f678a1fe98214ad69ad5c14ac43e9f49c15706b0ed6a95536a792b3e40e",
+      "bytes": 2543
+    }
+  },
+  "source_hash_comparison": {
+    "tools/research_astro/fixtures/Main.astro": {
+      "workspace_sha256": "79d82c58dd887ceb5e246cdcb2b2df2f1da73519000d91b46c6358278aeae66f",
+      "artifact_source_sha256": "79d82c58dd887ceb5e246cdcb2b2df2f1da73519000d91b46c6358278aeae66f",
+      "equal": true
+    },
+    "tools/research_astro/fixtures/Disconnected.astro": {
+      "workspace_sha256": "69c93a3e409bda4b4813a676ef2d1abaa3219d4337b335eb496795f16fe1bc9a",
+      "artifact_source_sha256": "69c93a3e409bda4b4813a676ef2d1abaa3219d4337b335eb496795f16fe1bc9a",
+      "equal": true
+    },
+    "tools/research_astro/fixtures/TestOnly.astro": {
+      "workspace_sha256": "540b65651c89f8846fb1ff2ca1f775fc50f46f6bfdf13e281e64eccb53c9dbf1",
+      "artifact_source_sha256": "540b65651c89f8846fb1ff2ca1f775fc50f46f6bfdf13e281e64eccb53c9dbf1",
+      "equal": true
+    },
+    "tools/research_astro/fixtures/node-helper.js": {
+      "workspace_sha256": "bb196d299c985e1d5762c37dc3012ea4e03233955fe75506f01800b79ffb134e",
+      "artifact_source_sha256": "bb196d299c985e1d5762c37dc3012ea4e03233955fe75506f01800b79ffb134e",
+      "equal": true
+    },
+    "tools/research_astro/fixtures/disconnected.js": {
+      "workspace_sha256": "0541a765e3e92ae97b657d8653d29c6a6100e1ae8e48fc3983774bf2bee51939",
+      "artifact_source_sha256": "0541a765e3e92ae97b657d8653d29c6a6100e1ae8e48fc3983774bf2bee51939",
+      "equal": true
+    },
+    "tools/research_astro/fixtures/browser-helper.js": {
+      "workspace_sha256": "528bc41fa5a20cc39e4def4a445732626c948d6592e55dceda153af71cc101e2",
+      "artifact_source_sha256": "528bc41fa5a20cc39e4def4a445732626c948d6592e55dceda153af71cc101e2",
+      "equal": true
+    },
+    "tools/research_astro/fixtures/evaluated.js": {
+      "workspace_sha256": "165c2a90a3625d90e92cb9c18df46809230c3ac81c23b76d336cb19fd5b12b80",
+      "artifact_source_sha256": "165c2a90a3625d90e92cb9c18df46809230c3ac81c23b76d336cb19fd5b12b80",
+      "equal": true
+    },
+    "book_smartz/web/submitting.js": {
+      "workspace_sha256": "5a918a356bdf7af328b1d802ef8df521a937e8a64b05cb49881c40d29853f4df",
+      "artifact_source_sha256": "5a918a356bdf7af328b1d802ef8df521a937e8a64b05cb49881c40d29853f4df",
+      "equal": true
+    },
+    "tools/research_astro/server.mjs": {
+      "workspace_sha256": "19c4c21b654f2c9b9528303684094ab9b11bc0e16eca6c48e45eee4b3f64fc89",
+      "artifact_source_sha256": "19c4c21b654f2c9b9528303684094ab9b11bc0e16eca6c48e45eee4b3f64fc89",
+      "equal": true
+    },
+    "tools/research_astro/browser.mjs": {
+      "workspace_sha256": "192907c36bd2185f81bcd7e45b1ff161b95648bc5e96c4ee4958416a399364c9",
+      "artifact_source_sha256": "192907c36bd2185f81bcd7e45b1ff161b95648bc5e96c4ee4958416a399364c9",
+      "equal": true
+    },
+    "tools/research_astro/merge.mjs": {
+      "workspace_sha256": "b8796e3f93dae90ff617684d13c789690ba68471df47b0dd3e213e0d110f1b82",
+      "artifact_source_sha256": "b8796e3f93dae90ff617684d13c789690ba68471df47b0dd3e213e0d110f1b82",
+      "equal": true
+    },
+    "tools/research_astro/controls.mjs": {
+      "workspace_sha256": "76df7695ef416246f3ca1e89493e8801ce7d72e51b0448e7dee8fad69eb2453b",
+      "artifact_source_sha256": "76df7695ef416246f3ca1e89493e8801ce7d72e51b0448e7dee8fad69eb2453b",
+      "equal": true
+    }
+  },
+  "validation": {
+    "site-build.bep.json": {
+      "actionSummary": {
+        "actionsCreated": "1096",
+        "actionsExecuted": "9",
+        "actionsCreatedNotIncludingAspects": "1096",
+        "actionData": [
+          {
+            "mnemonic": "CopyFile",
+            "actionsExecuted": "3",
+            "firstStartedMs": "1792457829255",
+            "lastEndedMs": "1792457831269",
+            "actionsCreated": "230"
+          },
+          {
+            "mnemonic": "TemplateExpand",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792457829254",
+            "lastEndedMs": "1792457829255",
+            "actionsCreated": "61"
+          },
+          {
+            "mnemonic": "RunfilesTree",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792457829294",
+            "lastEndedMs": "1792457829295",
+            "actionsCreated": "1428"
+          },
+          {
+            "mnemonic": "RepoMappingManifest",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792457829254",
+            "lastEndedMs": "1792457829257",
+            "actionsCreated": "1434"
+          },
+          {
+            "mnemonic": "JsRunBinary",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792457831270",
+            "lastEndedMs": "1792457837681",
+            "actionsCreated": "1"
+          },
+          {
+            "mnemonic": "SourceSymlinkManifest",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792457829266",
+            "lastEndedMs": "1792457829268",
+            "actionsCreated": "1428"
+          },
+          {
+            "mnemonic": "BazelWorkspaceStatusAction",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792457829254",
+            "lastEndedMs": "1792457829267",
+            "actionsCreated": "1"
+          },
+          {
+            "mnemonic": "CcStrip",
+            "actionsCreated": "102"
+          },
+          {
+            "mnemonic": "GenProto",
+            "actionsCreated": "6"
+          },
+          {
+            "mnemonic": "ValidateNogo",
+            "actionsCreated": "24"
+          },
+          {
+            "mnemonic": "NpmLifecycleHook",
+            "actionsCreated": "14"
+          },
+          {
+            "mnemonic": "StampJarManifest",
+            "actionsCreated": "270"
+          },
+          {
+            "mnemonic": "Turbine",
+            "actionsCreated": "72"
+          },
+          {
+            "mnemonic": "CopyToDirectory",
+            "actionsCreated": "528"
+          },
+          {
+            "mnemonic": "JavaToolchainCompileBootClasspath",
+            "actionsCreated": "12"
+          },
+          {
+            "mnemonic": "Ijar",
+            "actionsCreated": "12"
+          },
+          {
+            "mnemonic": "CppModuleMap",
+            "actionsCreated": "1996"
+          },
+          {
+            "mnemonic": "RunBinary",
+            "actionsCreated": "144"
+          },
+          {
+            "mnemonic": "ProstGenProto",
+            "actionsCreated": "24"
+          },
+          {
+            "mnemonic": "UnresolvedSymlink",
+            "actionsCreated": "2947"
+          }
+        ],
+        "runnerCount": [
+          {
+            "name": "total",
+            "count": 9
+          },
+          {
+            "name": "internal",
+            "count": 5
+          },
+          {
+            "name": "remote",
+            "count": 4,
+            "execKind": "Remote"
+          }
+        ],
+        "actionCacheStatistics": {
+          "sizeInBytes": "9834242",
+          "saveTimeInMs": "9",
+          "hits": 1078,
+          "misses": 9,
+          "missDetails": [
+            {},
+            {
+              "reason": "DIFFERENT_DEPS"
+            },
+            {
+              "reason": "DIFFERENT_ENVIRONMENT"
+            },
+            {
+              "reason": "DIFFERENT_FILES"
+            },
+            {
+              "reason": "CORRUPTED_CACHE_ENTRY"
+            },
+            {
+              "reason": "NOT_CACHED",
+              "count": 8
+            },
+            {
+              "reason": "UNCONDITIONAL_EXECUTION",
+              "count": 1
+            },
+            {
+              "reason": "DIGEST_MISMATCH"
+            }
+          ]
+        }
+      }
+    },
+    "browser-final.bep.json": {
+      "testResult": {
+        "testAttemptDurationMillis": "809",
+        "status": "PASSED",
+        "executionInfo": {
+          "strategy": "linux-sandbox",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0s"
+              },
+              {
+                "name": "setupTime",
+                "time": "0s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "0.809s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "0.809s"
+          }
+        }
+      },
+      "actionSummary": {
+        "actionsCreated": "566",
+        "actionsExecuted": "9",
+        "actionsCreatedNotIncludingAspects": "566",
+        "actionData": [
+          {
+            "mnemonic": "CopyFile",
+            "actionsExecuted": "3",
+            "firstStartedMs": "1792458439922",
+            "lastEndedMs": "1792458441074",
+            "actionsCreated": "473"
+          },
+          {
+            "mnemonic": "TestRunner",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792458450101",
+            "lastEndedMs": "1792458451243",
+            "systemTime": "0.400s",
+            "userTime": "0.599s",
+            "actionsCreated": "2"
+          },
+          {
+            "mnemonic": "RunfilesTree",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792458450099",
+            "lastEndedMs": "1792458450100",
+            "actionsCreated": "3181"
+          },
+          {
+            "mnemonic": "RepoMappingManifest",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792458439922",
+            "lastEndedMs": "1792458439924",
+            "actionsCreated": "3194"
+          },
+          {
+            "mnemonic": "JsRunBinary",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792458441075",
+            "lastEndedMs": "1792458450098",
+            "actionsCreated": "4"
+          },
+          {
+            "mnemonic": "SourceSymlinkManifest",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792458439922",
+            "lastEndedMs": "1792458439923",
+            "actionsCreated": "3181"
+          },
+          {
+            "mnemonic": "BazelWorkspaceStatusAction",
+            "actionsExecuted": "1",
+            "firstStartedMs": "1792458439922",
+            "lastEndedMs": "1792458439933",
+            "actionsCreated": "1"
+          },
+          {
+            "mnemonic": "CcStrip",
+            "actionsCreated": "197"
+          },
+          {
+            "mnemonic": "GenProto",
+            "actionsCreated": "11"
+          },
+          {
+            "mnemonic": "ValidateNogo",
+            "actionsCreated": "44"
+          },
+          {
+            "mnemonic": "NpmLifecycleHook",
+            "actionsCreated": "28"
+          },
+          {
+            "mnemonic": "StampJarManifest",
+            "actionsCreated": "495"
+          },
+          {
+            "mnemonic": "Turbine",
+            "actionsCreated": "132"
+          },
+          {
+            "mnemonic": "CopyToDirectory",
+            "actionsCreated": "1013"
+          },
+          {
+            "mnemonic": "JavaToolchainCompileBootClasspath",
+            "actionsCreated": "23"
+          },
+          {
+            "mnemonic": "Ijar",
+            "actionsCreated": "23"
+          },
+          {
+            "mnemonic": "CppModuleMap",
+            "actionsCreated": "3886"
+          },
+          {
+            "mnemonic": "RunBinary",
+            "actionsCreated": "277"
+          },
+          {
+            "mnemonic": "RustBindgen",
+            "actionsCreated": "1"
+          },
+          {
+            "mnemonic": "ProstGenProto",
+            "actionsCreated": "44"
+          }
+        ],
+        "runnerCount": [
+          {
+            "name": "total",
+            "count": 9
+          },
+          {
+            "name": "internal",
+            "count": 4
+          },
+          {
+            "name": "linux-sandbox",
+            "count": 2,
+            "execKind": "Local"
+          },
+          {
+            "name": "remote",
+            "count": 4,
+            "execKind": "Remote"
+          }
+        ],
+        "actionCacheStatistics": {
+          "sizeInBytes": "9841801",
+          "saveTimeInMs": "8",
+          "hits": 547,
+          "misses": 9,
+          "missDetails": [
+            {},
+            {
+              "reason": "DIFFERENT_DEPS"
+            },
+            {
+              "reason": "DIFFERENT_ENVIRONMENT"
+            },
+            {
+              "reason": "DIFFERENT_FILES"
+            },
+            {
+              "reason": "CORRUPTED_CACHE_ENTRY"
+            },
+            {
+              "reason": "NOT_CACHED"
+            },
+            {
+              "reason": "UNCONDITIONAL_EXECUTION",
+              "count": 2
+            },
+            {
+              "reason": "DIGEST_MISMATCH",
+              "count": 7
+            }
+          ]
+        }
+      }
+    },
+    "merge": {
+      "bothOrdersEqual": true,
+      "unresolvedVirtualFiles": [
+        "tools/research_astro/fixtures/Main.astro.virtual.js"
+      ],
+      "completeOriginalAstroCoverage": false
+    },
+    "controls": [
+      {
+        "control": "missing-profile",
+        "exit": 1,
+        "functionalPassed": true
+      },
+      {
+        "control": "corrupt-profile",
+        "exit": 1,
+        "functionalPassed": true
+      },
+      {
+        "control": "missing-map",
+        "exit": 1,
+        "functionalPassed": true
+      },
+      {
+        "control": "missing-script",
+        "exit": 1,
+        "functionalPassed": true
+      },
+      {
+        "control": "missing-completion",
+        "exit": 1,
+        "functionalPassed": true
+      },
+      {
+        "control": "interrupted",
+        "exit": 1,
+        "functionalPassed": true
+      }
+    ],
+    "intermediate_isolation": {
+      "server_excludes_browser_inline": true,
+      "browser_retains_inline": true,
+      "baseline_all_zero": true
+    }
+  },
+  "pins": {
+    "astro": {
+      "version": "7.4.0",
+      "package_json_sha256": "ea6e4bfef0545c2e2542323471adcf136356b8383c8f9bce271281394b1bac17"
+    },
+    "@astrojs/compiler-rs": {
+      "version": "0.5.2",
+      "package_json_sha256": "643d984ba48752cd6414f2d5687f61aeddc4a19d4c1c506675ed0455f56f61a7"
+    },
+    "@astrojs/compiler-binding-linux-x64-gnu": {
+      "version": "0.5.2",
+      "package_json_sha256": "bf56fdc72c4ff2e59b6dadbfd04cd81c42e5b4682f3ec2498002bf6fa15578eb"
+    },
+    "ast-v8-to-istanbul": {
+      "version": "1.0.7",
+      "package_json_sha256": "21f42f2211e04ba2429bb830c5ddbfd18f9ea160019a32325a90f0796e6dad6d"
+    },
+    "@vitest/istanbul-lib-coverage": {
+      "version": "1.0.2",
+      "package_json_sha256": "af248983be988c8767a13d207f3bbddd10e9ceb99e7c7d6d24609bfcd4675731"
+    },
+    "playwright-core": {
+      "version": "1.64.1",
+      "package_json_sha256": "8aa1c9863fa8dea324e674254158cdc79440f4124ef2d84d38053013541cb7d6"
+    },
+    "native_compiler": {
+      "filename": "astro.linux-x64-gnu.node",
+      "sha256": "7744811d27b639553b49ae6283bed32172627239f0ef3509a9ddb983e12b645c"
+    },
+    "chromium_executable": {
+      "version": "156.0.8078.4",
+      "sha256": "4fa61f0ba0b4f89b7bec242c32ca16d3bccf69dbfef0651924a9ba8fede5f9d6"
+    }
+  }
+}

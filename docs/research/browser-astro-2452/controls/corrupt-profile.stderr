@@ -1,0 +1,10 @@
+<anonymous_script>:1
+{corrupt
+ ^
+
+SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at read (file://<CHECKOUT>/bazel-bin/tools/research_astro/merge_/merge.runfiles/_main/tools/research_astro/merge.mjs:23:29)
+    at file://<CHECKOUT>/bazel-bin/tools/research_astro/merge_/merge.runfiles/_main/tools/research_astro/merge.mjs:116:19
+
+Node.js v24.15.0

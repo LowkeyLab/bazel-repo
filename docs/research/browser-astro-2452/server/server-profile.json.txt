@@ -1,0 +1,125 @@
+{
+  "result": [
+    {
+      "scriptId": "432",
+      "url": "file://<ARTIFACTS>/server-final/generated/Main.mjs",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 1446,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 355,
+              "endOffset": 1195,
+              "count": 2
+            },
+            {
+              "startOffset": 681,
+              "endOffset": 712,
+              "count": 1
+            },
+            {
+              "startOffset": 713,
+              "endOffset": 742,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 760,
+              "endOffset": 796,
+              "count": 4
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ]
+    },
+    {
+      "scriptId": "435",
+      "url": "file://<ARTIFACTS>/server-final/generated/node-helper.js",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 86,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "nodeLabel",
+          "ranges": [
+            {
+              "startOffset": 7,
+              "endOffset": 85,
+              "count": 2
+            },
+            {
+              "startOffset": 54,
+              "endOffset": 68,
+              "count": 1
+            },
+            {
+              "startOffset": 69,
+              "endOffset": 82,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ]
+    },
+    {
+      "scriptId": "436",
+      "url": "file://<ARTIFACTS>/server-final/generated/TestOnly.mjs",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 790,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 281,
+              "endOffset": 531,
+              "count": 1
+            },
+            {
+              "startOffset": 511,
+              "endOffset": 522,
+              "count": 0
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ]
+    }
+  ],
+  "timestamp": 56715.722783
+}

@@ -1,0 +1,34 @@
+warning: Git tree '<CHECKOUT>' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: 86e5ebfe-a9ab-4b34-bfe8-352d6690427c
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/86e5ebfe-a9ab-4b34-bfe8-352d6690427c
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_astro:server (1 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_astro:server (277 packages loaded, 1097 targets configured).
+INFO: Found 1 target...
+[3 / 97] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[821 / 823] [Sched] Copying file tools/research_astro/server.mjs
+Target //tools/research_astro:server up-to-date:
+  bazel-bin/tools/research_astro/server_/server
+INFO: Elapsed time: 3.772s, Critical Path: 2.60s
+INFO: 3 processes: 820 action cache hit, 2 internal, 1 remote.
+INFO: Build completed successfully, 3 total actions
+
+INFO: Running command line: bazel-bin/tools/research_astro/server_/server <args omitted>
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/86e5ebfe-a9ab-4b34-bfe8-352d6690427c

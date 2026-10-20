@@ -1,0 +1,31 @@
+warning: Git tree '<CHECKOUT>' is dirty
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: cc35134f-96c2-4ff0-8a6d-c5cee28cbec3
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/cc35134f-96c2-4ff0-8a6d-c5cee28cbec3
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_astro:controls (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_astro:controls (1 packages loaded, 1 target configured).
+INFO: Found 1 target...
+[9 / 66] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //tools/research_astro:controls up-to-date:
+  bazel-bin/tools/research_astro/controls_/controls
+INFO: Elapsed time: 1.432s, Critical Path: 0.01s
+INFO: 2 processes: 4 action cache hit, 2 internal.
+INFO: Build completed successfully, 2 total actions
+
+INFO: Running command line: bazel-bin/tools/research_astro/controls_/controls <args omitted>
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/cc35134f-96c2-4ff0-8a6d-c5cee28cbec3

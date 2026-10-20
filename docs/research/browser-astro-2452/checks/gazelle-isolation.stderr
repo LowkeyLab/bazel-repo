@@ -1,0 +1,40 @@
+warning: Git tree '<CHECKOUT>' is dirty
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: ea8c1479-62c6-465c-918f-7b0070c15c6d
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/ea8c1479-62c6-465c-918f-7b0070c15c6d
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+WARNING: Build options --build_runfile_links, --java_language_version, --java_runtime_version, and 2 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //:gazelle (0 packages loaded, 0 targets configured)
+Analyzing: target //:gazelle (1 packages loaded, 182295 targets configured, 188 aspect applications)
+INFO: Analyzed target //:gazelle (1 packages loaded, 188472 targets configured, 634 aspect applications).
+INFO: Found 1 target...
+[1 / 20] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //:gazelle up-to-date:
+  bazel-bin/gazelle-runner.bash
+  bazel-bin/gazelle
+INFO: Elapsed time: 3.794s, Critical Path: 0.35s
+INFO: 9 processes: 4558 action cache hit, 2 remote cache hit, 7 internal.
+INFO: Build completed successfully, 9 total actions
+
+INFO: Running command line: bazel-bin/gazelle
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/ea8c1479-62c6-465c-918f-7b0070c15c6d
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by io.netty.util.internal.PlatformDependent0$4 (file:<RUNFILES>/bazel-out/k8-fastbuild/bin/external/rules_jvm_external++maven+contrib_rules_jvm_deps/io/netty/netty-common/4.1.110.Final/processed_netty-common-4.1.110.Final.jar)
+WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$4
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release

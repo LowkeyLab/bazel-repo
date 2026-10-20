@@ -1,0 +1,96 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_run_binary")
+load("@npm//:astro/package_json.bzl", "bin")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# gazelle:ignore
+
+js_binary(
+    name = "probe",
+    data = [
+        "//:node_modules/astro",
+        "//angular:node_modules/@vitest/coverage-v8",
+    ] + glob(["fixtures/**"]),
+    entry_point = "probe.mjs",
+)
+
+js_binary(
+    name = "server",
+    data = [
+        "//:node_modules/astro",
+        "//angular:node_modules/@vitest/coverage-v8",
+    ] + glob(["fixtures/**"]),
+    entry_point = "server.mjs",
+)
+
+bin.astro_binary(
+    name = "astro",
+    chdir = package_name(),
+    env = {"ASTRO_TELEMETRY_DISABLED": "1"},
+)
+
+js_run_binary(
+    name = "site_build",
+    srcs = glob([
+        "fixtures/**",
+        "src/**",
+    ]) + [
+        "astro.config.mjs",
+        "package.json",
+        "//:node_modules/astro",
+    ],
+    args = ["build"],
+    out_dirs = ["dist"],
+    tool = ":astro",
+)
+
+js_binary(
+    name = "browser",
+    data = [
+        "fixtures/evaluated.js",
+        "//:node_modules/playwright",
+    ],
+    entry_point = "browser.mjs",
+)
+
+sh_test(
+    name = "browser_test",
+    srcs = ["run.sh"],
+    args = [
+        "$(rootpath :browser)",
+        "$(rootpath :site_build)",
+        "$(rootpath @research_astro_chromium//:chrome-headless-shell)",
+        "$(rootpath //book_smartz/web:submitting.js)",
+    ],
+    data = [
+        ":browser",
+        ":site_build",
+        "//book_smartz/web:submitting.js",
+        "//book_smartz/web:submitting_script",
+        "@research_astro_chromium//:chrome-headless-shell",
+        "@research_astro_chromium//:files",
+    ],
+    env_inherit = [
+        "NIX_LD",
+        "NIX_LD_LIBRARY_PATH",
+    ],
+    tags = [
+        "manual",
+        "no-remote-exec",
+    ],
+)
+
+js_binary(
+    name = "merge",
+    data = [
+        "//:node_modules/astro",
+        "//angular:node_modules/@vitest/coverage-v8",
+        "//book_smartz/web:submitting_script",
+    ] + glob(["fixtures/**"]),
+    entry_point = "merge.mjs",
+)
+
+js_binary(
+    name = "controls",
+    data = [":merge"],
+    entry_point = "controls.mjs",
+)

@@ -1,0 +1,32 @@
+[
+  {
+    "control": "missing-profile",
+    "exit": 1,
+    "functionalPassed": true
+  },
+  {
+    "control": "corrupt-profile",
+    "exit": 1,
+    "functionalPassed": true
+  },
+  {
+    "control": "missing-map",
+    "exit": 1,
+    "functionalPassed": true
+  },
+  {
+    "control": "missing-script",
+    "exit": 1,
+    "functionalPassed": true
+  },
+  {
+    "control": "missing-completion",
+    "exit": 1,
+    "functionalPassed": true
+  },
+  {
+    "control": "interrupted",
+    "exit": 1,
+    "functionalPassed": true
+  }
+]

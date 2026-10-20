@@ -1,0 +1,14 @@
+{
+  "code": "import { render as $$render, createAstro as $$createAstro, createComponent as $$createComponent, maybeRenderHead as $$maybeRenderHead } from \"astro/compiler-runtime\";\nconst $$Astro = $$createAstro(\"https://astro.build\");\nconst Astro = $$Astro;\nconst $$TestOnly = $$createComponent(($$result, $$props, $$slots) => {\n\tconst Astro = $$result.createAstro($$props, $$slots);\n\tAstro.self = $$TestOnly;\n\tconst { enabled = false } = Astro.props;\n\treturn $$render`${$$maybeRenderHead($$result)}<p>${enabled ? \"test-yes\" : \"test-no\"}</p>`;\n}, \"<RUNFILES>/tools/research_astro/fixtures/TestOnly.astro\", undefined);\nexport default $$TestOnly;\n",
+  "map": "{\"version\":3,\"names\":[],\"sources\":[\"<RUNFILES>/tools/research_astro/fixtures/TestOnly.astro\"],\"sourcesContent\":[\"---\\nconst { enabled = false } = Astro.props;\\n---\\n<p>{enabled ? \\\"test-yes\\\" : \\\"test-no\\\"}</p>\\n\"],\"mappings\":\";;;;;;CACA,MAAA,EAAA,UAAA,UAAA,MAAA;+CAEA,GAAG,EAAC,UAAU,aAAa,UAAU\"}",
+  "scope": "euk64x7n",
+  "css": [],
+  "scripts": [],
+  "hydratedComponents": [],
+  "clientOnlyComponents": [],
+  "serverComponents": [],
+  "containsHead": false,
+  "propagation": false,
+  "styleError": [],
+  "diagnostics": []
+}

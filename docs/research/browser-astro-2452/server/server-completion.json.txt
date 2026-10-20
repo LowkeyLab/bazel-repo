@@ -1,0 +1,5 @@
+{
+  "functionalAssertions": true,
+  "profileComplete": true,
+  "baselineExecutedComponents": false
+}

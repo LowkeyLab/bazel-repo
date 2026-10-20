@@ -1,0 +1,2 @@
+function e(e){return e?`browser-yes`:`browser-no`}document.querySelector(`#action`).addEventListener(`click`,()=>{document.documentElement.dataset.result=e(!0)});
+//# sourceMappingURL=Main.astro_astro_type_script_index_0_lang.Bb-C5Svw.js.map

@@ -1,0 +1,190 @@
+{
+  "ast": {
+    "type": "AstroRoot",
+    "frontmatter": {
+      "type": "AstroFrontmatter",
+      "program": {
+        "type": "Program",
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "id": {
+                  "type": "ObjectPattern",
+                  "decorators": [],
+                  "properties": [
+                    {
+                      "type": "Property",
+                      "kind": "init",
+                      "key": {
+                        "type": "Identifier",
+                        "decorators": [],
+                        "name": "enabled",
+                        "optional": false,
+                        "typeAnnotation": null,
+                        "start": 12,
+                        "end": 19
+                      },
+                      "value": {
+                        "type": "AssignmentPattern",
+                        "decorators": [],
+                        "left": {
+                          "type": "Identifier",
+                          "decorators": [],
+                          "name": "enabled",
+                          "optional": false,
+                          "typeAnnotation": null,
+                          "start": 12,
+                          "end": 19
+                        },
+                        "right": {
+                          "type": "Literal",
+                          "value": false,
+                          "raw": "false",
+                          "start": 22,
+                          "end": 27
+                        },
+                        "optional": false,
+                        "typeAnnotation": null,
+                        "start": 12,
+                        "end": 27
+                      },
+                      "method": false,
+                      "shorthand": true,
+                      "computed": false,
+                      "optional": false,
+                      "start": 12,
+                      "end": 27
+                    }
+                  ],
+                  "optional": false,
+                  "typeAnnotation": null,
+                  "start": 10,
+                  "end": 29
+                },
+                "init": {
+                  "type": "MemberExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "decorators": [],
+                    "name": "Astro",
+                    "optional": false,
+                    "typeAnnotation": null,
+                    "start": 32,
+                    "end": 37
+                  },
+                  "property": {
+                    "type": "Identifier",
+                    "decorators": [],
+                    "name": "props",
+                    "optional": false,
+                    "typeAnnotation": null,
+                    "start": 38,
+                    "end": 43
+                  },
+                  "optional": false,
+                  "computed": false,
+                  "start": 32,
+                  "end": 43
+                },
+                "definite": false,
+                "start": 10,
+                "end": 43
+              }
+            ],
+            "declare": false,
+            "start": 4,
+            "end": 44
+          }
+        ],
+        "sourceType": "module",
+        "hashbang": null,
+        "start": 4,
+        "end": 45
+      },
+      "start": 0,
+      "end": 48
+    },
+    "body": [
+      {
+        "type": "JSXElement",
+        "openingElement": {
+          "type": "JSXOpeningElement",
+          "name": {
+            "type": "JSXIdentifier",
+            "name": "p",
+            "start": 50,
+            "end": 51
+          },
+          "typeArguments": null,
+          "attributes": [],
+          "selfClosing": false,
+          "start": 49,
+          "end": 52
+        },
+        "children": [
+          {
+            "type": "JSXExpressionContainer",
+            "expression": {
+              "type": "ConditionalExpression",
+              "test": {
+                "type": "Identifier",
+                "decorators": [],
+                "name": "enabled",
+                "optional": false,
+                "typeAnnotation": null,
+                "start": 53,
+                "end": 60
+              },
+              "consequent": {
+                "type": "Literal",
+                "value": "test-yes",
+                "raw": "\"test-yes\"",
+                "start": 63,
+                "end": 73
+              },
+              "alternate": {
+                "type": "Literal",
+                "value": "test-no",
+                "raw": "\"test-no\"",
+                "start": 76,
+                "end": 85
+              },
+              "start": 53,
+              "end": 85
+            },
+            "start": 52,
+            "end": 86
+          }
+        ],
+        "closingElement": {
+          "type": "JSXClosingElement",
+          "name": {
+            "type": "JSXIdentifier",
+            "name": "p",
+            "start": 88,
+            "end": 89
+          },
+          "start": 86,
+          "end": 90
+        },
+        "start": 49,
+        "end": 90
+      },
+      {
+        "type": "JSXText",
+        "value": "\n",
+        "raw": "\n",
+        "start": 90,
+        "end": 91
+      }
+    ],
+    "comments": [],
+    "start": 0,
+    "end": 91
+  },
+  "diagnostics": []
+}

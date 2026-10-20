@@ -1,0 +1,34 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: 5c05b274-8c66-4456-951c-697b1b9219b1
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/5c05b274-8c66-4456-951c-697b1b9219b1
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_astro:site_build (1 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_astro:site_build (2 packages loaded, 764 targets configured).
+INFO: Found 1 target...
+[0 / 30] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (2 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,083 / 1,087] Copying file tools/research_astro/astro.config.mjs; 0s remote, remote-cache ... (3 actions running)
+[1,086 / 1,087] JsRunBinary tools/research_astro/dist; 0s remote, remote-cache
+[1,086 / 1,087] [Sched] JsRunBinary tools/research_astro/dist
+[1,086 / 1,087] JsRunBinary tools/research_astro/dist; 1s remote, remote-cache
+Target //tools/research_astro:site_build up-to-date:
+  bazel-bin/tools/research_astro/dist
+INFO: Elapsed time: 9.509s, Critical Path: 8.42s
+INFO: 9 processes: 1078 action cache hit, 5 internal, 4 remote.
+INFO: Build completed successfully, 9 total actions
+
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/5c05b274-8c66-4456-951c-697b1b9219b1

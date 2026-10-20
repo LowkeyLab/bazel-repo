@@ -1,0 +1,160 @@
+warning: Git tree '<CHECKOUT>' is dirty
+→ 🎬 Running lint task
+
+→ 🔧 Setup · Running setup
+
+→ 🔍 Detect · Detecting changed files
+Detecting changed files via local git diff 61e9f955bc2d75f7108c6332abae49e232ea21c4..HEAD (git rev-parse HEAD^1 (HEAD on origin/main))
+Changed files:
+  MODULE.bazel [+9 / -0] (changed)
+  docs/research/2026-10-20-browser-astro-runtime-validation.md [+204 / -0] (changed)
+  docs/research/browser-astro-2452/EVIDENCE.md [+25 / -0] (changed)
+  docs/research/browser-astro-2452/browser/Main.astro_astro_type_script_index_0_lang.Bb-C5Svw.js.map.txt [+1 / -0] (changed)
+  docs/research/browser-astro-2452/browser/application-completion.json.txt [+5 / -0] (changed)
+  docs/research/browser-astro-2452/browser/application-functional.json.txt [+3 / -0] (changed)
+  docs/research/browser-astro-2452/browser/application-profile.json.txt [+73 / -0] (changed)
+  docs/research/browser-astro-2452/browser/application-script-0.js.txt [+32 / -0] (changed)
+  docs/research/browser-astro-2452/browser/application-submitting.js.txt [+32 / -0] (changed)
+  docs/research/browser-astro-2452/browser/astro-completion.json.txt [+5 / -0] (changed)
+  docs/research/browser-astro-2452/browser/astro-functional.json.txt [+3 / -0] (changed)
+  docs/research/browser-astro-2452/browser/astro-profile.json.txt [+135 / -0] (changed)
+  docs/research/browser-astro-2452/browser/astro-script-0.js.txt [+2 / -0] (changed)
+  docs/research/browser-astro-2452/browser/astro-script-1.js.txt [+2 / -0] (changed)
+  docs/research/browser-astro-2452/browser/astro-script-2.js.txt [+3 / -0] (changed)
+  docs/research/browser-astro-2452/browser/browser-version.json.txt [+5 / -0] (changed)
+  docs/research/browser-astro-2452/browser/built-index.html.txt [+4 / -0] (changed)
+  docs/research/browser-astro-2452/browser/interrupted-functional.json.txt [+3 / -0] (changed)
+  docs/research/browser-astro-2452/browser/interrupted-interrupted.txt [+1 / -0] (changed)
+  docs/research/browser-astro-2452/checks/browser-final.stderr [+37 / -0] (changed)
+  docs/research/browser-astro-2452/checks/browser-final.stdout [+4 / -0] (changed)
+  docs/research/browser-astro-2452/checks/controls-final.stderr [+32 / -0] (changed)
+  docs/research/browser-astro-2452/checks/controls-final.stdout [+1 / -0] (changed)
+  docs/research/browser-astro-2452/checks/format-second.stderr [+107 / -0] (changed)
+  docs/research/browser-astro-2452/checks/gazelle-final.stderr [+40 / -0] (changed)
+  docs/research/browser-astro-2452/checks/lint-final.stderr [+103 / -0] (changed)
+  docs/research/browser-astro-2452/checks/merge-final.stderr [+33 / -0] (changed)
+  docs/research/browser-astro-2452/checks/merge-final.stdout [+1 / -0] (changed)
+  docs/research/browser-astro-2452/checks/server-final.stderr [+34 / -0] (changed)
+  docs/research/browser-astro-2452/checks/server-final.stdout [+1 / -0] (changed)
+  docs/research/browser-astro-2452/checks/site-build.stderr [+34 / -0] (changed)
+  docs/research/browser-astro-2452/controls/controls.json.txt [+32 / -0] (changed)
+  docs/research/browser-astro-2452/controls/corrupt-profile.stderr [+10 / -0] (changed)
+  docs/research/browser-astro-2452/controls/interrupted.stderr [+15 / -0] (changed)
+  docs/research/browser-astro-2452/controls/missing-completion.stderr [+15 / -0] (changed)
+  docs/research/browser-astro-2452/controls/missing-map.stderr [+15 / -0] (changed)
+  docs/research/browser-astro-2452/controls/missing-profile.stderr [+15 / -0] (changed)
+  docs/research/browser-astro-2452/controls/missing-script.stderr [+14 / -0] (changed)
+  docs/research/browser-astro-2452/manifest.json [+828 / -0] (changed)
+  docs/research/browser-astro-2452/merge/baseline.json.txt [+776 / -0] (changed)
+  docs/research/browser-astro-2452/merge/baseline.lcov [+51 / -0] (changed)
+  docs/research/browser-astro-2452/merge/browser.json.txt [+825 / -0] (changed)
+  docs/research/browser-astro-2452/merge/browser.lcov [+55 / -0] (changed)
+  docs/research/browser-astro-2452/merge/combined-zero-first.json.txt [+1440 / -0] (changed)
+  docs/research/browser-astro-2452/merge/combined-zero-first.lcov [+93 / -0] (changed)
+  docs/research/browser-astro-2452/merge/combined-zero-last.json.txt [+1440 / -0] (changed)
+  docs/research/browser-astro-2452/merge/combined-zero-last.lcov [+93 / -0] (changed)
+  docs/research/browser-astro-2452/merge/merge-order-summary.json.txt [+1052 / -0] (changed)
+  docs/research/browser-astro-2452/merge/merge-result.json.txt [+7 / -0] (changed)
+  docs/research/browser-astro-2452/merge/server.json.txt [+451 / -0] (changed)
+  docs/research/browser-astro-2452/merge/server.lcov [+28 / -0] (changed)
+  docs/research/browser-astro-2452/merge/virtual-unresolved.json.txt [+73 / -0] (changed)
+  docs/research/browser-astro-2452/merge/virtual-unresolved.lcov [+5 / -0] (changed)
+  docs/research/browser-astro-2452/server/Disconnected.ast.json.txt [+254 / -0] (changed)
+  docs/research/browser-astro-2452/server/Disconnected.compiler.json.txt [+19 / -0] (changed)
+  docs/research/browser-astro-2452/server/Main.ast.json.txt [+1089 / -0] (changed)
+  docs/research/browser-astro-2452/server/Main.compiler.json.txt [+19 / -0] (changed)
+  docs/research/browser-astro-2452/server/TestOnly.ast.json.txt [+190 / -0] (changed)
+  docs/research/browser-astro-2452/server/TestOnly.compiler.json.txt [+14 / -0] (changed)
+  docs/research/browser-astro-2452/server/baseline.json.txt [+402 / -0] (changed)
+  docs/research/browser-astro-2452/server/rendered.json.txt [+5 / -0] (changed)
+  docs/research/browser-astro-2452/server/server-completion.json.txt [+5 / -0] (changed)
+  docs/research/browser-astro-2452/server/server-measured.json.txt [+302 / -0] (changed)
+  docs/research/browser-astro-2452/server/server-profile.json.txt [+125 / -0] (changed)
+  tools/research_astro/BUILD.bazel [+96 / -0] (changed)
+  tools/research_astro/REPRODUCE.md [+20 / -0] (changed)
+  tools/research_astro/astro.config.mjs [+5 / -0] (changed)
+  tools/research_astro/browser-deps.nix [+15 / -0] (changed)
+  tools/research_astro/browser.mjs [+156 / -0] (changed)
+  tools/research_astro/controls.mjs [+76 / -0] (changed)
+  tools/research_astro/fixtures/Disconnected.astro [+6 / -0] (changed)
+  tools/research_astro/fixtures/Main.astro [+20 / -0] (changed)
+  tools/research_astro/fixtures/TestOnly.astro [+4 / -0] (changed)
+  tools/research_astro/fixtures/browser-helper.js [+3 / -0] (changed)
+  tools/research_astro/fixtures/disconnected.js [+3 / -0] (changed)
+  tools/research_astro/fixtures/evaluated.js [+1 / -0] (changed)
+  tools/research_astro/fixtures/node-helper.js [+3 / -0] (changed)
+  tools/research_astro/merge.mjs [+248 / -0] (changed)
+  tools/research_astro/package.json [+5 / -0] (changed)
+  tools/research_astro/probe.mjs [+70 / -0] (changed)
+  tools/research_astro/run.sh [+5 / -0] (changed)
+  tools/research_astro/server.mjs [+148 / -0] (changed)
+  tools/research_astro/src/pages/index.astro [+4 / -0] (changed)
+  tools/ticket_publication/BUILD.bazel [+15 / -0] (changed)
+  tools/ticket_publication/README.md [+40 / -7] (changed)
+  tools/ticket_publication/github.rs [+142 / -0] (changed)
+  tools/ticket_publication/main.rs [+58 / -8] (changed)
+  tools/ticket_publication/plan.rs [+58 / -1] (changed)
+  tools/ticket_publication/publish.rs [+90 / -0] (changed)
+  tools/ticket_publication/store.rs [+12 / -0] (changed)
+  tools/ticket_publication/tests/command.rs [+352 / -5] (changed)
+  tools/ticket_publication/tests/fake_gh.rs [+91 / -0] (changed)
+  tools/ticket_publication/tests/sync_fault.c [+33 / -1] (changed)
+
+→ 🔬 Lint · Running lint aspects
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Invocation ID: 7a8ffadb-0338-45cf-9c02-45a5983769ba
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/7a8ffadb-0338-45cf-9c02-45a5983769ba
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: 7 targets (0 packages loaded, 0 targets configured)
+INFO: Analyzed 7 targets (1 packages loaded, 93156 targets configured, 248 aspect applications).
+INFO: Found 7 targets...
+[0 / 1] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_astro:controls up-to-date:
+  bazel-bin/tools/research_astro/controls.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_astro/controls.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_astro:browser up-to-date:
+  bazel-bin/tools/research_astro/browser.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_astro/browser.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_astro:server up-to-date:
+  bazel-bin/tools/research_astro/server.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_astro/server.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_astro:astro up-to-date:
+  bazel-bin/tools/research_astro/astro.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_astro/astro.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_astro:site_build up-to-date:
+  bazel-bin/tools/research_astro/site_build.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_astro/site_build.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_astro:probe up-to-date:
+  bazel-bin/tools/research_astro/probe.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_astro/probe.AspectRulesLintKeepSorted.report.exit_code
+Aspect //tools/lint:linters.bzl%keep_sorted of //tools/research_astro:merge up-to-date:
+  bazel-bin/tools/research_astro/merge.AspectRulesLintKeepSorted.report
+  bazel-bin/tools/research_astro/merge.AspectRulesLintKeepSorted.report.exit_code
+INFO: Elapsed time: 2.038s, Critical Path: 0.02s
+INFO: 1 process: 1427 action cache hit, 1 internal.
+INFO: Build completed successfully, 1 total action
+
+INFO: Streaming build results to: https://app.buildbuddy.io/invocation/7a8ffadb-0338-45cf-9c02-45a5983769ba
+
+→ 🔎 Filter · Filtering diagnostics
+
+🧹 Linters (1): KeepSorted
+
+→ ✅ Passed lint task in 3.8s · No findings
+    🔧 Setup     1ms  Prepare the task environment
+    🔍 Detect  270ms  Detect changed files
+    🔬 Lint     3.5s  Run lint aspects
+    🔎 Filter   12ms  Filter diagnostics

@@ -1,0 +1,19 @@
+{
+  "code": "import { render as $$render, createAstro as $$createAstro, createComponent as $$createComponent, maybeRenderHead as $$maybeRenderHead, renderScript as $$renderScript } from \"astro/compiler-runtime\";\nimport { nodeLabel } from \"./node-helper.js\";\nconst $$Astro = $$createAstro(\"https://astro.build\");\nconst Astro = $$Astro;\nconst $$Main = $$createComponent(($$result, $$props, $$slots) => {\n\tconst Astro = $$result.createAstro($$props, $$slots);\n\tAstro.self = $$Main;\n\tconst { enabled = true } = Astro.props;\n\tconst title = nodeLabel(enabled);\n\tconst items = [1, 2];\n\treturn $$render`${$$maybeRenderHead($$result)}<!-- This comment is not executable. -->\n<h1>${title}</h1>\n${enabled ? $$render`<p id=\"yes\">yes</p>` : $$render`<p id=\"no\">no</p>`}\n<ul>${items.map((item) => $$render`<li>${item}</li>`)}</ul>\n<button id=\"action\">run</button>\n${$$renderScript($$result, \"<RUNFILES>/tools/research_astro/fixtures/Main.astro?astro&type=script&index=0&lang.ts\")}\n<script>\n  window.inlineResult = true ? \"inline-yes\" : \"inline-no\";\n<\\/script>`;\n}, \"<RUNFILES>/tools/research_astro/fixtures/Main.astro\", undefined);\nexport default $$Main;\n",
+  "map": "{\"version\":3,\"names\":[],\"sources\":[\"<RUNFILES>/tools/research_astro/fixtures/Main.astro\"],\"sourcesContent\":[\"---\\nimport { nodeLabel } from \\\"./node-helper.js\\\";\\nconst { enabled = true } = Astro.props;\\nconst title = nodeLabel(enabled);\\nconst items = [1, 2];\\n---\\n<!-- This comment is not executable. -->\\n<h1>{title}</h1>\\n{enabled ? <p id=\\\"yes\\\">yes</p> : <p id=\\\"no\\\">no</p>}\\n<ul>{items.map((item) => <li>{item}</li>)}</ul>\\n<button id=\\\"action\\\">run</button>\\n<script>\\n  import { browserLabel } from \\\"./browser-helper.js\\\";\\n  document.querySelector(\\\"#action\\\").addEventListener(\\\"click\\\", () => {\\n    document.documentElement.dataset.result = browserLabel(true);\\n  });\\n</script>\\n<script is:inline>\\n  window.inlineResult = true ? \\\"inline-yes\\\" : \\\"inline-no\\\";\\n</script>\\n\"],\"mappings\":\";AACA,SAAA,iBAAA;;;;;;CACA,MAAA,EAAA,UAAA,SAAA,MAAA;CACA,MAAA,QAAA,UAAA,QAAA;CACA,MAAA,QAAA,CAAA,GAAA,EAAA;+CAEA,wCAAwC;AACxC,IAAI,EAAA,MAAO,KAAK;AAChB,EAAC,UAAA,QAAA,CAAU,EAAG,UAAS,GAAG,QAAA,QAAA,CAAO,EAAG,SAAQ,EAAE,MAAK;AACnD,MAAK,MAAA,KAAU,SAAA,QAAA,CAAU,IAAI,EAAA,KAAM,OAAA,CAAO;AAC1C,OAAQ,aAAY,GAAG,SAAS;EAChC,eAAA,UAAA,uPAAA,CAKS;AACT,QAAkB;;AAElB\"}",
+  "scope": "dz76upuu",
+  "css": [],
+  "scripts": [
+    {
+      "type": "inline",
+      "code": "import { browserLabel } from \"./browser-helper.js\";\ndocument.querySelector(\"#action\").addEventListener(\"click\", () => {\n\tdocument.documentElement.dataset.result = browserLabel(true);\n});"
+    }
+  ],
+  "hydratedComponents": [],
+  "clientOnlyComponents": [],
+  "serverComponents": [],
+  "containsHead": false,
+  "propagation": false,
+  "styleError": [],
+  "diagnostics": []
+}
