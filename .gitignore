@@ -66,3 +66,6 @@ user.bazelrc
 .local/
 /result
 /result-*
+
+# Coverage source inventory
+coverage-inventory.json

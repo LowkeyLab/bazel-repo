@@ -119,3 +119,9 @@ filegroup(
     tags = ["markdown"],
     visibility = ["//tools/lint:__pkg__"],
 )
+
+filegroup(
+    name = "codegen_config",
+    srcs = ["codegen.ts"],
+    tags = ["manual"],
+)

@@ -39,10 +39,19 @@ for arg in "${ARGS[@]}"; do
 		;;
 	esac
 done
+INVENTORY_ARGS=()
+for arg in "${INFO_ARGS[@]}"; do
+	INVENTORY_ARGS+=("--bazel-option=${arg}")
+done
+ROOTS_FILE="$(mktemp)"
+trap 'rm -f "$ROOTS_FILE"' EXIT
+bazel run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
+	--output coverage-inventory.json --roots-output "$ROOTS_FILE" "${INVENTORY_ARGS[@]}"
+mapfile -t COVERAGE_ROOTS <"$ROOTS_FILE"
 COVERAGE_DAT="$(bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_report.dat"
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
-bazel coverage "${ARGS[@]}" 2>&1
+bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" 2>&1
 
 if [[ ! -f "${COVERAGE_DAT}" ]]; then
 	echo "ERROR: Combined coverage report not found at ${COVERAGE_DAT}"

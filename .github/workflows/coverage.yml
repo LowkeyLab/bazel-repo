@@ -56,6 +56,7 @@ jobs:
           name: coverage-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             coverage-report.lcov
+            coverage-inventory.json
             coverage-test-results.jsonl
             coverage-revision.txt
           if-no-files-found: error
