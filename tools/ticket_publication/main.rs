@@ -63,16 +63,20 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 .unwrap_or_else(BatchId::new);
             let prepared = Batch::prepare(id.clone(), plan)?;
             let store = Store::open(&root, &id, true)?;
-            if store.plan_path().try_exists()? {
+            let saved = if store.plan_path().try_exists()? {
                 let saved = store.read(&id)?;
                 ensure!(
                     saved.plan_fingerprint == prepared.plan_fingerprint,
                     "batch already contains a different plan"
                 );
+                saved
             } else {
                 store.save_new(&prepared)?;
-            }
-            Ok(json!({"batch_id": id, "plan_path": store.plan_path(), "status": "prepared"}))
+                prepared
+            };
+            Ok(
+                json!({"batch_id": id, "plan_path": store.plan_path(), "status": local_status(&saved)}),
+            )
         }
         Action::Publish { batch } => {
             let id = BatchId::try_from(batch)?;
@@ -104,9 +108,20 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let store = Store::open(&root, &id, false)?;
             let saved = store.read(&id)?;
             Ok(
-                json!({"status":if saved.tickets.iter().all(|p| matches!(p.status, plan::TicketStatus::Pending)) {"prepared"} else {"partial"}, "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets}),
+                json!({"status":local_status(&saved), "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets}),
             )
         }
+    }
+}
+fn local_status(batch: &Batch) -> &'static str {
+    if batch
+        .tickets
+        .iter()
+        .all(|p| matches!(p.status, plan::TicketStatus::Pending))
+    {
+        "prepared"
+    } else {
+        "partial"
     }
 }
 fn main() -> Result<std::process::ExitCode> {

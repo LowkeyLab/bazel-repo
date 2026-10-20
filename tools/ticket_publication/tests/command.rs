@@ -847,3 +847,53 @@ fn interrupted_progress_writes_resume_only_when_creation_is_safe() -> anyhow::Re
     }
     Ok(())
 }
+
+#[googletest::test]
+fn repeated_preparation_reports_preserved_publication_progress() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    for complete_creation in [false, true] {
+        if complete_creation {
+            f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+        }
+        let remote = f.remote()?;
+        let snapshot = fs::read(
+            f.directory
+                .path()
+                .join("state")
+                .join(&id)
+                .join("batch.json"),
+        )?;
+        let result = f.successful(&[
+            "--state-dir",
+            "state",
+            "prepare",
+            "--plan",
+            "plan.json",
+            "--batch",
+            &id,
+        ])?;
+        assert_that!(result["status"].as_str(), eq(Some("partial")));
+        let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
+        assert_that!(status["status"].as_str(), eq(Some("partial")));
+        assert_that!(
+            fs::read(
+                f.directory
+                    .path()
+                    .join("state")
+                    .join(&id)
+                    .join("batch.json")
+            )?,
+            eq(&snapshot)
+        );
+        assert_that!(f.remote()?, eq(&remote));
+    }
+    Ok(())
+}
