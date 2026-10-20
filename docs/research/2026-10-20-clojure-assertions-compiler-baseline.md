@@ -129,8 +129,9 @@ Its metadata comparison still identifies the macro-definition omission.
 Two earlier required Gazelle invocations used configured remote services and returned cached tool actions.
 They do not establish remote collector execution.
 
-Configured remote validation remains subject to the coordinator's pending explicit approval request.
-No fresh remote collector result or hosted upload exists in this report.
+The initial run preceded explicit approval for remote research transfers.
+The approved check below supplies fresh remote execution evidence.
+Neither phase establishes a Codecov upload.
 The generator, full repository formatting, and both native test targets pass locally.
 The two native tests execute freshly with test-result caching disabled.
 Applicable Checkstyle, KeepSorted, and PMD lint aspects pass with no findings.
@@ -138,3 +139,50 @@ Those aspects supply no Clojure-specific source lint.
 Repository-wide build and lint acceptance remain outside this bounded experiment.
 The inspected Cloverage exporter still supplies no branch records, as the predecessor records.
 The report does not change Python architecture, combined LCOV, thresholds, Codecov policy, or production code.
+
+## Approved remote validation
+
+The user later approved research fixture and build-artifact transfers to `remote.buildbuddy.io`.
+The [approved BuildBuddy check](https://app.buildbuddy.io/invocation/0e814f2c-8f17-4a39-8072-a48c4b87aef3) tested commit `c67db6de54a34574d4f345312b9c8b0621aeab85`.
+JSON execution records identify three fresh remote actions.
+Each record states `runner=remote`, `cacheHit=false`, and `exitCode=0`.
+The collector uses the `ClojureResearch` mnemonic and took 7.594 seconds.
+Both native tests use `TestRunner` and took 0.526 and 0.528 seconds.
+The two native tests are separate from the collector's four JVM processes.
+
+The command builds the existing collector and executes only the existing native tests:
+
+```sh
+nix develop --command bazel --host_jvm_args=-Xmx1536m test \
+  //clojure_sample/research:experiment //clojure_sample/research:native_test \
+  //clojure_sample/test/lowkeylab/clojure_sample:core_test.test \
+  --config=remote --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 \
+  --remote_download_toplevel --nobuild_tests_only --nocache_test_results \
+  --modify_execution_info=ClojureResearch=+no-cache --test_output=all \
+  --build_event_json_file=/private/output/check.bep.json \
+  --execution_log_compact_file= --execution_log_json_file=/private/output/execution.json
+```
+
+The mnemonic override prevents collector cache reuse without disabling cache reuse for every prerequisite.
+The action summary records 151 action-cache hits, 44 remote-cache hits, 42 internal processes, and five remote processes.
+These counts do not mean that five tests ran.
+The explicit execution records establish freshness for the collector and both tests.
+
+Local checks read the downloaded raw records and source hashes.
+They checked all original body expectations, four process identities, and the missing/corrupt child controls.
+The compiler inventory still contains 337 raw line entries from 34 classes.
+The discovery process still loads no target namespace and creates no initialization marker.
+The compiler process still evaluates initialization.
+The original macro-definition location at `production.clj:7` remains absent from compiler metadata.
+These results preserve the existing feasibility limits.
+
+Both pinned merger runs executed locally with remote services disabled.
+They preserved all 33 available original lines across seven sources and matched the original published merge bytes.
+The merged SHA-256 remains `4d4f672a95ba314b4e445ca4ccdb1b5875ed32001f9db00fca5d4b50adacec79`.
+A merged record still does not prove that compiler metadata contained that location.
+
+New raw execution logs, downloaded profiles, and local comparison records remain private in runtime receipts.
+The original published archive remains unchanged.
+Its SHA-256 is `ba5b00247f6ba5ac0ec459d370967e6b3d4fcf6c71e2f20513334b4969718023`.
+This supplement publishes aggregate results and the approved BuildBuddy link only.
+It changes no source code or collector recommendation.
