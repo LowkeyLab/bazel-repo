@@ -159,7 +159,10 @@ def main() -> None:
         BAZEL_OPTIONS.append("--spawn_strategy=sandboxed")
     else:
         BAZEL_OPTIONS.append("--config=ci")
-    evidence.mkdir(parents=True, exist_ok=True)
+    try:
+        evidence.mkdir(parents=True, mode=0o700)
+    except FileExistsError:
+        parser.error("The evidence path already exists. Use a new path.")
     COMMAND_LOG = evidence / "commands.jsonl"
     revision = subprocess.run(
         ["git", "rev-parse", "HEAD"],

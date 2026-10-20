@@ -30,7 +30,9 @@ Run the collector command tests:
 nix develop --command aspect test //tools/python:coverage_baseline_test
 ```
 
-Run the complete membership test from a clean, assigned checkout:
+Run the complete membership test from a clean, assigned checkout.
+Use a new evidence directory for each run.
+The command rejects existing paths and preserves their files.
 
 ```bash
 nix develop --command bazel run //tools/python:coverage_membership_test -- /absolute/evidence/directory
