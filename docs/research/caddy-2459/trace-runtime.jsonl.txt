@@ -1,0 +1,27 @@
+{"level":"info","ts":"<TIME>","msg":"maxprocs: Honoring GOMAXPROCS=\"2\" as set in environment"}
+{"level":"info","ts":"<TIME>","msg":"GOMEMLIMIT is already set, skipping","GOMEMLIMIT":"1536MiB"}
+{"level":"info","ts":"<TIME>","msg":"using config from file","file":"<OUTPUTS>/trace-run.json"}
+{"level":"warn","ts":"<TIME>","logger":"admin","msg":"admin endpoint disabled"}
+{"level":"info","ts":"<TIME>","logger":"http.auto_https","msg":"automatic HTTPS is completely disabled for server","server_name":"srv0"}
+{"level":"debug","ts":"<TIME>","logger":"http.auto_https","msg":"all servers have automatic HTTPS disabled and no domains need certificates, skipping TLS automation setup"}
+{"level":"debug","ts":"<TIME>","logger":"http","msg":"starting server loop","address":"<SOCKET>/http.sock","tls":false,"http3":false}
+{"level":"warn","ts":"<TIME>","logger":"http","msg":"HTTP/2 skipped because it requires TLS","network":"unix","addr":"<SOCKET>/http.sock"}
+{"level":"warn","ts":"<TIME>","logger":"http","msg":"HTTP/3 disabled because Unix can't multiplex STREAM and DGRAM on same socket","file":"<SOCKET>/http.sock"}
+{"level":"info","ts":"<TIME>","logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+{"level":"debug","ts":"<TIME>","logger":"events","msg":"event","name":"started","id":"d923038e-2116-4b1c-a767-f7eb9d384a74","origin":"","data":null}
+{"level":"info","ts":"<TIME>","msg":"autosaved config (load with --resume flag)","file":"<OUTPUTS>/caddy/autosave.json"}
+{"level":"info","ts":"<TIME>","msg":"serving initial configuration"}
+{"level":"info","ts":"<TIME>","logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0x2d713e9be780"}
+{"level":"debug","ts":"<TIME>","logger":"http.log.trace","msg":"subroute","module":{"routes":[{},{"group":"group2"},{"group":"group2"},{}]}}
+{"level":"debug","ts":"<TIME>","logger":"http.log.trace","msg":"headers","module":{"response":{"set":{"X-Stage":["before"]}}}}
+{"level":"debug","ts":"<TIME>","logger":"http.log.trace","msg":"subroute","module":{"routes":[{}]}}
+{"level":"debug","ts":"<TIME>","logger":"http.log.trace","msg":"headers","module":{"response":{"set":{"X-Order":["first"]}}}}
+{"level":"debug","ts":"<TIME>","logger":"http.log.trace","msg":"static_response","module":{"status_code":307,"headers":{"Location":["/done"]}}}
+{"level":"info","ts":"<TIME>","logger":"http.log.access.log0","msg":"handled request","request":{"remote_ip":"@","remote_port":"","client_ip":"","proto":"HTTP/1.1","method":"GET","host":"fixture","uri":"/chosen","headers":{"User-Agent":["Go-http-client/1.1"],"X-Mode":["yes"],"Accept-Encoding":["gzip"]}},"bytes_read":0,"user_id":"","duration":0.000243751,"size":0,"status":307,"resp_headers":{"Content-Type":[],"Server":["Caddy"],"X-Stage":["before"],"X-Order":["first"],"Location":["/done"]}}
+{"level":"info","ts":"<TIME>","msg":"shutting down","signal":"SIGINT"}
+{"level":"warn","ts":"<TIME>","msg":"exiting; byeee!! 👋","signal":"SIGINT"}
+{"level":"debug","ts":"<TIME>","logger":"events","msg":"event","name":"stopping","id":"0e25d2f4-f5b1-42a5-9d21-95aaccce2eab","origin":"","data":null}
+{"level":"info","ts":"<TIME>","logger":"tls","msg":"storage cleaning happened too recently; skipping for now","storage":"FileStorage:<OUTPUTS>/caddy","instance":"fc680398-b3d0-4380-83e9-531ebf24650b","try_again":1792547425.088534,"try_again_in":86399.99999931}
+{"level":"info","ts":"<TIME>","logger":"http","msg":"servers shutting down with eternal grace period"}
+{"level":"info","ts":"<TIME>","logger":"tls.cache.maintenance","msg":"stopped background certificate maintenance","cache":"0x2d713e9be780"}
+{"level":"info","ts":"<TIME>","msg":"shutdown complete","signal":"SIGINT","exit_code":0}

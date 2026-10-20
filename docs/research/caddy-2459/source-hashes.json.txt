@@ -1,0 +1,6 @@
+{
+  "tools/research_caddy/BUILD.bazel": "c62b01ecabf260ad8c2bf905f1eb6c7ad6e67248bc2a79c5d79ec878cf94cf74",
+  "tools/research_caddy/Caddyfile": "8ccec0139c95971fe3ad04326e9ae50acedbb7949d75a56772d7874270d4eab6",
+  "tools/research_caddy/adapter_test.go": "bcdc71e8d98fa225a0430bac140907645d0aa43a01870d7007890b449620b620",
+  "tools/research_caddy/native_test.go": "b6e4a1acd03e0a24aeac214a88e0a813395793a56ee63e3423f910d22eba8aa4"
+}

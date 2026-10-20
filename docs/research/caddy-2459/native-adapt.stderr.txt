@@ -1,0 +1,1 @@
+{"level":"warn","ts":"<TIME>","logger":"caddyfile","msg":"Caddyfile input is not formatted; run 'caddy fmt --overwrite' to fix inconsistencies","file":"<EXECROOT>/tools/research_caddy/Caddyfile","line":2}

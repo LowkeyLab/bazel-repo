@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_test")
+
+# gazelle:ignore
+
+go_test(
+    name = "native_test",
+    srcs = [
+        "adapter_test.go",
+        "native_test.go",
+    ],
+    data = [
+        "Caddyfile",
+        "@multitool//tools/caddy",
+    ],
+    env = {
+        "CADDY": "$(rlocationpath @multitool//tools/caddy)",
+        "CADDYFILE": "$(rlocationpath :Caddyfile)",
+    },
+    deps = ["@rules_go//go/runfiles"],
+)

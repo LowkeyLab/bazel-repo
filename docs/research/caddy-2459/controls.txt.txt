@@ -1,0 +1,2 @@
+Five child collectors failed after successful functional assertions.
+Exact SF/DA records match the independent fixture oracle in both merge orders.

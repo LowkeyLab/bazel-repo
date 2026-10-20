@@ -1,0 +1,45 @@
+{
+  "Source": "tools<EXECROOT>/tools/research_caddy/Caddyfile",
+  "SourceSHA256": "8ccec0139c95971fe3ad04326e9ae50acedbb7949d75a56772d7874270d4eab6",
+  "AdaptSHA256": "2203e729ac7fac32e5b472292b43edd6200f09d5e0760cb899d1085285647d92",
+  "Locations": [
+    {
+      "Line": 16,
+      "Column": 9,
+      "Directive": "header",
+      "Fingerprint": "{\"handler\":\"headers\",\"response\":{\"set\":{\"X-Stage\":[\"before\"]}}}",
+      "Pointer": "/apps/http/servers/srv0/routes/0/handle/0/routes/0/handle/0"
+    },
+    {
+      "Line": 18,
+      "Column": 13,
+      "Directive": "header",
+      "Fingerprint": "{\"handler\":\"headers\",\"response\":{\"set\":{\"X-Order\":[\"first\"]}}}",
+      "Pointer": "/apps/http/servers/srv0/routes/0/handle/0/routes/1/handle/0/routes/0/handle/0"
+    },
+    {
+      "Line": 19,
+      "Column": 13,
+      "Directive": "redir",
+      "Fingerprint": "{\"handler\":\"static_response\",\"headers\":{\"Location\":[\"/done\"]},\"status_code\":307}",
+      "Pointer": "/apps/http/servers/srv0/routes/0/handle/0/routes/1/handle/0/routes/0/handle/1"
+    },
+    {
+      "Line": 22,
+      "Column": 13,
+      "Directive": "respond",
+      "Fingerprint": "{\"body\":\"untouched\",\"handler\":\"static_response\",\"status_code\":200}",
+      "Pointer": "/apps/http/servers/srv0/routes/0/handle/0/routes/2/handle/0/routes/0/handle/0"
+    },
+    {
+      "Line": 24,
+      "Column": 9,
+      "Directive": "respond",
+      "Fingerprint": "{\"body\":\"fallback\",\"handler\":\"static_response\",\"status_code\":200}",
+      "Pointer": "/apps/http/servers/srv0/routes/0/handle/0/routes/3/handle/0"
+    }
+  ],
+  "Unmeasured": [
+    13
+  ]
+}

@@ -1,0 +1,26 @@
+{
+    admin off
+    auto_https off
+    debug
+}
+:8080 {
+    log {
+        output stdout
+        format json
+    }
+    @chosen {
+        path /chosen
+        header X-Mode yes
+    }
+    route {
+        header X-Stage before
+        handle @chosen {
+            header X-Order first
+            redir * /done 307
+        }
+        handle /untouched {
+            respond "untouched" 200
+        }
+        respond "fallback" 200
+    }
+}

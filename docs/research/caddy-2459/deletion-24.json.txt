@@ -1,0 +1,140 @@
+{
+	"admin": {
+		"disabled": true
+	},
+	"logging": {
+		"logs": {
+			"default": {
+				"level": "DEBUG",
+				"exclude": [
+					"http.log.access.log0"
+				]
+			},
+			"log0": {
+				"writer": {
+					"output": "stdout"
+				},
+				"encoder": {
+					"format": "json"
+				},
+				"level": "DEBUG",
+				"include": [
+					"http.log.access.log0"
+				]
+			}
+		}
+	},
+	"apps": {
+		"http": {
+			"servers": {
+				"srv0": {
+					"listen": [
+						":8080"
+					],
+					"routes": [
+						{
+							"handle": [
+								{
+									"handler": "subroute",
+									"routes": [
+										{
+											"handle": [
+												{
+													"handler": "headers",
+													"response": {
+														"set": {
+															"X-Stage": [
+																"before"
+															]
+														}
+													}
+												}
+											]
+										},
+										{
+											"group": "group2",
+											"handle": [
+												{
+													"handler": "subroute",
+													"routes": [
+														{
+															"handle": [
+																{
+																	"handler": "headers",
+																	"response": {
+																		"set": {
+																			"X-Order": [
+																				"first"
+																			]
+																		}
+																	}
+																},
+																{
+																	"handler": "static_response",
+																	"headers": {
+																		"Location": [
+																			"/done"
+																		]
+																	},
+																	"status_code": 307
+																}
+															]
+														}
+													]
+												}
+											],
+											"match": [
+												{
+													"header": {
+														"X-Mode": [
+															"yes"
+														]
+													},
+													"path": [
+														"/chosen"
+													]
+												}
+											]
+										},
+										{
+											"group": "group2",
+											"handle": [
+												{
+													"handler": "subroute",
+													"routes": [
+														{
+															"handle": [
+																{
+																	"body": "untouched",
+																	"handler": "static_response",
+																	"status_code": 200
+																}
+															]
+														}
+													]
+												}
+											],
+											"match": [
+												{
+													"path": [
+														"/untouched"
+													]
+												}
+											]
+										}
+									]
+								}
+							]
+						}
+					],
+					"automatic_https": {
+						"disable": true
+					},
+					"logs": {
+						"default_logger_name": "log0"
+					}
+				}
+			}
+		}
+	}
+}

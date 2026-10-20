@@ -1,0 +1,90 @@
+[
+  {
+    "id": {
+      "testResult": {
+        "label": "//tools/research_caddy:native_test",
+        "run": 1,
+        "shard": 1,
+        "attempt": 1,
+        "configuration": {
+          "id": "9f05b5c4db7cf36ef5f97a40666e4f9298a4ede5aaa3d3d8e7bf430b15e6d6fe"
+        }
+      }
+    },
+    "testResult": {
+      "testAttemptDurationMillis": "886",
+      "status": "PASSED",
+      "testAttemptStartMillisEpoch": "1792461023014",
+      "executionInfo": {
+        "strategy": "remote",
+        "timingBreakdown": {
+          "child": [
+            {
+              "name": "parseTime",
+              "time": "0s"
+            },
+            {
+              "name": "fetchTime",
+              "time": "0.001s"
+            },
+            {
+              "name": "queueTime",
+              "time": "0.128s"
+            },
+            {
+              "name": "uploadTime",
+              "time": "0.522s"
+            },
+            {
+              "name": "setupTime",
+              "time": "0.478s"
+            },
+            {
+              "name": "executionWallTime",
+              "time": "0.886s"
+            },
+            {
+              "name": "processOutputsTime",
+              "time": "0.180s"
+            },
+            {
+              "name": "networkTime",
+              "time": "0.817s"
+            }
+          ],
+          "name": "totalTime",
+          "time": "3.218s"
+        }
+      },
+      "testAttemptStart": "2026-10-20T01:50:23.014Z",
+      "testAttemptDuration": "0.886s"
+    }
+  },
+  {
+    "id": {
+      "testSummary": {
+        "label": "//tools/research_caddy:native_test",
+        "configuration": {
+          "id": "9f05b5c4db7cf36ef5f97a40666e4f9298a4ede5aaa3d3d8e7bf430b15e6d6fe"
+        }
+      }
+    },
+    "testSummary": {
+      "totalRunCount": 1,
+      "passed": [
+        {
+          "uri": "bytestream://remote.buildbuddy.io/blobs/21a4f45830708576ac728d336abe2ce3958568b361ab13f4db3285500806e3ba/183"
+        }
+      ],
+      "overallStatus": "PASSED",
+      "firstStartTimeMillis": "1792461023014",
+      "lastStopTimeMillis": "1792461023900",
+      "totalRunDurationMillis": "886",
+      "runCount": 1,
+      "totalRunDuration": "0.886s",
+      "firstStartTime": "2026-10-20T01:50:23.014Z",
+      "lastStopTime": "2026-10-20T01:50:23.900Z",
+      "attemptCount": 1
+    }
+  }
+]

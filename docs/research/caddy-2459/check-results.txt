@@ -1,0 +1,6 @@
+Gazelle: exit 0
+Full repository format: exit 0
+Focused test: exit 0, executed remote, 886 ms
+Focused lint: exit 0, KeepSorted, no findings
+Five child collector controls: expected exit 1 after successful native and trace response assertions
+Final original source bytes and runtime SHA-256 match
