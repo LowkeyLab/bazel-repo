@@ -47,6 +47,8 @@ directory.
 The command defaults to local sandbox execution. It disables remote execution,
 remote cache access, and the build-event service for its nested commands.
 Each test executes again. The report uses the existing coverage helper.
+Endpoint overrides apply to every nested command.
+The helper also applies these overrides when it queries the report location.
 A Go test checks that aggregation preserves another language.
 
 Use the configured remote service for fresh execution:

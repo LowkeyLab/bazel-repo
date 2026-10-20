@@ -30,7 +30,16 @@ else
 fi
 REPORT_DIR="coverage-report"
 COMBINED_LCOV="coverage-report.lcov"
-COVERAGE_DAT="$(bazel info output_path)/_coverage/_coverage_report.dat"
+# Preserve endpoint overrides when querying the report location.
+INFO_ARGS=()
+for arg in "${ARGS[@]}"; do
+	case "${arg}" in
+	--remote_cache=* | --remote_executor=* | --bes_backend=*)
+		INFO_ARGS+=("${arg}")
+		;;
+	esac
+done
+COVERAGE_DAT="$(bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_report.dat"
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
 bazel coverage "${ARGS[@]}" 2>&1

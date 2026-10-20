@@ -15,12 +15,15 @@ SOURCE = """def choose(value):
 """
 
 
+BAZEL_ENDPOINT_OPTIONS: list[str] = []
 BAZEL_OPTIONS: list[str] = []
 COMMAND_LOG: Path | None = None
 
 
 def command(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
-    options = [] if arguments[0] == "query" else BAZEL_OPTIONS
+    options = BAZEL_ENDPOINT_OPTIONS + (
+        [] if arguments[0] == "query" else BAZEL_OPTIONS
+    )
     invocation = ["bazel", arguments[0], *options, *arguments[1:]]
     result = subprocess.run(
         invocation,
@@ -73,9 +76,9 @@ def check_report(report: str, ordinary: str, hidden: str) -> None:
     assert "DA:3,2" in records["python_sample/versions.py"]
     assert "DA:6,2" in records["python_sample/__main__.py"]
     assert "DA:43,1" in records[".github/scripts/bazel_dependencies.py"]
-    assert any(
-        source.endswith("predix/internal/domain/user/user.go") for source in records
-    )
+    go = records["predix/internal/domain/user/user.go"]
+    assert "LH:11" in go
+    assert "LF:13" in go
 
 
 def check_failures(root: Path, evidence: Path, package: Path) -> None:
@@ -150,14 +153,10 @@ def main() -> None:
     arguments = parser.parse_args()
     evidence = arguments.evidence.absolute()
     if arguments.execution == "local":
-        BAZEL_OPTIONS.extend(
-            [
-                "--remote_cache=",
-                "--bes_backend=",
-                "--remote_executor=",
-                "--spawn_strategy=sandboxed",
-            ]
+        BAZEL_ENDPOINT_OPTIONS.extend(
+            ["--remote_cache=", "--bes_backend=", "--remote_executor="]
         )
+        BAZEL_OPTIONS.append("--spawn_strategy=sandboxed")
     else:
         BAZEL_OPTIONS.append("--config=ci")
     evidence.mkdir(parents=True, exist_ok=True)
@@ -247,7 +246,14 @@ py_library(name = "generated", srcs = [":generated.py"])
         events = evidence / "coverage.bep.json"
         flags.append(f"--build_event_json_file={events}")
         result = command(
-            root, "run", "//tools/coverage", "--", *targets, *BAZEL_OPTIONS, *flags
+            root,
+            "run",
+            "//tools/coverage",
+            "--",
+            *targets,
+            *BAZEL_ENDPOINT_OPTIONS,
+            *BAZEL_OPTIONS,
+            *flags,
         )
         (evidence / "coverage.log").write_text(result.stdout + result.stderr)
         (evidence / "coverage.exit").write_text(f"{result.returncode}\n")
