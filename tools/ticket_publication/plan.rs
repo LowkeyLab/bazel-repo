@@ -5,6 +5,10 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeSet, fmt::Write};
 use uuid::Uuid;
 
+// GitHub permits at most 100 native children for one parent.
+pub const MAX_SUB_ISSUES: usize = 100;
+pub const MAX_DEPENDENCIES: usize = 50;
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String")]
 pub struct TicketKey(String);
@@ -82,6 +86,10 @@ impl Plan {
             "unsupported repository"
         );
         ensure!(!self.tickets.is_empty(), "plan contains no tickets");
+        ensure!(
+            self.tickets.len() <= MAX_SUB_ISSUES,
+            "plan exceeds the native parent capacity"
+        );
         let mut keys = BTreeSet::new();
         for ticket in &self.tickets {
             ensure!(keys.insert(&ticket.key), "duplicate ticket key");
@@ -114,6 +122,7 @@ impl Plan {
                 }
             }
         }
+        self.check_dependency_limits()?;
         let mut resolved = BTreeSet::new();
         while resolved.len() < self.tickets.len() {
             let before = resolved.len();
@@ -127,6 +136,32 @@ impl Plan {
             }
             if before == resolved.len() {
                 bail!("dependency cycle");
+            }
+        }
+        Ok(())
+    }
+    fn check_dependency_limits(&self) -> Result<()> {
+        for ticket in &self.tickets {
+            let mut unique = Vec::new();
+            for blocker in &ticket.blockers {
+                if !unique.contains(&blocker) {
+                    unique.push(blocker);
+                }
+            }
+            ensure!(
+                unique.len() <= MAX_DEPENDENCIES,
+                "ticket exceeds the native blocker capacity"
+            );
+            for blocker in unique {
+                let count = self
+                    .tickets
+                    .iter()
+                    .filter(|ticket| ticket.blockers.contains(blocker))
+                    .count();
+                ensure!(
+                    count <= MAX_DEPENDENCIES,
+                    "blocker exceeds the native blocking capacity"
+                );
             }
         }
         Ok(())
@@ -195,6 +230,8 @@ pub struct Batch {
     pub plan_fingerprint: String,
     pub plan: Plan,
     pub tickets: Vec<Progress>,
+    #[serde(default)]
+    pub graph: GraphProgress,
 }
 impl Batch {
     pub fn prepare(batch_id: BatchId, plan: Plan) -> Result<Self> {
@@ -218,6 +255,7 @@ impl Batch {
             id: batch_id,
             plan,
             tickets,
+            graph: GraphProgress::default(),
         })
     }
     pub fn check(&self, expected: &BatchId) -> Result<()> {
@@ -273,4 +311,13 @@ impl std::str::FromStr for TicketKey {
     fn from_str(value: &str) -> Result<Self> {
         Self::try_from(value.to_owned())
     }
+}
+
+/// Observed progress is a receipt. Fresh reads, not this receipt, control mutations.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GraphProgress {
+    pub parent_links: usize,
+    pub dependency_links: usize,
+    pub verified: bool,
 }

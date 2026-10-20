@@ -8,8 +8,8 @@ use crate::{
 use anyhow::{Context, Result, bail, ensure};
 
 pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
-    github::read(&batch.plan.parent)?;
-    check_mappings(batch)?;
+    let observed = observe(batch)?;
+    crate::graph::preflight_capacity(batch, &observed)?;
     loop {
         let next = batch
             .plan
@@ -32,7 +32,11 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
         };
         let ticket = &batch.plan.tickets[index];
         let body = format!("{}\n\n{}", ticket.body, batch.tickets[index].marker);
-        let created = if matches!(
+        let created = if let Some(mapping) = &observed[index] {
+            let remote = github::read(&mapping.number)?;
+            ensure!(remote.mapping() == *mapping, Conflict);
+            remote
+        } else if matches!(
             batch.tickets[index].status,
             TicketStatus::Creating | TicketStatus::RetryAuthorized
         ) {
@@ -79,24 +83,8 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
             .all(|p| matches!(p.status, TicketStatus::Created(_))),
         "creation remains incomplete"
     );
-    Ok(())
+    crate::graph::run(batch, store)
 }
-fn check_mappings(batch: &Batch) -> Result<()> {
-    for (progress, ticket) in batch.tickets.iter().zip(&batch.plan.tickets) {
-        if let TicketStatus::Created(mapping) = &progress.status {
-            let remote = github::read(&mapping.number)?;
-            remote
-                .check_content(
-                    &ticket.title,
-                    &format!("{}\n\n{}", ticket.body, progress.marker),
-                )
-                .context(Conflict)?;
-            ensure!(remote.mapping() == *mapping, Conflict);
-        }
-    }
-    Ok(())
-}
-
 /// Read remote evidence without changing saved progress or GitHub state.
 pub fn observe(batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {
     github::read(&batch.plan.parent)?;

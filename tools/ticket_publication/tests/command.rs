@@ -572,7 +572,7 @@ fn publishing_creates_once_with_original_identity_and_reports_partial_graph() ->
     let id = prepared["batch_id"].as_str().context("batch identity")?;
     let result = f.successful(&["--state-dir", "state", "publish", "--batch", id])?;
     assert_that!(result["status"].as_str(), eq(Some("partial")));
-    assert_that!(result["phase"].as_str(), eq(Some("issues_created")));
+    assert_that!(result["phase"].as_str(), eq(Some("graph_checked")));
     f.successful(&["--state-dir", "state", "publish", "--batch", id])?;
     let remote: Value = serde_json::from_slice(&fs::read(f.directory.path().join("remote.log"))?)?;
     assert_that!(remote["creations"].as_u64(), eq(Some(1)));
@@ -628,7 +628,7 @@ fn accepted_creation_without_a_response_is_recovered_after_restart() -> anyhow::
     );
     assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
     let result = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
-    assert_that!(result["phase"].as_str(), eq(Some("issues_created")));
+    assert_that!(result["phase"].as_str(), eq(Some("graph_checked")));
     assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
     Ok(())
 }
@@ -737,6 +737,8 @@ fn closed_match_on_a_later_page_is_reused_and_pull_requests_are_excluded() -> an
     for number in 4000..4100 {
         let mut pr = issue.clone();
         pr["number"] = json!(number);
+        pr["id"] = json!(number + 10000);
+        pr["node_id"] = json!(format!("I_{number}"));
         pr["pull_request"] = json!({"url":"example"});
         issues.push(pr);
     }
@@ -755,7 +757,9 @@ fn closed_match_on_a_later_page_is_reused_and_pull_requests_are_excluded() -> an
     state["issues"] = json!(issues);
     f.save_remote(&state)?;
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
-    assert_that!(f.remote()?, eq(&state));
+    assert_that!(f.remote()?["issues"], eq(&state["issues"]));
+    assert_that!(f.remote()?["creations"], eq(&state["creations"]));
+    assert_that!(f.remote()?["children"], eq(&json!([3000])));
     Ok(())
 }
 
@@ -939,7 +943,8 @@ fn explicit_adoption_checks_the_issue_and_never_publishes() -> anyhow::Result<()
     );
     assert_that!(f.remote()?, eq(&remote));
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
-    assert_that!(f.remote()?, eq(&remote));
+    assert_that!(f.remote()?["issues"], eq(&remote["issues"]));
+    assert_that!(f.remote()?["creations"], eq(&remote["creations"]));
     Ok(())
 }
 
@@ -1049,7 +1054,8 @@ fn reconstruction_preserves_original_identities_and_requires_a_stopped_publisher
         );
         assert_that!(f.remote()?, eq(&remote));
         f.successful(&["--state-dir", "restored", "publish", "--batch", &id])?;
-        assert_that!(f.remote()?, eq(&remote));
+        assert_that!(f.remote()?["issues"], eq(&remote["issues"]));
+        assert_that!(f.remote()?["creations"], eq(&remote["creations"]));
         // Existing state is evidence. Reconstruction must never replace it.
         let saved = f
             .directory
@@ -1198,6 +1204,7 @@ fn explicit_adoption_resolves_multiple_matches_but_cannot_replace_a_saved_mappin
         "3001",
     ])?;
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    let remote = f.remote()?;
     let snapshot = f
         .directory
         .path()
@@ -1454,7 +1461,8 @@ fn reconstruction_keeps_duplicate_matches_recoverable_through_explicit_adoption(
         "3001",
     ])?;
     f.successful(&["--state-dir", "restored", "publish", "--batch", &id])?;
-    assert_that!(f.remote()?, eq(&remote));
+    assert_that!(f.remote()?["issues"], eq(&remote["issues"]));
+    assert_that!(f.remote()?["creations"], eq(&remote["creations"]));
     Ok(())
 }
 
@@ -1487,5 +1495,586 @@ fn status_and_reconstruction_enumerate_the_repository_once_per_batch() -> anyhow
         let log = fs::read_to_string(f.directory.path().join("enumerations.log"))?;
         assert_that!(log.lines().count(), eq(1));
     }
+    Ok(())
+}
+
+#[googletest::test]
+fn publication_checks_branching_native_links_without_labels_or_duplicate_mutations()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let mut plan: Value = serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
+    for key in ["left", "right", "join"] {
+        let mut ticket = plan["tickets"][0].clone();
+        ticket["key"] = json!(key);
+        ticket["title"] = json!(key);
+        ticket["blockers"] = if key == "join" {
+            json!([{"ticket":"left"},{"ticket":"right"},{"issue":2392}])
+        } else {
+            json!([{"ticket":"first"}])
+        };
+        plan["tickets"].as_array_mut().unwrap().push(ticket);
+    }
+    fs::write(
+        f.directory.path().join("plan.json"),
+        serde_json::to_vec(&plan)?,
+    )?;
+    let id = f.prepare()?;
+    let result = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(result["phase"].as_str(), eq(Some("graph_checked")));
+    assert_that!(result["publication_complete"].as_bool(), eq(Some(false)));
+    let remote = f.remote()?;
+    assert_that!(remote["children"], eq(&json!([3000, 3001, 3002, 3003])));
+    assert_that!(remote["dependencies"]["3001"], eq(&json!([3000])));
+    assert_that!(remote["dependencies"]["3002"], eq(&json!([3000])));
+    assert_that!(
+        remote["dependencies"]["3003"],
+        eq(&json!([3001, 3002, 2392]))
+    );
+    assert_that!(remote["link_mutations"].as_u64(), eq(Some(9)));
+    for issue in remote["issues"].as_array().unwrap() {
+        assert_that!(issue["labels"], eq(&json!([])));
+    }
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
+    assert_that!(status["graph"]["verified"].as_bool(), eq(Some(true)));
+    assert_that!(f.remote()?, eq(&remote));
+    Ok(())
+}
+
+#[googletest::test]
+fn accepted_link_without_fresh_evidence_stops_before_another_mutation() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"no-link-effect"}))?;
+    let id = f.prepare()?;
+    let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(output.status.success(), eq(false));
+    assert_that!(f.remote()?["link_mutations"].as_u64(), eq(Some(1)));
+    let result: Value = serde_json::from_slice(&output.stdout)?;
+    assert_that!(result["graph"]["verified"].as_bool(), eq(Some(false)));
+    Ok(())
+}
+
+#[googletest::test]
+fn lost_link_responses_resume_without_repeating_accepted_mutations() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let mut plan: Value = serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
+    plan["tickets"][0]["blockers"] = json!([{"issue":2392}]);
+    fs::write(
+        f.directory.path().join("plan.json"),
+        serde_json::to_vec(&plan)?,
+    )?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-link-response"}))?;
+    let id = f.prepare()?;
+    for expected in [1, 2] {
+        let result = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(result.status.success(), eq(false));
+        assert_that!(f.remote()?["link_mutations"].as_u64(), eq(Some(expected)));
+        let report: Value = serde_json::from_slice(&result.stdout)?;
+        assert_that!(report["publication_complete"].as_bool(), eq(Some(false)));
+    }
+    let before = f.remote()?;
+    let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
+    assert_that!(status["graph"]["verified"].as_bool(), eq(Some(true)));
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&before));
+    Ok(())
+}
+
+#[googletest::test]
+fn incomplete_native_reads_and_permission_failures_stop_without_link_mutations()
+-> anyhow::Result<()> {
+    for mode in [
+        "native-unavailable",
+        "graph-permission",
+        "incomplete-relationships",
+        "empty-pages",
+        "parent-incomplete",
+        "parent-errors",
+    ] {
+        let f = Fixture::with_github()?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":mode}))?;
+        let id = f.prepare()?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let before = f.remote()?;
+        assert_that!(
+            before["creations"].as_u64(),
+            eq(Some(u64::from(mode.starts_with("parent-"))))
+        );
+        assert_that!(before["link_mutations"].as_u64().unwrap_or(0), eq(0));
+        let output = f.run(&["--state-dir", "state", "status", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(false));
+        let report: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(report["status"].as_str(), eq(Some("unverified")));
+        assert_that!(f.remote()?, eq(&before));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn external_parent_and_content_conflicts_are_preserved_during_graph_resume() -> anyhow::Result<()> {
+    for conflict in ["parent", "late-content"] {
+        let f = Fixture::with_github()?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+        let id = f.prepare()?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let mut before = f.remote()?;
+        before["mode"] = Value::Null;
+        if conflict == "parent" {
+            before["parents"] = json!({"3000":2392});
+        } else {
+            before["mode"] = json!("late-content");
+        }
+        f.save_remote(&before)?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(false));
+        let report: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(report["status"].as_str(), eq(Some("conflict")));
+        if conflict == "parent" {
+            assert_that!(f.remote()?, eq(&before));
+        } else {
+            let remote = f.remote()?;
+            assert_that!(
+                remote["issues"][0]["title"].as_str(),
+                eq(Some("External edit"))
+            );
+            assert_that!(remote["link_mutations"].as_u64(), eq(Some(1)));
+            assert_that!(remote["issues"][0]["labels"], eq(&json!([])));
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn existing_paginated_links_preserve_compatible_relationships_and_parent_content()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let mut plan: Value = serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
+    plan["tickets"][0]["blockers"] = json!([{"issue":2392}]);
+    fs::write(
+        f.directory.path().join("plan.json"),
+        serde_json::to_vec(&plan)?,
+    )?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-link-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = Value::Null;
+    let mut numbers = Vec::new();
+    for number in 4000..4099 {
+        numbers.push(json!(number));
+        remote["issues"].as_array_mut().unwrap().push(json!({"number":number,"id":number+10000,"node_id":format!("I_{number}"),"title":"Unrelated","body":"Keep this.","repository_url":"https://api.github.com/repos/LowkeyLab/bazel-repo"}));
+    }
+    remote["children"] = json!(numbers);
+    remote["children"].as_array_mut().unwrap().push(json!(3000));
+    remote["dependencies"] = json!({"3000":numbers[..49].to_vec()});
+    remote["dependencies"]["3000"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!(2392));
+    remote["issues"].as_array_mut().unwrap().push(json!({"number":2401,"id":12401,"node_id":"I_parent","title":"Preserved parent","body":"Preserved body.","state":"closed","labels":[{"name":"keep"}],"repository_url":"https://api.github.com/repos/LowkeyLab/bazel-repo"}));
+    f.save_remote(&remote)?;
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&remote));
+    Ok(())
+}
+
+#[googletest::test]
+fn failed_graph_progress_writes_stop_dependent_mutations_and_resume_safely() -> anyhow::Result<()> {
+    let files = Runfiles::create()?;
+    let fault = rlocation!(files, std::env::var("SYNC_FAULT_LIBRARY")?).context("sync fault")?;
+    for boundary in ["graph-start", "graph-first", "graph-complete"] {
+        for sync in ["file", "directory"] {
+            for effect in ["error", "exit"] {
+                let f = Fixture::with_github()?;
+                let mut plan: Value =
+                    serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
+                let mut second = plan["tickets"][0].clone();
+                second["key"] = json!("second");
+                plan["tickets"].as_array_mut().unwrap().push(second);
+                fs::write(
+                    f.directory.path().join("plan.json"),
+                    serde_json::to_vec(&plan)?,
+                )?;
+                let id = f.prepare()?;
+                let output = f
+                    .command(&["--state-dir", "state", "publish", "--batch", &id])
+                    .env("LD_PRELOAD", &fault)
+                    .env("PROGRESS_FAULT", format!("{boundary}-{sync}"))
+                    .env("PROGRESS_EFFECT", effect)
+                    .env("PROGRESS_BATCH", f.directory.path().join("state").join(&id))
+                    .output()?;
+                assert_that!(output.status.success(), eq(false));
+                assert_that!(
+                    f.directory.path().join("progress-fault-receipt").exists(),
+                    eq(true)
+                );
+                let before = f.remote()?;
+                let expected = match boundary {
+                    "graph-start" => 0,
+                    "graph-first" => 1,
+                    _ => 2,
+                };
+                assert_that!(before["link_mutations"].as_u64().unwrap_or(0), eq(expected));
+                let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+                assert_that!(report["graph"]["verified"].as_bool(), eq(Some(true)));
+                assert_that!(f.remote()?["creations"].as_u64(), eq(Some(2)));
+                assert_that!(f.remote()?["link_mutations"].as_u64(), eq(Some(2)));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn status_checks_graph_changes_without_trusting_saved_completion() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let id = f.prepare()?;
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    let snapshot = f
+        .directory
+        .path()
+        .join("state")
+        .join(&id)
+        .join("batch.json");
+    let saved = fs::read(&snapshot)?;
+    let mut remote = f.remote()?;
+    remote["children"] = json!([]);
+    remote["parents"] = json!({});
+    f.save_remote(&remote)?;
+    let report = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
+    assert_that!(report["graph"]["verified"].as_bool(), eq(Some(false)));
+    assert_that!(fs::read(&snapshot)?, eq(&saved));
+    assert_that!(f.remote()?, eq(&remote));
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?["link_mutations"].as_u64(), eq(Some(2)));
+    Ok(())
+}
+
+#[googletest::test]
+fn compatible_cross_repository_relationships_do_not_alias_planned_issue_numbers()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let mut plan: Value = serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
+    plan["tickets"][0]["blockers"] = json!([{"issue":2392}]);
+    fs::write(
+        f.directory.path().join("plan.json"),
+        serde_json::to_vec(&plan)?,
+    )?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = Value::Null;
+    remote["extra_children"] = json!([{"number":3000,"id":90000,"node_id":"I_foreign_child","title":"Unrelated child","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"}]);
+    remote["extra_dependencies"] = json!([{"number":2392,"id":90001,"node_id":"I_foreign_blocker","title":"Unrelated blocker","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"}]);
+    f.save_remote(&remote)?;
+    let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(report["graph"]["verified"].as_bool(), eq(Some(true)));
+    let after = f.remote()?;
+    assert_that!(after["extra_children"], eq(&remote["extra_children"]));
+    assert_that!(
+        after["extra_dependencies"],
+        eq(&remote["extra_dependencies"])
+    );
+    assert_that!(after["link_mutations"].as_u64(), eq(Some(2)));
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&after));
+    Ok(())
+}
+
+#[googletest::test]
+fn oversized_plans_fail_before_preparation_or_github_effects() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let path = f.directory.path().join("plan.json");
+    let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+    let template = plan["tickets"][0].clone();
+    plan["tickets"] = json!(
+        (0..101)
+            .map(|index| {
+                let mut ticket = template.clone();
+                ticket["key"] = json!(format!("ticket-{index}"));
+                ticket
+            })
+            .collect::<Vec<_>>()
+    );
+    fs::write(path, serde_json::to_vec(&plan)?)?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "prepare", "--plan", "plan.json"])?
+            .status
+            .success(),
+        eq(false)
+    );
+    assert_that!(f.directory.path().join("state").exists(), eq(false));
+    assert_that!(f.directory.path().join("remote.log").exists(), eq(false));
+    Ok(())
+}
+
+#[googletest::test]
+fn parent_capacity_is_checked_before_any_issue_creation() -> anyhow::Result<()> {
+    for (children, tickets, fits) in [(99, 2, false), (100, 1, false), (99, 1, true)] {
+        let f = Fixture::with_github()?;
+        let path = f.directory.path().join("plan.json");
+        let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        if tickets == 2 {
+            let mut ticket = plan["tickets"][0].clone();
+            ticket["key"] = json!("second");
+            plan["tickets"].as_array_mut().unwrap().push(ticket);
+        }
+        fs::write(path, serde_json::to_vec(&plan)?)?;
+        let extra: Vec<Value> = (0..children).map(|n| json!({"number":n+1,"id":n+50000,"node_id":format!("I_other_{n}"),"title":"Preserved child","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"})).collect();
+        let before = json!({"creations":0,"issues":[],"extra_children":extra});
+        f.save_remote(&before)?;
+        let id = f.prepare()?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(fits));
+        if fits {
+            assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
+        } else {
+            assert_that!(f.remote()?, eq(&before));
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn a_full_parent_does_not_block_recovery_of_an_already_linked_issue() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = Value::Null;
+    remote["children"] = json!([3000]);
+    remote["parents"] = json!({"3000":2401});
+    remote["extra_children"] = json!((0..99).map(|n|json!({"number":n+1,"id":n+50000,"node_id":format!("I_other_{n}"),"title":"Preserved child","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"})).collect::<Vec<_>>());
+    f.save_remote(&remote)?;
+    let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(report["graph"]["verified"].as_bool(), eq(Some(true)));
+    assert_that!(f.remote()?, eq(&remote));
+    Ok(())
+}
+
+#[googletest::test]
+fn early_failures_do_not_report_stale_graph_counts() -> anyhow::Result<()> {
+    for failure in ["permission", "content"] {
+        let f = Fixture::with_github()?;
+        let path = f.directory.path().join("plan.json");
+        let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        plan["tickets"][0]["blockers"] = json!([{"issue":2392}]);
+        fs::write(path, serde_json::to_vec(&plan)?)?;
+        let id = f.prepare()?;
+        f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+        let snapshot = f
+            .directory
+            .path()
+            .join("state")
+            .join(&id)
+            .join("batch.json");
+        let saved = fs::read(&snapshot)?;
+        let mut remote = f.remote()?;
+        if failure == "permission" {
+            remote["mode"] = json!(failure);
+        } else {
+            remote["issues"][0]["title"] = json!("External edit");
+        }
+        f.save_remote(&remote)?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(false));
+        let report: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(report["graph"]["parent_links"].as_u64(), eq(Some(0)));
+        assert_that!(report["graph"]["dependency_links"].as_u64(), eq(Some(0)));
+        assert_that!(report["graph"]["verified"].as_bool(), eq(Some(false)));
+        assert_that!(f.remote()?, eq(&remote));
+        assert_that!(fs::read(snapshot)?, eq(&saved));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn a_hundred_ticket_graph_completes_within_a_bounded_request_budget() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let path = f.directory.path().join("plan.json");
+    let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+    let template = plan["tickets"][0].clone();
+    plan["tickets"] = json!(
+        (0..100)
+            .map(|index| {
+                let mut ticket = template.clone();
+                ticket["key"] = json!(format!("ticket-{index}"));
+                ticket
+            })
+            .collect::<Vec<_>>()
+    );
+    fs::write(path, serde_json::to_vec(&plan)?)?;
+    let id = f.prepare()?;
+    let requests = f.directory.path().join("requests.log");
+    let output = f
+        .command(&["--state-dir", "state", "publish", "--batch", &id])
+        .env("REMOTE_REQUESTS", &requests)
+        .env("REMOTE_REQUEST_LIMIT", "2000")
+        .output()?;
+    anyhow::ensure!(
+        output.status.success(),
+        "publication exceeded request budget or failed: {} {}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_that!(
+        fs::read_to_string(requests)?.lines().count() <= 2000,
+        eq(true)
+    );
+    let remote = f.remote()?;
+    assert_that!(remote["creations"].as_u64(), eq(Some(100)));
+    assert_that!(remote["children"].as_array().unwrap().len(), eq(100));
+    assert_that!(remote["link_mutations"].as_u64(), eq(Some(100)));
+    let report: Value = serde_json::from_slice(&output.stdout)?;
+    assert_that!(report["graph"]["verified"].as_bool(), eq(Some(true)));
+    Ok(())
+}
+
+fn foreign_dependency_issues(count: u64) -> Vec<Value> {
+    (0..count).map(|n| json!({"number":n+1,"id":n+70000,"node_id":format!("I_dependency_{n}"),"title":"Preserved dependency","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"})).collect()
+}
+
+#[googletest::test]
+fn dependency_capacity_is_checked_before_issue_creation() -> anyhow::Result<()> {
+    for (existing, fits) in [(50, false), (49, true)] {
+        let f = Fixture::with_github()?;
+        let path = f.directory.path().join("plan.json");
+        let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        plan["tickets"][0]["blockers"] = json!([{"issue":2392}]);
+        fs::write(path, serde_json::to_vec(&plan)?)?;
+        let before =
+            json!({"creations":0,"issues":[],"extra_blocking":foreign_dependency_issues(existing)});
+        f.save_remote(&before)?;
+        let id = f.prepare()?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(fits));
+        if fits {
+            assert_that!(f.remote()?["dependencies"]["3000"], eq(&json!([2392])));
+        } else {
+            assert_that!(f.remote()?, eq(&before));
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn oversized_dependency_plans_fail_without_effects() -> anyhow::Result<()> {
+    for kind in ["incoming", "external-blocking", "batch-blocking"] {
+        let f = Fixture::with_github()?;
+        let path = f.directory.path().join("plan.json");
+        let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        let template = plan["tickets"][0].clone();
+        if kind == "incoming" {
+            plan["tickets"][0]["blockers"] = json!(
+                (1..52)
+                    .map(|number| json!({"issue":number}))
+                    .collect::<Vec<_>>()
+            );
+        } else {
+            plan["tickets"] = json!(
+                (0..51)
+                    .map(|index| {
+                        let mut ticket = template.clone();
+                        ticket["key"] = json!(format!("ticket-{index}"));
+                        ticket["blockers"] = if kind == "batch-blocking" {
+                            json!([{"ticket":"first"}])
+                        } else {
+                            json!([{"issue":2392}])
+                        };
+                        ticket
+                    })
+                    .collect::<Vec<_>>()
+            );
+            if kind == "batch-blocking" {
+                plan["tickets"].as_array_mut().unwrap().insert(0, template);
+            }
+        }
+        fs::write(path, serde_json::to_vec(&plan)?)?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "prepare", "--plan", "plan.json"])?
+                .status
+                .success(),
+            eq(false)
+        );
+        assert_that!(f.directory.path().join("state").exists(), eq(false));
+        assert_that!(f.directory.path().join("remote.log").exists(), eq(false));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn existing_incoming_dependencies_count_toward_capacity_during_recovery() -> anyhow::Result<()> {
+    for (existing, fits) in [(50, false), (49, true)] {
+        let f = Fixture::with_github()?;
+        let path = f.directory.path().join("plan.json");
+        let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        plan["tickets"][0]["blockers"] = json!([{"issue":2392}]);
+        fs::write(path, serde_json::to_vec(&plan)?)?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+        let id = f.prepare()?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let mut before = f.remote()?;
+        before["mode"] = Value::Null;
+        before["extra_dependencies"] = json!(foreign_dependency_issues(existing));
+        f.save_remote(&before)?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(fits));
+        if fits {
+            let complete = f.remote()?;
+            assert_that!(complete["dependencies"]["3000"], eq(&json!([2392])));
+            f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+            assert_that!(f.remote()?, eq(&complete));
+        } else {
+            assert_that!(f.remote()?, eq(&before));
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn repeated_blocker_references_consume_one_dependency_slot() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let path = f.directory.path().join("plan.json");
+    let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+    plan["tickets"][0]["blockers"] =
+        json!((0..51).map(|_| json!({"issue":2392})).collect::<Vec<_>>());
+    fs::write(path, serde_json::to_vec(&plan)?)?;
+    let id = f.prepare()?;
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    let remote = f.remote()?;
+    assert_that!(remote["dependencies"]["3000"], eq(&json!([2392])));
+    assert_that!(remote["link_mutations"].as_u64(), eq(Some(2)));
     Ok(())
 }
