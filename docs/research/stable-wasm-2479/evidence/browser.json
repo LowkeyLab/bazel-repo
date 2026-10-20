@@ -1,0 +1,19 @@
+{
+  "browser": "156.0.8078.4",
+  "results": [
+    {
+      "functional_pass": true,
+      "value": 83,
+      "transfer": true,
+      "collection_pass": true,
+      "profile_bytes": 800
+    },
+    {
+      "functional_pass": true,
+      "value": 83,
+      "transfer": false,
+      "collection_pass": false,
+      "profile_bytes": 0
+    }
+  ]
+}

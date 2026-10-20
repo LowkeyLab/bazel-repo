@@ -1,0 +1,33 @@
+{
+  "subject.rs": {
+    "shared_line_3": {
+      "baseline": 0,
+      "wasm": 1,
+      "native": 1,
+      "merged": 2
+    },
+    "uncalled_line_8": {
+      "baseline": 0,
+      "wasm": 0,
+      "native": 0,
+      "merged": 0
+    },
+    "wasm_only_line_15": {
+      "baseline": 0,
+      "wasm": 1,
+      "native": "absent",
+      "merged": 1
+    },
+    "native_only_line_19": {
+      "baseline": "absent",
+      "wasm": "absent",
+      "native": 1,
+      "merged": 1
+    }
+  },
+  "disconnected.rs": {
+    "executable_lines": [2, 3, 4],
+    "baseline_counts": [0, 0, 0],
+    "measured_counts": [0, 0, 0]
+  }
+}

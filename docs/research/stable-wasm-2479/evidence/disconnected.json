@@ -1,0 +1,4 @@
+{
+  "baseline": "SF:tools/research_wasm/disconnected.rs\nFN:2,_RNvNtCs2m01whdZD6M_15browser_fixture12disconnected12never_called\nFNDA:0,_RNvNtCs2m01whdZD6M_15browser_fixture12disconnected12never_called\nFNF:1\nFNH:0\nDA:2,0\nDA:3,0\nDA:4,0\nBRF:0\nBRH:0\nLF:3\nLH:0\nend_of_record\n",
+  "measured": "SF:tools/research_wasm/disconnected.rs\nFN:2,_RNvNtCs2m01whdZD6M_15browser_fixture12disconnected12never_called\nFNDA:0,_RNvNtCs2m01whdZD6M_15browser_fixture12disconnected12never_called\nFNF:1\nFNH:0\nDA:2,0\nDA:3,0\nDA:4,0\nBRF:0\nBRH:0\nLF:3\nLH:0\nend_of_record\n"
+}

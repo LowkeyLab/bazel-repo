@@ -1,0 +1,27 @@
+{
+  "raw_version_low32": 11,
+  "node": "v24.15.0",
+  "functions": [
+    {
+      "name": "_RNvNtCs2m01whdZD6M_15browser_fixture7subject12runtime_only",
+      "name_hash": "16118923913501292824",
+      "function_hash": "0x310201ff74109d0",
+      "counters": 1,
+      "observed": true
+    },
+    {
+      "name": "_RNvNtCs2m01whdZD6M_15browser_fixture7subject8executed",
+      "name_hash": "4546971082998372799",
+      "function_hash": "0x41b165b1499cb42a",
+      "counters": 1,
+      "observed": true
+    },
+    {
+      "name": "_RNvNtCs2m01whdZD6M_15browser_fixture7subject8uncalled",
+      "name_hash": "16709248165236558641",
+      "function_hash": "0x36be3f0b169192d",
+      "counters": 1,
+      "observed": false
+    }
+  ]
+}

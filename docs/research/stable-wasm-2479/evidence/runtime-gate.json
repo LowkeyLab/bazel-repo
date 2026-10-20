@@ -1,0 +1,9 @@
+{
+  "normal_stable_wrapper_exit": 1,
+  "normal_stable_error": "E0554: feature attributes are not permitted on the stable release channel",
+  "runtime_only_override": "RUSTC_BOOTSTRAP=profiler_builtins",
+  "wrapper_features": ["profiler_runtime"],
+  "application_compiler": "rustc 1.99.1",
+  "application_bootstrap": false,
+  "application_unstable_flags": []
+}

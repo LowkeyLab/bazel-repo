@@ -808,3 +808,20 @@ book_smartz_apt.install(
     ],
 )
 use_repo(book_smartz_apt, "book_smartz_docker")
+
+http_archive(
+    name = "research_minicov",
+    build_file_content = "filegroup(name = \"sources\", srcs = glob([\"**\"]), visibility = [\"//visibility:public\"])\nexports_files(glob([\"**\"]))",
+    sha256 = "c3aa3aa12b448ac225b3102217d1ac5cc717908f02722926524b0599c933c7a0",
+    strip_prefix = "minicov-0.3.9",
+    type = "tar.gz",
+    urls = ["https://static.crates.io/crates/minicov/minicov-0.3.9.crate"],
+)
+
+http_archive(
+    name = "research_chromium",
+    build_file_content = "filegroup(name = \"files\", srcs = glob([\"**\"]), visibility = [\"//visibility:public\"])\nexports_files([\"chrome-headless-shell\"])",
+    sha256 = "c3e50596aef52c58f8fda3c6b3411c33d34c88b177b3ed1c2243359fd3b8ba20",
+    strip_prefix = "chrome-headless-shell-linux64",
+    urls = ["https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-headless-shell-linux64.zip"],
+)

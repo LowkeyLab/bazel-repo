@@ -1,0 +1,129 @@
+{
+  "sections": [
+    {
+      "id": 1,
+      "bytes": 248
+    },
+    {
+      "id": 2,
+      "bytes": 336
+    },
+    {
+      "id": 3,
+      "bytes": 594
+    },
+    {
+      "id": 4,
+      "bytes": 11
+    },
+    {
+      "id": 5,
+      "bytes": 3
+    },
+    {
+      "id": 6,
+      "bytes": 33
+    },
+    {
+      "id": 7,
+      "bytes": 248
+    },
+    {
+      "id": 9,
+      "bytes": 422
+    },
+    {
+      "id": 10,
+      "bytes": 102921
+    },
+    {
+      "id": 11,
+      "bytes": 188924
+    },
+    {
+      "id": 0,
+      "bytes": 51098,
+      "name": "name"
+    },
+    {
+      "id": 0,
+      "bytes": 125,
+      "name": "producers"
+    },
+    {
+      "id": 0,
+      "bytes": 517,
+      "name": "__llvm_covfun"
+    },
+    {
+      "id": 0,
+      "bytes": 130,
+      "name": "__llvm_covmap"
+    },
+    {
+      "id": 0,
+      "bytes": 380134,
+      "name": "linking"
+    },
+    {
+      "id": 0,
+      "bytes": 78666,
+      "name": "reloc.CODE"
+    },
+    {
+      "id": 0,
+      "bytes": 5511,
+      "name": "reloc.DATA"
+    },
+    {
+      "id": 0,
+      "bytes": 311446,
+      "name": "reloc..debug_info"
+    },
+    {
+      "id": 0,
+      "bytes": 162622,
+      "name": "reloc..debug_ranges"
+    },
+    {
+      "id": 0,
+      "bytes": 7912,
+      "name": "reloc..debug_line"
+    },
+    {
+      "id": 0,
+      "bytes": 148,
+      "name": "target_features"
+    }
+  ],
+  "data_segment_names": [
+    {
+      "index": 0,
+      "name": ".rodata"
+    },
+    {
+      "index": 1,
+      "name": ".data"
+    },
+    {
+      "index": 2,
+      "name": "__llvm_prf_cnts"
+    },
+    {
+      "index": 3,
+      "name": "__llvm_prf_data"
+    },
+    {
+      "index": 4,
+      "name": "__llvm_prf_names"
+    },
+    {
+      "index": 5,
+      "name": "__llvm_prf_vnds"
+    },
+    {
+      "index": 6,
+      "name": ".bss"
+    }
+  ]
+}

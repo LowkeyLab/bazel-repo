@@ -1,0 +1,44 @@
+{
+  "scope_all_format_exit": 0,
+  "whole_repository_build_exit": 0,
+  "whole_repository_build_invocation": "f5dc92b5-5c8e-4b72-a3a2-34a80d941663",
+  "whole_repository_lint_exit": 0,
+  "whole_repository_lint_invocation": "7aafb5b7-4239-4414-b3c6-7390be1f2c1d",
+  "fixture_lint_exit": 0,
+  "fixture_lint_advisory_warnings": 6,
+  "fixture_lint_invocation": "8991332f-b264-42ce-b1c4-63edd59bf45c",
+  "propagation_check_exit": 0,
+  "propagation_invocation": "de87acdc-2d4e-49dc-bc0f-ac01559e3a6a",
+  "browser_execution": "fresh local Bazel test",
+  "remote_browser_execution": false,
+  "hosted_upload": false,
+  "final_validation": "complete",
+  "final_format_exit": 0,
+  "final_full_build_exit": 0,
+  "final_full_build_invocation": "5faacc76-1670-4691-8c15-45d112788404",
+  "final_browser_check_exit": 0,
+  "final_browser_invocation": "1ba0efb4-5d2a-402d-8452-6bcc2b71e305",
+  "final_browser_test_cache_hit": false,
+  "final_browser_build_counts": {
+    "action_cache_hit": 3140,
+    "remote_cache_hit": 2,
+    "internal": 3,
+    "linux_sandbox": 2,
+    "remote_executed": 2
+  },
+  "final_focused_lint_exit": 0,
+  "final_focused_lint_advisory_warnings": 83,
+  "final_focused_lint_errors": 0,
+  "ste_structural_violations": 0,
+  "disconnected_declared_and_combined": {
+    "source": "tools/research_wasm/disconnected.rs",
+    "record_count": 1,
+    "DA": {
+      "2": 0,
+      "3": 0,
+      "4": 0
+    }
+  },
+  "compiled_artifact_digest_check": true,
+  "final_focused_lint_invocation": "fde902b6-75b0-4419-9d36-cb3e7eb55757"
+}
