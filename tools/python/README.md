@@ -115,3 +115,26 @@ This acceptance checks Python and one Go package.
 The individual failure commands retain no separate execution metadata.
 Hosted workflow and Codecov acceptance remain separate work under
 [issue #2396](https://github.com/LowkeyLab/bazel-repo/issues/2396).
+
+## Hosted evidence
+
+The existing Coverage workflow retains a `coverage-evidence-<run>-<attempt>` artifact for 30 days.
+It contains the combined report, `coverage-report.lcov`, and the Bazel test results, `coverage-test-results.jsonl`.
+The result file retains test results, test summaries, and the build result.
+It excludes command-line and environment details.
+The `coverage-revision.txt` file identifies the tested checkout commit.
+For pull requests, this commit is the GitHub test merge commit.
+Compare its parents with the final pull request head.
+
+Download the artifact from the Coverage workflow run.
+Check Python `SF`, `DA`, and `BRDA` records in the report.
+Check imported modules, generated binary execution, child interpreters, and zero-hit sources.
+Check that Python records exclude tests, generated sources, and external dependencies.
+Use `testResult` events to distinguish executed tests from cached results.
+The artifact can contain coverage from cached test results.
+
+The existing Codecov step uploads only the combined `coverage-report.lcov` file.
+It excludes evidence metadata from coverage-file discovery.
+Check its log for the commit, upload result, and Codecov report link.
+Record the workflow run, final pull request head, artifact, and upload evidence together.
+Keep this hosted evidence separate from local and configured remote acceptance.
