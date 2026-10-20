@@ -81,7 +81,7 @@ cause concurrent formatting, lint, or build commands to fail.
 
 ## Verified execution on 2026-10-20
 
-The acceptance revision is `eef18dd1c2887c644ae5fd7b6126e4767b360c71`. Both execution modes passed.
+The acceptance revision is `e66c2386018423ef7aabaa255c455c2863bed485`. Both execution modes passed.
 The main coverage command returned zero in each mode.
 Each combined report contains 15 source records.
 
@@ -99,12 +99,12 @@ The Go production file retains 11 executed lines from 13 executable lines.
 The ordinary tests pass before each deliberate collector failure.
 
 The remote coverage invocation is
-[`d752b483-b811-4bb2-9089-899097216dcd`](https://app.buildbuddy.io/invocation/d752b483-b811-4bb2-9089-899097216dcd).
-The local coverage invocation is `6bc51cb7-303b-4e13-b95f-4161fa8a4ac4`.
+[`37c5fc55-a946-428c-8a5d-68f87ae1b713`](https://app.buildbuddy.io/invocation/37c5fc55-a946-428c-8a5d-68f87ae1b713).
+The local coverage invocation is `38f5b792-d690-4086-8c4e-84d879cae47a`.
 Local acceptance disables the build-event service.
 
 Private evidence remains under
-`/home/tacascer/.local/state/worktree-pool/agent-receipts/implement-2395-acquire-35mi2MIx`.
+`/home/tacascer/.local/state/worktree-pool/agent-receipts/deliver-2395-acquire-g0t47X3n`.
 The `local` and `remote` directories retain exact commands, revisions, combined reports,
 exit statuses, and build-event metadata.
 The `local-acceptance.log` and `remote-acceptance.log` files record acceptance output.
