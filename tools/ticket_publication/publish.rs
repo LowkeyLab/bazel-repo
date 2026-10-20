@@ -9,7 +9,7 @@ use anyhow::{Context, Result, bail, ensure};
 
 pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
     let observed = observe(batch)?;
-    crate::graph::preflight_capacity(&batch.plan.parent, &observed)?;
+    crate::graph::preflight_capacity(batch, &observed)?;
     loop {
         let next = batch
             .plan

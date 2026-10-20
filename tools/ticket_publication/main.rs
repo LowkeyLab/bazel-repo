@@ -126,6 +126,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let id = BatchId::try_from(batch)?;
             let store = Store::open(&root, &id, false)?;
             let mut saved = store.read(&id)?;
+            saved.graph = plan::GraphProgress::default();
             let result = publish::run(&mut saved, &store);
             if result.is_err() {
                 saved.graph.verified = false;
@@ -224,7 +225,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let saved = store.read(&id)?;
             let observed = publish::observe(&saved);
             let graph = observed.as_ref().ok().map(|mappings| {
-                graph::preflight_capacity(&saved.plan.parent, mappings)?;
+                graph::preflight_capacity(&saved, mappings)?;
                 if saved
                     .tickets
                     .iter()

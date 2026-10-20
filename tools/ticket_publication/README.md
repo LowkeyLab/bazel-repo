@@ -48,6 +48,9 @@ Keys contain lowercase ASCII letters, digits, or hyphens, with at most 64 bytes.
 Issue numbers must be positive. Plans must use the supported repository.
 Unknown fields, duplicate keys, missing blocker keys, and dependency cycles fail.
 A batch can contain at most 100 tickets, the GitHub limit for one parent.
+Each ticket can require at most 50 distinct blockers. Each blocker can block at
+most 50 planned tickets. Repeated references to one blocker use one slot.
+GitHub documents this limit in its [dependency announcement](https://github.blog/changelog/2025-08-21-dependencies-on-issues/).
 Bodies must not contain the reserved `<!-- ticket-publication:` marker prefix.
 Planned labels remain data during preparation. This includes `ready-for-agent`.
 
@@ -127,12 +130,20 @@ Use the recovery commands below. Do not edit progress to bypass uncertainty.
 Before issue creation, publication checks the parent’s remaining native child
 capacity. Existing planned children use no additional slots. Compatible children
 from other repositories still count toward the parent limit. Insufficient capacity
-stops publication before issue creation.
+stops publication before issue creation. The command also checks incoming and
+outgoing dependency capacity, including compatible existing relationships.
+Already present required links use no new slots.
 
 Publication checks every ticket mapping, title, body, and identity marker before
 creating relationships. It reads all pages of the parent sub-issues and each
 ticket's blockers. A GraphQL query checks each ticket's nullable parent identity.
 Errors and incomplete responses cannot establish an absent relationship.
+
+The command checks the complete graph before relationship mutations. It then
+checks affected issues and relationships before and after each missing link.
+It checks the complete graph again after the last mutation. It does not read
+every unaffected ticket after each link. A 100-ticket command test uses at most
+2,000 fake API requests. This test does not establish live rate-limit availability.
 
 The command adds only missing parent and blocker links. Requests use numeric
 issue IDs. Parent requests specify `replace_parent: false`. A different parent
@@ -151,6 +162,7 @@ The result includes `graph.parent_links`, `graph.dependency_links`, and
 links do not increase these counts. Saved observations cannot authorize skipped
 checks. `status` checks the current graph without saving progress or GitHub writes.
 A saved verified graph can become incomplete or conflicting after external edits.
+An early publication failure returns no graph counts from a previous run.
 
 Native endpoint failures stop publication. The command does not substitute body
 references. Preserve state and inspect the error before resuming. Graph checks

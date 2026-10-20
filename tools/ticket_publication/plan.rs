@@ -7,6 +7,7 @@ use uuid::Uuid;
 
 // GitHub permits at most 100 native children for one parent.
 pub const MAX_SUB_ISSUES: usize = 100;
+pub const MAX_DEPENDENCIES: usize = 50;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(try_from = "String")]
@@ -121,6 +122,7 @@ impl Plan {
                 }
             }
         }
+        self.check_dependency_limits()?;
         let mut resolved = BTreeSet::new();
         while resolved.len() < self.tickets.len() {
             let before = resolved.len();
@@ -134,6 +136,32 @@ impl Plan {
             }
             if before == resolved.len() {
                 bail!("dependency cycle");
+            }
+        }
+        Ok(())
+    }
+    fn check_dependency_limits(&self) -> Result<()> {
+        for ticket in &self.tickets {
+            let mut unique = Vec::new();
+            for blocker in &ticket.blockers {
+                if !unique.contains(&blocker) {
+                    unique.push(blocker);
+                }
+            }
+            ensure!(
+                unique.len() <= MAX_DEPENDENCIES,
+                "ticket exceeds the native blocker capacity"
+            );
+            for blocker in unique {
+                let count = self
+                    .tickets
+                    .iter()
+                    .filter(|ticket| ticket.blockers.contains(blocker))
+                    .count();
+                ensure!(
+                    count <= MAX_DEPENDENCIES,
+                    "blocker exceeds the native blocking capacity"
+                );
             }
         }
         Ok(())

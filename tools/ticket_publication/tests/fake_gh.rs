@@ -7,6 +7,16 @@ use std::{
     path::PathBuf,
 };
 fn main() -> Result<()> {
+    if let Some(path) = std::env::var_os("REMOTE_REQUESTS") {
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)?;
+        file.write_all(b"request\n")?;
+        let count = fs::read_to_string(path)?.lines().count();
+        let limit: usize = std::env::var("REMOTE_REQUEST_LIMIT")?.parse()?;
+        ensure!(count <= limit, "request budget exhausted");
+    }
     let args: Vec<String> = std::env::args().skip(1).collect();
     ensure!(
         args.first().map(String::as_str) == Some("api"),
@@ -31,7 +41,7 @@ fn main() -> Result<()> {
     }
     let result = if endpoint == "graphql" {
         parent_response(&state)?
-    } else if endpoint.contains("/sub_issues") || endpoint.contains("/dependencies/blocked_by") {
+    } else if endpoint.contains("/sub_issues") || endpoint.contains("/dependencies/") {
         relationship_response(endpoint, &args, &mut state, &path)?
     } else if args.windows(2).any(|a| a == ["--method", "POST"]) {
         create_response(endpoint, &args, &mut state, &path)?
@@ -104,7 +114,13 @@ fn relationship_response(
     if args.windows(2).any(|a| a == ["--method", "POST"]) {
         write_relationship(state, path, number, child_link)
     } else {
-        read_relationship(state, args, number, child_link)
+        read_relationship(
+            state,
+            args,
+            number,
+            child_link,
+            endpoint.contains("/dependencies/blocking"),
+        )
     }
 }
 
@@ -185,6 +201,7 @@ fn read_relationship(
     args: &[String],
     number: u64,
     child_link: bool,
+    blocking: bool,
 ) -> Result<Value> {
     Ok({
         if state["mode"] == "incomplete-relationships" {
@@ -202,16 +219,33 @@ fn read_relationship(
         } else {
             &state["dependencies"][number.to_string()]
         };
-        let mut values: Vec<Value> = numbers
-            .as_array()
-            .map(|a| {
-                a.iter()
-                    .map(|n| issue(state, n.as_u64().unwrap()).unwrap())
-                    .collect()
-            })
-            .unwrap_or_default();
+        let mut values: Vec<Value> = if blocking {
+            state["dependencies"]
+                .as_object()
+                .map(|dependencies| {
+                    dependencies
+                        .iter()
+                        .filter(|(_, blockers)| {
+                            blockers.as_array().unwrap().iter().any(|n| n == number)
+                        })
+                        .map(|(subject, _)| issue(state, subject.parse().unwrap()).unwrap())
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            numbers
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|n| issue(state, n.as_u64().unwrap()).unwrap())
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
         if let Some(extra) = state[if child_link {
             "extra_children"
+        } else if blocking {
+            "extra_blocking"
         } else {
             "extra_dependencies"
         }]
@@ -219,7 +253,7 @@ fn read_relationship(
         {
             values.extend(extra.iter().cloned());
         }
-        let pages: Vec<Value> = values.chunks(50).map(|a| json!(a)).collect();
+        let pages: Vec<Value> = values.chunks(25).map(|a| json!(a)).collect();
         if pages.is_empty() {
             json!([[]])
         } else {
