@@ -202,7 +202,7 @@ fn read_relationship(
         } else {
             &state["dependencies"][number.to_string()]
         };
-        let values: Vec<Value> = numbers
+        let mut values: Vec<Value> = numbers
             .as_array()
             .map(|a| {
                 a.iter()
@@ -210,6 +210,15 @@ fn read_relationship(
                     .collect()
             })
             .unwrap_or_default();
+        if let Some(extra) = state[if child_link {
+            "extra_children"
+        } else {
+            "extra_dependencies"
+        }]
+        .as_array()
+        {
+            values.extend(extra.iter().cloned());
+        }
         let pages: Vec<Value> = values.chunks(100).map(|a| json!(a)).collect();
         if pages.is_empty() {
             json!([[]])

@@ -9,8 +9,7 @@ use anyhow::{Context, Result, ensure};
 struct TicketGraph {
     issue: IssueMapping,
     parent_present: bool,
-    required: Vec<IssueMapping>,
-    existing: Vec<IssueMapping>,
+    missing: Vec<IssueMapping>,
 }
 struct Graph {
     tickets: Vec<TicketGraph>,
@@ -23,13 +22,9 @@ fn mapping(batch: &Batch, index: usize) -> Result<IssueMapping> {
         _ => anyhow::bail!("graph requires checked issue mappings"),
     }
 }
-fn contains(mappings: &[IssueMapping], expected: &IssueMapping) -> Result<bool> {
+fn contains(mappings: &[github::Relationship], expected: &IssueMapping) -> Result<bool> {
     for mapping in mappings {
-        if mapping.number == expected.number
-            || mapping.id == expected.id
-            || mapping.node_id == expected.node_id
-        {
-            ensure!(mapping == expected, Conflict);
+        if mapping.matches(expected)? {
             return Ok(true);
         }
     }
@@ -82,19 +77,24 @@ fn read(batch: &Batch) -> Result<Graph> {
             }
         }
         graph.progress.parent_links += usize::from(parent_present);
+        let mut missing = Vec::new();
         for blocker in &required {
-            graph.progress.dependency_links += usize::from(contains(&existing, blocker)?);
+            if contains(&existing, blocker)? {
+                graph.progress.dependency_links += 1;
+            } else {
+                missing.push(blocker.clone());
+            }
         }
         graph.tickets.push(TicketGraph {
             issue,
             parent_present,
-            required,
-            existing,
+            missing,
         });
     }
-    graph.progress.verified = graph.tickets.iter().all(|ticket| {
-        ticket.parent_present && ticket.required.iter().all(|b| ticket.existing.contains(b))
-    });
+    graph.progress.verified = graph
+        .tickets
+        .iter()
+        .all(|ticket| ticket.parent_present && ticket.missing.is_empty());
     Ok(graph)
 }
 pub fn observe(batch: &Batch) -> Result<GraphProgress> {
@@ -128,11 +128,7 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
                 changed = true;
                 break;
             }
-            if let Some(blocker) = ticket
-                .required
-                .iter()
-                .find(|b| !ticket.existing.contains(b))
-            {
+            if let Some(blocker) = ticket.missing.first() {
                 github::add_blocker(&ticket.issue.number, blocker)?;
                 ensure!(
                     contains(

@@ -130,7 +130,8 @@ Errors and incomplete responses cannot establish an absent relationship.
 
 The command adds only missing parent and blocker links. Requests use numeric
 issue IDs. Parent requests specify `replace_parent: false`. A different parent
-stops publication without replacement. Compatible extra links remain intact.
+stops publication without replacement. Compatible extra links remain intact, including links to other repositories.
+Issue numbers from other repositories cannot satisfy required local links.
 Parent title, body, labels, and state remain intact.
 
 Publication saves observed graph progress before each relationship mutation.

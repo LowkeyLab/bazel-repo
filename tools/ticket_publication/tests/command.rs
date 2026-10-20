@@ -1761,3 +1761,40 @@ fn status_checks_graph_changes_without_trusting_saved_completion() -> anyhow::Re
     assert_that!(f.remote()?["link_mutations"].as_u64(), eq(Some(2)));
     Ok(())
 }
+
+#[googletest::test]
+fn compatible_cross_repository_relationships_do_not_alias_planned_issue_numbers()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let mut plan: Value = serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
+    plan["tickets"][0]["blockers"] = json!([{"issue":2392}]);
+    fs::write(
+        f.directory.path().join("plan.json"),
+        serde_json::to_vec(&plan)?,
+    )?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"native-unavailable"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = Value::Null;
+    remote["extra_children"] = json!([{"number":3000,"id":90000,"node_id":"I_foreign_child","title":"Unrelated child","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"}]);
+    remote["extra_dependencies"] = json!([{"number":2392,"id":90001,"node_id":"I_foreign_blocker","title":"Unrelated blocker","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"}]);
+    f.save_remote(&remote)?;
+    let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(report["graph"]["verified"].as_bool(), eq(Some(true)));
+    let after = f.remote()?;
+    assert_that!(after["extra_children"], eq(&remote["extra_children"]));
+    assert_that!(
+        after["extra_dependencies"],
+        eq(&remote["extra_dependencies"])
+    );
+    assert_that!(after["link_mutations"].as_u64(), eq(Some(2)));
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&after));
+    Ok(())
+}
