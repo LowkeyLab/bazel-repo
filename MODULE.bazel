@@ -71,7 +71,7 @@ git_override(
 bazel_dep(name = "aspect_rules_swc")
 git_override(
     module_name = "aspect_rules_swc",
-    commit = "cf45411830874cd60ba03406624e4ad0ff4cbb09",
+    commit = "67c75c3d519b892d18fac7be148676c22928eff4",
     remote = "https://github.com/aspect-build/rules_swc.git",
 )
 
