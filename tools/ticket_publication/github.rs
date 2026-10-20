@@ -5,6 +5,15 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::process::{Command, Stdio};
 
+#[derive(Debug)]
+pub struct Conflict;
+impl std::fmt::Display for Conflict {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("remote issue identity or content conflicts with the saved batch")
+    }
+}
+impl std::error::Error for Conflict {}
+
 const REPOSITORY: &str = "repos/LowkeyLab/bazel-repo";
 #[derive(Deserialize)]
 pub struct Issue {
@@ -29,7 +38,7 @@ impl Issue {
         ensure!(
             self.repository_url == "https://api.github.com/repos/LowkeyLab/bazel-repo"
                 && self.pull_request.is_none(),
-            "result is not an issue in the planned repository"
+            Conflict
         );
         Ok(())
     }
@@ -37,7 +46,7 @@ impl Issue {
         self.check_repository()?;
         ensure!(
             self.title == title && self.body.as_deref() == Some(body),
-            "remote issue content or identity conflicts with the saved plan"
+            Conflict
         );
         Ok(())
     }
@@ -50,7 +59,7 @@ pub fn read(number: &IssueNumber) -> Result<Issue> {
         false,
     )?)?;
     issue.check_repository()?;
-    ensure!(issue.number == *number, "remote issue number mismatch");
+    ensure!(issue.number == *number, Conflict);
     Ok(issue)
 }
 pub fn create(title: &str, body: &str) -> Result<Issue> {

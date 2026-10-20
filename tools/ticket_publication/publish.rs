@@ -1,19 +1,11 @@
 //! Creation transitions. A durable intent precedes each remote mutation.
+use crate::github::Conflict;
 use crate::{
     github,
     plan::{Batch, Blocker, TicketStatus},
     store::Store,
 };
 use anyhow::{Context, Result, bail, ensure};
-
-#[derive(Debug)]
-pub struct Conflict;
-impl std::fmt::Display for Conflict {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("remote issue identity or content conflicts with the saved batch")
-    }
-}
-impl std::error::Error for Conflict {}
 
 pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
     github::read(&batch.plan.parent)?;

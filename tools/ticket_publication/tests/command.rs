@@ -772,16 +772,15 @@ fn saved_mappings_stop_on_external_changes_without_overwriting_remote_state() ->
         let mut state = f.remote()?;
         state["issues"][0][field] = match field {
             "id" => json!(99999),
+            "node_id" => json!("I_changed"),
             "pull_request" => json!({"url":"example"}),
             _ => json!("External change"),
         };
         f.save_remote(&state)?;
-        assert_that!(
-            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
-                .status
-                .success(),
-            eq(false)
-        );
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(false));
+        let report: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(report["status"].as_str(), eq(Some("conflict")));
         assert_that!(f.remote()?, eq(&state));
     }
     Ok(())

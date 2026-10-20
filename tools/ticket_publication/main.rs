@@ -82,7 +82,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let status = if result
                 .as_ref()
                 .err()
-                .is_some_and(|e| e.downcast_ref::<publish::Conflict>().is_some())
+                .is_some_and(|e| e.downcast_ref::<github::Conflict>().is_some())
             {
                 "conflict"
             } else if result.is_err()
