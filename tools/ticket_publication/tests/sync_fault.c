@@ -10,6 +10,39 @@
 #include <string.h>
 #include <unistd.h>
 
+static int progress_fault(int descriptor, const char *path) {
+  const char *phase = getenv("PROGRESS_FAULT");
+  const char *batch = getenv("PROGRESS_BATCH");
+  const char *receipt = getenv("PROGRESS_RECEIPT");
+  if (phase == NULL || batch == NULL || receipt == NULL) return 0;
+  int directory = strstr(phase, "directory") != NULL;
+  char buffer[32768];
+  ssize_t size;
+  if (directory) {
+    if (strcmp(path, batch) != 0) return 0;
+    char snapshot[PATH_MAX];
+    snprintf(snapshot, sizeof(snapshot), "%s/batch.json", batch);
+    int file = open(snapshot, O_RDONLY);
+    if (file < 0) return 0;
+    size = read(file, buffer, sizeof(buffer) - 1);
+    close(file);
+  } else {
+    if (strncmp(path, batch, strlen(batch)) != 0 || strstr(path, "/.tmp") == NULL) return 0;
+    size = pread(descriptor, buffer, sizeof(buffer) - 1, 0);
+  }
+  if (size < 0) return 0;
+  buffer[size] = '\0';
+  const char *status = strstr(phase, "intent") != NULL ? "\"creating\"" : "\"created\"";
+  if (strstr(buffer, status) == NULL) return 0;
+  int record = open(receipt, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  if (record < 0) return 0;
+  close(record);
+  const char *effect = getenv("PROGRESS_EFFECT");
+  if (effect != NULL && strcmp(effect, "exit") == 0) _exit(91);
+  errno = EIO;
+  return -1;
+}
+
 int fsync(int descriptor) {
   int (*real_sync)(int) = (int (*)(int))dlsym(RTLD_NEXT, "fsync");
   if (real_sync == NULL) { errno = EIO; return -1; }
@@ -19,8 +52,10 @@ int fsync(int descriptor) {
   char path[PATH_MAX + 1];
   snprintf(link, sizeof(link), "/proc/self/fd/%d", descriptor);
   ssize_t length = readlink(link, path, PATH_MAX);
-  if (target == NULL || receipt == NULL || length < 0) return real_sync(descriptor);
+  if (length < 0) return real_sync(descriptor);
   path[length] = '\0';
+  if (progress_fault(descriptor, path) != 0) return -1;
+  if (target == NULL || receipt == NULL) return real_sync(descriptor);
   if (strcmp(path, target) != 0) return real_sync(descriptor);
   int record = open(receipt, O_WRONLY | O_CREAT | O_EXCL, 0600);
   if (record >= 0) {

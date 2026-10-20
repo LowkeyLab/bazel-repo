@@ -1,15 +1,17 @@
-# Prepare a ticket publication batch
+# Prepare and create a ticket publication batch
 
-This command checks and saves a publication plan. It does not publish issues.
-Ticket #2403 implements preparation and local inspection. Later tickets add
-GitHub creation, recovery, graph checks, and readiness labels.
+This command checks and saves a publication plan. It can create the planned
+issues and resume creation after an interruption. Tickets #2403 and #2404
+implement these operations. Later tickets add explicit recovery commands,
+native graph operations, and readiness labels.
 
 ```sh
 bazel run //tools/ticket_publication -- prepare --plan /absolute/plan.json
 bazel run //tools/ticket_publication -- status --batch <batch-id>
+bazel run //tools/ticket_publication -- publish --batch <batch-id>
 ```
 
-Both commands return JSON. `prepare` returns `batch_id` and `plan_path`.
+All commands return JSON. `prepare` returns `batch_id` and `plan_path`.
 `status` returns the saved plan, its SHA-256 fingerprint, and ticket progress.
 A prepared batch has `pending` tickets. Preparation does not establish GitHub
 state or publication completion.
@@ -59,7 +61,7 @@ The command rejects other path encodings before creating state.
 Each batch has a private directory. The directory contains `batch.json` and a
 persistent `lock` file. A `.ticket-publication-directory` marker identifies each
 directory that this tool creates. The snapshot contains the original checked plan,
-fingerprint, batch identity, ticket identity markers, and pending progress.
+fingerprint, batch identity, ticket identity markers, and creation progress.
 Each marker has the form `<!-- ticket-publication:<batch-id>:<key> -->`.
 The fingerprint identifies the serialized checked plan. It is not a signature.
 
@@ -67,7 +69,9 @@ The command synchronizes the snapshot before committing its name. It then
 synchronizes the directory. Creation markers become durable before directory
 publication. Preparation retries synchronization for marked directories and their
 parent boundary. It does not require read access to earlier ancestors.
-Retain these markers during state transfer. It does not overwrite an existing snapshot.
+Retain these markers during state transfer. Preparation does not overwrite an
+existing snapshot. Publication replaces progress through a synchronized temporary
+file and an atomic rename. It then synchronizes the batch directory.
 A failed write prevents a successful result. An interruption can leave temporary
 files or a directory without a committed snapshot. `status` rejects incomplete,
 corrupt, or unsupported state without replacing the snapshot.
@@ -82,6 +86,35 @@ A process exit releases the lock. Do not delete the persistent lock file.
 A local lock cannot coordinate copied state across machines. Stop the previous
 publisher before transferring the complete batch directory and original plan.
 Copying state does not transfer ownership. No automatic takeover exists.
+
+## Issue creation
+
+`publish` reads the saved plan. It checks the parent and existing issue mappings
+through fresh `gh api` requests. Creation follows dependency order. Each request
+uses `--hostname github.com` and sends JSON through standard input.
+
+The command saves each creation intent before the request. The request body
+contains the original body and the exact hidden identity marker. A checked result
+saves the issue number, numeric issue ID, and GraphQL node ID as separate values.
+No dependent creation proceeds before this mapping becomes durable.
+
+After uncertain creation, the command enumerates all repository issue pages
+across open and closed states. It excludes pull requests. One exact marker match
+must also pass repository, identity, and content checks before reuse. Multiple
+matches stop publication. No match leaves creation uncertain. Failed reads and
+incomplete responses cannot authorize another creation request.
+
+A successful creation phase returns `status: partial` and `phase: issues_created`.
+It does not establish publication completion. This phase applies no labels or
+native relationships. A stopped run returns a nonzero exit code and reports
+`partial`, `uncertain`, or `conflict`, with the available ticket progress.
+Local `status` reports saved progress. It does not check remote state.
+
+Preserve saved state after errors. A durable-write failure can leave an intent
+without a request or a checked issue without a saved mapping. Restart checks the
+saved state and remote evidence. It cannot infer safe retry from an absent match.
+Explicit adoption, retry authorization, and reconstruction require later recovery
+commands. Do not edit progress to bypass uncertainty.
 
 ## Checks
 

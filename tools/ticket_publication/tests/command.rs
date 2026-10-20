@@ -34,19 +34,24 @@ impl Fixture {
         Ok(Self { directory, tool })
     }
     fn run(&self, args: &[&str]) -> anyhow::Result<Output> {
-        Ok(Command::new(&self.tool)
+        Ok(self.command(args).output()?)
+    }
+    fn command(&self, args: &[&str]) -> Command {
+        let mut command = Command::new(&self.tool);
+        command
             .args(args)
             .current_dir(self.directory.path())
             .env("PATH", self.directory.path().join("bin"))
-            .env("REMOTE_STATE", self.directory.path().join("remote.log"))
-            .output()?)
+            .env("REMOTE_STATE", self.directory.path().join("remote.log"));
+        command
     }
     fn successful(&self, args: &[&str]) -> anyhow::Result<Value> {
         let output = self.run(args)?;
         anyhow::ensure!(
             output.status.success(),
-            "command failed: {}",
-            String::from_utf8_lossy(&output.stderr)
+            "command failed: {} {}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
         );
         Ok(serde_json::from_slice(&output.stdout)?)
     }
@@ -547,6 +552,300 @@ fn invalid_creation_markers_stop_inspection_without_changing_the_snapshot() -> a
             eq(&b"unsupported marker version".to_vec())
         );
         fs::write(marker, original)?;
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn publishing_creates_once_with_original_identity_and_reports_partial_graph() -> anyhow::Result<()>
+{
+    let f = Fixture::new()?;
+    let files = Runfiles::create()?;
+    let fake = rlocation!(files, std::env::var("FAKE_GH")?).context("fake gh")?;
+    fs::remove_file(f.directory.path().join("bin/gh"))?;
+    std::os::unix::fs::symlink(fake, f.directory.path().join("bin/gh"))?;
+    let prepared = f.successful(&["--state-dir", "state", "prepare", "--plan", "plan.json"])?;
+    let id = prepared["batch_id"].as_str().context("batch identity")?;
+    let result = f.successful(&["--state-dir", "state", "publish", "--batch", id])?;
+    assert_that!(result["status"].as_str(), eq(Some("partial")));
+    assert_that!(result["phase"].as_str(), eq(Some("issues_created")));
+    f.successful(&["--state-dir", "state", "publish", "--batch", id])?;
+    let remote: Value = serde_json::from_slice(&fs::read(f.directory.path().join("remote.log"))?)?;
+    assert_that!(remote["creations"].as_u64(), eq(Some(1)));
+    assert_that!(
+        remote["issues"][0]["title"].as_str(),
+        eq(Some("Prepare a batch"))
+    );
+    assert_that!(remote["issues"][0]["labels"], eq(&json!([])));
+    assert_that!(
+        remote["issues"][0]["body"].as_str(),
+        eq(Some(
+            format!("Describe the behavior.\n\n<!-- ticket-publication:{id}:first -->").as_str()
+        ))
+    );
+    Ok(())
+}
+
+impl Fixture {
+    fn with_github() -> anyhow::Result<Self> {
+        let f = Self::new()?;
+        let files = Runfiles::create()?;
+        let fake = rlocation!(files, std::env::var("FAKE_GH")?).context("fake gh")?;
+        fs::remove_file(f.directory.path().join("bin/gh"))?;
+        std::os::unix::fs::symlink(fake, f.directory.path().join("bin/gh"))?;
+        Ok(f)
+    }
+    fn remote(&self) -> anyhow::Result<Value> {
+        Ok(serde_json::from_slice(&fs::read(
+            self.directory.path().join("remote.log"),
+        )?)?)
+    }
+    fn save_remote(&self, state: &Value) -> anyhow::Result<()> {
+        Ok(fs::write(
+            self.directory.path().join("remote.log"),
+            serde_json::to_vec(state)?,
+        )?)
+    }
+    fn prepare(&self) -> anyhow::Result<String> {
+        Ok(self.successful(&["--state-dir", "state", "prepare", "--plan", "plan.json"])?["batch_id"].as_str().context("batch identity")?.to_owned())
+    }
+}
+
+#[googletest::test]
+fn accepted_creation_without_a_response_is_recovered_after_restart() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
+    let result = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(result["phase"].as_str(), eq(Some("issues_created")));
+    assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
+    Ok(())
+}
+
+#[googletest::test]
+fn unresolved_or_conflicting_creation_never_retries_a_remote_write() -> anyhow::Result<()> {
+    for mode in ["absent", "multiple", "permission", "incomplete", "content"] {
+        let f = Fixture::with_github()?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+        let id = f.prepare()?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let mut state = f.remote()?;
+        match mode {
+            "absent" => state["issues"] = json!([]),
+            "multiple" => {
+                let mut duplicate = state["issues"][0].clone();
+                duplicate["number"] = json!(3001);
+                duplicate["id"] = json!(13001);
+                duplicate["node_id"] = json!("I_3001");
+                state["issues"].as_array_mut().unwrap().push(duplicate);
+            }
+            "content" => state["issues"][0]["title"] = json!("External change"),
+            _ => state["mode"] = json!(mode),
+        }
+        f.save_remote(&state)?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(false));
+        let report: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(
+            report["status"].as_str(),
+            eq(Some(if mode == "multiple" || mode == "content" {
+                "conflict"
+            } else {
+                "uncertain"
+            }))
+        );
+        assert_that!(f.remote()?, eq(&state));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn dependency_order_and_saved_mappings_survive_restart_without_labels() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let mut plan: Value = serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
+    let mut dependent = plan["tickets"][0].clone();
+    dependent["key"] = json!("second");
+    dependent["title"] = json!("Dependent work");
+    dependent["blockers"] = json!([{"ticket":"first"},{"issue":2392}]);
+    plan["tickets"].as_array_mut().unwrap().insert(0, dependent);
+    fs::write(
+        f.directory.path().join("plan.json"),
+        serde_json::to_vec(&plan)?,
+    )?;
+    let id = f.prepare()?;
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    let state = f.remote()?;
+    assert_that!(state["creations"].as_u64(), eq(Some(2)));
+    assert_that!(
+        state["issues"][0]["title"].as_str(),
+        eq(Some("Prepare a batch"))
+    );
+    assert_that!(
+        state["issues"][1]["title"].as_str(),
+        eq(Some("Dependent work"))
+    );
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&state));
+    let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
+    assert_that!(status["status"].as_str(), eq(Some("partial")));
+    assert_that!(
+        status["tickets"][0]["status"]["created"]["number"].as_u64(),
+        eq(Some(3001))
+    );
+    assert_that!(
+        status["tickets"][0]["status"]["created"]["id"].as_u64(),
+        eq(Some(13001))
+    );
+    assert_that!(
+        status["tickets"][0]["status"]["created"]["node_id"].as_str(),
+        eq(Some("I_3001"))
+    );
+    Ok(())
+}
+
+#[googletest::test]
+fn closed_match_on_a_later_page_is_reused_and_pull_requests_are_excluded() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut state = f.remote()?;
+    let mut issue = state["issues"][0].clone();
+    issue["state"] = json!("closed");
+    let mut issues = Vec::new();
+    for number in 4000..4100 {
+        let mut pr = issue.clone();
+        pr["number"] = json!(number);
+        pr["pull_request"] = json!({"url":"example"});
+        issues.push(pr);
+    }
+    let mut similar = issue.clone();
+    similar["number"] = json!(5000);
+    similar["node_id"] = json!("I_5000");
+    similar["id"] = json!(15000);
+    similar["body"] = json!(
+        issue["body"]
+            .as_str()
+            .unwrap()
+            .replace(":first -->", ":first-extra -->")
+    );
+    issues.push(similar);
+    issues.push(issue);
+    state["issues"] = json!(issues);
+    f.save_remote(&state)?;
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&state));
+    Ok(())
+}
+
+#[googletest::test]
+fn saved_mappings_stop_on_external_changes_without_overwriting_remote_state() -> anyhow::Result<()>
+{
+    for field in [
+        "title",
+        "body",
+        "id",
+        "node_id",
+        "repository_url",
+        "pull_request",
+    ] {
+        let f = Fixture::with_github()?;
+        let id = f.prepare()?;
+        f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+        let mut state = f.remote()?;
+        state["issues"][0][field] = match field {
+            "id" => json!(99999),
+            "pull_request" => json!({"url":"example"}),
+            _ => json!("External change"),
+        };
+        f.save_remote(&state)?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        assert_that!(f.remote()?, eq(&state));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn interrupted_progress_writes_resume_only_when_creation_is_safe() -> anyhow::Result<()> {
+    let files = Runfiles::create()?;
+    let fault = rlocation!(files, std::env::var("SYNC_FAULT_LIBRARY")?).context("sync fault")?;
+    for phase in [
+        "intent-file",
+        "intent-directory",
+        "mapping-file",
+        "mapping-directory",
+    ] {
+        for effect in ["exit", "error"] {
+            let f = Fixture::with_github()?;
+            let mut plan: Value =
+                serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
+            let mut dependent = plan["tickets"][0].clone();
+            dependent["key"] = json!("second");
+            dependent["blockers"] = json!([{"ticket":"first"}]);
+            plan["tickets"].as_array_mut().unwrap().push(dependent);
+            fs::write(
+                f.directory.path().join("plan.json"),
+                serde_json::to_vec(&plan)?,
+            )?;
+            let id = f.prepare()?;
+            let receipt = f.directory.path().join("progress-fault-receipt");
+            let output = f
+                .command(&["--state-dir", "state", "publish", "--batch", &id])
+                .env("LD_PRELOAD", &fault)
+                .env("PROGRESS_FAULT", phase)
+                .env("PROGRESS_EFFECT", effect)
+                .env("PROGRESS_BATCH", f.directory.path().join("state").join(&id))
+                .env("PROGRESS_RECEIPT", &receipt)
+                .output()?;
+            assert_that!(output.status.success(), eq(false));
+            assert_that!(receipt.exists(), eq(true));
+            if effect == "error" {
+                let report: Value = serde_json::from_slice(&output.stdout)?;
+                assert_that!(report["status"].as_str(), eq(Some("uncertain")));
+            }
+            let before = if f.directory.path().join("remote.log").exists() {
+                f.remote()?["creations"].as_u64().unwrap()
+            } else {
+                0
+            };
+            assert_that!(before, eq(u64::from(!phase.starts_with("intent"))));
+            let resumed = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+            if phase == "intent-directory" {
+                assert_that!(resumed.status.success(), eq(false));
+                assert_that!(f.directory.path().join("remote.log").exists(), eq(false));
+                let report: Value = serde_json::from_slice(&resumed.stdout)?;
+                assert_that!(report["status"].as_str(), eq(Some("uncertain")));
+            } else {
+                anyhow::ensure!(
+                    resumed.status.success(),
+                    "restart failed: {}",
+                    String::from_utf8_lossy(&resumed.stdout)
+                );
+                assert_that!(f.remote()?["creations"].as_u64(), eq(Some(2)));
+            }
+        }
     }
     Ok(())
 }
