@@ -1,0 +1,21 @@
+import { render as $$render, createAstro as $$createAstro, createComponent as $$createComponent, maybeRenderHead as $$maybeRenderHead, renderScript as $$renderScript } from "astro/compiler-runtime";
+import { nodeLabel } from "./node-helper.js";
+const $$Astro = $$createAstro("https://astro.build");
+const Astro = $$Astro;
+const $$Main = $$createComponent(($$result, $$props, $$slots) => {
+	const Astro = $$result.createAstro($$props, $$slots);
+	Astro.self = $$Main;
+	const { enabled = true } = Astro.props;
+	const title = nodeLabel(enabled);
+	const items = [1, 2];
+	return $$render`${$$maybeRenderHead($$result)}<!-- This comment is not executable. -->
+<h1>${title}</h1>
+${enabled ? $$render`<p id="yes">yes</p>` : $$render`<p id="no">no</p>`}
+<ul>${items.map((item) => $$render`<li>${item}</li>`)}</ul>
+<button id="action">run</button>
+${$$renderScript($$result, "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/Main.astro?astro&type=script&index=0&lang.ts")}
+<script>
+  window.inlineResult = true ? "inline-yes" : "inline-no";
+<\/script>`;
+}, "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/Main.astro", undefined);
+export default $$Main;

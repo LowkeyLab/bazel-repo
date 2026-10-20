@@ -1,0 +1,13 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31' is dirty
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target @@+http_archive+research_astro_chromium//:chrome-headless-shell (0 packages loaded, 0 targets configured)
+INFO: Analyzed target @@+http_archive+research_astro_chromium//:chrome-headless-shell (0 packages loaded, 0 targets configured).
+INFO: Found 1 target...
+INFO: Elapsed time: 2.024s, Critical Path: 0.00s
+INFO: 0 processes.
+INFO: Build completed successfully, 0 total actions

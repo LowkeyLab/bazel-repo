@@ -1,0 +1,5 @@
+[
+  "<!-- This comment is not executable. -->\n<h1>server-yes</h1>\n<p id=\"yes\">yes</p>\n<ul><li>1</li><li>2</li></ul>\n<button id=\"action\">run</button>\n<script type=\"module\" src=\"/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/Main.astro?astro&type=script&index=0&lang.ts\"></script>\n<script>\n  window.inlineResult = true ? \"inline-yes\" : \"inline-no\";\n</script>",
+  "<!-- This comment is not executable. -->\n<h1>server-no</h1>\n<p id=\"no\">no</p>\n<ul><li>1</li><li>2</li></ul>\n<button id=\"action\">run</button>\n<script type=\"module\" src=\"/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/Main.astro?astro&type=script&index=0&lang.ts\"></script>\n<script>\n  window.inlineResult = true ? \"inline-yes\" : \"inline-no\";\n</script>",
+  "<p>test-yes</p>"
+]

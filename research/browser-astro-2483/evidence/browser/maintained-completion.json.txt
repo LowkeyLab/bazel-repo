@@ -1,0 +1,5 @@
+{
+  "completed": true,
+  "beforeClosure": true,
+  "scripts": 10
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "4",
+    "textFile": "maintained-script-0.js",
+    "ranges": 7,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "5",
+    "textFile": "maintained-script-1.js",
+    "ranges": 3,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "6",
+    "textFile": "maintained-script-2.js",
+    "ranges": 13,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "7",
+    "textFile": "maintained-script-3.js",
+    "ranges": 15,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "8",
+    "textFile": "maintained-script-4.js",
+    "ranges": 16,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BDCjmQ8c.js",
+    "scriptId": "9",
+    "textFile": "maintained-script-5.js",
+    "ranges": 99,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/DevHero.astro_astro_type_script_index_0_lang.Bo7arm9j.js",
+    "scriptId": "10",
+    "textFile": "maintained-script-6.js",
+    "ranges": 47,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/FeaturedWork.astro_astro_type_script_index_0_lang.CmPYOoER.js",
+    "scriptId": "11",
+    "textFile": "maintained-script-7.js",
+    "ranges": 10,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/RecentWriting.astro_astro_type_script_index_0_lang.DQ8sLdyn.js",
+    "scriptId": "12",
+    "textFile": "maintained-script-8.js",
+    "ranges": 11,
+    "sourceMapURL": null
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/section-animation.Lbmp0GuM.js",
+    "scriptId": "13",
+    "textFile": "maintained-script-9.js",
+    "ranges": 608,
+    "sourceMapURL": null
+  }
+]

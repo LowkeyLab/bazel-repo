@@ -1,0 +1,7 @@
+[
+  {
+    "map": "Main.astro_astro_type_script_index_0_lang.Bb-C5Svw.js.map",
+    "virtualSource": "../../../../../../../../../../../../execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/fixtures/Main.astro?astro&type=script&index=0&lang.ts",
+    "exactCompilerText": true
+  }
+]

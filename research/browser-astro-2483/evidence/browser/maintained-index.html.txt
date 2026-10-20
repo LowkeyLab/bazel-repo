@@ -1,0 +1,188 @@
+<!DOCTYPE html><html lang="en" data-theme="light" data-astro-cid-hixhdumv><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta name="description" content="Tim Tran - Software Engineer specializing in developer tooling and productivity"><link rel="canonical" href="https://www.tacascer.com/"><meta property="og:title" content="Tim Tran - Software Engineer"><meta property="og:description" content="Tim Tran - Software Engineer specializing in developer tooling and productivity"><meta property="og:type" content="website"><meta property="og:url" content="https://www.tacascer.com/"><link rel="alternate" type="application/rss+xml" title="Tim Tran RSS" href="https://www.tacascer.com/rss.xml"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><title>Tim Tran - Software Engineer</title><script>
+      (() => {
+        function preferredTheme() {
+          try {
+            const stored = localStorage.getItem("theme");
+            if (stored === "light" || stored === "dracula") return stored;
+          } catch {
+            // Fall back to the system preference if storage is unavailable.
+          }
+          return matchMedia("(prefers-color-scheme: dark)").matches ? "dracula" : "light";
+        }
+        document.documentElement.dataset.theme = preferredTheme();
+        document.addEventListener("astro:before-swap", (event) => {
+          event.newDocument.documentElement.dataset.theme = document.documentElement.dataset.theme;
+        });
+      })();
+    </script><meta name="astro-view-transitions-enabled" content="true"><meta name="astro-view-transitions-fallback" content="animate"><script type="module" src="/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BDCjmQ8c.js"></script></head><body class="site-shell" data-astro-cid-hixhdumv><a class="skip-link" href="#main-content" data-astro-cid-hixhdumv>Skip to content</a><header class="site-header"><nav class="site-nav site-width" aria-label="Main navigation"><a href="/" class="site-brand">Tim's Corner</a><ul class="site-links"><li><a href="/blog/">Blog</a></li><li><a href="/about/">About</a></li><li><a href="https://github.com/tacascer">GitHub</a></li><li><label class="theme-toggle" title="Use dark theme"><input type="checkbox" id="theme-toggle" class="sr-only" aria-label="Use dark theme"><svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20 15A8 8 0 0 1 9 4a8.5 8.5 0 1 0 11 11Z"></path></svg><svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"></path></svg></label><script type="module">function e(){let e=document.querySelector(`#theme-toggle`);e&&(e.checked=document.documentElement.dataset.theme===`dracula`,e.onchange=()=>{let t=e.checked?`dracula`:`light`;document.documentElement.dataset.theme=t;try{localStorage.setItem(`theme`,t)}catch{}})}document.addEventListener(`astro:page-load`,e),e();</script></li></ul></nav></header><main id="main-content" class="site-main site-width" tabindex="-1" data-astro-cid-hixhdumv><home-hero-animation><script>
+  (() => {
+    const root = document.currentScript?.parentElement;
+    if (!root || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const startedAt = performance.now();
+    const runId = document.animationRunId = (document.animationRunId ?? 0) + 1;
+    const section = root.localName === "home-hero-animation" ? "hero"
+      : root.localName === "featured-work-animation" ? "featured_work"
+        : root.localName === "recent-writing-animation" ? "recent_writing" : "other";
+    let settled = false;
+    let observe;
+    const settle = (result, phase) => {
+      if (settled) return;
+      settled = true;
+      const event = Object.freeze({ type: "SectionAnimationSettled", section, runId, phase, elapsedMs: performance.now() - startedAt, ...result });
+      try {
+        if (observe) observe(event);
+        // The module/listener may never load. This is the startup availability gap.
+        else console.warn(event);
+      } catch {
+        try { console.warn("Animation diagnostic delivery failed"); } catch { /* best effort */ }
+      }
+    };
+    root.dataset.animationPending = "";
+    let expired = false;
+    let claimed = false;
+    let onExpire;
+    const restore = () => {
+      clearTimeout(watchdog);
+      onExpire = undefined;
+      delete root.dataset.animationPending;
+      if (!claimed) expired = true;
+    };
+    const watchdog = setTimeout(() => {
+      const cancel = onExpire;
+      restore();
+      cancel?.();
+      settle({ outcome: "fallback", reason: "watchdog_expired" }, "bootstrap");
+    }, 2000);
+    root.animationBootstrap = {
+      register: (cancel, observer) => {
+        observe = observer;
+        if (expired) return false;
+        onExpire = cancel;
+        return true;
+      },
+      claim: () => {
+        if (expired) return false;
+        claimed = true;
+        onExpire = undefined;
+        clearTimeout(watchdog);
+        return true;
+      },
+      restore,
+      settle,
+    };
+  })();
+</script><section class="home-hero" aria-labelledby="intro-heading"><div class="hero-copy"><p class="eyebrow" data-animation-detail>Software Engineer &amp; Toil Eliminator</p><h1 id="intro-heading">Hi, I'm <span class="ink-underline">Tim.<svg viewBox="0 0 230 20" preserveAspectRatio="none" fill="none" aria-hidden="true"><path d="M4 12 Q90 2 225 8 M15 17 Q130 8 216 13" stroke="currentColor" stroke-width="3" stroke-linecap="round"></path></svg></span><br>I build leverage<br>for people.</h1><p class="hero-description" data-animation-detail>I build tools that help people spend less time wrestling with software and more time making things. I’m especially interested in automation, build systems, and making complicated work easier to do.</p><div class="hero-actions" data-animation-detail><a href="mailto:timdttran2000@gmail.com" class="paper-button">Say hello <span aria-hidden="true">↗</span></a><a href="/about/" class="ink-link">More about me <span aria-hidden="true">→</span></a></div><div class="hero-socials" data-animation-detail><a href="https://github.com/tacascer" target="_blank" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a><a href="https://www.linkedin.com/in/timtran2018/" target="_blank" rel="noreferrer">LinkedIn <span aria-hidden="true">↗</span></a><a href="https://x.com/thisIsTacascer" target="_blank" rel="noreferrer">X <span aria-hidden="true">↗</span></a><a href="https://bsky.app/profile/tacascer.bsky.social" target="_blank" rel="noreferrer">Bluesky <span aria-hidden="true">↗</span></a></div></div><div class="hero-art"><p class="hero-note" data-animation-detail>Less toil.<br>More leverage.</p><button type="button" class="hero-replay" disabled aria-label="Replay computer and plant animation"><svg viewBox="0 0 430 310" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 268 Q200 256 413 267" opacity=".5"></path><path d="M89 59 Q185 53 293 62 L277 224 Q178 217 72 222 Z" fill="var(--color-base-200)"></path><path d="M98 69 L282 72 L267 211 L84 212 Z" fill="var(--color-base-100)"></path><path d="M73 222 L277 224 L309 263 Q160 274 26 261 Z" fill="var(--color-base-200)"></path><path d="M26 261 L28 268 Q175 281 309 270 L309 263 M92 232 L265 234 M77 242 L279 245 M139 250 L197 251 L201 260 L132 259 Z"></path><path d="M119 232 L116 242 M145 233 L144 243 M172 233 L172 244 M199 234 L201 244 M228 234 L231 245 M251 234 L255 245" stroke-width="1.3"></path><path class="hero-code" d="M151 127 L133 145 L151 159 M207 130 L224 146 L206 161 M186 117 L174 169" stroke-width="3"></path><path d="M343 226 L392 224 L383 268 Q369 272 352 267 Z" fill="var(--color-accent)"></path><g class="hero-plant"><path d="M367 226 Q365 170 380 121 M367 207 Q346 184 337 159 M371 179 Q400 168 401 146"></path><path d="M380 159 Q364 135 387 110 Q401 138 380 159 Z M357 193 Q333 187 328 151 Q354 156 357 193 Z M380 189 Q382 159 407 146 Q408 177 380 189 Z" fill="var(--color-accent)"></path><path d="M379 151 L386 122 M350 181 L335 160 M387 177 L401 154" stroke-width="1.2"></path></g><path class="hero-flourish" d="M312 52 L320 32 M327 66 L349 54 M65 65 L51 52 M182 37 L183 23"></path><path d="M310 102 Q337 105 341 130 M335 123 L342 133 L347 122" stroke-width="1.6"></path></g></svg></button><div class="portrait-note" data-animation-detail><img src="/_astro/avatar.sKcB8qQA_TK18j.webp" alt="Tim Tran" loading="lazy" decoding="async" width="112" height="112"><span>Always happy to talk<br>about build systems.</span></div></div></section></home-hero-animation><script type="module" src="/_astro/DevHero.astro_astro_type_script_index_0_lang.Bo7arm9j.js"></script><featured-work-animation data-writing-duration="1200"><script>
+  (() => {
+    const root = document.currentScript?.parentElement;
+    if (!root || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const startedAt = performance.now();
+    const runId = document.animationRunId = (document.animationRunId ?? 0) + 1;
+    const section = root.localName === "home-hero-animation" ? "hero"
+      : root.localName === "featured-work-animation" ? "featured_work"
+        : root.localName === "recent-writing-animation" ? "recent_writing" : "other";
+    let settled = false;
+    let observe;
+    const settle = (result, phase) => {
+      if (settled) return;
+      settled = true;
+      const event = Object.freeze({ type: "SectionAnimationSettled", section, runId, phase, elapsedMs: performance.now() - startedAt, ...result });
+      try {
+        if (observe) observe(event);
+        // The module/listener may never load. This is the startup availability gap.
+        else console.warn(event);
+      } catch {
+        try { console.warn("Animation diagnostic delivery failed"); } catch { /* best effort */ }
+      }
+    };
+    root.dataset.animationPending = "";
+    let expired = false;
+    let claimed = false;
+    let onExpire;
+    const restore = () => {
+      clearTimeout(watchdog);
+      onExpire = undefined;
+      delete root.dataset.animationPending;
+      if (!claimed) expired = true;
+    };
+    const watchdog = setTimeout(() => {
+      const cancel = onExpire;
+      restore();
+      cancel?.();
+      settle({ outcome: "fallback", reason: "watchdog_expired" }, "bootstrap");
+    }, 2000);
+    root.animationBootstrap = {
+      register: (cancel, observer) => {
+        observe = observer;
+        if (expired) return false;
+        onExpire = cancel;
+        return true;
+      },
+      claim: () => {
+        if (expired) return false;
+        claimed = true;
+        onExpire = undefined;
+        clearTimeout(watchdog);
+        return true;
+      },
+      restore,
+      settle,
+    };
+  })();
+</script><section class="home-section" aria-labelledby="featured-heading"><h2 id="featured-heading">Featured writing</h2><section class="entry-list notebook-list" aria-label="Featured writing"><ul role="list"><li><a href="/blog/the-future-is-remote/" class="entry-link"><div class="entry-heading"><h3 class="entry-title">The future is remote</h3></div></a></li><li><a href="/blog/mindreadr/" class="entry-link"><div class="entry-heading"><h3 class="entry-title">Mindreadr</h3></div></a></li></ul></section></section></featured-work-animation><script type="module" src="/_astro/FeaturedWork.astro_astro_type_script_index_0_lang.CmPYOoER.js"></script><recent-writing-animation><script>
+  (() => {
+    const root = document.currentScript?.parentElement;
+    if (!root || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const startedAt = performance.now();
+    const runId = document.animationRunId = (document.animationRunId ?? 0) + 1;
+    const section = root.localName === "home-hero-animation" ? "hero"
+      : root.localName === "featured-work-animation" ? "featured_work"
+        : root.localName === "recent-writing-animation" ? "recent_writing" : "other";
+    let settled = false;
+    let observe;
+    const settle = (result, phase) => {
+      if (settled) return;
+      settled = true;
+      const event = Object.freeze({ type: "SectionAnimationSettled", section, runId, phase, elapsedMs: performance.now() - startedAt, ...result });
+      try {
+        if (observe) observe(event);
+        // The module/listener may never load. This is the startup availability gap.
+        else console.warn(event);
+      } catch {
+        try { console.warn("Animation diagnostic delivery failed"); } catch { /* best effort */ }
+      }
+    };
+    root.dataset.animationPending = "";
+    let expired = false;
+    let claimed = false;
+    let onExpire;
+    const restore = () => {
+      clearTimeout(watchdog);
+      onExpire = undefined;
+      delete root.dataset.animationPending;
+      if (!claimed) expired = true;
+    };
+    const watchdog = setTimeout(() => {
+      const cancel = onExpire;
+      restore();
+      cancel?.();
+      settle({ outcome: "fallback", reason: "watchdog_expired" }, "bootstrap");
+    }, 2000);
+    root.animationBootstrap = {
+      register: (cancel, observer) => {
+        observe = observer;
+        if (expired) return false;
+        onExpire = cancel;
+        return true;
+      },
+      claim: () => {
+        if (expired) return false;
+        claimed = true;
+        onExpire = undefined;
+        clearTimeout(watchdog);
+        return true;
+      },
+      restore,
+      settle,
+    };
+  })();
+</script><section class="home-section" aria-labelledby="recent-heading"><h2 id="recent-heading">Recent writing</h2><section class="entry-list notebook-list" aria-label="Recent writing"><ul role="list"><li><a href="/blog/rust-is-a-mind-virus/" class="entry-link"><div class="entry-heading"><h3 class="entry-title">Rust Is a Mind Virus.</h3></div></a></li><li><a href="/blog/local-first-gradle-build-scan/" class="entry-link"><div class="entry-heading"><h3 class="entry-title">Local-First Gradle Build Scan</h3></div></a></li><li><a href="/blog/landing-page/" class="entry-link"><div class="entry-heading"><h3 class="entry-title">Personal Landing Page</h3></div></a></li></ul></section><a href="/blog/" class="ink-link all-writing" data-animation-detail>All writing <span aria-hidden="true">→</span></a></section></recent-writing-animation><script type="module" src="/_astro/RecentWriting.astro_astro_type_script_index_0_lang.DQ8sLdyn.js"></script></main><footer class="site-footer site-width" data-astro-cid-hixhdumv><p data-astro-cid-hixhdumv>© 2026 Tim Tran</p></footer></body></html>

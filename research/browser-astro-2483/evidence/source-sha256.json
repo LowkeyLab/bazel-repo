@@ -1,0 +1,9 @@
+{
+  "tools/research_astro/fixtures/Main.astro": "79d82c58dd887ceb5e246cdcb2b2df2f1da73519000d91b46c6358278aeae66f",
+  "tools/research_astro/fixtures/Disconnected.astro": "69c93a3e409bda4b4813a676ef2d1abaa3219d4337b335eb496795f16fe1bc9a",
+  "tools/research_astro/fixtures/TestOnly.astro": "540b65651c89f8846fb1ff2ca1f775fc50f46f6bfdf13e281e64eccb53c9dbf1",
+  "tools/research_astro/server.mjs": "19c4c21b654f2c9b9528303684094ab9b11bc0e16eca6c48e45eee4b3f64fc89",
+  "tools/research_astro/browser.mjs": "13eaa9147e83cadbe2752e2b804681ca6255913410465ecf0a7de355afab26c2",
+  "tools/research_astro/merge.mjs": "b8796e3f93dae90ff617684d13c789690ba68471df47b0dd3e213e0d110f1b82",
+  "tools/research_astro/chain.mjs": "525d292adea91df77e08a0ae5bc41e66918aa23d384dae0ecc7a7c7b644c5a23"
+}

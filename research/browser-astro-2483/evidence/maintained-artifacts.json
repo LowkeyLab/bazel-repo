@@ -1,0 +1,77 @@
+[
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "4",
+    "textFile": "maintained-script-0.js",
+    "sha256": "d8ef0458419e2183fd874bd131ef845d525494245ce41da147b7f8e3865774ee",
+    "hasMap": false
+  },
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "5",
+    "textFile": "maintained-script-1.js",
+    "sha256": "ca58d28db0eb9fda0d3ac19f20f34db17b93acc93d559fbf07caa378147ee277",
+    "hasMap": false
+  },
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "6",
+    "textFile": "maintained-script-2.js",
+    "sha256": "77f905db89f78f4aae023c25b2e156a326f60d10d41eeca6581e202521681ca5",
+    "hasMap": false
+  },
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "7",
+    "textFile": "maintained-script-3.js",
+    "sha256": "77f905db89f78f4aae023c25b2e156a326f60d10d41eeca6581e202521681ca5",
+    "hasMap": false
+  },
+  {
+    "url": "http://127.0.0.1:35081/maintained/",
+    "scriptId": "8",
+    "textFile": "maintained-script-4.js",
+    "sha256": "77f905db89f78f4aae023c25b2e156a326f60d10d41eeca6581e202521681ca5",
+    "hasMap": false
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/ClientRouter.astro_astro_type_script_index_0_lang.BDCjmQ8c.js",
+    "scriptId": "9",
+    "textFile": "maintained-script-5.js",
+    "sha256": "ca4a4f503f0dbc3e904781b0e5d543fca4fe46b1f8c81947572ade255d729a07",
+    "hasMap": false,
+    "artifactMatchesCdpText": true
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/DevHero.astro_astro_type_script_index_0_lang.Bo7arm9j.js",
+    "scriptId": "10",
+    "textFile": "maintained-script-6.js",
+    "sha256": "cca25643eba546c600db103aa1f1d50b223a38c61cf239abdf73eedeec52f9f4",
+    "hasMap": false,
+    "artifactMatchesCdpText": true
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/FeaturedWork.astro_astro_type_script_index_0_lang.CmPYOoER.js",
+    "scriptId": "11",
+    "textFile": "maintained-script-7.js",
+    "sha256": "3a438c548937f627d94997d145523f5d256d9469e974ab4e106efec0cfff2baa",
+    "hasMap": false,
+    "artifactMatchesCdpText": true
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/RecentWriting.astro_astro_type_script_index_0_lang.DQ8sLdyn.js",
+    "scriptId": "12",
+    "textFile": "maintained-script-8.js",
+    "sha256": "adbf02552fe2f958fbff2c0e11d21c49e1d1f0868e219abc61abe64590aa2728",
+    "hasMap": false,
+    "artifactMatchesCdpText": true
+  },
+  {
+    "url": "http://127.0.0.1:35081/_astro/section-animation.Lbmp0GuM.js",
+    "scriptId": "13",
+    "textFile": "maintained-script-9.js",
+    "sha256": "aa4da1a97453ea0f0ab05e6381e4214cb75046f4e228bcd9ebcbb942897635c6",
+    "hasMap": false,
+    "artifactMatchesCdpText": true
+  }
+]

@@ -1,0 +1,176 @@
+{
+  "result": [
+    {
+      "scriptId": "4",
+      "url": "http://127.0.0.1:35081/",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 241,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "e",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 50,
+              "count": 1
+            },
+            {
+              "startOffset": 36,
+              "endOffset": 49,
+              "count": 0
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 109,
+              "endOffset": 160,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ],
+      "parsed": {
+        "scriptId": "4",
+        "url": "http://127.0.0.1:35081/",
+        "startLine": 0,
+        "startColumn": 238,
+        "endLine": 1,
+        "endColumn": 78,
+        "executionContextId": 3,
+        "hash": "1d7c891dbb2efa1beba2aa70720d7bad90555ad547afbda2339cceb31f178092",
+        "buildId": "",
+        "executionContextAuxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "60D1FE97F723E5CF32967A643A3DA3F1"
+        },
+        "isLiveEdit": false,
+        "sourceMapURL": "Main.astro_astro_type_script_index_0_lang.Bb-C5Svw.js.map",
+        "hasSourceURL": false,
+        "isModule": true,
+        "length": 241,
+        "scriptLanguage": "JavaScript",
+        "embedderName": "http://127.0.0.1:35081/"
+      },
+      "textFile": "astro-script-0.js"
+    },
+    {
+      "scriptId": "5",
+      "url": "http://127.0.0.1:35081/",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 60,
+              "count": 1
+            },
+            {
+              "startOffset": 45,
+              "endOffset": 58,
+              "count": 0
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ],
+      "parsed": {
+        "scriptId": "5",
+        "url": "http://127.0.0.1:35081/",
+        "startLine": 1,
+        "startColumn": 95,
+        "endLine": 3,
+        "endColumn": 0,
+        "executionContextId": 3,
+        "hash": "b8ff6bdd427cdb6f107a77501be9ad21dccd7c91e006db771769df85a9716d57",
+        "buildId": "",
+        "executionContextAuxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "60D1FE97F723E5CF32967A643A3DA3F1"
+        },
+        "isLiveEdit": false,
+        "sourceMapURL": "",
+        "hasSourceURL": false,
+        "isModule": false,
+        "length": 60,
+        "scriptLanguage": "JavaScript",
+        "embedderName": "http://127.0.0.1:35081/"
+      },
+      "textFile": "astro-script-1.js"
+    },
+    {
+      "scriptId": "101",
+      "url": "research-evaluated.js",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 106,
+              "count": 1
+            },
+            {
+              "startOffset": 52,
+              "endOffset": 68,
+              "count": 0
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ],
+      "parsed": {
+        "scriptId": "101",
+        "url": "research-evaluated.js",
+        "startLine": 0,
+        "startColumn": 0,
+        "endLine": 2,
+        "endColumn": 35,
+        "executionContextId": 3,
+        "hash": "8c7440ed531433ae1ccfaa57bfb9c83dd4e2163437cd7cc9853bf895a0502c41",
+        "buildId": "",
+        "executionContextAuxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "60D1FE97F723E5CF32967A643A3DA3F1"
+        },
+        "isLiveEdit": false,
+        "sourceMapURL": "",
+        "hasSourceURL": true,
+        "isModule": false,
+        "length": 106,
+        "stackTrace": {
+          "callFrames": [
+            {
+              "functionName": "evaluate",
+              "scriptId": "80",
+              "url": "",
+              "lineNumber": 369,
+              "columnNumber": 29
+            }
+          ]
+        },
+        "scriptLanguage": "JavaScript",
+        "embedderName": ""
+      },
+      "textFile": "astro-script-2.js"
+    }
+  ],
+  "timestamp": 90637.44955
+}

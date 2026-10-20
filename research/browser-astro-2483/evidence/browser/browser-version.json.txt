@@ -1,0 +1,5 @@
+{
+  "version": "156.0.8078.4",
+  "runtime": "v24.15.0",
+  "scope": "top-level page only"
+}

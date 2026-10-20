@@ -1,0 +1,16 @@
+{
+  "server-run": 0,
+  "maintained-build": 0,
+  "fixture-build": 0,
+  "browser-checked": 0,
+  "merge-checked": 0,
+  "chain-checked": 0,
+  "gazelle-final": 0,
+  "format-final": 0,
+  "lint": 0,
+  "missing-profile": 1,
+  "corrupt-profile": 1,
+  "missing-completion": 1,
+  "missing-script": 1,
+  "missing-map": 1
+}

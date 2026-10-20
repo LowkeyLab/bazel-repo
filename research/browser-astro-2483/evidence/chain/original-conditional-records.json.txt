@@ -1,0 +1,44 @@
+{
+  "tools/research_astro/fixtures/Main.astro": [
+    {
+      "line": 9,
+      "block": 209,
+      "originalEnd": 258,
+      "counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "line": 19,
+      "block": 599,
+      "originalEnd": 632,
+      "counts": [
+        1,
+        0
+      ]
+    }
+  ],
+  "tools/research_astro/fixtures/Disconnected.astro": [
+    {
+      "line": 5,
+      "block": 109,
+      "originalEnd": 131,
+      "counts": [
+        0,
+        0
+      ]
+    }
+  ],
+  "tools/research_astro/fixtures/TestOnly.astro": [
+    {
+      "line": 4,
+      "block": 53,
+      "originalEnd": 85,
+      "counts": [
+        1,
+        0
+      ]
+    }
+  ]
+}

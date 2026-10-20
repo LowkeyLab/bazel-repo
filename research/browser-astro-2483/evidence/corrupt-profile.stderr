@@ -1,0 +1,38 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31' is dirty
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_astro:chain (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/research_astro:chain (1 packages loaded, 0 targets configured).
+INFO: Found 1 target...
+[124 / 324] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //tools/research_astro:chain up-to-date:
+  bazel-bin/tools/research_astro/chain_/chain
+INFO: Elapsed time: 1.714s, Critical Path: 0.01s
+INFO: 1 process: 1 internal.
+INFO: Build completed successfully, 1 total action
+INFO: Running command line: bazel-bin/tools/research_astro/chain_/chain <args omitted>
+<anonymous_script>:1
+invalid-json
+^
+
+SyntaxError: Unexpected token 'i', "invalid-json" is not valid JSON
+    at JSON.parse (<anonymous>)
+    at read (file:///home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/chain_/chain.runfiles/_main/tools/research_astro/chain.mjs:10:29)
+    at file:///home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/chain_/chain.runfiles/_main/tools/research_astro/chain.mjs:189:18
+
+Node.js v24.15.0

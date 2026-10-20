@@ -1,0 +1,400 @@
+{
+  "tools/research_astro/fixtures/Main.astro": {
+    "path": "tools/research_astro/fixtures/Main.astro",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 3,
+          "column": 0
+        },
+        "end": {
+          "line": 3,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 4,
+          "column": 0
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      },
+      "2": {
+        "start": {
+          "line": 5,
+          "column": 0
+        },
+        "end": {
+          "line": 5,
+          "column": null
+        }
+      },
+      "3": {
+        "start": {
+          "line": 7,
+          "column": 0
+        },
+        "end": {
+          "line": 20,
+          "column": null
+        }
+      },
+      "4": {
+        "start": {
+          "line": 10,
+          "column": 15
+        },
+        "end": {
+          "line": 10,
+          "column": 42
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": {
+          "start": {
+            "line": 10,
+            "column": 5
+          },
+          "end": {
+            "line": 10,
+            "column": 15
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 10,
+            "column": 15
+          },
+          "end": {
+            "line": 10,
+            "column": 42
+          }
+        },
+        "line": 10
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 3,
+            "column": 0
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "type": "default-arg",
+        "locations": [
+          {
+            "start": {
+              "line": 3,
+              "column": 0
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          }
+        ],
+        "line": 3
+      },
+      "1": {
+        "loc": {
+          "start": {
+            "line": 9,
+            "column": 1
+          },
+          "end": {
+            "line": 9,
+            "column": 51
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 9,
+              "column": 1
+            },
+            "end": {
+              "line": 9,
+              "column": 33
+            }
+          },
+          {
+            "start": {
+              "line": 9,
+              "column": 26
+            },
+            "end": {
+              "line": 9,
+              "column": 51
+            }
+          }
+        ],
+        "line": 9
+      }
+    },
+    "s": {
+      "0": 2,
+      "1": 2,
+      "2": 2,
+      "3": 2,
+      "4": 4
+    },
+    "f": {
+      "0": 4
+    },
+    "b": {
+      "0": [
+        2
+      ],
+      "1": [
+        1,
+        1
+      ]
+    },
+    "meta": {
+      "lastBranch": 2,
+      "lastFunction": 1,
+      "lastStatement": 5,
+      "seen": {
+        "s:3:0:3:Infinity": 0,
+        "b:3:0:3:Infinity": 0,
+        "s:4:0:4:Infinity": 1,
+        "s:5:0:5:Infinity": 2,
+        "s:7:0:20:Infinity": 3,
+        "b:9:1:9:33:9:26:9:51": 1,
+        "f:10:5:10:15": 0,
+        "s:10:15:10:42": 4
+      },
+      "fnNames": {}
+    }
+  },
+  "tools/research_astro/fixtures/TestOnly.astro": {
+    "path": "tools/research_astro/fixtures/TestOnly.astro",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 0
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      },
+      "1": {
+        "start": {
+          "line": 4,
+          "column": 0
+        },
+        "end": {
+          "line": 4,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {},
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 0
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "type": "default-arg",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 0
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          }
+        ],
+        "line": 2
+      },
+      "1": {
+        "loc": {
+          "start": {
+            "line": 4,
+            "column": 4
+          },
+          "end": {
+            "line": 4,
+            "column": 37
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 4,
+              "column": 14
+            },
+            "end": {
+              "line": 4,
+              "column": 27
+            }
+          },
+          {
+            "start": {
+              "line": 4,
+              "column": 27
+            },
+            "end": {
+              "line": 4,
+              "column": 37
+            }
+          }
+        ],
+        "line": 4
+      }
+    },
+    "s": {
+      "0": 1,
+      "1": 1
+    },
+    "f": {},
+    "b": {
+      "0": [
+        1
+      ],
+      "1": [
+        1,
+        0
+      ]
+    },
+    "meta": {
+      "lastBranch": 2,
+      "lastFunction": 0,
+      "lastStatement": 2,
+      "seen": {
+        "s:2:0:2:Infinity": 0,
+        "b:2:0:2:Infinity": 0,
+        "s:4:0:4:Infinity": 1,
+        "b:4:14:4:27:4:27:4:37": 1
+      },
+      "fnNames": {}
+    }
+  },
+  "tools/research_astro/fixtures/node-helper.js": {
+    "path": "tools/research_astro/fixtures/node-helper.js",
+    "statementMap": {
+      "0": {
+        "start": {
+          "line": 2,
+          "column": 2
+        },
+        "end": {
+          "line": 2,
+          "column": null
+        }
+      }
+    },
+    "fnMap": {
+      "0": {
+        "name": "nodeLabel",
+        "decl": {
+          "start": {
+            "line": 1,
+            "column": 16
+          },
+          "end": {
+            "line": 1,
+            "column": 25
+          }
+        },
+        "loc": {
+          "start": {
+            "line": 1,
+            "column": 35
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "line": 1
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": {
+          "start": {
+            "line": 2,
+            "column": 9
+          },
+          "end": {
+            "line": 2,
+            "column": 45
+          }
+        },
+        "type": "cond-expr",
+        "locations": [
+          {
+            "start": {
+              "line": 2,
+              "column": 19
+            },
+            "end": {
+              "line": 2,
+              "column": 31
+            }
+          },
+          {
+            "start": {
+              "line": 2,
+              "column": 34
+            },
+            "end": {
+              "line": 2,
+              "column": 45
+            }
+          }
+        ],
+        "line": 2
+      }
+    },
+    "s": {
+      "0": 2
+    },
+    "f": {
+      "0": 2
+    },
+    "b": {
+      "0": [
+        1,
+        1
+      ]
+    },
+    "meta": {
+      "lastBranch": 1,
+      "lastFunction": 1,
+      "lastStatement": 1,
+      "seen": {
+        "f:1:16:1:25": 0,
+        "s:2:2:2:Infinity": 0,
+        "b:2:19:2:31:2:34:2:45": 0
+      },
+      "fnNames": {}
+    }
+  }
+}

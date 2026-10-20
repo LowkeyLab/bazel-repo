@@ -1,0 +1,8 @@
+import { render as $$render, createComponent as $$createComponent, maybeRenderHead as $$maybeRenderHead, renderScript as $$renderScript } from "astro/compiler-runtime";
+const $$Disconnected = $$createComponent(($$result, $$props, $$slots) => {
+	throw new Error("Baseline compilation must not execute this component.");
+	const enabled = false;
+	return $$render`${$$maybeRenderHead($$result)}<p>${enabled ? "yes" : "no"}</p>
+${$$renderScript($$result, "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/Disconnected.astro?astro&type=script&index=0&lang.ts")}`;
+}, "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/Disconnected.astro", undefined);
+export default $$Disconnected;

@@ -1,0 +1,254 @@
+{
+  "ast": {
+    "type": "AstroRoot",
+    "frontmatter": {
+      "type": "AstroFrontmatter",
+      "program": {
+        "type": "Program",
+        "body": [
+          {
+            "type": "ThrowStatement",
+            "argument": {
+              "type": "NewExpression",
+              "callee": {
+                "type": "Identifier",
+                "decorators": [],
+                "name": "Error",
+                "optional": false,
+                "typeAnnotation": null,
+                "start": 14,
+                "end": 19
+              },
+              "typeArguments": null,
+              "arguments": [
+                {
+                  "type": "Literal",
+                  "value": "Baseline compilation must not execute this component.",
+                  "raw": "\"Baseline compilation must not execute this component.\"",
+                  "start": 20,
+                  "end": 75
+                }
+              ],
+              "start": 10,
+              "end": 76
+            },
+            "start": 4,
+            "end": 77
+          },
+          {
+            "type": "VariableDeclaration",
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "id": {
+                  "type": "Identifier",
+                  "decorators": [],
+                  "name": "enabled",
+                  "optional": false,
+                  "typeAnnotation": null,
+                  "start": 84,
+                  "end": 91
+                },
+                "init": {
+                  "type": "Literal",
+                  "value": false,
+                  "raw": "false",
+                  "start": 94,
+                  "end": 99
+                },
+                "definite": false,
+                "start": 84,
+                "end": 99
+              }
+            ],
+            "declare": false,
+            "start": 78,
+            "end": 100
+          }
+        ],
+        "sourceType": "module",
+        "hashbang": null,
+        "start": 4,
+        "end": 101
+      },
+      "start": 0,
+      "end": 104
+    },
+    "body": [
+      {
+        "type": "JSXElement",
+        "openingElement": {
+          "type": "JSXOpeningElement",
+          "name": {
+            "type": "JSXIdentifier",
+            "name": "p",
+            "start": 106,
+            "end": 107
+          },
+          "typeArguments": null,
+          "attributes": [],
+          "selfClosing": false,
+          "start": 105,
+          "end": 108
+        },
+        "children": [
+          {
+            "type": "JSXExpressionContainer",
+            "expression": {
+              "type": "ConditionalExpression",
+              "test": {
+                "type": "Identifier",
+                "decorators": [],
+                "name": "enabled",
+                "optional": false,
+                "typeAnnotation": null,
+                "start": 109,
+                "end": 116
+              },
+              "consequent": {
+                "type": "Literal",
+                "value": "yes",
+                "raw": "\"yes\"",
+                "start": 119,
+                "end": 124
+              },
+              "alternate": {
+                "type": "Literal",
+                "value": "no",
+                "raw": "\"no\"",
+                "start": 127,
+                "end": 131
+              },
+              "start": 109,
+              "end": 131
+            },
+            "start": 108,
+            "end": 132
+          }
+        ],
+        "closingElement": {
+          "type": "JSXClosingElement",
+          "name": {
+            "type": "JSXIdentifier",
+            "name": "p",
+            "start": 134,
+            "end": 135
+          },
+          "start": 132,
+          "end": 136
+        },
+        "start": 105,
+        "end": 136
+      },
+      {
+        "type": "JSXText",
+        "value": "\n",
+        "raw": "\n",
+        "start": 136,
+        "end": 137
+      },
+      {
+        "type": "JSXElement",
+        "openingElement": {
+          "type": "JSXOpeningElement",
+          "name": {
+            "type": "JSXIdentifier",
+            "name": "script",
+            "start": 138,
+            "end": 144
+          },
+          "typeArguments": null,
+          "attributes": [],
+          "selfClosing": false,
+          "start": 137,
+          "end": 145
+        },
+        "children": [
+          {
+            "type": "AstroScript",
+            "program": {
+              "type": "Program",
+              "body": [
+                {
+                  "type": "ExpressionStatement",
+                  "expression": {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "MemberExpression",
+                      "object": {
+                        "type": "Identifier",
+                        "decorators": [],
+                        "name": "window",
+                        "optional": false,
+                        "typeAnnotation": null,
+                        "start": 145,
+                        "end": 151
+                      },
+                      "property": {
+                        "type": "Identifier",
+                        "decorators": [],
+                        "name": "disconnected",
+                        "optional": false,
+                        "typeAnnotation": null,
+                        "start": 152,
+                        "end": 164
+                      },
+                      "optional": false,
+                      "computed": false,
+                      "start": 145,
+                      "end": 164
+                    },
+                    "right": {
+                      "type": "Literal",
+                      "value": true,
+                      "raw": "true",
+                      "start": 167,
+                      "end": 171
+                    },
+                    "start": 145,
+                    "end": 171
+                  },
+                  "directive": null,
+                  "start": 145,
+                  "end": 172
+                }
+              ],
+              "sourceType": "module",
+              "hashbang": null,
+              "start": 145,
+              "end": 172
+            },
+            "start": 137,
+            "end": 181
+          }
+        ],
+        "closingElement": {
+          "type": "JSXClosingElement",
+          "name": {
+            "type": "JSXIdentifier",
+            "name": "script",
+            "start": 174,
+            "end": 180
+          },
+          "start": 172,
+          "end": 181
+        },
+        "start": 137,
+        "end": 181
+      },
+      {
+        "type": "JSXText",
+        "value": "\n",
+        "raw": "\n",
+        "start": 181,
+        "end": 182
+      }
+    ],
+    "comments": [],
+    "start": 0,
+    "end": 182
+  },
+  "diagnostics": []
+}

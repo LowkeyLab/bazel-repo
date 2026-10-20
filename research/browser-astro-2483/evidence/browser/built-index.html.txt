@@ -1,0 +1,4 @@
+<!DOCTYPE html><html><head><title>Astro coverage fixture</title></head><body><!-- This comment is not executable. --><h1>server-yes</h1><p id="yes">yes</p><ul><li>1</li><li>2</li></ul><button id="action">run</button><script type="module">function e(e){return e?`browser-yes`:`browser-no`}document.querySelector(`#action`).addEventListener(`click`,()=>{document.documentElement.dataset.result=e(!0)});
+//# sourceMappingURL=Main.astro_astro_type_script_index_0_lang.Bb-C5Svw.js.map</script><script>
+  window.inlineResult = true ? "inline-yes" : "inline-no";
+</script></body></html>

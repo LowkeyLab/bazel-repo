@@ -1,0 +1,10 @@
+import { render as $$render, createAstro as $$createAstro, createComponent as $$createComponent, maybeRenderHead as $$maybeRenderHead } from "astro/compiler-runtime";
+const $$Astro = $$createAstro("https://astro.build");
+const Astro = $$Astro;
+const $$TestOnly = $$createComponent(($$result, $$props, $$slots) => {
+	const Astro = $$result.createAstro($$props, $$slots);
+	Astro.self = $$TestOnly;
+	const { enabled = false } = Astro.props;
+	return $$render`${$$maybeRenderHead($$result)}<p>${enabled ? "test-yes" : "test-no"}</p>`;
+}, "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/TestOnly.astro", undefined);
+export default $$TestOnly;

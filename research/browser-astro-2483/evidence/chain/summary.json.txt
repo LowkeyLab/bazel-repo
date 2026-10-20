@@ -1,0 +1,86 @@
+{
+  "oracleMatchesAst": true,
+  "processedOriginalHits": {
+    "14": 1,
+    "15": 1
+  },
+  "templateHits": {
+    "Main": {
+      "8": 2,
+      "9": 2,
+      "10": 4
+    },
+    "TestOnly": {
+      "4": 1
+    }
+  },
+  "mergeOrdersEqual": true,
+  "commentExcluded": true,
+  "staticHtmlExcluded": true,
+  "conditionalBranches": {
+    "tools/research_astro/fixtures/Main.astro": [
+      {
+        "line": 9,
+        "block": 209,
+        "originalEnd": 258,
+        "counts": [
+          1,
+          1
+        ]
+      },
+      {
+        "line": 19,
+        "block": 599,
+        "originalEnd": 632,
+        "counts": [
+          1,
+          0
+        ]
+      }
+    ],
+    "tools/research_astro/fixtures/Disconnected.astro": [
+      {
+        "line": 5,
+        "block": 109,
+        "originalEnd": 131,
+        "counts": [
+          0,
+          0
+        ]
+      }
+    ],
+    "tools/research_astro/fixtures/TestOnly.astro": [
+      {
+        "line": 4,
+        "block": 53,
+        "originalEnd": 85,
+        "counts": [
+          1,
+          0
+        ]
+      }
+    ]
+  },
+  "defaultArgumentGap": [
+    {
+      "file": "tools/research_astro/fixtures/Main.astro",
+      "line": 3,
+      "converterCounts": [
+        2
+      ],
+      "independentExpectedFallbackCount": 0
+    },
+    {
+      "file": "tools/research_astro/fixtures/TestOnly.astro",
+      "line": 2,
+      "converterCounts": [
+        1
+      ],
+      "independentExpectedFallbackCount": 0
+    }
+  ],
+  "missingMeasuredTemplateLines": [],
+  "typedBridgeRejected": false,
+  "semanticMismatchRejected": true,
+  "completeOriginalCoverage": false
+}

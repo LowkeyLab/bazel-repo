@@ -1,0 +1,41 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31' is dirty
+→ 🎬 Running build task
+
+→ 🔧 Setup · Running setup
+
+→ 🔨 Build · Spawning bazel build
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //personal_website:build (1 packages loaded, 0 targets configured)
+Analyzing: target //personal_website:build (2 packages loaded, 0 targets configured)
+INFO: Analyzed target //personal_website:build (30 packages loaded, 672 targets configured).
+INFO: Found 1 target...
+[0 / 68] [Prepa] BazelWorkspaceStatusAction stable-status.txt ... (4 actions, 0 running)
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[1,004 / 1,046] Extracting npm package sass@1.104.1 [for tool]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,135 / 1,143] Transpiling & type-checking TypeScript project @@//personal_website/src/utils:utils [tsc -p personal_website/src/utils/tsconfig_utils.json]; 1s linux-sandbox ... (4 actions, 3 running)
+[1,170 / 1,176] Transpiling & type-checking TypeScript project @@//personal_website/src/components:components [tsc -p personal_website/src/components/tsconfig_components.json]; 0s linux-sandbox ... (4 actions, 3 running)
+[1,202 / 1,203] AstroBuild personal_website/dist; 1s linux-sandbox
+Target //personal_website:build up-to-date:
+  bazel-bin/personal_website/dist
+INFO: Elapsed time: 8.938s, Critical Path: 4.52s
+INFO: 647 processes: 6 action cache hit, 353 internal, 292 linux-sandbox, 2 local.
+INFO: Build completed successfully, 647 total actions
+
+INFO: Build Event Protocol files produced successfully.
+
+→ ✅ Passed build task in 9.0s · Successful build
+    🔧 Setup   0ms  Prepare the task environment
+    🔨 Build  9.0s  Build bazel targets

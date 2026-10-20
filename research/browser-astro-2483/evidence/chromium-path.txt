@@ -1,0 +1,1 @@
+external/+http_archive+research_astro_chromium/chrome-headless-shell

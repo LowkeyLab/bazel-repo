@@ -1,0 +1,44 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31' is dirty
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/research_astro:merge (0 packages loaded, 0 targets configured)
+Analyzing: target //tools/research_astro:merge (1 packages loaded, 1 target configured)
+INFO: Analyzed target //tools/research_astro:merge (2 packages loaded, 465 targets configured).
+INFO: Found 1 target...
+[0 / 6] [Prepa] Expanding template tools/research_astro/merge_/merge
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //tools/research_astro:merge up-to-date:
+  bazel-bin/tools/research_astro/merge_/merge
+INFO: Elapsed time: 2.773s, Critical Path: 0.02s
+INFO: 7 processes: 815 action cache hit, 5 internal, 2 linux-sandbox.
+INFO: Build completed successfully, 7 total actions
+INFO: Running command line: bazel-bin/tools/research_astro/merge_/merge <args omitted>
+node:fs:441
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/research/browser-astro-2483/evidence/browser/astro-functional.json'
+    at readFileSync (node:fs:441:20)
+    at read (file:///home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/merge_/merge.runfiles/_main/tools/research_astro/merge.mjs:23:35)
+    at file:///home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/merge_/merge.runfiles/_main/tools/research_astro/merge.mjs:109:5 {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/research/browser-astro-2483/evidence/browser/astro-functional.json'
+}
+
+Node.js v24.15.0

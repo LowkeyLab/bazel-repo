@@ -1,0 +1,20 @@
+---
+import { nodeLabel } from "./node-helper.js";
+const { enabled = true } = Astro.props;
+const title = nodeLabel(enabled);
+const items = [1, 2];
+---
+<!-- This comment is not executable. -->
+<h1>{title}</h1>
+{enabled ? <p id="yes">yes</p> : <p id="no">no</p>}
+<ul>{items.map((item) => <li>{item}</li>)}</ul>
+<button id="action">run</button>
+<script>
+  import { browserLabel } from "./browser-helper.js";
+  document.querySelector<HTMLButtonElement>("#action").addEventListener("click", () => {
+    document.documentElement.dataset.result = browserLabel(true);
+  });
+</script>
+<script is:inline>
+  window.inlineResult = true ? "inline-yes" : "inline-no";
+</script>

@@ -1,0 +1,18 @@
+[
+  {
+    "file": "tools/research_astro/fixtures/Main.astro",
+    "line": 3,
+    "converterCounts": [
+      2
+    ],
+    "independentExpectedFallbackCount": 0
+  },
+  {
+    "file": "tools/research_astro/fixtures/TestOnly.astro",
+    "line": 2,
+    "converterCounts": [
+      1
+    ],
+    "independentExpectedFallbackCount": 0
+  }
+]

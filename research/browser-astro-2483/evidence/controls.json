@@ -1,0 +1,22 @@
+{
+  "missing-profile": {
+    "exit": 1,
+    "functionalReceiptPreserved": true
+  },
+  "corrupt-profile": {
+    "exit": 1,
+    "functionalReceiptPreserved": true
+  },
+  "missing-completion": {
+    "exit": 1,
+    "functionalReceiptPreserved": true
+  },
+  "missing-script": {
+    "exit": 1,
+    "functionalReceiptPreserved": true
+  },
+  "missing-map": {
+    "exit": 1,
+    "functionalReceiptPreserved": true
+  }
+}

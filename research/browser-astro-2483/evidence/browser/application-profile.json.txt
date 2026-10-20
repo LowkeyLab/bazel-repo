@@ -1,0 +1,83 @@
+{
+  "result": [
+    {
+      "scriptId": "4",
+      "url": "http://127.0.0.1:35081/application/submitting.js",
+      "functions": [
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 0,
+              "endOffset": 1125,
+              "count": 1
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 181,
+              "endOffset": 937,
+              "count": 1
+            },
+            {
+              "startOffset": 326,
+              "endOffset": 333,
+              "count": 0
+            },
+            {
+              "startOffset": 365,
+              "endOffset": 410,
+              "count": 0
+            }
+          ],
+          "isBlockCoverage": true
+        },
+        {
+          "functionName": "",
+          "ranges": [
+            {
+              "startOffset": 1059,
+              "endOffset": 1122,
+              "count": 1
+            },
+            {
+              "startOffset": 1095,
+              "endOffset": 1120,
+              "count": 0
+            }
+          ],
+          "isBlockCoverage": true
+        }
+      ],
+      "parsed": {
+        "scriptId": "4",
+        "url": "http://127.0.0.1:35081/application/submitting.js",
+        "startLine": 0,
+        "startColumn": 0,
+        "endLine": 32,
+        "endColumn": 0,
+        "executionContextId": 3,
+        "hash": "5a918a356bdf7af328b1d802ef8df521a937e8a64b05cb49881c40d29853f4df",
+        "buildId": "",
+        "executionContextAuxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "F49D843C704B44906C7629AE81E196EF"
+        },
+        "isLiveEdit": false,
+        "sourceMapURL": "",
+        "hasSourceURL": false,
+        "isModule": false,
+        "length": 1125,
+        "scriptLanguage": "JavaScript",
+        "embedderName": "http://127.0.0.1:35081/application/submitting.js"
+      },
+      "textFile": "application-script-0.js"
+    }
+  ],
+  "timestamp": 90637.747127
+}

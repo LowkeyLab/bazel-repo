@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Main",
+    "start": {
+      "line": 8,
+      "column": 4
+    },
+    "end": {
+      "line": 8,
+      "column": 11
+    },
+    "generated": {
+      "start": 659,
+      "end": 664,
+      "type": "Identifier"
+    },
+    "selectedRange": {
+      "startOffset": 355,
+      "endOffset": 1195,
+      "count": 2
+    },
+    "line": 8,
+    "count": 2,
+    "status": "unique"
+  },
+  {
+    "name": "Main",
+    "start": {
+      "line": 9,
+      "column": 0
+    },
+    "end": {
+      "line": 9,
+      "column": 51
+    },
+    "generated": {
+      "start": 673,
+      "end": 742,
+      "type": "ConditionalExpression"
+    },
+    "selectedRange": {
+      "startOffset": 355,
+      "endOffset": 1195,
+      "count": 2
+    },
+    "line": 9,
+    "count": 2,
+    "status": "unique"
+  },
+  {
+    "name": "Main",
+    "start": {
+      "line": 10,
+      "column": 4
+    },
+    "end": {
+      "line": 10,
+      "column": 42
+    },
+    "generated": {
+      "start": 750,
+      "end": 797,
+      "type": "CallExpression"
+    },
+    "selectedRange": {
+      "startOffset": 355,
+      "endOffset": 1195,
+      "count": 2
+    },
+    "line": 10,
+    "count": 2,
+    "status": "unique"
+  },
+  {
+    "name": "Main",
+    "start": {
+      "line": 10,
+      "column": 29
+    },
+    "end": {
+      "line": 10,
+      "column": 35
+    },
+    "generated": {
+      "start": 785,
+      "end": 789,
+      "type": "Identifier"
+    },
+    "selectedRange": {
+      "startOffset": 760,
+      "endOffset": 796,
+      "count": 4
+    },
+    "line": 10,
+    "count": 4,
+    "status": "unique"
+  },
+  {
+    "name": "TestOnly",
+    "start": {
+      "line": 4,
+      "column": 3
+    },
+    "end": {
+      "line": 4,
+      "column": 37
+    },
+    "generated": {
+      "start": 490,
+      "end": 522,
+      "type": "ConditionalExpression"
+    },
+    "selectedRange": {
+      "startOffset": 281,
+      "endOffset": 531,
+      "count": 1
+    },
+    "line": 4,
+    "count": 1,
+    "status": "unique"
+  }
+]

@@ -1,0 +1,302 @@
+{
+  "Main": {
+    "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/Main.astro": {
+      "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/Main.astro",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 3,
+            "column": 0
+          },
+          "end": {
+            "line": 3,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 4,
+            "column": 0
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        },
+        "2": {
+          "start": {
+            "line": 5,
+            "column": 0
+          },
+          "end": {
+            "line": 5,
+            "column": null
+          }
+        },
+        "3": {
+          "start": {
+            "line": 7,
+            "column": 0
+          },
+          "end": {
+            "line": 20,
+            "column": null
+          }
+        },
+        "4": {
+          "start": {
+            "line": 10,
+            "column": 15
+          },
+          "end": {
+            "line": 10,
+            "column": 42
+          }
+        }
+      },
+      "fnMap": {
+        "0": {
+          "name": "(anonymous_0)",
+          "decl": {
+            "start": {
+              "line": 10,
+              "column": 5
+            },
+            "end": {
+              "line": 10,
+              "column": 15
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 10,
+              "column": 15
+            },
+            "end": {
+              "line": 10,
+              "column": 42
+            }
+          },
+          "line": 10
+        }
+      },
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 3,
+              "column": 0
+            },
+            "end": {
+              "line": 3,
+              "column": null
+            }
+          },
+          "type": "default-arg",
+          "locations": [
+            {
+              "start": {
+                "line": 3,
+                "column": 0
+              },
+              "end": {
+                "line": 3,
+                "column": null
+              }
+            }
+          ],
+          "line": 3
+        },
+        "1": {
+          "loc": {
+            "start": {
+              "line": 9,
+              "column": 1
+            },
+            "end": {
+              "line": 9,
+              "column": 51
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 9,
+                "column": 1
+              },
+              "end": {
+                "line": 9,
+                "column": 33
+              }
+            },
+            {
+              "start": {
+                "line": 9,
+                "column": 26
+              },
+              "end": {
+                "line": 9,
+                "column": 51
+              }
+            }
+          ],
+          "line": 9
+        }
+      },
+      "s": {
+        "0": 2,
+        "1": 2,
+        "2": 2,
+        "3": 2,
+        "4": 4
+      },
+      "f": {
+        "0": 4
+      },
+      "b": {
+        "0": [
+          2
+        ],
+        "1": [
+          1,
+          1
+        ]
+      },
+      "meta": {
+        "lastBranch": 2,
+        "lastFunction": 1,
+        "lastStatement": 5,
+        "seen": {
+          "s:3:0:3:Infinity": 0,
+          "b:3:0:3:Infinity": 0,
+          "s:4:0:4:Infinity": 1,
+          "s:5:0:5:Infinity": 2,
+          "s:7:0:20:Infinity": 3,
+          "b:9:1:9:33:9:26:9:51": 1,
+          "f:10:5:10:15": 0,
+          "s:10:15:10:42": 4
+        },
+        "fnNames": {}
+      }
+    }
+  },
+  "TestOnly": {
+    "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/TestOnly.astro": {
+      "path": "/home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_astro/server_/server.runfiles/_main/tools/research_astro/fixtures/TestOnly.astro",
+      "statementMap": {
+        "0": {
+          "start": {
+            "line": 2,
+            "column": 0
+          },
+          "end": {
+            "line": 2,
+            "column": null
+          }
+        },
+        "1": {
+          "start": {
+            "line": 4,
+            "column": 0
+          },
+          "end": {
+            "line": 4,
+            "column": null
+          }
+        }
+      },
+      "fnMap": {},
+      "branchMap": {
+        "0": {
+          "loc": {
+            "start": {
+              "line": 2,
+              "column": 0
+            },
+            "end": {
+              "line": 2,
+              "column": null
+            }
+          },
+          "type": "default-arg",
+          "locations": [
+            {
+              "start": {
+                "line": 2,
+                "column": 0
+              },
+              "end": {
+                "line": 2,
+                "column": null
+              }
+            }
+          ],
+          "line": 2
+        },
+        "1": {
+          "loc": {
+            "start": {
+              "line": 4,
+              "column": 4
+            },
+            "end": {
+              "line": 4,
+              "column": 37
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 4,
+                "column": 14
+              },
+              "end": {
+                "line": 4,
+                "column": 27
+              }
+            },
+            {
+              "start": {
+                "line": 4,
+                "column": 27
+              },
+              "end": {
+                "line": 4,
+                "column": 37
+              }
+            }
+          ],
+          "line": 4
+        }
+      },
+      "s": {
+        "0": 1,
+        "1": 1
+      },
+      "f": {},
+      "b": {
+        "0": [
+          1
+        ],
+        "1": [
+          1,
+          0
+        ]
+      },
+      "meta": {
+        "lastBranch": 2,
+        "lastFunction": 0,
+        "lastStatement": 2,
+        "seen": {
+          "s:2:0:2:Infinity": 0,
+          "b:2:0:2:Infinity": 0,
+          "s:4:0:4:Infinity": 1,
+          "b:4:14:4:27:4:27:4:37": 1
+        },
+        "fnNames": {}
+      }
+    }
+  }
+}

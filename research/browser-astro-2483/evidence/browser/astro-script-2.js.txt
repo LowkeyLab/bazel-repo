@@ -1,0 +1,3 @@
+globalThis.evaluatedResult = true ? "evaluated-yes" : "evaluated-no";
+
+//# sourceURL=research-evaluated.js

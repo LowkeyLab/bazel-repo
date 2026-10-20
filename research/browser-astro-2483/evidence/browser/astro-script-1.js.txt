@@ -1,0 +1,2 @@
+
+  window.inlineResult = true ? "inline-yes" : "inline-no";

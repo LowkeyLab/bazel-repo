@@ -1,0 +1,7 @@
+{
+  "bothOrdersEqual": true,
+  "unresolvedVirtualFiles": [
+    "tools/research_astro/fixtures/Main.astro.virtual.js"
+  ],
+  "completeOriginalAstroCoverage": false
+}

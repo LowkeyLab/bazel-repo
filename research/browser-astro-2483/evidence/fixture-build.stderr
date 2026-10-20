@@ -1,0 +1,31 @@
+warning: Git tree '/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31' is dirty
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+INFO: Checking for file changes...
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Loading: 1 packages loaded
+    currently loading: @@+http_archive+research_astro_chromium//
+Analyzing: 2 targets (2 packages loaded, 0 targets configured)
+INFO: Analyzed 2 targets (3 packages loaded, 500 targets configured).
+INFO: Found 2 targets...
+[0 / 70] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+WARNING: /home/tacascer/.cache/bazel/_bazel_tacascer/40e4681fd78d9a4fcb24254f7d554ad5/external/+http_archive+research_astro_chromium/BUILD.bazel:2:14: @@+http_archive+research_astro_chromium//:chrome-headless-shell is a source file, nothing will be built for it. If you want to build a target that consumes this file, try --compile_one_dependency
+[1,086 / 1,087] JsRunBinary tools/research_astro/dist; 1s linux-sandbox
+Target //tools/research_astro:site_build up-to-date:
+  bazel-bin/tools/research_astro/dist
+INFO: Elapsed time: 4.172s, Critical Path: 1.35s
+INFO: 9 processes: 1078 action cache hit, 5 internal, 4 linux-sandbox.
+INFO: Build completed successfully, 9 total actions

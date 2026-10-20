@@ -1,0 +1,6 @@
+---
+throw new Error("Baseline compilation must not execute this component.");
+const enabled = false;
+---
+<p>{enabled ? "yes" : "no"}</p>
+<script>window.disconnected = true;</script>
