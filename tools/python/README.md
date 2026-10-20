@@ -30,7 +30,9 @@ Run the collector command tests:
 nix develop --command aspect test //tools/python:coverage_baseline_test
 ```
 
-Run the complete membership test from a clean, assigned checkout:
+Run the complete membership test from a clean, assigned checkout.
+Use a new evidence directory for each run.
+The command rejects existing paths and preserves their files.
 
 ```bash
 nix develop --command bazel run //tools/python:coverage_membership_test -- /absolute/evidence/directory
@@ -42,4 +44,74 @@ merged records through `bazel coverage`. The production module with zero hits re
 
 The test then introduces invalid syntax and requires a baseline failure. It removes
 its temporary packages. The report and logs remain in the supplied evidence
-directory. The configured remote profile can use cached test results.
+directory.
+
+The command defaults to local sandbox execution. It disables remote execution,
+remote cache access, and the build-event service for its nested commands.
+Each test executes again. The report uses the existing coverage helper.
+Endpoint overrides apply to every nested command.
+The helper also applies these overrides when it queries the report location.
+A Go test checks that aggregation preserves another language.
+
+Use the configured remote service for fresh execution:
+
+```bash
+nix develop --command bazel run //tools/python:coverage_membership_test -- /absolute/evidence/directory --execution remote
+```
+
+The remote mode uses `--config=ci`, `--nocache_test_results`, and
+`--remote_accept_cached=false`. It requires remote execution metadata for every
+selected test. Fresh remote acceptance requires executed tests.
+Bazel supplies the interpreter, collector, production sources, and subprocess
+inputs through the declared targets.
+
+Both modes retain `coverage.log`, `coverage.exit`, `coverage.bep.json`,
+`test-results.json`, and `combined.lcov`. The build events identify test execution
+strategies and cache status. Keep local and remote evidence in separate directories.
+Hosted workflow and Codecov upload acceptance require separate evidence.
+
+The command also checks four coverage failures with real collector processes:
+missing collector dependencies, child collection errors, corrupt subprocess data,
+and report exclusion errors. Each underlying ordinary test must pass first.
+The corresponding coverage command must return a nonzero exit status and the
+expected error. The invalid-source case requires a baseline failure.
+
+The evidence directory also retains `commands.jsonl`, `revision.txt`,
+`working-tree.patch`, dependency-query results, and failure logs with exit status.
+Run acceptance alone in the assigned checkout. Temporary invalid sources can
+cause concurrent formatting, lint, or build commands to fail.
+
+## Verified execution on 2026-10-20
+
+The acceptance revision is `e66c2386018423ef7aabaa255c455c2863bed485`. Both execution modes passed.
+The main coverage command returned zero in each mode.
+Each combined report contains 15 source records.
+
+| Check                                                                 | Local           | Configured remote |
+| --------------------------------------------------------------------- | --------------- | ----------------- |
+| Selected tests                                                        | 12              | 12                |
+| Execution strategy                                                    | `linux-sandbox` | `remote`          |
+| Cached test results                                                   | 0               | 0                 |
+| Collection, combination, report, and dependency failure exit statuses | 3               | 3                 |
+| Invalid-source coverage exit status                                   | 1               | 1                 |
+
+Both reports include imported execution, generated binaries, and child interpreters.
+Ordinary and hidden packages include disconnected sources with zero hits.
+The Go production file retains 11 executed lines from 13 executable lines.
+The ordinary tests pass before each deliberate collector failure.
+
+The remote coverage invocation is
+[`37c5fc55-a946-428c-8a5d-68f87ae1b713`](https://app.buildbuddy.io/invocation/37c5fc55-a946-428c-8a5d-68f87ae1b713).
+The local coverage invocation is `38f5b792-d690-4086-8c4e-84d879cae47a`.
+Local acceptance disables the build-event service.
+
+Private evidence remains under
+`/home/tacascer/.local/state/worktree-pool/agent-receipts/deliver-2395-acquire-g0t47X3n`.
+The `local` and `remote` directories retain exact commands, revisions, combined reports,
+exit statuses, and build-event metadata.
+The `local-acceptance.log` and `remote-acceptance.log` files record acceptance output.
+
+This acceptance checks Python and one Go package.
+The individual failure commands retain no separate execution metadata.
+Hosted workflow and Codecov acceptance remain separate work under
+[issue #2396](https://github.com/LowkeyLab/bazel-repo/issues/2396).
