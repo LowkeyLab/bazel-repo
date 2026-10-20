@@ -106,14 +106,17 @@ impl Plan {
                 "body contains a reserved identity marker"
             );
             let mut labels = BTreeSet::new();
+            let mut triage = 0;
             for label in &ticket.labels {
                 ensure!(
                     !label.trim().is_empty()
                         && !label.chars().any(char::is_control)
-                        && labels.insert(label),
+                        && labels.insert(label.to_ascii_lowercase()),
                     "invalid or duplicate label"
                 );
+                triage += usize::from(is_triage_label(label));
             }
+            ensure!(triage <= 1, "plan contains conflicting triage labels");
         }
         for ticket in &self.tickets {
             for blocker in &ticket.blockers {
@@ -232,6 +235,8 @@ pub struct Batch {
     pub tickets: Vec<Progress>,
     #[serde(default)]
     pub graph: GraphProgress,
+    #[serde(default)]
+    pub labels: LabelsProgress,
 }
 impl Batch {
     pub fn prepare(batch_id: BatchId, plan: Plan) -> Result<Self> {
@@ -256,6 +261,7 @@ impl Batch {
             plan,
             tickets,
             graph: GraphProgress::default(),
+            labels: LabelsProgress::default(),
         })
     }
     pub fn check(&self, expected: &BatchId) -> Result<()> {
@@ -320,4 +326,33 @@ pub struct GraphProgress {
     pub parent_links: usize,
     pub dependency_links: usize,
     pub verified: bool,
+}
+
+/// Label observations do not authorize mutations after a restart.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LabelsProgress {
+    #[serde(default)]
+    pub checked: bool,
+    pub tickets: Vec<LabelProgress>,
+    pub verified: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LabelProgress {
+    pub key: TicketKey,
+    pub applied: Vec<String>,
+    pub remaining: Vec<String>,
+}
+
+pub fn is_triage_label(label: &str) -> bool {
+    [
+        "needs-triage",
+        "needs-info",
+        "ready-for-agent",
+        "ready-for-human",
+        "wontfix",
+    ]
+    .iter()
+    .any(|name| name.eq_ignore_ascii_case(label))
 }

@@ -83,7 +83,8 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
             .all(|p| matches!(p.status, TicketStatus::Created(_))),
         "creation remains incomplete"
     );
-    crate::graph::run(batch, store)
+    crate::graph::run(batch, store)?;
+    crate::labels::run(batch, store)
 }
 /// Read remote evidence without changing saved progress or GitHub state.
 pub fn observe(batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {

@@ -561,8 +561,8 @@ fn invalid_creation_markers_stop_inspection_without_changing_the_snapshot() -> a
 }
 
 #[googletest::test]
-fn publishing_creates_once_with_original_identity_and_reports_partial_graph() -> anyhow::Result<()>
-{
+fn publishing_creates_once_with_original_identity_and_reports_complete_publication()
+-> anyhow::Result<()> {
     let f = Fixture::new()?;
     let files = Runfiles::create()?;
     let fake = rlocation!(files, std::env::var("FAKE_GH")?).context("fake gh")?;
@@ -571,8 +571,8 @@ fn publishing_creates_once_with_original_identity_and_reports_partial_graph() ->
     let prepared = f.successful(&["--state-dir", "state", "prepare", "--plan", "plan.json"])?;
     let id = prepared["batch_id"].as_str().context("batch identity")?;
     let result = f.successful(&["--state-dir", "state", "publish", "--batch", id])?;
-    assert_that!(result["status"].as_str(), eq(Some("partial")));
-    assert_that!(result["phase"].as_str(), eq(Some("graph_checked")));
+    assert_that!(result["status"].as_str(), eq(Some("complete")));
+    assert_that!(result["phase"].as_str(), eq(Some("complete")));
     f.successful(&["--state-dir", "state", "publish", "--batch", id])?;
     let remote: Value = serde_json::from_slice(&fs::read(f.directory.path().join("remote.log"))?)?;
     assert_that!(remote["creations"].as_u64(), eq(Some(1)));
@@ -580,7 +580,10 @@ fn publishing_creates_once_with_original_identity_and_reports_partial_graph() ->
         remote["issues"][0]["title"].as_str(),
         eq(Some("Prepare a batch"))
     );
-    assert_that!(remote["issues"][0]["labels"], eq(&json!([])));
+    assert_that!(
+        remote["issues"][0]["labels"],
+        eq(&json!([{"name":"ready-for-agent"}]))
+    );
     assert_that!(
         remote["issues"][0]["body"].as_str(),
         eq(Some(
@@ -628,7 +631,7 @@ fn accepted_creation_without_a_response_is_recovered_after_restart() -> anyhow::
     );
     assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
     let result = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
-    assert_that!(result["phase"].as_str(), eq(Some("graph_checked")));
+    assert_that!(result["phase"].as_str(), eq(Some("complete")));
     assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
     Ok(())
 }
@@ -676,7 +679,8 @@ fn unresolved_or_conflicting_creation_never_retries_a_remote_write() -> anyhow::
 }
 
 #[googletest::test]
-fn dependency_order_and_saved_mappings_survive_restart_without_labels() -> anyhow::Result<()> {
+fn dependency_order_and_saved_mappings_survive_restart_without_duplicate_mutations()
+-> anyhow::Result<()> {
     let f = Fixture::with_github()?;
     let mut plan: Value = serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
     let mut dependent = plan["tickets"][0].clone();
@@ -703,7 +707,7 @@ fn dependency_order_and_saved_mappings_survive_restart_without_labels() -> anyho
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
     assert_that!(f.remote()?, eq(&state));
     let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
-    assert_that!(status["status"].as_str(), eq(Some("partial")));
+    assert_that!(status["status"].as_str(), eq(Some("complete")));
     assert_that!(
         status["tickets"][0]["status"]["created"]["number"].as_u64(),
         eq(Some(3001))
@@ -757,6 +761,7 @@ fn closed_match_on_a_later_page_is_reused_and_pull_requests_are_excluded() -> an
     state["issues"] = json!(issues);
     f.save_remote(&state)?;
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    state["issues"][101]["labels"] = json!([{"name":"ready-for-agent"}]);
     assert_that!(f.remote()?["issues"], eq(&state["issues"]));
     assert_that!(f.remote()?["creations"], eq(&state["creations"]));
     assert_that!(f.remote()?["children"], eq(&json!([3000])));
@@ -897,7 +902,14 @@ fn repeated_preparation_reports_preserved_publication_progress() -> anyhow::Resu
             }))
         );
         let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
-        assert_that!(status["status"].as_str(), eq(Some("partial")));
+        assert_that!(
+            status["status"].as_str(),
+            eq(Some(if complete_creation {
+                "complete"
+            } else {
+                "partial"
+            }))
+        );
         assert_that!(
             fs::read(
                 f.directory
@@ -924,7 +936,7 @@ fn explicit_adoption_checks_the_issue_and_never_publishes() -> anyhow::Result<()
             .success(),
         eq(false)
     );
-    let remote = f.remote()?;
+    let mut remote = f.remote()?;
     let result = f.successful(&[
         "--state-dir",
         "state",
@@ -943,6 +955,7 @@ fn explicit_adoption_checks_the_issue_and_never_publishes() -> anyhow::Result<()
     );
     assert_that!(f.remote()?, eq(&remote));
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    remote["issues"][0]["labels"] = json!([{"name":"ready-for-agent"}]);
     assert_that!(f.remote()?["issues"], eq(&remote["issues"]));
     assert_that!(f.remote()?["creations"], eq(&remote["creations"]));
     Ok(())
@@ -1025,7 +1038,7 @@ fn reconstruction_preserves_original_identities_and_requires_a_stopped_publisher
                 .success(),
             eq(false)
         );
-        let remote = f.remote()?;
+        let mut remote = f.remote()?;
         let source = if use_export { "--export" } else { "--plan" };
         let file = if use_export {
             "export.json"
@@ -1054,6 +1067,7 @@ fn reconstruction_preserves_original_identities_and_requires_a_stopped_publisher
         );
         assert_that!(f.remote()?, eq(&remote));
         f.successful(&["--state-dir", "restored", "publish", "--batch", &id])?;
+        remote["issues"][0]["labels"] = json!([{"name":"ready-for-agent"}]);
         assert_that!(f.remote()?["issues"], eq(&remote["issues"]));
         assert_that!(f.remote()?["creations"], eq(&remote["creations"]));
         // Existing state is evidence. Reconstruction must never replace it.
@@ -1461,6 +1475,7 @@ fn reconstruction_keeps_duplicate_matches_recoverable_through_explicit_adoption(
         "3001",
     ])?;
     f.successful(&["--state-dir", "restored", "publish", "--batch", &id])?;
+    remote["issues"][1]["labels"] = json!([{"name":"ready-for-agent"}]);
     assert_that!(f.remote()?["issues"], eq(&remote["issues"]));
     assert_that!(f.remote()?["creations"], eq(&remote["creations"]));
     Ok(())
@@ -1499,7 +1514,7 @@ fn status_and_reconstruction_enumerate_the_repository_once_per_batch() -> anyhow
 }
 
 #[googletest::test]
-fn publication_checks_branching_native_links_without_labels_or_duplicate_mutations()
+fn publication_checks_branching_native_links_before_labels_without_duplicate_mutations()
 -> anyhow::Result<()> {
     let f = Fixture::with_github()?;
     let mut plan: Value = serde_json::from_slice(&fs::read(f.directory.path().join("plan.json"))?)?;
@@ -1520,8 +1535,8 @@ fn publication_checks_branching_native_links_without_labels_or_duplicate_mutatio
     )?;
     let id = f.prepare()?;
     let result = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
-    assert_that!(result["phase"].as_str(), eq(Some("graph_checked")));
-    assert_that!(result["publication_complete"].as_bool(), eq(Some(false)));
+    assert_that!(result["phase"].as_str(), eq(Some("complete")));
+    assert_that!(result["publication_complete"].as_bool(), eq(Some(true)));
     let remote = f.remote()?;
     assert_that!(remote["children"], eq(&json!([3000, 3001, 3002, 3003])));
     assert_that!(remote["dependencies"]["3001"], eq(&json!([3000])));
@@ -1532,7 +1547,7 @@ fn publication_checks_branching_native_links_without_labels_or_duplicate_mutatio
     );
     assert_that!(remote["link_mutations"].as_u64(), eq(Some(9)));
     for issue in remote["issues"].as_array().unwrap() {
-        assert_that!(issue["labels"], eq(&json!([])));
+        assert_that!(issue["labels"], eq(&json!([{"name":"ready-for-agent"}])));
     }
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
     let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
@@ -1572,10 +1587,12 @@ fn lost_link_responses_resume_without_repeating_accepted_mutations() -> anyhow::
         let report: Value = serde_json::from_slice(&result.stdout)?;
         assert_that!(report["publication_complete"].as_bool(), eq(Some(false)));
     }
-    let before = f.remote()?;
+    let mut before = f.remote()?;
     let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
     assert_that!(status["graph"]["verified"].as_bool(), eq(Some(true)));
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    before["issues"][0]["labels"] = json!([{"name":"ready-for-agent"}]);
+    before["label_mutations"] = json!(1);
     assert_that!(f.remote()?, eq(&before));
     Ok(())
 }
@@ -1687,6 +1704,7 @@ fn existing_paginated_links_preserve_compatible_relationships_and_parent_content
         .unwrap()
         .push(json!(2392));
     remote["issues"].as_array_mut().unwrap().push(json!({"number":2401,"id":12401,"node_id":"I_parent","title":"Preserved parent","body":"Preserved body.","state":"closed","labels":[{"name":"keep"}],"repository_url":"https://api.github.com/repos/LowkeyLab/bazel-repo"}));
+    remote["issues"][0]["labels"] = json!([{"name":"ready-for-agent"}]);
     f.save_remote(&remote)?;
     f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
     assert_that!(f.remote()?, eq(&remote));
@@ -1872,6 +1890,7 @@ fn a_full_parent_does_not_block_recovery_of_an_already_linked_issue() -> anyhow:
     remote["children"] = json!([3000]);
     remote["parents"] = json!({"3000":2401});
     remote["extra_children"] = json!((0..99).map(|n|json!({"number":n+1,"id":n+50000,"node_id":format!("I_other_{n}"),"title":"Preserved child","body":"Preserve this.","repository_url":"https://api.github.com/repos/LowkeyLab/other"})).collect::<Vec<_>>());
+    remote["issues"][0]["labels"] = json!([{"name":"ready-for-agent"}]);
     f.save_remote(&remote)?;
     let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
     assert_that!(report["graph"]["verified"].as_bool(), eq(Some(true)));
@@ -1916,7 +1935,7 @@ fn early_failures_do_not_report_stale_graph_counts() -> anyhow::Result<()> {
 }
 
 #[googletest::test]
-fn a_hundred_ticket_graph_completes_within_a_bounded_request_budget() -> anyhow::Result<()> {
+fn a_hundred_ticket_publication_completes_within_a_bounded_request_budget() -> anyhow::Result<()> {
     let f = Fixture::with_github()?;
     let path = f.directory.path().join("plan.json");
     let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
@@ -1936,7 +1955,7 @@ fn a_hundred_ticket_graph_completes_within_a_bounded_request_budget() -> anyhow:
     let output = f
         .command(&["--state-dir", "state", "publish", "--batch", &id])
         .env("REMOTE_REQUESTS", &requests)
-        .env("REMOTE_REQUEST_LIMIT", "2000")
+        .env("REMOTE_REQUEST_LIMIT", "2500")
         .output()?;
     anyhow::ensure!(
         output.status.success(),
@@ -1945,7 +1964,7 @@ fn a_hundred_ticket_graph_completes_within_a_bounded_request_budget() -> anyhow:
         String::from_utf8_lossy(&output.stderr)
     );
     assert_that!(
-        fs::read_to_string(requests)?.lines().count() <= 2000,
+        fs::read_to_string(requests)?.lines().count() <= 2500,
         eq(true)
     );
     let remote = f.remote()?;
@@ -2076,5 +2095,389 @@ fn repeated_blocker_references_consume_one_dependency_slot() -> anyhow::Result<(
     let remote = f.remote()?;
     assert_that!(remote["dependencies"]["3000"], eq(&json!([2392])));
     assert_that!(remote["link_mutations"].as_u64(), eq(Some(2)));
+    Ok(())
+}
+
+#[googletest::test]
+fn publication_applies_planned_labels_and_fresh_status_establishes_completion() -> anyhow::Result<()>
+{
+    let f = Fixture::new()?;
+    let id = f.prepare()?;
+    let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(report["publication_complete"].as_bool(), eq(Some(true)));
+    assert_that!(report["status"].as_str(), eq(Some("complete")));
+    assert_that!(
+        f.remote()?["issues"][0]["labels"],
+        eq(&json!([{"name":"ready-for-agent"}]))
+    );
+    let before = f.remote()?;
+    let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
+    assert_that!(status["publication_complete"].as_bool(), eq(Some(true)));
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&before));
+    Ok(())
+}
+
+#[googletest::test]
+fn conflicting_triage_labels_stop_readiness_without_removing_external_labels() -> anyhow::Result<()>
+{
+    for conflict in [
+        "needs-triage",
+        "needs-info",
+        "ready-for-human",
+        "wontfix",
+        "NEEDS-INFO",
+    ] {
+        let f = Fixture::new()?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-link-response"}))?;
+        let id = f.prepare()?;
+        assert_that!(
+            f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+                .status
+                .success(),
+            eq(false)
+        );
+        let mut remote = f.remote()?;
+        remote["mode"] = Value::Null;
+        remote["issues"][0]["labels"] = json!([{"name":conflict},{"name":"keep"}]);
+        f.save_remote(&remote)?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(false));
+        let report: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(report["status"].as_str(), eq(Some("conflict")));
+        assert_that!(f.remote()?, eq(&remote));
+    }
+    Ok(())
+}
+
+impl Fixture {
+    fn dependent_tickets(&self) -> anyhow::Result<()> {
+        let path = self.directory.path().join("plan.json");
+        let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        let mut second = plan["tickets"][0].clone();
+        second["key"] = json!("second");
+        second["blockers"] = json!([{"ticket":"first"}]);
+        plan["tickets"].as_array_mut().unwrap().push(second);
+        fs::write(path, serde_json::to_vec(&plan)?)?;
+        Ok(())
+    }
+}
+
+#[googletest::test]
+fn interrupted_labels_report_applied_work_when_resumed_graph_conflicts() -> anyhow::Result<()> {
+    let f = Fixture::new()?;
+    f.dependent_tickets()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"stop-labels"}))?;
+    let id = f.prepare()?;
+    let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(output.status.success(), eq(false));
+    let report: Value = serde_json::from_slice(&output.stdout)?;
+    assert_that!(
+        report["labels"]["tickets"][0]["applied"],
+        eq(&json!(["ready-for-agent"]))
+    );
+    assert_that!(
+        report["labels"]["tickets"][1]["remaining"],
+        eq(&json!(["ready-for-agent"]))
+    );
+    let mut remote = f.remote()?;
+    assert_that!(remote["label_mutations"].as_u64(), eq(Some(1)));
+    remote["issues"][1]["title"] = json!("External change");
+    f.save_remote(&remote)?;
+    let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(output.status.success(), eq(false));
+    let report: Value = serde_json::from_slice(&output.stdout)?;
+    assert_that!(report["publication_complete"].as_bool(), eq(Some(false)));
+    assert_that!(
+        report["previous_labels"]["tickets"][0]["applied"],
+        eq(&json!(["ready-for-agent"]))
+    );
+    assert_that!(report["labels"]["verified"].as_bool(), eq(Some(false)));
+    assert_that!(f.remote()?, eq(&remote));
+    // Repeated label conflicts must retain the earlier durable observations.
+    remote["issues"][1]["title"] = json!("Prepare a batch");
+    remote["issues"][1]["labels"] = json!([{"name":"needs-info"}]);
+    f.save_remote(&remote)?;
+    for _ in 0..2 {
+        let stopped = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(stopped.status.success(), eq(false));
+        let report: Value = serde_json::from_slice(&stopped.stdout)?;
+        assert_that!(
+            report["previous_labels"]["tickets"][0]["applied"],
+            eq(&json!(["ready-for-agent"]))
+        );
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn blocked_tickets_receive_labels_only_after_the_complete_graph_and_keep_extra_labels()
+-> anyhow::Result<()> {
+    let f = Fixture::new()?;
+    f.dependent_tickets()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-link-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = Value::Null;
+    remote["expected_children"] = json!([3000, 3001]);
+    remote["expected_dependencies"] = json!({"3001":[3000]});
+    remote["issues"][0]["labels"] = json!([{"name":"keep"}]);
+    f.save_remote(&remote)?;
+    let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(report["publication_complete"].as_bool(), eq(Some(true)));
+    let remote = f.remote()?;
+    assert_that!(remote["issues"][0]["state"].as_str(), eq(Some("open")));
+    assert_that!(
+        remote["issues"][0]["labels"],
+        eq(&json!([{"name":"keep"},{"name":"ready-for-agent"}]))
+    );
+    assert_that!(
+        remote["issues"][1]["labels"],
+        eq(&json!([{"name":"ready-for-agent"}]))
+    );
+    Ok(())
+}
+
+#[googletest::test]
+fn lost_label_responses_resume_without_repeating_completed_mutations() -> anyhow::Result<()> {
+    let f = Fixture::new()?;
+    f.dependent_tickets()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-label-response"}))?;
+    let id = f.prepare()?;
+    for count in [1, 2] {
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(false));
+        assert_that!(f.remote()?["label_mutations"].as_u64(), eq(Some(count)));
+    }
+    let before = f.remote()?;
+    let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(report["publication_complete"].as_bool(), eq(Some(true)));
+    assert_that!(f.remote()?, eq(&before));
+    Ok(())
+}
+
+#[googletest::test]
+fn failed_final_reads_and_unconfirmed_label_effects_never_establish_success() -> anyhow::Result<()>
+{
+    for mode in [
+        "no-label-effect",
+        "label-incomplete",
+        "label-final-graph",
+        "label-final-read",
+        "label-final-content",
+    ] {
+        let f = Fixture::new()?;
+        f.save_remote(&json!({"creations":0,"issues":[],"mode":mode}))?;
+        let id = f.prepare()?;
+        let output = f.run(&["--state-dir", "state", "publish", "--batch", &id])?;
+        assert_that!(output.status.success(), eq(false));
+        let report: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(report["publication_complete"].as_bool(), eq(Some(false)));
+        assert_that!(report["labels"]["verified"].as_bool(), eq(Some(false)));
+        assert_that!(f.remote()?["label_mutations"].as_u64(), eq(Some(1)));
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn durable_label_failures_stop_dependent_mutations_and_resume_after_restart() -> anyhow::Result<()>
+{
+    let files = Runfiles::create()?;
+    let fault = rlocation!(files, std::env::var("SYNC_FAULT_LIBRARY")?).context("sync fault")?;
+    for boundary in ["labels-start", "labels-first"] {
+        for sync in ["file", "directory"] {
+            for effect in ["error", "exit"] {
+                let f = Fixture::new()?;
+                f.dependent_tickets()?;
+                let id = f.prepare()?;
+                let output = f
+                    .command(&["--state-dir", "state", "publish", "--batch", &id])
+                    .env("LD_PRELOAD", &fault)
+                    .env("PROGRESS_FAULT", format!("{boundary}-{sync}"))
+                    .env("PROGRESS_EFFECT", effect)
+                    .env("PROGRESS_BATCH", f.directory.path().join("state").join(&id))
+                    .output()?;
+                assert_that!(output.status.success(), eq(false));
+                assert_that!(
+                    f.directory.path().join("progress-fault-receipt").exists(),
+                    eq(true)
+                );
+                let before = f.remote()?;
+                assert_that!(
+                    before["label_mutations"].as_u64().unwrap_or(0),
+                    eq(u64::from(boundary == "labels-first"))
+                );
+                let report = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+                assert_that!(report["publication_complete"].as_bool(), eq(Some(true)));
+                assert_that!(f.remote()?["label_mutations"].as_u64(), eq(Some(2)));
+                assert_that!(f.remote()?["link_mutations"].as_u64(), eq(Some(3)));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn a_complete_publication_resumes_creation_recovery_graph_and_labels() -> anyhow::Result<()> {
+    let f = Fixture::new()?;
+    f.dependent_tickets()?;
+    let id = f.prepare()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let before = f.remote()?;
+    f.successful(&[
+        "--state-dir",
+        "state",
+        "recover",
+        "adopt",
+        "--batch",
+        &id,
+        "--ticket",
+        "first",
+        "--issue",
+        "3000",
+    ])?;
+    assert_that!(f.remote()?, eq(&before));
+    let mut remote = before;
+    remote["mode"] = json!("lose-link-response");
+    f.save_remote(&remote)?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = json!("stop-labels");
+    f.save_remote(&remote)?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = Value::Null;
+    f.save_remote(&remote)?;
+    let complete = f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    assert_that!(complete["publication_complete"].as_bool(), eq(Some(true)));
+    let before = f.remote()?;
+    assert_that!(before["creations"].as_u64(), eq(Some(2)));
+    assert_that!(before["link_mutations"].as_u64(), eq(Some(3)));
+    assert_that!(before["label_mutations"].as_u64(), eq(Some(2)));
+    let snapshot = fs::read(
+        f.directory
+            .path()
+            .join("state")
+            .join(&id)
+            .join("batch.json"),
+    )?;
+    let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
+    assert_that!(status["status"].as_str(), eq(Some("complete")));
+    assert_that!(
+        fs::read(
+            f.directory
+                .path()
+                .join("state")
+                .join(&id)
+                .join("batch.json")
+        )?,
+        eq(&snapshot)
+    );
+    assert_that!(f.remote()?, eq(&before));
+    Ok(())
+}
+
+#[googletest::test]
+fn status_rechecks_labels_without_writing_or_trusting_saved_completion() -> anyhow::Result<()> {
+    let f = Fixture::new()?;
+    let id = f.prepare()?;
+    f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
+    let original = f.remote()?;
+    let snapshot = fs::read(
+        f.directory
+            .path()
+            .join("state")
+            .join(&id)
+            .join("batch.json"),
+    )?;
+    for mode in ["missing", "conflicting", "incomplete", "permission"] {
+        let mut remote = original.clone();
+        match mode {
+            "missing" => remote["issues"][0]["labels"] = json!([]),
+            "conflicting" => remote["issues"][0]["labels"] = json!([{"name":"ready-for-human"}]),
+            "incomplete" => {
+                remote["issues"][0]
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("labels");
+            }
+            _ => remote["mode"] = json!("permission"),
+        }
+        f.save_remote(&remote)?;
+        let output = f.run(&["--state-dir", "state", "status", "--batch", &id])?;
+        let report: Value = serde_json::from_slice(&output.stdout)?;
+        assert_that!(report["publication_complete"].as_bool(), eq(Some(false)));
+        assert_that!(
+            report["status"].as_str(),
+            eq(Some(match mode {
+                "missing" => "partial",
+                "conflicting" => "conflict",
+                _ => "unverified",
+            }))
+        );
+        assert_that!(output.status.success(), eq(mode == "missing"));
+        assert_that!(f.remote()?, eq(&remote));
+        assert_that!(
+            fs::read(
+                f.directory
+                    .path()
+                    .join("state")
+                    .join(&id)
+                    .join("batch.json")
+            )?,
+            eq(&snapshot)
+        );
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn all_ticket_label_conflicts_are_checked_before_the_first_label_mutation() -> anyhow::Result<()> {
+    let f = Fixture::new()?;
+    f.dependent_tickets()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-link-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    remote["mode"] = Value::Null;
+    remote["children"] = json!([3000, 3001]);
+    remote["parents"] = json!({"3000":2401,"3001":2401});
+    remote["dependencies"] = json!({"3001":[3000]});
+    remote["issues"][1]["labels"] = json!([{"name":"needs-info"}]);
+    f.save_remote(&remote)?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    assert_that!(f.remote()?, eq(&remote));
     Ok(())
 }
