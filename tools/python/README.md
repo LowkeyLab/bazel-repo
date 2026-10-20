@@ -133,7 +133,8 @@ Check that Python records exclude tests, generated sources, and external depende
 Use `testResult` events to distinguish executed tests from cached results.
 The artifact can contain coverage from cached test results.
 
-The existing Codecov step uploads the same `coverage-report.lcov` file.
+The existing Codecov step uploads only the combined `coverage-report.lcov` file.
+It excludes evidence metadata from coverage-file discovery.
 Check its log for the commit, upload result, and Codecov report link.
 Record the workflow run, final pull request head, artifact, and upload evidence together.
 Keep this hosted evidence separate from local and configured remote acceptance.
