@@ -13,16 +13,13 @@
 static int progress_fault(int descriptor, const char *path) {
   const char *phase = getenv("PROGRESS_FAULT");
   const char *batch = getenv("PROGRESS_BATCH");
-  const char *receipt = getenv("PROGRESS_RECEIPT");
-  if (phase == NULL || batch == NULL || receipt == NULL) return 0;
+  if (phase == NULL || batch == NULL) return 0;
   int directory = strstr(phase, "directory") != NULL;
   char buffer[32768];
   ssize_t size;
   if (directory) {
     if (strcmp(path, batch) != 0) return 0;
-    char snapshot[PATH_MAX];
-    snprintf(snapshot, sizeof(snapshot), "%s/batch.json", batch);
-    int file = open(snapshot, O_RDONLY);
+    int file = openat(descriptor, "batch.json", O_RDONLY);
     if (file < 0) return 0;
     size = read(file, buffer, sizeof(buffer) - 1);
     close(file);
@@ -34,7 +31,7 @@ static int progress_fault(int descriptor, const char *path) {
   buffer[size] = '\0';
   const char *status = strstr(phase, "intent") != NULL ? "\"creating\"" : "\"created\"";
   if (strstr(buffer, status) == NULL) return 0;
-  int record = open(receipt, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  int record = open("progress-fault-receipt", O_WRONLY | O_CREAT | O_EXCL, 0600);
   if (record < 0) return 0;
   close(record);
   const char *effect = getenv("PROGRESS_EFFECT");

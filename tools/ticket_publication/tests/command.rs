@@ -816,7 +816,6 @@ fn interrupted_progress_writes_resume_only_when_creation_is_safe() -> anyhow::Re
                 .env("PROGRESS_FAULT", phase)
                 .env("PROGRESS_EFFECT", effect)
                 .env("PROGRESS_BATCH", f.directory.path().join("state").join(&id))
-                .env("PROGRESS_RECEIPT", &receipt)
                 .output()?;
             assert_that!(output.status.success(), eq(false));
             assert_that!(receipt.exists(), eq(true));
