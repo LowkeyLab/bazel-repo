@@ -1,5 +1,8 @@
 # Askama maintained syntax and original template coverage
 
+The [supplemental configured-remote validation](REMOTE-VALIDATION.md) adds later remote execution evidence.
+The sections below retain the original local experiment and its supported-syntax limits.
+
 The bounded adapter supports a tested subset of maintained Askama templates. It does not support the complete maintained template set.
 
 The next feasibility question is precise. Can a compiler-aligned transformation support inheritance, block overrides, if-let bindings, and conditionals without else, while preserving render bytes and original executable locations?
