@@ -1,0 +1,13 @@
+load("//tools/python:defs.bzl", "py_binary", "py_library")
+
+py_binary(
+    name = "export_profile",
+    srcs = ["export_profile.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+py_library(
+    name = "export_tool",
+    srcs = ["export_profile.py"],
+    visibility = ["//:__subpackages__"],
+)

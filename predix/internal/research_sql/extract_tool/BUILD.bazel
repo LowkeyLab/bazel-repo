@@ -1,0 +1,13 @@
+load("//tools/python:defs.bzl", "py_binary", "py_library")
+
+py_binary(
+    name = "extract_deb",
+    srcs = ["extract_deb.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+py_library(
+    name = "extract_tool",
+    srcs = ["extract_deb.py"],
+    visibility = ["//:__subpackages__"],
+)

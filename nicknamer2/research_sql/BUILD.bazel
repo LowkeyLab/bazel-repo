@@ -1,0 +1,15 @@
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+
+rust_binary(
+    name = "research_sql",
+    srcs = ["main.rs"],
+    crate_root = "main.rs",
+    visibility = ["//predix/internal/research_sql:__pkg__"],
+    deps = [
+        "//nicknamer2/src/discord_server:discord_server_repo",
+        "@crates//:anyhow",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:tokio",
+    ],
+)

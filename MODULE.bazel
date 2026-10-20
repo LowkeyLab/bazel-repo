@@ -808,3 +808,28 @@ book_smartz_apt.install(
     ],
 )
 use_repo(book_smartz_apt, "book_smartz_docker")
+
+# Research-only PostgreSQL parser and procedural profiler inputs.
+use_repo(go_deps, "com_github_pganalyze_pg_query_go_v6")
+
+http_file(
+    name = "research_plpgsql_check_deb",
+    downloaded_file_path = "plpgsql-check.deb",
+    sha256 = "2565ac865fcc07291b96d85126abc443c2babf0438d66c1fa7ba6a98bc2036eb",
+    urls = ["https://apt.postgresql.org/pub/repos/apt/pool/main/p/plpgsql-check/postgresql-18-plpgsql-check_2.10.13-1.pgdg13+1_amd64.deb"],
+)
+
+http_file(
+    name = "research_plpgsql_check_source",
+    downloaded_file_path = "plpgsql-check-source.tar.gz",
+    sha256 = "98f6614058e8feaab044feeb2aa5b0b0ee723d4e851fe3cf3ed14a0a4e7f41da",
+    urls = ["https://apt.postgresql.org/pub/repos/apt/pool/main/p/plpgsql-check/plpgsql-check_2.10.13.orig.tar.gz"],
+)
+
+use_repo(go_deps, "com_github_moby_moby_api")
+
+go_deps.module_override(
+    patch_strip = 1,
+    patches = ["//predix/internal/research_sql:pg-query-bazel.patch"],
+    path = "github.com/pganalyze/pg_query_go/v6",
+)

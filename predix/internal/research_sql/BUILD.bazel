@@ -1,0 +1,93 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+load("//tools/test_images:defs.bzl", "image_data", "image_env")
+
+# gazelle:ignore
+
+go_library(
+    name = "research_sql_lib",
+    srcs = ["inventory.go"],
+    importpath = "github.com/lowkeylab/bazel-repo/predix/internal/research_sql",
+    visibility = ["//visibility:private"],
+    deps = ["@com_github_pganalyze_pg_query_go_v6//:pg_query_go"],
+)
+
+go_binary(
+    name = "research_sql",
+    embed = [":research_sql_lib"],
+    visibility = ["//predix:__subpackages__"],
+)
+
+go_test(
+    name = "research_sql_test",
+    size = "large",
+    timeout = "moderate",
+    srcs = [
+        "anonymous.go",
+        "application_test.go",
+    ],
+    data = image_data("postgres_18") + image_data("ryuk") + [
+        ":disconnected.sql",
+        ":disconnected_body.sql",
+        ":embedded-host.rs.input",
+        ":generated-query.go.input",
+        ":helper_body.sql",
+        ":maintained-migration.sql.input",
+        ":profile_control.sql",
+        ":profiler-files.tar",
+        ":profiler-manifest.json",
+        ":statements.sql",
+        ":test_body.sql",
+        "//nicknamer2/research_sql",
+        "//predix/internal/sql:query.sql",
+        "@research_plpgsql_check_source//file",
+    ],
+    embed = [":research_sql_lib"],
+    env = image_env("postgres_18") | image_env(
+        "ryuk",
+        prefix = "RYUK",
+    ) | {
+        "MAINTAINED_MIGRATION": "$(rlocationpath :maintained-migration.sql.input)",
+        "RUST_PROBE": "$(rlocationpath //nicknamer2/research_sql:research_sql)",
+        "SQL_TEST_BODY": "$(rlocationpath :test_body.sql)",
+        "SQL_HELPER_BODY": "$(rlocationpath :helper_body.sql)",
+        "SQL_DISCONNECTED_BODY": "$(rlocationpath :disconnected_body.sql)",
+        "SQL_FIXTURE": "$(rlocationpath :statements.sql)",
+        "SQL_DISCONNECTED": "$(rlocationpath :disconnected.sql)",
+        "PROFILE_CONTROL": "$(rlocationpath :profile_control.sql)",
+        "ORIGINAL_QUERIES": "$(rlocationpath //predix/internal/sql:query.sql)",
+        "HOST_SNAPSHOT": "$(rlocationpath :embedded-host.rs.input)",
+        "GENERATED_SNAPSHOT": "$(rlocationpath :generated-query.go.input)",
+        "PROFILER_FILES": "$(rlocationpath :profiler-files.tar)",
+        "PROFILER_MANIFEST": "$(rlocationpath :profiler-manifest.json)",
+        "GOMAXPROCS": "1",
+    },
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        "//predix/internal/db",
+        "//test_images/go",
+        "@com_github_jackc_pgx_v5//stdlib",
+        "@com_github_moby_moby_api//types/container",
+        "@com_github_testcontainers_testcontainers_go//:testcontainers-go",
+        "@com_github_testcontainers_testcontainers_go//wait",
+        "@com_github_testcontainers_testcontainers_go_modules_postgres//:postgres",
+        "@rules_go//go/runfiles",
+    ],
+)
+
+genrule(
+    name = "profiler_files",
+    srcs = ["@research_plpgsql_check_deb//file"],
+    outs = [
+        "profiler-files.tar",
+        "profiler-manifest.json",
+    ],
+    cmd = "$(location //predix/internal/research_sql/extract_tool:extract_deb) $(location @research_plpgsql_check_deb//file) $(location :profiler-files.tar) $(location :profiler-manifest.json)",
+    tools = ["//predix/internal/research_sql/extract_tool:extract_deb"],
+)

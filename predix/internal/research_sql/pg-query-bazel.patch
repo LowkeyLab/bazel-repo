@@ -1,0 +1,39 @@
+--- a/parser/BUILD.bazel
++++ b/parser/BUILD.bazel
+@@ -1 +1,2 @@
++load("@rules_cc//cc:cc_library.bzl", "cc_library")
+ load("@io_bazel_rules_go//go:def.bzl", "go_library")
+@@ -92,14 +93,15 @@
+     ],
+     cgo = True,
+     clinkopts = [""],
++    cdeps = [":headers"],
+     copts = [
+-        "-Iparser/include -Iparser/include/postgres -g -fstack-protector -std=gnu99 -Wno-unknown-warning-option -Wno-typedef-redefinition -DXXH_NAMESPACE=PG_QUERY_",
+-    ] + select({
+-        "@io_bazel_rules_go//go/platform:windows": [
+-            "-Iparser/include/postgres/port/win32",
+-        ],
+-        "//conditions:default": [],
+-    }),
++        "-g",
++        "-fstack-protector",
++        "-std=gnu99",
++        "-Wno-unknown-warning-option",
++        "-Wno-typedef-redefinition",
++        "-DXXH_NAMESPACE=PG_QUERY_",
++    ],
+     importpath = "github.com/pganalyze/pg_query_go/v6/parser",
+     importpath_aliases = ["github.com/pganalyze/pg_query_go/parser"],
+     visibility = ["//visibility:public"],
+@@ -110,3 +112,10 @@
+     actual = ":parser",
+     visibility = ["//visibility:public"],
+ )
++
++cc_library(
++    name = "headers",
++    hdrs = glob(["include/**/*.h"]),
++    textual_hdrs = glob(["include/**/*.c"]),
++    includes = ["include", "include/postgres"],
++)
