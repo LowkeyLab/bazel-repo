@@ -1,5 +1,8 @@
 # Browser and Astro original-source mapping experiment
 
+The [supplemental configured BuildBuddy validation](REMOTE-VALIDATION.md) records the later validation.
+The sections below retain the original local experiment and its mapping limits.
+
 This report answers [Test complete browser and Astro original-source mappings](https://github.com/LowkeyLab/bazel-repo/issues/2483).
 The refreshed base is `39075c1280f357d58b06a9a471e617cd73949bdf`.
 The experiment reuses the bounded fixture from `bf895c6435b785eca47df3decb87dbdcae1d1259`.
