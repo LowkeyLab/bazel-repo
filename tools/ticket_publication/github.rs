@@ -15,7 +15,7 @@ impl std::fmt::Display for Conflict {
 impl std::error::Error for Conflict {}
 
 const REPOSITORY: &str = "repos/LowkeyLab/bazel-repo";
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 pub struct Issue {
     number: IssueNumber,
     id: IssueId,
@@ -27,6 +27,11 @@ pub struct Issue {
     pull_request: Option<Value>,
 }
 impl Issue {
+    pub fn has_marker(&self, marker: &str) -> bool {
+        self.body
+            .as_deref()
+            .is_some_and(|body| body.contains(marker))
+    }
     pub fn mapping(&self) -> IssueMapping {
         IssueMapping {
             number: self.number.clone(),
@@ -72,6 +77,13 @@ pub fn create(title: &str, body: &str) -> Result<Issue> {
     Ok(issue)
 }
 pub fn find(marker: &str) -> Result<Vec<Issue>> {
+    Ok(enumerate()?
+        .into_iter()
+        .filter(|issue| issue.has_marker(marker))
+        .collect())
+}
+
+pub fn enumerate() -> Result<Vec<Issue>> {
     let pages = request(
         &format!("{REPOSITORY}/issues?state=all&per_page=100"),
         None,
@@ -94,13 +106,7 @@ pub fn find(marker: &str) -> Result<Vec<Issue>> {
             let issue: Issue =
                 serde_json::from_value(value.clone()).context("incomplete enumerated issue")?;
             issue.check_repository()?;
-            if issue
-                .body
-                .as_deref()
-                .is_some_and(|body| body.contains(marker))
-            {
-                matches.push(issue);
-            }
+            matches.push(issue);
         }
     }
     Ok(matches)

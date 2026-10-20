@@ -1,9 +1,9 @@
 # Prepare and create a ticket publication batch
 
 This command checks and saves a publication plan. It can create the planned
-issues and resume creation after an interruption. Tickets #2403 and #2404
-implement these operations. Later tickets add explicit recovery commands,
-native graph operations, and readiness labels.
+issues and resume creation after an interruption. Tickets #2403 through #2405
+implement preparation, creation, and explicit recovery. Later tickets add
+native graph operations and readiness labels.
 
 ```sh
 bazel run //tools/ticket_publication -- prepare --plan /absolute/plan.json
@@ -12,7 +12,8 @@ bazel run //tools/ticket_publication -- publish --batch <batch-id>
 ```
 
 All commands return JSON. `prepare` returns `batch_id` and `plan_path`.
-`status` returns the saved plan, its SHA-256 fingerprint, and ticket progress.
+`status` returns the saved plan, its SHA-256 fingerprint, ticket progress, and
+fresh remote mappings. It does not save progress or write to GitHub.
 A prepared batch has `pending` tickets. Preparation does not establish GitHub
 state or publication completion.
 
@@ -108,13 +109,98 @@ A successful creation phase returns `status: partial` and `phase: issues_created
 It does not establish publication completion. This phase applies no labels or
 native relationships. A stopped run returns a nonzero exit code and reports
 `partial`, `uncertain`, or `conflict`, with the available ticket progress.
-Local `status` reports saved progress. It does not check remote state.
+`status` checks saved mappings and enumerates unresolved identities.
+Status and reconstruction each enumerate the repository once for the batch. It reports
+`prepared`, `partial`, `uncertain`, `conflict`, or `unverified`. Failed remote
+reads return `unverified` and a nonzero exit code. Conflicts also return a nonzero
+exit code. `publication_complete` remains false during this creation phase.
+A checked issue does not establish graph or label completion.
 
 Preserve saved state after errors. A durable-write failure can leave an intent
 without a request or a checked issue without a saved mapping. Restart checks the
 saved state and remote evidence. It cannot infer safe retry from an absent match.
-Explicit adoption, retry authorization, and reconstruction require later recovery
-commands. Do not edit progress to bypass uncertainty.
+Use the recovery commands below. Do not edit progress to bypass uncertainty.
+
+## Explicit recovery
+
+Recovery commands save local decisions. They perform no GitHub writes.
+A later `publish` command checks fresh remote evidence before a mutation.
+
+To adopt an issue, specify its issue number and the original ticket key:
+
+```sh
+bazel run //tools/ticket_publication -- recover adopt --batch <batch-id> --ticket <key> --issue <number>
+```
+
+Adoption checks the repository, exact body with the identity marker, and title.
+It records the checked issue number, numeric ID, and node ID. It can resolve
+multiple marker matches through an explicit issue choice. It cannot replace an
+existing mapping with a different issue. Conflicts require inspection and explicit
+reconciliation. The command does not overwrite GitHub content.
+
+An absent match cannot prove that creation failed. To authorize one retry,
+acknowledge the risk of creating a duplicate:
+
+```sh
+bazel run //tools/ticket_publication -- recover authorize-retry --batch <batch-id> --ticket <key> --acknowledge-duplicate-risk
+bazel run //tools/ticket_publication -- publish --batch <batch-id>
+```
+
+Authorization requires uncertain creation. It does not issue a request.
+Publication checks remote evidence again. One valid match becomes the saved
+mapping. Multiple matches, content conflicts, and failed reads stop publication.
+If no match exists, publication saves a new creation intent before the request.
+This consumes the authorization. Another uncertain attempt requires another
+explicit authorization.
+
+## Export and reconstruction
+
+Keep the original plan and batch identity outside the checkout. To export the
+checked snapshot, use private file permissions:
+
+```sh
+umask 077
+bazel run //tools/ticket_publication -- export --batch <batch-id> > /absolute/batch-export.json
+```
+
+The export contains the original plan, fingerprint, batch identity, markers,
+and saved progress. It contains no credentials. An export does not transfer
+publisher ownership or coordinate commands on another machine.
+
+Before transfer, stop the previous publisher. Copy the complete batch directory
+and original plan when available. Retain directory markers and the lock file.
+Only one publisher may use the batch, including copies on different machines.
+The tool cannot check that a publisher on another machine stopped.
+
+If state is missing, reconstruct it in a private state directory with one of
+these commands:
+
+```sh
+bazel run //tools/ticket_publication -- --state-dir /absolute/recovered recover reconstruct --batch <original-batch-id> --export /absolute/batch-export.json --publisher-stopped
+bazel run //tools/ticket_publication -- --state-dir /absolute/recovered recover reconstruct --batch <original-batch-id> --plan /absolute/original-plan.json --publisher-stopped
+```
+
+`--publisher-stopped` records the operator's acknowledgement for this command.
+It does not establish ownership. Reconstruction requires the original batch ID
+and exactly one original input. An export must pass fingerprint and identity
+checks. A plan input must be the original approved plan. The fingerprint is not
+a signature and cannot establish who approved a plan.
+
+Reconstruction checks all issue pages across open and closed states. It excludes
+pull requests. Each unique match must pass content and repository checks.
+Missing matches become uncertain. Reconstruction never restores retry
+authorization from a copied export. Multiple matches without an exported mapping
+save unresolved progress and return `conflict`. Use `recover adopt` to select
+a checked issue. Publication rejects those unresolved matches until adoption.
+An existing exported mapping retains its explicit issue choice after fresh checks.
+An absent exported mapping or changed content stops reconstruction.
+Existing state, including corrupt state, remains intact. Use a separate private directory to preserve that evidence.
+Reconstruction neither creates issues nor applies labels or relationships.
+
+Missing inputs stop the command. Do not use `prepare` to replace a lost batch.
+Do not change the plan or identity to bypass recovery. A changed saved plan,
+invalid fingerprint, or conflicting mapping stops resumed work. Retain the
+original inputs and evidence for explicit reconciliation.
 
 ## Checks
 

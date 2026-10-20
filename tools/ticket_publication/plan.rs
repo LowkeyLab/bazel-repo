@@ -152,6 +152,7 @@ pub struct Progress {
 pub enum TicketStatus {
     Pending,
     Creating,
+    RetryAuthorized,
     Created(IssueMapping),
 }
 
@@ -258,5 +259,18 @@ impl Batch {
             }
         }
         Ok(())
+    }
+}
+
+impl std::str::FromStr for IssueNumber {
+    type Err = anyhow::Error;
+    fn from_str(value: &str) -> Result<Self> {
+        Ok(Self(value.parse()?))
+    }
+}
+impl std::str::FromStr for TicketKey {
+    type Err = anyhow::Error;
+    fn from_str(value: &str) -> Result<Self> {
+        Self::try_from(value.to_owned())
     }
 }
