@@ -1,0 +1,159 @@
+{
+  "sections": [
+    {
+      "id": 1,
+      "bytes": 578
+    },
+    {
+      "id": 2,
+      "bytes": 4181
+    },
+    {
+      "id": 3,
+      "bytes": 2310
+    },
+    {
+      "id": 4,
+      "bytes": 7
+    },
+    {
+      "id": 5,
+      "bytes": 3
+    },
+    {
+      "id": 6,
+      "bytes": 33
+    },
+    {
+      "id": 7,
+      "bytes": 4274
+    },
+    {
+      "id": 9,
+      "bytes": 461
+    },
+    {
+      "id": 10,
+      "bytes": 439707
+    },
+    {
+      "id": 11,
+      "bytes": 188908
+    },
+    {
+      "id": 0,
+      "bytes": 464,
+      "name": "__llvm_covfun"
+    },
+    {
+      "id": 0,
+      "bytes": 118,
+      "name": "__llvm_covmap"
+    },
+    {
+      "id": 0,
+      "bytes": 7722,
+      "name": "__wasm_bindgen_unstable"
+    },
+    {
+      "id": 0,
+      "bytes": 4457,
+      "name": ".debug_abbrev"
+    },
+    {
+      "id": 0,
+      "bytes": 415252,
+      "name": ".debug_info"
+    },
+    {
+      "id": 0,
+      "bytes": 112534,
+      "name": ".debug_ranges"
+    },
+    {
+      "id": 0,
+      "bytes": 880652,
+      "name": ".debug_str"
+    },
+    {
+      "id": 0,
+      "bytes": 257059,
+      "name": ".debug_line"
+    },
+    {
+      "id": 0,
+      "bytes": 376540,
+      "name": "linking"
+    },
+    {
+      "id": 0,
+      "bytes": 78714,
+      "name": "reloc.CODE"
+    },
+    {
+      "id": 0,
+      "bytes": 5231,
+      "name": "reloc.DATA"
+    },
+    {
+      "id": 0,
+      "bytes": 311614,
+      "name": "reloc..debug_info"
+    },
+    {
+      "id": 0,
+      "bytes": 162558,
+      "name": "reloc..debug_ranges"
+    },
+    {
+      "id": 0,
+      "bytes": 7919,
+      "name": "reloc..debug_line"
+    },
+    {
+      "id": 0,
+      "bytes": 279487,
+      "name": "name"
+    },
+    {
+      "id": 0,
+      "bytes": 98,
+      "name": "producers"
+    },
+    {
+      "id": 0,
+      "bytes": 148,
+      "name": "target_features"
+    }
+  ],
+  "data_segment_names": [
+    {
+      "index": 0,
+      "name": ".rodata"
+    },
+    {
+      "index": 1,
+      "name": ".data"
+    },
+    {
+      "index": 2,
+      "name": "__llvm_prf_cnts"
+    },
+    {
+      "index": 3,
+      "name": "__llvm_prf_data"
+    },
+    {
+      "index": 4,
+      "name": "__llvm_prf_names"
+    },
+    {
+      "index": 5,
+      "name": "__llvm_prf_vnds"
+    },
+    {
+      "index": 6,
+      "name": ".bss"
+    }
+  ]
+}

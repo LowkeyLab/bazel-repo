@@ -1,0 +1,201 @@
+
+File: <RUNFILES>/_main/tools/research_wasm/runtime_fixture/browser_fixture.wasm
+Format: WASM
+Arch: wasm32
+AddressSize: 32bit
+Sections [
+  Section {
+    Type: TYPE (0x1)
+    Size: 578
+    Offset: 11
+  }
+  Section {
+    Type: IMPORT (0x2)
+    Size: 4181
+    Offset: 592
+  }
+  Section {
+    Type: FUNCTION (0x3)
+    Size: 2310
+    Offset: 4776
+  }
+  Section {
+    Type: TABLE (0x4)
+    Size: 7
+    Offset: 7088
+  }
+  Section {
+    Type: MEMORY (0x5)
+    Size: 3
+    Offset: 7097
+    Memories [
+      Memory {
+        MinPages: 19
+      }
+    ]
+  }
+  Section {
+    Type: GLOBAL (0x6)
+    Size: 33
+    Offset: 7102
+  }
+  Section {
+    Type: EXPORT (0x7)
+    Size: 4274
+    Offset: 7138
+  }
+  Section {
+    Type: ELEM (0x9)
+    Size: 461
+    Offset: 11415
+  }
+  Section {
+    Type: CODE (0xA)
+    Size: 439707
+    Offset: 11880
+  }
+  Section {
+    Type: DATA (0xB)
+    Size: 188908
+    Offset: 451591
+    Segments [
+      Segment {
+        Name: .rodata
+        Size: 88712
+        Offset: 1048576
+      }
+      Segment {
+        Name: .data
+        Size: 612
+        Offset: 1137296
+      }
+      Segment {
+        Name: __llvm_prf_cnts
+        Size: 64
+        Offset: 1137912
+      }
+      Segment {
+        Name: __llvm_prf_data
+        Size: 392
+        Offset: 1137976
+      }
+      Segment {
+        Name: __llvm_prf_names
+        Size: 172
+        Offset: 1138368
+      }
+      Segment {
+        Name: __llvm_prf_vnds
+        Size: 24576
+        Offset: 1138544
+      }
+      Segment {
+        Name: .bss
+        Size: 74314
+        Offset: 1163120
+      }
+    ]
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 450
+    Offset: 640502
+    Name: __llvm_covfun
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 104
+    Offset: 640968
+    Name: __llvm_covmap
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 7698
+    Offset: 641089
+    Name: __wasm_bindgen_unstable
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 4443
+    Offset: 648814
+    Name: .debug_abbrev
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 415240
+    Offset: 653275
+    Name: .debug_info
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 112520
+    Offset: 1068531
+    Name: .debug_ranges
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 880641
+    Offset: 1181069
+    Name: .debug_str
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 257047
+    Offset: 2061725
+    Name: .debug_line
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 376532
+    Offset: 2318788
+    Name: linking
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 78703
+    Offset: 2695332
+    Name: reloc.CODE
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 5220
+    Offset: 2774049
+    Name: reloc.DATA
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 311596
+    Offset: 2779284
+    Name: reloc..debug_info
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 162538
+    Offset: 3090902
+    Name: reloc..debug_ranges
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 7901
+    Offset: 3253463
+    Name: reloc..debug_line
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 279482
+    Offset: 3261386
+    Name: name
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 88
+    Offset: 3540875
+    Name: producers
+  }
+  Section {
+    Type: CUSTOM (0x0)
+    Size: 132
+    Offset: 3540976
+    Name: target_features
+  }
+]

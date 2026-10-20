@@ -1,0 +1,36 @@
+{
+  "gazelle": {
+    "exit": 0
+  },
+  "whole_repository_format": {
+    "exit": 0,
+    "java_formatter_runtime": "remotejdk_21"
+  },
+  "focused_lint": {
+    "exit": 0,
+    "linters": ["Clippy", "KeepSorted", "ShellCheck"],
+    "warnings": 4,
+    "errors": 0,
+    "invocation": "de097914-88f8-4691-b899-267e3e1194de"
+  },
+  "strict_prose": {
+    "hard_violations": 0
+  },
+  "coverage": {
+    "exit": 0,
+    "invocation": "549c1ded-8bc5-4d61-be49-7d3eab517ebc",
+    "test_execution": "fresh local linux-sandbox",
+    "test_cached": false,
+    "build_action_cache_hits": 4156,
+    "remote_cache_hits": 2,
+    "executed_remote_processes": 4
+  },
+  "formatted_source_hashes_match": true,
+  "compiler_action_source_hashes_match": true,
+  "mapping_object_hashes_match_executed_inputs": true,
+  "direct_and_ir_subject_DA_equal": true,
+  "one_canonical_subject_record": true,
+  "native_and_wasm_measured_hits_preserved": true,
+  "collector_controls_exit_one": true,
+  "browser_shared_libraries_resolved": true
+}

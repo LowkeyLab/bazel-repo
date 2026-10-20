@@ -1,0 +1,13 @@
+file://<BAZEL_ROOT>/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_wasm/collector.mjs:16
+  if (result.status !== 0) throw new Error(JSON.stringify(result));
+                                 ^
+
+Error: {"status":1,"stdout":"","stderr":"warning: <BAZEL_ROOT>/<SANDBOX>/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_wasm/browser_coverage_test/test.outputs/corrupt.profraw: truncated profile data\nerror: no profile can be merged\n"}
+    at requireCommand (file://<BAZEL_ROOT>/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_wasm/collector.mjs:16:34)
+    at collect (file://<BAZEL_ROOT>/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_wasm/collector.mjs:25:3)
+    at file://<BAZEL_ROOT>/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_wasm/collector.mjs:67:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:437:25)
+    at async node:internal/modules/esm/loader:639:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.15.0

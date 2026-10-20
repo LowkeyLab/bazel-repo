@@ -1,0 +1,33 @@
+{
+  "all_dependencies_resolved": true,
+  "nix_packages": [
+    "alsa-lib-1.2.16.1",
+    "at-spi2-core-2.60.6",
+    "dbus-1.16.2-lib",
+    "expat-2.8.5",
+    "gcc-16.2.0-lib",
+    "glib-2.88.3",
+    "glibc-2.44-25",
+    "libdrm-2.4.134",
+    "libffi-3.8.0",
+    "libselinux-3.10",
+    "libx11-1.8.13",
+    "libxau-1.0.12",
+    "libxcb-1.17.0",
+    "libxcomposite-0.4.7",
+    "libxdamage-1.1.7",
+    "libxdmcp-1.1.5",
+    "libxext-1.3.7",
+    "libxfixes-6.0.2",
+    "libxi-1.8.3",
+    "libxkbcommon-1.13.2",
+    "libxrandr-1.5.5",
+    "libxrender-0.9.12",
+    "mesa-libgbm-26.1.3",
+    "nspr-4.40",
+    "nss-3.112.5",
+    "pcre2-10.48",
+    "systemd-minimal-libs-261.3",
+    "util-linux-minimal-2.42.3-lib"
+  ]
+}

@@ -1,0 +1,18 @@
+node:fs:1726
+  const stats = binding.stat(
+                        ^
+
+Error: ENOENT: no such file or directory, stat '<BAZEL_ROOT>/<SANDBOX>/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_wasm/browser_coverage_test/test.outputs/missing-mapping.wasm'
+    at statSync (node:fs:1726:25)
+    at collect (file://<BAZEL_ROOT>/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_wasm/collector.mjs:23:7)
+    at file://<BAZEL_ROOT>/execroot/_main/bazel-out/k8-fastbuild/bin/tools/research_wasm/collector.mjs:67:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:437:25)
+    at async node:internal/modules/esm/loader:639:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: '<BAZEL_ROOT>/<SANDBOX>/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/research_wasm/browser_coverage_test/test.outputs/missing-mapping.wasm'
+}
+
+Node.js v24.15.0

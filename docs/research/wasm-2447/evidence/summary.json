@@ -1,0 +1,94 @@
+{
+  "selected_mapping": "raw",
+  "wasm_hits": {
+    "2": 1,
+    "3": 1,
+    "4": 1,
+    "7": 0,
+    "8": 0,
+    "9": 0,
+    "12": 1,
+    "15": 1,
+    "21": 1
+  },
+  "native_hits": {
+    "2": 1,
+    "3": 1,
+    "4": 1,
+    "7": 0,
+    "8": 0,
+    "9": 0,
+    "12": 1,
+    "19": 1,
+    "21": 1
+  },
+  "baseline_hits": {
+    "2": 0,
+    "3": 0,
+    "4": 0,
+    "7": 0,
+    "8": 0,
+    "9": 0,
+    "12": 0,
+    "15": 0,
+    "21": 0
+  },
+  "tools": [
+    {
+      "name": "baseline-raw",
+      "status": 0
+    },
+    {
+      "name": "sections-raw",
+      "status": 0
+    },
+    {
+      "name": "baseline-transformed",
+      "status": 1
+    },
+    {
+      "name": "sections-transformed",
+      "status": 1
+    },
+    {
+      "name": "baseline-ir",
+      "status": 0
+    },
+    {
+      "name": "profile-functions",
+      "status": 0
+    },
+    {
+      "name": "measured-raw",
+      "status": 0
+    },
+    {
+      "name": "measured-transformed",
+      "status": 1
+    },
+    {
+      "name": "measured-ir",
+      "status": 0
+    },
+    {
+      "name": "native-functional",
+      "status": 0
+    },
+    {
+      "name": "missing-profile",
+      "status": 1
+    },
+    {
+      "name": "corrupt-profile",
+      "status": 1
+    },
+    {
+      "name": "missing-mapping",
+      "status": 1
+    },
+    {
+      "name": "suppressed-transfer",
+      "status": 1
+    }
+  ]
+}

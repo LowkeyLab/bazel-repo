@@ -1,0 +1,56 @@
+{
+  "stable": {
+    "rustc_vV": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.1\nLLVM version: 23.1.1\n",
+    "toolchain": "coverage_supported=False\ntarget=wasm32-unknown-unknown\n",
+    "commands": {
+      "plain": {
+        "exit": 0,
+        "stderr": ""
+      },
+      "instrument": {
+        "exit": 1,
+        "stderr": "error[E0463]: can't find crate for `profiler_builtins`\n  |\n  = note: the compiler may have been built without the profiler runtime\n\nerror: aborting due to 1 previous error\n\nFor more information about this error, try `rustc --explain E0463`.\n"
+      },
+      "substitute": {
+        "exit": 1,
+        "stderr": "error: the option `Z` is only accepted on the nightly compiler\n\nhelp: consider switching to a nightly toolchain: `rustup default nightly`\n\nnote: selecting a toolchain with `+toolchain` arguments require a rustup proxy; see <https://rust-lang.github.io/rustup/concepts/index.html>\n\nnote: for more information about Rust's stability policy, see <https://doc.rust-lang.org/book/appendix-07-nightly-rust.html#unstable-features>\n\nerror: 1 nightly option were parsed\n\n"
+      }
+    }
+  },
+  "registered_nightly": {
+    "rustc_vV": "rustc 1.94.0-nightly (f57eac1bf 2026-01-10)\nbinary: rustc\ncommit-hash: f57eac1bf98cb5d578e3364b64365ec398c137df\ncommit-date: 2026-01-10\nhost: x86_64-unknown-linux-gnu\nrelease: 1.94.0-nightly\nLLVM version: 21.1.8\n",
+    "toolchain": "coverage_supported=False\ntarget=wasm32-unknown-unknown\n",
+    "commands": {
+      "plain": {
+        "exit": 0,
+        "stderr": ""
+      },
+      "instrument": {
+        "exit": 1,
+        "stderr": "error[E0463]: can't find crate for `profiler_builtins`\n  |\n  = note: the compiler may have been built without the profiler runtime\n\nerror: aborting due to 1 previous error\n\nFor more information about this error, try `rustc --explain E0463`.\n"
+      },
+      "substitute": {
+        "exit": 0,
+        "stderr": ""
+      }
+    }
+  },
+  "research_nightly_without_runtime": {
+    "rustc_vV": "rustc 1.99.0-nightly (d453bdd8f 2026-08-14)\nbinary: rustc\ncommit-hash: d453bdd8f092d099bc336f0bda4163f809ad18e0\ncommit-date: 2026-08-14\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0-nightly\nLLVM version: 23.1.0\n",
+    "toolchain": "coverage_supported=False\ntarget=wasm32-unknown-unknown\n",
+    "commands": {
+      "plain": {
+        "exit": 0,
+        "stderr": ""
+      },
+      "instrument": {
+        "exit": 1,
+        "stderr": "error[E0463]: can't find crate for `profiler_builtins`\n  |\n  = note: the compiler may have been built without the profiler runtime\n\nerror: aborting due to 1 previous error\n\nFor more information about this error, try `rustc --explain E0463`.\n"
+      },
+      "substitute": {
+        "exit": 1,
+        "stderr": "error: linking with `rust-lld` failed: exit status: 1\n  |\n  = note:  \"rust-lld\" \"-flavor\" \"wasm\" \"--export\" \"executed\" \"--export\" \"uncalled\" \"-z\" \"stack-size=1048576\" \"--stack-first\" \"--no-demangle\" \"--no-entry\" \"<1 object files omitted>\" \"<sysroot>/lib/rustlib/wasm32-unknown-unknown/lib/{libcore-*,libcompiler_builtins-*}.rlib\" \"-L\" \"<sysroot>/lib/rustlib/wasm32-unknown-unknown/lib/self-contained\" \"-o\" \"bazel-out/k8-fastbuild/bin/tools/research_wasm/compiler_probe/substitute.wasm\" \"--gc-sections\" \"--no-entry\" \"-O0\"\n  = note: some arguments are omitted. use `--verbose` to show all linker arguments\n  = note: rust-lld: error: bazel-out/k8-fastbuild/bin/tools/research_wasm/compiler_probe/substitute.probe.187131c994fc2dd0-cgu.0.rcgu.o: undefined symbol: __llvm_profile_runtime\n          \n\nerror: aborting due to 1 previous error\n\n"
+      }
+    }
+  }
+}

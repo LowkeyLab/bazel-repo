@@ -1,0 +1,33 @@
+Counters:
+  _RNvNtCs8tuAU7zUMYQ_15browser_fixture7subject12runtime_only:
+    Hash: 0x3d7522b053918b06
+    Counters: 1
+    Function count: 1
+    Block counts: []
+  _RNvCs8tuAU7zUMYQ_15browser_fixture12dump_profile:
+    Hash: 0x1caffe373da9bd5d
+    Counters: 1
+    Function count: 1
+    Block counts: []
+  _RNvCs8tuAU7zUMYQ_15browser_fixture3run:
+    Hash: 0xaa323d3e466dc07f
+    Counters: 1
+    Function count: 1
+    Block counts: []
+  _RNvNtCs8tuAU7zUMYQ_15browser_fixture7subject8executed:
+    Hash: 0xf0e764be6979a8a0
+    Counters: 1
+    Function count: 1
+    Block counts: []
+  _RNvXCs8tuAU7zUMYQ_15browser_fixtureNtB2_4SinkNtCsafksewZMIAY_7minicov14CoverageWriter5write:
+    Hash: 0x8966ee7cf8bd5491
+    Counters: 2
+    Function count: 3
+    Block counts: [0]
+Instrumentation level: Front-end
+Functions shown: 5
+Total functions: 5
+Maximum function count: 3
+Maximum internal block count: 0
+Total number of blocks: 6
+Total count: 7

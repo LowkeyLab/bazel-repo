@@ -1,0 +1,78 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# gazelle:ignore
+load(":probe.bzl", "compiler_probe", "runtime_fixture", "web_fixture")
+
+compiler_probe(
+    name = "compiler_probe",
+    srcs = "probe.rs",
+)
+
+runtime_fixture(
+    name = "runtime_fixture",
+    srcs = [
+        "browser_fixture.rs",
+        "subject.rs",
+    ],
+    crate_root = "browser_fixture.rs",
+)
+
+web_fixture(
+    name = "web_fixture",
+    src = ":runtime_fixture",
+)
+
+rust_binary(
+    name = "native_fixture",
+    srcs = [
+        "native_main.rs",
+        "subject.rs",
+    ],
+    crate_root = "native_main.rs",
+    rustc_flags = ["-Cinstrument-coverage"],
+)
+
+js_binary(
+    name = "browser_runner",
+    data = [
+        "collector.mjs",
+        "//:node_modules/playwright",
+    ],
+    entry_point = "browser.mjs",
+)
+
+sh_test(
+    name = "browser_coverage_test",
+    srcs = ["run.sh"],
+    args = [
+        "$(rootpath :browser_runner)",
+        "$(rootpath :web_fixture)",
+        "$(rootpath @research_chromium//:chrome-headless-shell)",
+        "$(rootpath :runtime_fixture)",
+        "$(rootpath @llvm//tools:llvm-cov)",
+        "$(rootpath @llvm//tools:llvm-profdata)",
+        "$(rootpath @llvm//tools:llvm-readobj)",
+        "$(rootpath :native_fixture)",
+    ],
+    data = [
+        ":browser_runner",
+        ":native_fixture",
+        ":runtime_fixture",
+        ":web_fixture",
+        "@llvm//tools:llvm-cov",
+        "@llvm//tools:llvm-profdata",
+        "@llvm//tools:llvm-readobj",
+        "@research_chromium//:chrome-headless-shell",
+        "@research_chromium//:files",
+    ],
+    env_inherit = [
+        "NIX_LD",
+        "NIX_LD_LIBRARY_PATH",
+    ],
+    tags = [
+        "manual",
+        "no-remote-exec",
+    ],
+)

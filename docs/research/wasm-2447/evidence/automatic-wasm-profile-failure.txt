@@ -1,0 +1,3 @@
+ERROR: <BAZEL_ROOT>/external/llvm++llvm+llvm-project/compiler-rt/BUILD.bazel:3168:11: Compiling compiler-rt/lib/profile/GCDAProfiling.c failed: (Exit 1): clang failed: error executing CppCompile command (from cc_library rule target @@llvm++llvm+llvm-project//compiler-rt:profile) external/llvm++llvm_toolchain_minimal+llvm-toolchain-minimal-linux-amd64/bin/clang -target wasm32-unknown-unknown -no-canonical-prefixes -Wno-builtin-macro-redefined '-D__DATE__="redacted"' ... (remaining 50 arguments skipped)
+external/llvm++llvm+llvm-project/compiler-rt/lib/profile/GCDAProfiling.c:29:10: fatal error: 'errno.h' file not found
+   29 | #include <errno.h>

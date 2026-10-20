@@ -1,0 +1,2 @@
+error: failed to load coverage: '<RUNFILES>/_main/tools/research_wasm/web_fixture/fixture_bg.wasm': out of order section type: 0
+error: could not load coverage information
