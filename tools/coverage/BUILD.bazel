@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//tools/python:defs.bzl", "py_binary")
+load("//tools/python:defs.bzl", "py_binary", "py_test")
 
 sh_binary(
     name = "coverage",
@@ -25,4 +25,16 @@ filegroup(
     srcs = ["README.md"],
     tags = ["markdown"],
     visibility = ["//tools/lint:__pkg__"],
+)
+
+py_test(
+    name = "inventory_test",
+    size = "small",
+    srcs = ["inventory_test.py"],
+    args = [
+        "-o",
+        "python_files=inventory_test.py",
+    ],
+    data = [":inventory"],
+    env = {"COVERAGE_CORE": "ctrace"},
 )

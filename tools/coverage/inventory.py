@@ -8,6 +8,7 @@ import sys
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from pathlib import Path
+from typing import TypedDict
 
 LANGUAGES = {
     ".py": "python",
@@ -28,6 +29,33 @@ LANGUAGES = {
 }
 
 
+class SourceOwner(TypedDict):
+    label: str
+    kind: str
+    tags: list[str]
+    testonly: bool
+
+
+class CoverageSource(TypedDict):
+    path: str
+    language: str
+    owners: list[SourceOwner]
+
+
+class ScopeExclusion(TypedDict):
+    path: str
+    reason: str
+
+
+class CoverageInventory(TypedDict):
+    schema_version: int
+    eligible: list[CoverageSource]
+    excluded: list[ScopeExclusion]
+    missing_owners: list[str]
+    coverage_roots: list[str]
+    baseline_sources: list[str]
+
+
 def run(root: Path, arguments: list[str]) -> str:
     return subprocess.run(
         arguments, cwd=root, text=True, stdout=subprocess.PIPE, check=True
@@ -41,7 +69,7 @@ def source_path(label: str) -> str | None:
     return f"{package}/{name}" if package else name
 
 
-def discover(root: Path, options: list[str]) -> dict:
+def discover(root: Path, options: list[str]) -> CoverageInventory:
     ignored_file = root / ".bazelignore"
     ignored = (
         [
@@ -85,8 +113,8 @@ def discover(root: Path, options: list[str]) -> dict:
     graph = ET.fromstring(
         run(root, ["bazel", "query", *options, query, "--output=xml"])
     )
-    owners = defaultdict(list)
-    rules = {}
+    owners: defaultdict[str, list[str]] = defaultdict(list)
+    rules: dict[str, SourceOwner] = {}
     for rule in graph.findall("rule"):
         label = rule.attrib["name"]
         if not label.startswith("//"):
@@ -161,8 +189,8 @@ def discover(root: Path, options: list[str]) -> dict:
             if sources:
                 roots.append(label.removesuffix(".python_coverage"))
                 baseline_sources.update(sources)
-    eligible = []
-    excluded = []
+    eligible: list[CoverageSource] = []
+    excluded: list[ScopeExclusion] = []
     missing = []
     for name in files:
         language = LANGUAGES.get(Path(name).suffix)
