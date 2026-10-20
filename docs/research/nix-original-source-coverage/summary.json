@@ -1,0 +1,14 @@
+{
+  "evaluator": "/nix/store/9jw399l4lllgai8p7fd4y61lqhi8qzja-nix-2.34.9",
+  "sha256": "cac9e1cdced503201d9d175b48732cd29b027b066398a358ac98159c0c9128b1",
+  "version": "nix-instantiate (Nix) 2.34.9",
+  "native_observation": "outer import call only; no expression-line events",
+  "instrumented_scope": "bounded expression-entry model",
+  "lazy_poison": "not forced",
+  "shared_thunk_body_hits": 1,
+  "repeat_same_counts": true,
+  "negative_cases": 5,
+  "capture_integrity": "sha256 plus exit status and demanded-root receipt",
+  "remote_execution": false,
+  "hosted_upload": false
+}

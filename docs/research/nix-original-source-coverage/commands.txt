@@ -1,0 +1,3 @@
+nix develop --command aspect --host_jvm_args=-Xmx1536m test //tools/research_nix:experiment --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 --test_tag_filters= --nocache_test_results --test_output=errors
+nix develop --command aspect --host_jvm_args=-Xmx1536m lint //tools/research_nix:experiment --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048
+nix develop --command aspect --host_jvm_args=-Xmx1536m format --scope=all --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048

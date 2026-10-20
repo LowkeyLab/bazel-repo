@@ -1,0 +1,13 @@
+load("@aspect_rules_py//py:defs.bzl", "py_test")
+
+# The fixed evaluator closure exists on this host only.
+py_test(
+    name = "experiment",
+    srcs = ["experiment.py"],
+    data = glob(["fixtures/*.nix"]),
+    main = "experiment.py",
+    tags = [
+        "manual",
+        "no-remote",
+    ],
+)

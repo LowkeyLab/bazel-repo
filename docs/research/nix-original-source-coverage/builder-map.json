@@ -1,0 +1,11 @@
+{
+  "source": "tools/research_nix/fixtures/evaluated.nix",
+  "lines": {
+    "1": 10,
+    "2": 11,
+    "3": 12,
+    "4": 13
+  },
+  "interpolation": "none",
+  "removed_indentation": 4
+}

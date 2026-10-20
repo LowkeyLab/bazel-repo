@@ -1,0 +1,240 @@
+{
+  "disconnected.nix": [
+    {
+      "id": 0,
+      "kind": "boolean",
+      "start": 3,
+      "end": 8,
+      "line": 1,
+      "column": 4,
+      "children": []
+    },
+    {
+      "id": 1,
+      "kind": "integer",
+      "start": 16,
+      "end": 17,
+      "line": 2,
+      "column": 3,
+      "children": []
+    },
+    {
+      "id": 2,
+      "kind": "integer",
+      "start": 20,
+      "end": 21,
+      "line": 2,
+      "column": 7,
+      "children": []
+    },
+    {
+      "id": 3,
+      "kind": "addition",
+      "start": 16,
+      "end": 21,
+      "line": 2,
+      "column": 3,
+      "children": [1, 2]
+    },
+    {
+      "id": 4,
+      "kind": "integer",
+      "start": 29,
+      "end": 30,
+      "line": 4,
+      "column": 3,
+      "children": []
+    },
+    {
+      "id": 5,
+      "kind": "integer",
+      "start": 33,
+      "end": 34,
+      "line": 4,
+      "column": 7,
+      "children": []
+    },
+    {
+      "id": 6,
+      "kind": "addition",
+      "start": 29,
+      "end": 34,
+      "line": 4,
+      "column": 3,
+      "children": [4, 5]
+    },
+    {
+      "id": 7,
+      "kind": "if",
+      "start": 0,
+      "end": 34,
+      "line": 1,
+      "column": 1,
+      "children": [0, 3, 6]
+    }
+  ],
+  "evaluated.nix": [
+    {
+      "id": 0,
+      "kind": "boolean",
+      "start": 22,
+      "end": 26,
+      "line": 3,
+      "column": 8,
+      "children": []
+    },
+    {
+      "id": 1,
+      "kind": "integer",
+      "start": 38,
+      "end": 39,
+      "line": 4,
+      "column": 7,
+      "children": []
+    },
+    {
+      "id": 2,
+      "kind": "integer",
+      "start": 42,
+      "end": 43,
+      "line": 4,
+      "column": 11,
+      "children": []
+    },
+    {
+      "id": 3,
+      "kind": "addition",
+      "start": 38,
+      "end": 43,
+      "line": 4,
+      "column": 7,
+      "children": [1, 2]
+    },
+    {
+      "id": 4,
+      "kind": "identifier",
+      "start": 59,
+      "end": 64,
+      "line": 6,
+      "column": 7,
+      "children": []
+    },
+    {
+      "id": 5,
+      "kind": "string",
+      "start": 65,
+      "end": 74,
+      "line": 6,
+      "column": 13,
+      "children": []
+    },
+    {
+      "id": 6,
+      "kind": "application",
+      "start": 59,
+      "end": 74,
+      "line": 6,
+      "column": 7,
+      "children": [4, 5]
+    },
+    {
+      "id": 7,
+      "kind": "if",
+      "start": 19,
+      "end": 74,
+      "line": 3,
+      "column": 5,
+      "children": [0, 3, 6]
+    },
+    {
+      "id": 8,
+      "kind": "identifier",
+      "start": 89,
+      "end": 94,
+      "line": 8,
+      "column": 5,
+      "children": []
+    },
+    {
+      "id": 9,
+      "kind": "string",
+      "start": 95,
+      "end": 111,
+      "line": 8,
+      "column": 11,
+      "children": []
+    },
+    {
+      "id": 10,
+      "kind": "application",
+      "start": 89,
+      "end": 111,
+      "line": 8,
+      "column": 5,
+      "children": [8, 9]
+    },
+    {
+      "id": 11,
+      "kind": "string",
+      "start": 125,
+      "end": 235,
+      "line": 9,
+      "column": 13,
+      "children": []
+    },
+    {
+      "id": 12,
+      "kind": "identifier",
+      "start": 253,
+      "end": 259,
+      "line": 17,
+      "column": 12,
+      "children": []
+    },
+    {
+      "id": 13,
+      "kind": "identifier",
+      "start": 262,
+      "end": 268,
+      "line": 17,
+      "column": 21,
+      "children": []
+    },
+    {
+      "id": 14,
+      "kind": "addition",
+      "start": 253,
+      "end": 268,
+      "line": 17,
+      "column": 12,
+      "children": [12, 13]
+    },
+    {
+      "id": 15,
+      "kind": "identifier",
+      "start": 281,
+      "end": 288,
+      "line": 18,
+      "column": 12,
+      "children": []
+    },
+    {
+      "id": 16,
+      "kind": "attributes",
+      "start": 240,
+      "end": 291,
+      "line": 16,
+      "column": 1,
+      "children": [14, 15]
+    },
+    {
+      "id": 17,
+      "kind": "let",
+      "start": 0,
+      "end": 291,
+      "line": 1,
+      "column": 1,
+      "children": [7, 10, 11, 16]
+    }
+  ]
+}

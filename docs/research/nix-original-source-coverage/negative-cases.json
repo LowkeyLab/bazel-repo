@@ -1,0 +1,27 @@
+[
+  {
+    "case": "missing",
+    "functional_output": "6",
+    "collection_error": "missing evaluator output"
+  },
+  {
+    "case": "empty",
+    "functional_output": "6",
+    "collection_error": "missing evaluator receipt"
+  },
+  {
+    "case": "corrupt",
+    "functional_output": "6",
+    "collection_error": "unknown evaluator location"
+  },
+  {
+    "case": "receipt-only",
+    "functional_output": "6",
+    "collection_error": "missing demanded root expression"
+  },
+  {
+    "case": "truncated",
+    "functional_output": "6",
+    "collection_error": "evaluator capture integrity failure"
+  }
+]
