@@ -1,0 +1,28 @@
+evaluation warning: stdenv.isLinux is deprecated, use stdenv.hostPlatform.isLinux instead
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+WARNING: Build options --@@rules_go+//go/config:pure, --collect_code_coverage, --instrument_test_targets, and 1 more have changed, discarding analysis cache (this can be expensive, see https://bazel.build/advanced/performance/iteration-speed).
+Analyzing: target //research/jvm-2480:analyze (1 packages loaded, 0 targets configured)
+INFO: Analyzed target //research/jvm-2480:analyze (7 packages loaded, 4737 targets configured).
+INFO: Found 1 target...
+[0 / 5] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //research/jvm-2480:analyze up-to-date:
+  bazel-bin/research/jvm-2480/analyze
+INFO: Elapsed time: 1.442s, Critical Path: 0.02s
+INFO: 6 processes: 6 internal.
+INFO: Build completed successfully, 6 total actions
+INFO: Running command line: bazel-bin/research/jvm-2480/analyze <args omitted>

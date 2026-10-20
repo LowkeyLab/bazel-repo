@@ -1,0 +1,3 @@
+
+0 violations (0 hard, baseline 0), 706 words, 0.0 per 100 words
+Hedges/modality (may, might, could) are never flagged: confidence is content.

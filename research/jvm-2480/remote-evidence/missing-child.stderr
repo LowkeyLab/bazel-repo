@@ -1,0 +1,38 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/coverage/jvm_fixture:original (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/coverage/jvm_fixture:original (1 packages loaded, 0 targets configured).
+INFO: Found 1 target...
+[7 / 8] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+Target //tools/coverage/jvm_fixture:original up-to-date:
+  bazel-bin/tools/coverage/jvm_fixture/original
+  bazel-bin/tools/coverage/jvm_fixture/original.jar
+INFO: Elapsed time: 0.418s, Critical Path: 0.01s
+INFO: 1 process: 1 internal.
+INFO: Build completed successfully, 1 total action
+INFO: Running command line: bazel-bin/tools/coverage/jvm_fixture/original <args omitted>
+Exception in thread "main" java.lang.reflect.InvocationTargetException
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:119)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:565)
+	at adapter.Original.main(Original.java:14)
+Caused by: java.io.FileNotFoundException: /home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a/research/jvm-2480/remote-evidence/absent-child.exec (No such file or directory)
+	at java.base/java.io.FileInputStream.open0(Native Method)
+	at java.base/java.io.FileInputStream.open(FileInputStream.java:185)
+	at java.base/java.io.FileInputStream.<init>(FileInputStream.java:139)
+	at org.jacoco.core.tools.ExecFileLoader.load(ExecFileLoader.java:72)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:104)
+	... 2 more

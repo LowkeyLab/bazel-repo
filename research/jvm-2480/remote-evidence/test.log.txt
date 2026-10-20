@@ -1,0 +1,10 @@
+exec ${PAGER:-/usr/bin/less} "$0" || exit 1
+Executing tests from //tools/coverage/jvm_fixture:fixture_test
+-----------------------------------------------------------------------------
+singlejar_local: ./src/tools/singlejar/mapped_file_posix.inc:42: open /buildbuddy-execroot/bazel-out/k8-fastbuild/bin/tools/coverage/jvm_fixture/fixture_test.runfiles/tools/coverage/jvm_fixture/fixture_test.jar:: No such file or directory
+singlejar_local: src/tools/singlejar/input_jar.cc:32: Cannot open input jar /buildbuddy-execroot/bazel-out/k8-fastbuild/bin/tools/coverage/jvm_fixture/fixture_test.runfiles/tools/coverage/jvm_fixture/fixture_test.jar: No such file or directory
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by com.google.testing.coverage.JacocoCoverageRunner (file:/buildbuddy-execroot/bazel-out/k8-fastbuild/bin/tools/coverage/jvm_fixture/fixture_test.runfiles/rules_java++toolchains+remote_java_tools/java_tools/JacocoCoverage_jarjar_deploy.jar)
+WARNING: Please consider reporting this to the maintainers of class com.google.testing.coverage.JacocoCoverageRunner
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+FUNCTIONAL_TEST_PASS

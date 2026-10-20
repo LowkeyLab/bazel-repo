@@ -1,0 +1,412 @@
+{
+  "canonical_options": [
+    {
+      "combinedForm": "--bes_backend=grpcs://remote.buildbuddy.io",
+      "optionName": "bes_backend",
+      "optionValue": "grpcs://remote.buildbuddy.io",
+      "effectTags": ["AFFECTS_OUTPUTS"],
+      "source": "/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a/.bazelrc"
+    },
+    {
+      "combinedForm": "--remote_cache=grpcs://remote.buildbuddy.io",
+      "optionName": "remote_cache",
+      "optionValue": "grpcs://remote.buildbuddy.io",
+      "effectTags": ["UNKNOWN"],
+      "source": "/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/0bed8bf4-6e60-4bdd-8edb-fde22454256a/.bazelrc"
+    },
+    {
+      "combinedForm": "--remote_executor=grpcs://remote.buildbuddy.io",
+      "optionName": "remote_executor",
+      "optionValue": "grpcs://remote.buildbuddy.io",
+      "effectTags": ["UNKNOWN"],
+      "source": "expanded from --config=ci-remote"
+    },
+    {
+      "combinedForm": "--noremote_local_fallback",
+      "optionName": "remote_local_fallback",
+      "optionValue": "0",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--remote_upload_local_results=true",
+      "optionName": "remote_upload_local_results",
+      "optionValue": "true",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--jobs=4",
+      "optionName": "jobs",
+      "optionValue": "4",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS", "EXECUTION"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--local_resources=cpu=2",
+      "optionName": "local_resources",
+      "optionValue": "cpu=2",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--local_resources=memory=2048",
+      "optionName": "local_resources",
+      "optionValue": "memory=2048",
+      "effectTags": ["HOST_MACHINE_RESOURCE_OPTIMIZATIONS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--instrumentation_filter=^//tools/coverage/jvm_fixture",
+      "optionName": "instrumentation_filter",
+      "optionValue": "^//tools/coverage/jvm_fixture",
+      "effectTags": ["AFFECTS_OUTPUTS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--instrument_test_targets",
+      "optionName": "instrument_test_targets",
+      "optionValue": "1",
+      "effectTags": ["AFFECTS_OUTPUTS"],
+      "source": "command line options"
+    },
+    {
+      "combinedForm": "--cache_test_results=no",
+      "optionName": "cache_test_results",
+      "optionValue": "no",
+      "effectTags": ["UNKNOWN"],
+      "source": "command line options"
+    }
+  ],
+  "test_events": [
+    {
+      "id": {
+        "testResult": {
+          "label": "//tools/coverage/jvm_fixture:fixture_test",
+          "run": 1,
+          "shard": 1,
+          "attempt": 1,
+          "configuration": {
+            "id": "f86324f04d38638ae75efac3777fbdf254a1348df545abfebc62eec49dc1a7d2"
+          }
+        }
+      },
+      "testResult": {
+        "testActionOutput": [
+          {
+            "name": "test.log",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/297ca7f0804ab169385a4878169549299d97ee91af943839aecfb795c1da2716/1262"
+          },
+          {
+            "name": "test.lcov",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/7c11c2561db5612e4d67f50251fea25d5edbd202f4edd9192d0d52336da7d5df/1542"
+          },
+          {
+            "name": "test.xml",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/b5d48bd0301994f277a54788aa0223aebd4eac29c48643f127520e845d2787fe/1688"
+          },
+          {
+            "name": "test.outputs/child.completed",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/19eaf43821a7660ec323a87c8457bf74823beb296c39f5e01aa8a683aa50f061/7"
+          },
+          {
+            "name": "test.outputs/child.stdout",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/1c376e03b968d91174086896e7a481d31dad664020d096f1b3ed65c28b4b3a7c/587"
+          },
+          {
+            "name": "test.outputs/child14804330510306044234.exec",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/2df3c09a53e72735fa6f6bfd807b6bf9727ff3b61b554529cf72f0d122bbfee4/55"
+          },
+          {
+            "name": "test.outputs/child8754102590842246443.dat",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/de37aeb455b599a22c2d51b2a11d97a4d3a6895a1684dfa9d5defa1bcdefce4a/315"
+          },
+          {
+            "name": "test.outputs_manifest__MANIFEST",
+            "uri": "bytestream://remote.buildbuddy.io/blobs/74bff2bb5999034befba204615c3544f5fd7af0676a94f17ea3f113042f2ea53/160"
+          }
+        ],
+        "testAttemptDurationMillis": "560",
+        "status": "PASSED",
+        "testAttemptStartMillisEpoch": "1792501528825",
+        "executionInfo": {
+          "strategy": "remote",
+          "timingBreakdown": {
+            "child": [
+              {
+                "name": "parseTime",
+                "time": "0.001s"
+              },
+              {
+                "name": "fetchTime",
+                "time": "0.001s"
+              },
+              {
+                "name": "queueTime",
+                "time": "0.059s"
+              },
+              {
+                "name": "uploadTime",
+                "time": "0.191s"
+              },
+              {
+                "name": "setupTime",
+                "time": "1.191s"
+              },
+              {
+                "name": "executionWallTime",
+                "time": "0.560s"
+              },
+              {
+                "name": "processOutputsTime",
+                "time": "0.137s"
+              },
+              {
+                "name": "networkTime",
+                "time": "0.542s"
+              }
+            ],
+            "name": "totalTime",
+            "time": "2.884s"
+          }
+        },
+        "testAttemptStart": "2026-10-20T13:05:28.825Z",
+        "testAttemptDuration": "0.560s"
+      }
+    },
+    {
+      "id": {
+        "testSummary": {
+          "label": "//tools/coverage/jvm_fixture:fixture_test",
+          "configuration": {
+            "id": "f86324f04d38638ae75efac3777fbdf254a1348df545abfebc62eec49dc1a7d2"
+          }
+        }
+      },
+      "testSummary": {
+        "totalRunCount": 1,
+        "passed": [
+          {
+            "uri": "bytestream://remote.buildbuddy.io/blobs/297ca7f0804ab169385a4878169549299d97ee91af943839aecfb795c1da2716/1262"
+          }
+        ],
+        "overallStatus": "PASSED",
+        "firstStartTimeMillis": "1792501528825",
+        "lastStopTimeMillis": "1792501529385",
+        "totalRunDurationMillis": "560",
+        "runCount": 1,
+        "totalRunDuration": "0.560s",
+        "firstStartTime": "2026-10-20T13:05:28.825Z",
+        "lastStopTime": "2026-10-20T13:05:29.385Z",
+        "attemptCount": 1
+      }
+    }
+  ],
+  "action_summary": {
+    "actionsCreated": "1867",
+    "actionsExecuted": "202",
+    "actionsCreatedNotIncludingAspects": "1857",
+    "actionData": [
+      {
+        "mnemonic": "Symlink",
+        "actionsExecuted": "34",
+        "firstStartedMs": "1792501511124",
+        "lastEndedMs": "1792501512164",
+        "actionsCreated": "115"
+      },
+      {
+        "mnemonic": "Javac",
+        "actionsExecuted": "25",
+        "firstStartedMs": "1792501517394",
+        "lastEndedMs": "1792501528820",
+        "actionsCreated": "28"
+      },
+      {
+        "mnemonic": "StampJarManifest",
+        "actionsExecuted": "19",
+        "firstStartedMs": "1792501520061",
+        "lastEndedMs": "1792501523534",
+        "actionsCreated": "19"
+      },
+      {
+        "mnemonic": "CreateCompileJar",
+        "actionsExecuted": "15",
+        "firstStartedMs": "1792501520367",
+        "lastEndedMs": "1792501524215",
+        "actionsCreated": "19"
+      },
+      {
+        "mnemonic": "Turbine",
+        "actionsExecuted": "13",
+        "firstStartedMs": "1792501517394",
+        "lastEndedMs": "1792501524524",
+        "actionsCreated": "15"
+      },
+      {
+        "mnemonic": "GenProtoDescriptorSet",
+        "actionsExecuted": "13",
+        "firstStartedMs": "1792501511229",
+        "lastEndedMs": "1792501517815",
+        "actionsCreated": "16"
+      },
+      {
+        "mnemonic": "FileWrite",
+        "actionsExecuted": "11",
+        "firstStartedMs": "1792501511105",
+        "lastEndedMs": "1792501532038",
+        "actionsCreated": "162"
+      },
+      {
+        "mnemonic": "CliKotlinc",
+        "actionsExecuted": "9",
+        "firstStartedMs": "1792501519940",
+        "lastEndedMs": "1792501525451",
+        "actionsCreated": "11"
+      },
+      {
+        "mnemonic": "TemplateExpand",
+        "actionsExecuted": "7",
+        "firstStartedMs": "1792501511072",
+        "lastEndedMs": "1792501528515",
+        "actionsCreated": "14"
+      },
+      {
+        "mnemonic": "RunfilesTree",
+        "actionsExecuted": "7",
+        "firstStartedMs": "1792501517769",
+        "lastEndedMs": "1792501528821",
+        "actionsCreated": "76"
+      },
+      {
+        "mnemonic": "RepoMappingManifest",
+        "actionsExecuted": "7",
+        "firstStartedMs": "1792501511097",
+        "lastEndedMs": "1792501528517",
+        "actionsCreated": "77"
+      },
+      {
+        "mnemonic": "SourceSymlinkManifest",
+        "actionsExecuted": "7",
+        "firstStartedMs": "1792501511119",
+        "lastEndedMs": "1792501528516",
+        "actionsCreated": "76"
+      },
+      {
+        "mnemonic": "BaselineCoverage",
+        "actionsExecuted": "6",
+        "firstStartedMs": "1792501532037",
+        "lastEndedMs": "1792501532039",
+        "actionsCreated": "6"
+      },
+      {
+        "mnemonic": "JavaDeployJar",
+        "actionsExecuted": "4",
+        "firstStartedMs": "1792501519754",
+        "lastEndedMs": "1792501526584",
+        "actionsCreated": "13"
+      },
+      {
+        "mnemonic": "GenProto",
+        "actionsExecuted": "3",
+        "firstStartedMs": "1792501511234",
+        "lastEndedMs": "1792501512843",
+        "actionsCreated": "3"
+      },
+      {
+        "mnemonic": "Action",
+        "actionsExecuted": "3",
+        "firstStartedMs": "1792501521213",
+        "lastEndedMs": "1792501527581",
+        "actionsCreated": "6"
+      },
+      {
+        "mnemonic": "JavaToolchainCompileBootClasspath",
+        "actionsExecuted": "2",
+        "firstStartedMs": "1792501511357",
+        "lastEndedMs": "1792501517224",
+        "actionsCreated": "2"
+      },
+      {
+        "mnemonic": "Ijar",
+        "actionsExecuted": "2",
+        "firstStartedMs": "1792501516411",
+        "lastEndedMs": "1792501517895",
+        "actionsCreated": "2"
+      },
+      {
+        "mnemonic": "CoverageReport",
+        "actionsExecuted": "2",
+        "firstStartedMs": "1792501532039",
+        "lastEndedMs": "1792501532323",
+        "systemTime": "0.064s",
+        "userTime": "0.331s"
+      },
+      {
+        "mnemonic": "KotlinCompile",
+        "actionsExecuted": "2",
+        "firstStartedMs": "1792501527582",
+        "lastEndedMs": "1792501527892",
+        "actionsCreated": "2"
+      }
+    ],
+    "runnerCount": [
+      {
+        "name": "total",
+        "count": 202
+      },
+      {
+        "name": "remote cache hit",
+        "count": 119,
+        "execKind": "Remote"
+      },
+      {
+        "name": "internal",
+        "count": 81
+      },
+      {
+        "name": "local",
+        "count": 2,
+        "execKind": "Local"
+      },
+      {
+        "name": "remote",
+        "count": 1,
+        "execKind": "Remote"
+      }
+    ],
+    "actionCacheStatistics": {
+      "sizeInBytes": "4164347",
+      "saveTimeInMs": "7",
+      "misses": 202,
+      "missDetails": [
+        {},
+        {
+          "reason": "DIFFERENT_DEPS"
+        },
+        {
+          "reason": "DIFFERENT_ENVIRONMENT"
+        },
+        {
+          "reason": "DIFFERENT_FILES"
+        },
+        {
+          "reason": "CORRUPTED_CACHE_ENTRY"
+        },
+        {
+          "reason": "NOT_CACHED",
+          "count": 187
+        },
+        {
+          "reason": "UNCONDITIONAL_EXECUTION",
+          "count": 2
+        },
+        {
+          "reason": "DIGEST_MISMATCH",
+          "count": 13
+        }
+      ],
+      "loadTimeInMs": "38"
+    }
+  },
+  "invocation": "https://app.buildbuddy.io/invocation/e729bea4-048e-4bd0-9e66-d6b8767fddbf"
+}

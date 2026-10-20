@@ -1,0 +1,193 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<query version="2">
+    <rule class="java_binary" location="/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:57:12" name="//tools/coverage/jvm_fixture:baseline">
+        <string name="name" value="baseline"/>
+        <string name="generator_name" value="baseline"/>
+        <string name="generator_function" value="java_binary"/>
+        <string name="generator_location" value="tools/coverage/jvm_fixture/BUILD.bazel:57:12"/>
+        <list name="srcs">
+            <label value="//tools/coverage/jvm_fixture:java/adapter/Baseline.java"/>
+        </list>
+        <list name="runtime_deps">
+            <label value="@@rules_java++toolchains+remote_java_tools//:jacoco_coverage_runner"/>
+        </list>
+        <label name="launcher" value="@bazel_tools//tools/jdk:launcher_flag_alias"/>
+        <string name="main_class" value="adapter.Baseline"/>
+        <rule-input name="//tools/coverage/jvm_fixture:java/adapter/Baseline.java"/>
+        <rule-input name="@bazel_tools//tools/build_defs/build_info:java_build_info"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_toolchain"/>
+        <rule-input name="@bazel_tools//tools/jdk:java_plugins_flag_alias"/>
+        <rule-input name="@bazel_tools//tools/jdk:launcher_flag_alias"/>
+        <rule-input name="@bazel_tools//tools/jdk:toolchain_type"/>
+        <rule-input name="@bazel_tools//tools/launcher:launcher"/>
+        <rule-input name="@platforms//os:windows"/>
+        <rule-input name="@rules_java//java/bazel/rules:java_stub_template.txt"/>
+        <rule-input name="@@rules_java++toolchains+remote_java_tools//:jacoco_coverage_runner"/>
+        <rule-output name="//tools/coverage/jvm_fixture:baseline.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:baseline-src.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:baseline_deploy-src.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:baseline_deploy.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:baseline_deploy.jar.unstripped"/>
+    </rule>
+    <rule class="java_binary" location="/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:37:12" name="//tools/coverage/jvm_fixture:child">
+        <string name="name" value="child"/>
+        <string name="generator_name" value="child"/>
+        <string name="generator_function" value="java_binary"/>
+        <string name="generator_location" value="tools/coverage/jvm_fixture/BUILD.bazel:37:12"/>
+        <list name="srcs">
+            <label value="//tools/coverage/jvm_fixture:java/probe/Child.java"/>
+        </list>
+        <label name="launcher" value="@bazel_tools//tools/jdk:launcher_flag_alias"/>
+        <string name="main_class" value="probe.Child"/>
+        <rule-input name="//tools/coverage/jvm_fixture:java/probe/Child.java"/>
+        <rule-input name="@bazel_tools//tools/build_defs/build_info:java_build_info"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_toolchain"/>
+        <rule-input name="@bazel_tools//tools/jdk:java_plugins_flag_alias"/>
+        <rule-input name="@bazel_tools//tools/jdk:launcher_flag_alias"/>
+        <rule-input name="@bazel_tools//tools/jdk:toolchain_type"/>
+        <rule-input name="@bazel_tools//tools/launcher:launcher"/>
+        <rule-input name="@platforms//os:windows"/>
+        <rule-input name="@rules_java//java/bazel/rules:java_stub_template.txt"/>
+        <rule-output name="//tools/coverage/jvm_fixture:child.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:child-src.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:child_deploy-src.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:child_deploy.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:child_deploy.jar.unstripped"/>
+    </rule>
+    <rule class="java_library" location="/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:14:13" name="//tools/coverage/jvm_fixture:disconnected_java">
+        <string name="name" value="disconnected_java"/>
+        <string name="generator_name" value="disconnected_java"/>
+        <string name="generator_function" value="java_library"/>
+        <string name="generator_location" value="tools/coverage/jvm_fixture/BUILD.bazel:14:13"/>
+        <list name="srcs">
+            <label value="//tools/coverage/jvm_fixture:java/disconnected/Disconnected.java"/>
+        </list>
+        <rule-input name="//tools/coverage/jvm_fixture:java/disconnected/Disconnected.java"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_toolchain"/>
+        <rule-input name="@bazel_tools//tools/jdk:java_plugins_flag_alias"/>
+        <rule-input name="@bazel_tools//tools/jdk:toolchain_type"/>
+        <rule-output name="//tools/coverage/jvm_fixture:libdisconnected_java.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:libdisconnected_java-src.jar"/>
+    </rule>
+    <rule class="kt_jvm_library" location="/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:29:15" name="//tools/coverage/jvm_fixture:disconnected_kotlin">
+        <string name="name" value="disconnected_kotlin"/>
+        <list name="srcs">
+            <label value="//tools/coverage/jvm_fixture:kotlin/kprobe/Declaration.kt"/>
+            <label value="//tools/coverage/jvm_fixture:kotlin/kprobe/DisconnectedKotlin.kt"/>
+        </list>
+        <rule-input name="//tools/coverage/jvm_fixture:kotlin/kprobe/Declaration.kt"/>
+        <rule-input name="//tools/coverage/jvm_fixture:kotlin/kprobe/DisconnectedKotlin.kt"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_runtime"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_toolchain"/>
+        <rule-input name="@bazel_tools//tools/jdk:singlejar"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:kotlin-stdlib"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:ksp-intellij-kotlinx-coroutines-core-jvm"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:symbol-processing-aa"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:symbol-processing-api"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:symbol-processing-common-deps"/>
+        <rule-input name="@rules_kotlin//kotlin/internal:current_toolchain"/>
+        <rule-input name="@rules_kotlin//third_party:empty.jar"/>
+        <rule-input name="@rules_kotlin//third_party:empty.jdeps"/>
+        <rule-input name="@rules_kotlin//third_party:java_stub_template.txt"/>
+        <rule-output name="//tools/coverage/jvm_fixture:disconnected_kotlin.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:disconnected_kotlin-sources.jar"/>
+    </rule>
+    <rule class="java_library" location="/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:6:13" name="//tools/coverage/jvm_fixture:executed_java">
+        <string name="name" value="executed_java"/>
+        <string name="generator_name" value="executed_java"/>
+        <string name="generator_function" value="java_library"/>
+        <string name="generator_location" value="tools/coverage/jvm_fixture/BUILD.bazel:6:13"/>
+        <list name="srcs">
+            <label value="//tools/coverage/jvm_fixture:java/odd/DirectoryMismatch.java"/>
+            <label value="//tools/coverage/jvm_fixture:java/probe/Executed.java"/>
+        </list>
+        <rule-input name="//tools/coverage/jvm_fixture:java/odd/DirectoryMismatch.java"/>
+        <rule-input name="//tools/coverage/jvm_fixture:java/probe/Executed.java"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_toolchain"/>
+        <rule-input name="@bazel_tools//tools/jdk:java_plugins_flag_alias"/>
+        <rule-input name="@bazel_tools//tools/jdk:toolchain_type"/>
+        <rule-output name="//tools/coverage/jvm_fixture:libexecuted_java.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:libexecuted_java-src.jar"/>
+    </rule>
+    <rule class="kt_jvm_library" location="/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:19:15" name="//tools/coverage/jvm_fixture:executed_kotlin">
+        <string name="name" value="executed_kotlin"/>
+        <list name="srcs">
+            <label value="//tools/coverage/jvm_fixture:kotlin/first/shared/Twin.kt"/>
+            <label value="//tools/coverage/jvm_fixture:kotlin/kprobe/ExecutedKotlin.kt"/>
+            <label value="//tools/coverage/jvm_fixture:kotlin/odd/KotlinMismatch.kt"/>
+            <label value="//tools/coverage/jvm_fixture:kotlin/second/shared/Twin.kt"/>
+        </list>
+        <rule-input name="//tools/coverage/jvm_fixture:kotlin/first/shared/Twin.kt"/>
+        <rule-input name="//tools/coverage/jvm_fixture:kotlin/kprobe/ExecutedKotlin.kt"/>
+        <rule-input name="//tools/coverage/jvm_fixture:kotlin/odd/KotlinMismatch.kt"/>
+        <rule-input name="//tools/coverage/jvm_fixture:kotlin/second/shared/Twin.kt"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_runtime"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_toolchain"/>
+        <rule-input name="@bazel_tools//tools/jdk:singlejar"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:kotlin-stdlib"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:ksp-intellij-kotlinx-coroutines-core-jvm"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:symbol-processing-aa"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:symbol-processing-api"/>
+        <rule-input name="@rules_kotlin//kotlin/compiler:symbol-processing-common-deps"/>
+        <rule-input name="@rules_kotlin//kotlin/internal:current_toolchain"/>
+        <rule-input name="@rules_kotlin//third_party:empty.jar"/>
+        <rule-input name="@rules_kotlin//third_party:empty.jdeps"/>
+        <rule-input name="@rules_kotlin//third_party:java_stub_template.txt"/>
+        <rule-output name="//tools/coverage/jvm_fixture:executed_kotlin.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:executed_kotlin-sources.jar"/>
+    </rule>
+    <rule class="java_test" location="/home/tacascer/.local/share/worktree-pool/worktrees/207f1904-1165-417f-a4f0-399e8498ed22/8b9c77a4-1c28-4ad3-b40a-35b51567cc31/tools/coverage/jvm_fixture/BUILD.bazel:43:10" name="//tools/coverage/jvm_fixture:fixture_test">
+        <string name="name" value="fixture_test"/>
+        <string name="generator_name" value="fixture_test"/>
+        <string name="generator_function" value="java_test"/>
+        <string name="generator_location" value="tools/coverage/jvm_fixture/BUILD.bazel:43:10"/>
+        <string name="size" value="small"/>
+        <list name="args">
+            <string value="$(location :child)"/>
+        </list>
+        <list name="srcs">
+            <label value="//tools/coverage/jvm_fixture:java/probe/FixtureTest.java"/>
+        </list>
+        <list name="deps">
+            <label value="//tools/coverage/jvm_fixture:executed_java"/>
+            <label value="//tools/coverage/jvm_fixture:executed_kotlin"/>
+        </list>
+        <list name="data">
+            <label value="//tools/coverage/jvm_fixture:child"/>
+        </list>
+        <label name="launcher" value="@bazel_tools//tools/jdk:launcher_flag_alias"/>
+        <string name="main_class" value="probe.FixtureTest"/>
+        <boolean name="use_testrunner" value="false"/>
+        <rule-input name="//tools/coverage/jvm_fixture:child"/>
+        <rule-input name="//tools/coverage/jvm_fixture:executed_java"/>
+        <rule-input name="//tools/coverage/jvm_fixture:executed_kotlin"/>
+        <rule-input name="//tools/coverage/jvm_fixture:java/probe/FixtureTest.java"/>
+        <rule-input name="@bazel_tools//tools/build_defs/build_info:java_build_info"/>
+        <rule-input name="@bazel_tools//tools/jdk:current_java_toolchain"/>
+        <rule-input name="@bazel_tools//tools/jdk:java_plugins_flag_alias"/>
+        <rule-input name="@bazel_tools//tools/jdk:launcher_flag_alias"/>
+        <rule-input name="@bazel_tools//tools/jdk:toolchain_type"/>
+        <rule-input name="@bazel_tools//tools/launcher:launcher"/>
+        <rule-input name="@bazel_tools//tools/test:collect_cc_coverage"/>
+        <rule-input name="@bazel_tools//tools/test:collect_coverage"/>
+        <rule-input name="@bazel_tools//tools/test:coverage_report_generator"/>
+        <rule-input name="@bazel_tools//tools/test:coverage_support"/>
+        <rule-input name="@bazel_tools//tools/test:runtime"/>
+        <rule-input name="@bazel_tools//tools/test:test_setup"/>
+        <rule-input name="@bazel_tools//tools/test:test_wrapper"/>
+        <rule-input name="@bazel_tools//tools/test:test_xml_generator"/>
+        <rule-input name="@bazel_tools//tools/test:xml_writer"/>
+        <rule-input name="@platforms//os:ios"/>
+        <rule-input name="@platforms//os:macos"/>
+        <rule-input name="@platforms//os:tvos"/>
+        <rule-input name="@platforms//os:visionos"/>
+        <rule-input name="@platforms//os:watchos"/>
+        <rule-input name="@platforms//os:windows"/>
+        <rule-input name="@rules_java//java/bazel/rules:java_stub_template.txt"/>
+        <rule-output name="//tools/coverage/jvm_fixture:fixture_test.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:fixture_test-src.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:fixture_test_deploy-src.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:fixture_test_deploy.jar"/>
+        <rule-output name="//tools/coverage/jvm_fixture:fixture_test_deploy.jar.unstripped"/>
+    </rule>
+</query>

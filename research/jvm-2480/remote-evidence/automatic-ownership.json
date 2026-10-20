@@ -1,0 +1,126 @@
+[
+  {
+    "class": "probe/Child",
+    "source_file": "Child.java",
+    "smap": "",
+    "sha256": "3fef1fedb37a2d97f372749da6f96751714087b0ac8435bd1ac8252a1d8fcc87",
+    "owner": "//tools/coverage/jvm_fixture:child",
+    "jar": "child.jar",
+    "candidates": ["tools/coverage/jvm_fixture/java/probe/Child.java"],
+    "status": "unique"
+  },
+  {
+    "class": "disconnected/Disconnected",
+    "source_file": "Disconnected.java",
+    "smap": "",
+    "sha256": "418fcb3e33896d3475fe53b3af744470fe87f82595b47e2288baa1e76cd3c15f",
+    "owner": "//tools/coverage/jvm_fixture:disconnected_java",
+    "jar": "libdisconnected_java.jar",
+    "candidates": [
+      "tools/coverage/jvm_fixture/java/disconnected/Disconnected.java"
+    ],
+    "status": "unique"
+  },
+  {
+    "class": "kprobe/Declaration",
+    "source_file": "Declaration.kt",
+    "smap": "",
+    "sha256": "1fbe3ea806d456bcfe2a1357362a60458ce4f01066ccb7d11e0aeed3bbdc2298",
+    "owner": "//tools/coverage/jvm_fixture:disconnected_kotlin",
+    "jar": "disconnected_kotlin.jar",
+    "candidates": ["tools/coverage/jvm_fixture/kotlin/kprobe/Declaration.kt"],
+    "status": "unique"
+  },
+  {
+    "class": "kprobe/DisconnectedKotlinKt",
+    "source_file": "DisconnectedKotlin.kt",
+    "smap": "",
+    "sha256": "dfead2cf1d92c62265316302f442d461f26e9d55f49ddf1157cbe1d11eda9b67",
+    "owner": "//tools/coverage/jvm_fixture:disconnected_kotlin",
+    "jar": "disconnected_kotlin.jar",
+    "candidates": [
+      "tools/coverage/jvm_fixture/kotlin/kprobe/DisconnectedKotlin.kt"
+    ],
+    "status": "unique"
+  },
+  {
+    "class": "mismatch/DirectoryMismatch",
+    "source_file": "DirectoryMismatch.java",
+    "smap": "",
+    "sha256": "4111d9915d97e53c9964e5c0f18b0af0bd85ed3f2a4100b607e36b566ecdc19e",
+    "owner": "//tools/coverage/jvm_fixture:executed_java",
+    "jar": "libexecuted_java.jar",
+    "candidates": [
+      "tools/coverage/jvm_fixture/java/odd/DirectoryMismatch.java"
+    ],
+    "status": "unique"
+  },
+  {
+    "class": "probe/Executed",
+    "source_file": "Executed.java",
+    "smap": "",
+    "sha256": "c02ab2528cd32b403cafb525d5a5eb7f4e252aa8371b6be191b616dacdd7765e",
+    "owner": "//tools/coverage/jvm_fixture:executed_java",
+    "jar": "libexecuted_java.jar",
+    "candidates": ["tools/coverage/jvm_fixture/java/probe/Executed.java"],
+    "status": "unique"
+  },
+  {
+    "class": "kodd/KotlinMismatchKt",
+    "source_file": "KotlinMismatch.kt",
+    "smap": "",
+    "sha256": "41ddd3caa9bb0d8d7330572c0e70c733400e471bbefb054d07d3b0ad595b072b",
+    "owner": "//tools/coverage/jvm_fixture:executed_kotlin",
+    "jar": "executed_kotlin.jar",
+    "candidates": ["tools/coverage/jvm_fixture/kotlin/odd/KotlinMismatch.kt"],
+    "status": "unique"
+  },
+  {
+    "class": "kprobe/ExecutedKotlinKt",
+    "source_file": "ExecutedKotlin.kt",
+    "smap": "SMAP\nExecutedKotlin.kt\nKotlin\n*S Kotlin\n*F\n+ 1 ExecutedKotlin.kt\nkprobe/ExecutedKotlinKt\n*L\n1#1,9:1\n3#1:10\n*S KotlinDebug\n*F\n+ 1 ExecutedKotlin.kt\nkprobe/ExecutedKotlinKt\n*L\n7#1:10\n*E\n",
+    "sha256": "e7343a72f7c434c023b25b6cbce263e62d2023e468dbf2937d5a29369fa19900",
+    "owner": "//tools/coverage/jvm_fixture:executed_kotlin",
+    "jar": "executed_kotlin.jar",
+    "candidates": [
+      "tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt"
+    ],
+    "status": "unique"
+  },
+  {
+    "class": "shared/SecondTwin",
+    "source_file": "Twin.kt",
+    "smap": "",
+    "sha256": "e0186cc2945840fb6ce1696b4021bddf378e7ecd07881afada915e80aaf3026d",
+    "owner": "//tools/coverage/jvm_fixture:executed_kotlin",
+    "jar": "executed_kotlin.jar",
+    "candidates": [
+      "tools/coverage/jvm_fixture/kotlin/first/shared/Twin.kt",
+      "tools/coverage/jvm_fixture/kotlin/second/shared/Twin.kt"
+    ],
+    "status": "ambiguous"
+  },
+  {
+    "class": "shared/TwinKt",
+    "source_file": "Twin.kt",
+    "smap": "",
+    "sha256": "acdd8460c2fcf91c027992d57e6f06128907b46a6125f32892dd09816ad8aabc",
+    "owner": "//tools/coverage/jvm_fixture:executed_kotlin",
+    "jar": "executed_kotlin.jar",
+    "candidates": [
+      "tools/coverage/jvm_fixture/kotlin/first/shared/Twin.kt",
+      "tools/coverage/jvm_fixture/kotlin/second/shared/Twin.kt"
+    ],
+    "status": "ambiguous"
+  },
+  {
+    "class": "probe/FixtureTest",
+    "source_file": "FixtureTest.java",
+    "smap": "",
+    "sha256": "9911d232ab39bce7a80ee4a8f2cad6112c265d074afe4d1070933e081d2bbce8",
+    "owner": "//tools/coverage/jvm_fixture:fixture_test",
+    "jar": "fixture_test.jar",
+    "candidates": ["tools/coverage/jvm_fixture/java/probe/FixtureTest.java"],
+    "status": "unique"
+  }
+]

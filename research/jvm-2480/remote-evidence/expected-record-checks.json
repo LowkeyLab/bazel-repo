@@ -1,0 +1,29 @@
+{
+  "all_raw_class_and_line_sets_match": true,
+  "classes": 11,
+  "executable_lines": 43,
+  "unique_original_owners": 9,
+  "ambiguous_classes": ["shared/SecondTwin", "shared/TwinKt"],
+  "parent_inline_record": [1, 1, 0, 0],
+  "child_only_record": [4, 4, 0, 0],
+  "parent_child_only_record": [0, 4, 0, 0],
+  "controlled_branch_records": [
+    {
+      "class": "probe/Executed",
+      "line": 5,
+      "record": [2, 2, 1, 2]
+    },
+    {
+      "class": "kprobe/ExecutedKotlinKt",
+      "line": 7,
+      "record": [7, 8, 1, 2]
+    }
+  ],
+  "both_merge_orders_equal": true,
+  "negative_controls": {
+    "missing-child": 1,
+    "corrupt-child": 1,
+    "missing-metadata": 1
+  },
+  "analysis_boundary": "Local standard JaCoCo analysis of artifacts from fresh remote fixture execution; not remote analyzer execution."
+}

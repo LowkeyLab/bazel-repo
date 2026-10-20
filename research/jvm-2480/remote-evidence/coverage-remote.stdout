@@ -1,0 +1,10 @@
+tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt:2:1: warning: expected performance impact from inlining is insignificant. Inlining works best for functions with parameters of function types.
+inline fun doubled(value: Int): Int {
+^^^^^^
+tools/coverage/jvm_fixture/kotlin/kprobe/ExecutedKotlin.kt:2:1: warning: expected performance impact from inlining is insignificant. Inlining works best for functions with parameters of function types.
+inline fun doubled(value: Int): Int {
+^^^^^^
+//tools/coverage/jvm_fixture:fixture_test                                PASSED in 0.6s
+  /home/tacascer/.cache/bazel/_bazel_tacascer/e037286e408cd1975c1e99e5de6dcbe2/execroot/_main/bazel-out/k8-fastbuild/testlogs/tools/coverage/jvm_fixture/fixture_test/coverage.dat
+
+Executed 1 out of 1 test: 1 test passes.

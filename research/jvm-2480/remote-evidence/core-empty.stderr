@@ -1,0 +1,29 @@
+WARNING: The following configs were expanded more than once: [remote-linux, remote]. For repeatable flags, repeats are counted twice and may lead to unexpected behavior.
+WARNING: Option 'remote_local_fallback_strategy' is deprecated
+Computing main repo mapping:
+Loading:
+Loading: 0 packages loaded
+Analyzing: target //tools/coverage/jvm_fixture:original (0 packages loaded, 0 targets configured)
+INFO: Analyzed target //tools/coverage/jvm_fixture:original (2 packages loaded, 58413 targets configured, 110 aspect applications).
+ no actions running
+INFO: Found 1 target...
+[0 / 5] [Prepa] BazelWorkspaceStatusAction stable-status.txt
+INFO: From BazelWorkspaceStatusAction stable-status.txt:
+  It looks like the git config option core.hooksPath is not set.
+  This repository uses hooks stored in githooks/ to run tools such as formatters.
+  You can disable this warning by running:
+
+    echo "common --workspace_status_command=" >> ~/.bazelrc
+
+  To set up the hooks, please run:
+
+    git config core.hooksPath githooks
+
+[5 / 8] Extracting interfaces from external/rules_java+/toolchains/platformclasspath_unstripped.jar; 0s linux-sandbox
+Target //tools/coverage/jvm_fixture:original up-to-date:
+  bazel-bin/tools/coverage/jvm_fixture/original
+  bazel-bin/tools/coverage/jvm_fixture/original.jar
+INFO: Elapsed time: 4.313s, Critical Path: 2.14s
+INFO: 8 processes: 5 internal, 2 linux-sandbox, 1 worker.
+INFO: Build completed successfully, 8 total actions
+INFO: Running command line: bazel-bin/tools/coverage/jvm_fixture/original <args omitted>

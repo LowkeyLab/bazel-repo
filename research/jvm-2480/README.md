@@ -1,5 +1,8 @@
 # Automatic JVM ownership and inline attribution
 
+The [supplemental configured-remote validation](REMOTE-VALIDATION.md) adds the approved remote execution evidence.
+The sections below retain the original local experiment and its limits.
+
 This experiment answers [Test automatic JVM ownership and Kotlin inline coverage attribution](https://github.com/LowkeyLab/bazel-repo/issues/2480).
 The research base is `39075c1280f357d58b06a9a471e617cd73949bdf`.
 It reuses the fixture from `31f471eb582c17e79cd83ce7ffe70c4137354b1c`.
