@@ -218,7 +218,7 @@ pub fn observe(batch: &Batch) -> Result<GraphProgress> {
     Ok(read(batch)?.progress)
 }
 
-fn check_ticket(batch: &Batch, index: usize) -> Result<()> {
+pub fn check_ticket(batch: &Batch, index: usize) -> Result<github::Issue> {
     let issue = mapping(batch, index)?;
     let remote = github::read(&issue.number)?;
     ensure!(remote.mapping() == issue, Conflict);
@@ -228,7 +228,8 @@ fn check_ticket(batch: &Batch, index: usize) -> Result<()> {
             "{}\n\n{}",
             batch.plan.tickets[index].body, batch.tickets[index].marker
         ),
-    )
+    )?;
+    Ok(remote)
 }
 fn check_parent(
     issue: &IssueMapping,

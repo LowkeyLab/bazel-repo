@@ -9,6 +9,7 @@ rust_binary(
     srcs = [
         "github.rs",
         "graph.rs",
+        "labels.rs",
         "main.rs",
         "plan.rs",
         "publish.rs",

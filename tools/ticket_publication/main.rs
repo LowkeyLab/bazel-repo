@@ -1,6 +1,7 @@
 //! Prepare, inspect, and resume creation of a publication batch.
 mod github;
 mod graph;
+mod labels;
 mod plan;
 mod publish;
 mod recovery;
@@ -126,12 +127,18 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let id = BatchId::try_from(batch)?;
             let store = Store::open(&root, &id, false)?;
             let mut saved = store.read(&id)?;
+            let previous_labels = saved.labels.clone();
             saved.graph = plan::GraphProgress::default();
+            saved.labels.checked = false;
+            saved.labels.verified = false;
             let result = publish::run(&mut saved, &store);
             if result.is_err() {
                 saved.graph.verified = false;
+                saved.labels.verified = false;
             }
-            let status = if result
+            let status = if result.is_ok() {
+                "complete"
+            } else if result
                 .as_ref()
                 .err()
                 .is_some_and(|e| e.downcast_ref::<github::Conflict>().is_some())
@@ -150,7 +157,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 "partial"
             };
             Ok(
-                json!({"status":status, "phase":if result.is_ok() {"graph_checked"} else {"stopped"}, "publication_complete":false, "graph":saved.graph, "batch_id":saved.id, "tickets":saved.tickets, "error":result.err().map(|e|format!("{e:#}"))}),
+                json!({"status":status, "phase":if result.is_ok() {"complete"} else {"stopped"}, "publication_complete":result.is_ok(), "graph":saved.graph, "labels":saved.labels, "previous_labels":previous_labels, "batch_id":saved.id, "tickets":saved.tickets, "error":result.err().map(|e|format!("{e:#}"))}),
             )
         }
         Action::Recover {
@@ -267,8 +274,28 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 }
                 None => None,
             };
+            let labels = if graph.as_ref().is_some_and(|graph| graph.verified) {
+                match labels::observe(&saved) {
+                    Ok(labels) => Some(labels),
+                    Err(cause) => {
+                        status = if cause.downcast_ref::<github::Conflict>().is_some() {
+                            "conflict"
+                        } else {
+                            "unverified"
+                        };
+                        error = Some(format!("{cause:#}"));
+                        None
+                    }
+                }
+            } else {
+                None
+            };
+            let complete = error.is_none() && labels.as_ref().is_some_and(|labels| labels.verified);
+            if complete {
+                status = "complete";
+            }
             Ok(
-                json!({"status":status, "phase":"graph", "graph":graph, "publication_complete":false, "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets, "remote_mappings":remote_mappings, "error":error}),
+                json!({"status":status, "phase":"publication", "graph":graph, "labels":labels, "publication_complete":complete, "batch_id":saved.id, "plan_fingerprint":saved.plan_fingerprint, "plan":saved.plan, "tickets":saved.tickets, "remote_mappings":remote_mappings, "error":error}),
             )
         }
     }

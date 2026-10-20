@@ -1,9 +1,8 @@
-# Prepare and link a ticket publication batch
+# Publish a ticket publication batch
 
-This command checks and saves a publication plan. It can create the planned
-issues and resume creation after an interruption. Tickets #2403 through #2406
-implement preparation, creation, explicit recovery, and native relationships.
-Ticket #2407 adds readiness labels.
+This command saves an approved publication plan. It creates the planned issues,
+checks native relationships, and applies planned labels. Publication can resume
+after an interruption with the original plan and identities.
 
 ```sh
 bazel run //tools/ticket_publication -- prepare --plan /absolute/plan.json
@@ -13,7 +12,8 @@ bazel run //tools/ticket_publication -- publish --batch <batch-id>
 
 All commands return JSON. `prepare` returns `batch_id` and `plan_path`.
 `status` returns the saved plan, its SHA-256 fingerprint, ticket progress, and
-fresh remote mappings. It does not save progress or write to GitHub.
+fresh remote mappings, graph evidence, and label evidence. It does not save
+progress or write to GitHub.
 A prepared batch has `pending` tickets. Preparation does not establish GitHub
 state or publication completion.
 
@@ -66,7 +66,8 @@ The command rejects other path encodings before creating state.
 Each batch has a private directory. The directory contains `batch.json` and a
 persistent `lock` file. A `.ticket-publication-directory` marker identifies each
 directory that this tool creates. The snapshot contains the original checked plan,
-fingerprint, batch identity, ticket identity markers, and creation progress.
+fingerprint, batch identity, ticket identity markers, creation progress, and
+observed graph and label progress.
 Each marker has the form `<!-- ticket-publication:<batch-id>:<key> -->`.
 The fingerprint identifies the serialized checked plan. It is not a signature.
 
@@ -110,15 +111,21 @@ matches stop publication. No match leaves creation uncertain. Failed reads and
 incomplete responses cannot authorize another creation request.
 
 After creation, publication checks and creates the required native relationships.
-A successful graph phase returns `status: partial`, `phase: graph_checked`, and
-`publication_complete: false`. This phase applies no labels. A stopped run returns a nonzero exit code and reports
-`partial`, `uncertain`, or `conflict`, with the available ticket progress.
-`status` checks saved mappings and enumerates unresolved identities.
-Status and reconstruction each enumerate the repository once for the batch. It reports
-`prepared`, `partial`, `uncertain`, `conflict`, or `unverified`. Failed remote
-reads return `unverified` and a nonzero exit code. Conflicts also return a nonzero
-exit code. `publication_complete` remains false during this graph phase.
-A checked issue does not establish graph or label completion.
+It applies planned labels only after a complete graph check. A successful
+publication returns `status: complete`, `phase: complete`, and
+`publication_complete: true`. Fresh reads must establish the planned issue
+content, identities, required links, and labels before this result.
+
+A stopped run returns a nonzero exit code. It reports `partial`, `uncertain`, or
+`conflict`, with the available progress and `publication_complete: false`.
+`status` checks saved mappings and unresolved identities. It also checks the
+complete graph and labels when all saved issue mappings exist. It reports
+`prepared`, `partial`, `uncertain`, `conflict`, `unverified`, or `complete`.
+Failed remote reads return `unverified` and a nonzero exit code. Conflicts also
+return a nonzero exit code. A saved completion receipt cannot establish current
+completion. Repeated `prepare` and recovery results describe local progress only.
+Status and reconstruction each enumerate the repository once when unresolved
+identities require enumeration.
 
 Preserve saved state after errors. A durable-write failure can leave an intent
 without a request or a checked issue without a saved mapping. Restart checks the
@@ -143,7 +150,7 @@ The command checks the complete graph before relationship mutations. It then
 checks affected issues and relationships before and after each missing link.
 It checks the complete graph again after the last mutation. It does not read
 every unaffected ticket after each link. A 100-ticket command test uses at most
-2,000 fake API requests. This test does not establish live rate-limit availability.
+2,500 fake API requests, including label publication and final checks. This test does not establish live rate-limit availability.
 
 The command adds only missing parent and blocker links. Requests use numeric
 issue IDs. Parent requests specify `replace_parent: false`. A different parent
@@ -167,6 +174,48 @@ An early publication failure returns no graph counts from a previous run.
 Native endpoint failures stop publication. The command does not substitute body
 references. Preserve state and inspect the error before resuming. Graph checks
 cannot prevent external changes between requests and do not establish isolation.
+
+## Label publication and final checks
+
+The command checks every planned issue and required native link before the first
+label mutation. This rule includes `ready-for-agent`. Fully specified tickets
+receive this label even when their blockers remain open. Agents must still select
+only open tickets whose blockers have the `closed` state.
+
+Label requests use GitHub's [add-labels endpoint](https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue).
+They contain only missing planned labels. Compatible extra labels remain intact.
+The five repository triage labels are mutually exclusive for publication:
+`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`.
+A conflicting triage label stops publication. The command does not delete it.
+Label comparisons ignore ASCII case. Plans reject duplicate labels and multiple
+triage labels before preparation.
+
+Before labels, the command checks all planned tickets for label conflicts and
+incomplete label reads. It saves observed progress before each label request.
+It checks the affected issue after each request and saves the checked result.
+A required durable-write failure stops subsequent mutations. A lost response
+stops the command even if GitHub accepted the labels.
+
+On restart, publication checks the complete graph again before further label
+requests. Fresh label reads skip completed mutations. Already applied labels
+remain intact after failures. No automatic label rollback exists.
+
+The `labels.tickets` entries contain `key`, `applied`, and `remaining` lists.
+These lists describe the latest observed planned labels.
+`labels.checked` states whether this invocation completed a label read for every
+ticket. When false, the lists contain earlier observations only.
+`labels.verified` becomes true only after complete final label reads.
+A failed publication always returns false for this field.
+`previous_labels` contains the last saved observations from an earlier run.
+These observations can help identify retained work after an early failure.
+They do not establish current GitHub state or authorize a skipped check.
+Earlier observations remain durable when resumed graph or label checks fail.
+
+After label requests, fresh reads check every planned issue, required relationship,
+and planned label again. Missing effects, conflicts, incomplete reads, permission
+failures, and unavailable endpoints prevent completion. Final progress must also
+be durable before publication reports success. An external writer can change
+GitHub state between requests. These checks do not provide isolation.
 
 ## Explicit recovery
 

@@ -24,10 +24,24 @@ pub struct Issue {
     title: String,
     body: Option<String>,
     repository_url: String,
+    labels: Option<Vec<Label>>,
     #[serde(default)]
     pull_request: Option<Value>,
 }
+#[derive(Clone, Deserialize)]
+struct Label {
+    name: String,
+}
 impl Issue {
+    pub fn labels(&self) -> Result<Vec<String>> {
+        Ok(self
+            .labels
+            .as_ref()
+            .context("incomplete issue labels")?
+            .iter()
+            .map(|label| label.name.clone())
+            .collect())
+    }
     pub fn has_marker(&self, marker: &str) -> bool {
         self.body
             .as_deref()
@@ -257,6 +271,15 @@ pub fn add_blocker(issue: &IssueNumber, blocker: &IssueMapping) -> Result<()> {
     request(
         &format!("{REPOSITORY}/issues/{issue}/dependencies/blocked_by"),
         Some(json!({"issue_id":blocker.id})),
+        false,
+    )?;
+    Ok(())
+}
+
+pub fn add_labels(number: &IssueNumber, labels: &[String]) -> Result<()> {
+    request(
+        &format!("{REPOSITORY}/issues/{number}/labels"),
+        Some(json!({"labels":labels})),
         false,
     )?;
     Ok(())

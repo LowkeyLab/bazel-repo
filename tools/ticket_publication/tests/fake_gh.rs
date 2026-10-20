@@ -43,6 +43,8 @@ fn main() -> Result<()> {
         parent_response(&state)?
     } else if endpoint.contains("/sub_issues") || endpoint.contains("/dependencies/") {
         relationship_response(endpoint, &args, &mut state, &path)?
+    } else if endpoint.ends_with("/labels") {
+        label_response(endpoint, &mut state, &path)?
     } else if args.windows(2).any(|a| a == ["--method", "POST"]) {
         create_response(endpoint, &args, &mut state, &path)?
     } else if endpoint.starts_with("repos/LowkeyLab/bazel-repo/issues?") {
@@ -55,6 +57,23 @@ fn main() -> Result<()> {
     } else {
         anyhow::bail!("unsupported endpoint")
     };
+    let mut result = result;
+    if endpoint.starts_with("repos/LowkeyLab/bazel-repo/issues/")
+        && !endpoint.contains("/labels")
+        && !endpoint.contains("/sub_issues")
+        && !endpoint.contains("/dependencies/")
+        && state["label_mutations"].as_u64().unwrap_or(0) > 0
+    {
+        if state["mode"] == "label-incomplete" {
+            result.as_object_mut().unwrap().remove("labels");
+        }
+        if state["mode"] == "label-final-read" {
+            let reads = state["label_reads"].as_u64().unwrap_or(0) + 1;
+            state["label_reads"] = json!(reads);
+            fs::write(&path, serde_json::to_vec(&state)?)?;
+            ensure!(reads < 3, "final issue read failed");
+        }
+    }
     println!("{result}");
     Ok(())
 }
@@ -108,6 +127,10 @@ fn relationship_response(
     ensure!(
         state["mode"] != "native-unavailable",
         "native relationships unavailable"
+    );
+    ensure!(
+        state["mode"] != "label-final-graph" || state["label_mutations"].as_u64().unwrap_or(0) == 0,
+        "final graph unavailable"
     );
     let number: u64 = endpoint.split('/').nth(4).unwrap().parse()?;
     let child_link = endpoint.contains("/sub_issues");
@@ -326,4 +349,60 @@ fn enumeration_response(endpoint: &str, args: &[String], state: &Value) -> Resul
             json!(pages)
         }
     })
+}
+
+fn label_response(endpoint: &str, state: &mut Value, path: &std::path::Path) -> Result<Value> {
+    let number: u64 = endpoint.split('/').nth(4).unwrap().parse()?;
+    ensure!(
+        state["mode"] != "stop-labels" || state["label_mutations"].as_u64().unwrap_or(0) == 0,
+        "interrupted label publication"
+    );
+    if let Some(expected) = state.get("expected_children") {
+        ensure!(
+            state["children"] == *expected,
+            "labels preceded complete graph"
+        );
+    }
+    if let Some(expected) = state.get("expected_dependencies") {
+        ensure!(
+            state["dependencies"] == *expected,
+            "labels preceded complete dependencies"
+        );
+    }
+    let request: Value = serde_json::from_reader(io::stdin())?;
+    let before = state.clone();
+    let issue = state["issues"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|issue| issue["number"] == number)
+        .unwrap();
+    for label in request["labels"].as_array().unwrap() {
+        ensure!(
+            !issue["labels"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|actual| actual["name"] == *label),
+            "repeated completed label mutation"
+        );
+        issue["labels"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"name":label}));
+    }
+    let labels = issue["labels"].clone();
+    if state["mode"] == "no-label-effect" {
+        *state = before;
+    }
+    if state["mode"] == "label-final-content" {
+        state["issues"][0]["title"] = json!("External edit");
+    }
+    state["label_mutations"] = json!(state["label_mutations"].as_u64().unwrap_or(0) + 1);
+    fs::write(path, serde_json::to_vec(state)?)?;
+    ensure!(
+        state["mode"] != "lose-label-response",
+        "lost label response"
+    );
+    Ok(labels)
 }

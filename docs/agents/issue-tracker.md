@@ -174,3 +174,11 @@ During parallel work, workers post resolution comments on their own tickets,
 close them, and notify the coordinator. Only the coordinator edits the map body
 and processes updates serially. The maintainer and other sessions route map edits
 through it while parallel coordination is active.
+
+## Publish an approved ticket batch
+
+Use the [ticket-publication helper](../../tools/ticket_publication/README.md) to
+save an approved plan and publish its issues, native links, and labels.
+Retain the original batch identity and private state after interruptions.
+Follow the documented explicit recovery and stopped-publisher handoff rules.
+Readiness labels alone establish neither ticket state nor blocker state.

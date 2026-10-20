@@ -29,7 +29,13 @@ static int progress_fault(int descriptor, const char *path) {
   }
   if (size < 0) return 0;
   buffer[size] = '\0';
-  const char *status = strstr(phase, "graph-complete") != NULL ? "\"verified\": true" :
+  if (strstr(phase, "labels-") != NULL) {
+    const char *labels = strstr(buffer, "\"labels\": {");
+    if (labels == NULL) return 0;
+    const char *expected = strstr(phase, "labels-first") != NULL ? "\"applied\": [\n" : "\"applied\": []";
+    if (strstr(labels, expected) == NULL) return 0;
+  }
+  const char *status = strstr(phase, "labels-") != NULL ? "\"verified\": true" : strstr(phase, "graph-complete") != NULL ? "\"verified\": true" :
     (strstr(phase, "graph-first") != NULL ? "\"parent_links\": 1" :
     (strstr(phase, "authorization") != NULL ? "\"retry_authorized\"" :
     (strstr(phase, "intent") != NULL ? "\"creating\"" : "\"created\"")));
