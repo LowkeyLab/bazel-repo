@@ -5434,18 +5434,18 @@
         },
         {
           "importpath": "golang.org/x/crypto",
-          "sha256": "d852b93b93f9cd911708ffd45409439956d4e9c8497c5b87f348fc83d0adc577",
-          "version": "v0.54.0"
-        },
-        {
-          "importpath": "golang.org/x/net",
-          "sha256": "bfc4c34b9fa5d70e4837542577560e92f743e24f584a39877850650c19a444a1",
+          "sha256": "93438fc90cca15b1b253be9df648ca54fb80838400239cc294f794ca2f242575",
           "version": "v0.57.0"
         },
         {
+          "importpath": "golang.org/x/net",
+          "sha256": "f7034587fa012c43de66d8c276ddab161032931abf116a629daa8d66f1c80023",
+          "version": "v0.59.0"
+        },
+        {
           "importpath": "golang.org/x/tools",
-          "sha256": "e6b55566a172ecfd21e5f4a8750f2d25665287288b24ff8d4e6cea5d5078c608",
-          "version": "v0.48.0"
+          "sha256": "9b1d543349c9346f85900c656a566d1780d59ff479cf0d888b9516d21ec7df7b",
+          "version": "v0.51.0"
         },
         {
           "importpath": "google.golang.org/genproto",
@@ -5479,23 +5479,23 @@
         },
         {
           "importpath": "golang.org/x/mod",
-          "sha256": "c584b29967a2cf46a7b8eacd85cb34d5bb0ab2d61a7a46ebc0a1ee362516e410",
-          "version": "v0.38.0"
+          "sha256": "fc5b64ef51fd92f4b8763ebbd6fa95a70069d299c7de0f7c66661ef24283eb0c",
+          "version": "v0.41.0"
         },
         {
           "importpath": "golang.org/x/sync",
-          "sha256": "a3e29e76060bd561060454b1fa2bdcd66674f60c9ca93833b8106355e34c603c",
-          "version": "v0.22.0"
+          "sha256": "febf4fed5dc12c0de24528f7065bf071cc74a2424070194aaf24617b91066cda",
+          "version": "v0.23.0"
         },
         {
           "importpath": "golang.org/x/sys",
-          "sha256": "57f4393ea18d5446a12363b35c23a616d843fa1669c7121a70a2bc3a9677d665",
-          "version": "v0.47.0"
+          "sha256": "9522f4c9806d1c26586ea80fa56292929bd295865e71981927f52996c6b1c831",
+          "version": "v0.48.0"
         },
         {
           "importpath": "golang.org/x/text",
-          "sha256": "e69fb09b14637cab6245a1253c22d80121b79d9fe3ddd19b558629e15baadaf3",
-          "version": "v0.40.0"
+          "sha256": "4756c4b8eeeae2a20cb43c198c10701d20c53493bd90b91c6632153c9cbac240",
+          "version": "v0.42.0"
         },
         {
           "importpath": "github.com/bazel-contrib/bazel-gazelle/v2",
@@ -5618,19 +5618,44 @@
           "version": "v1.31.0"
         },
         {
+          "importpath": "golang.org/x/crypto",
+          "sha256": "d852b93b93f9cd911708ffd45409439956d4e9c8497c5b87f348fc83d0adc577",
+          "version": "v0.54.0"
+        },
+        {
+          "importpath": "golang.org/x/net",
+          "sha256": "bfc4c34b9fa5d70e4837542577560e92f743e24f584a39877850650c19a444a1",
+          "version": "v0.57.0"
+        },
+        {
+          "importpath": "golang.org/x/tools",
+          "sha256": "e6b55566a172ecfd21e5f4a8750f2d25665287288b24ff8d4e6cea5d5078c608",
+          "version": "v0.48.0"
+        },
+        {
           "importpath": "golang.org/x/mod",
-          "sha256": "fc5b64ef51fd92f4b8763ebbd6fa95a70069d299c7de0f7c66661ef24283eb0c",
-          "version": "v0.41.0"
+          "sha256": "c584b29967a2cf46a7b8eacd85cb34d5bb0ab2d61a7a46ebc0a1ee362516e410",
+          "version": "v0.38.0"
+        },
+        {
+          "importpath": "golang.org/x/sync",
+          "sha256": "a3e29e76060bd561060454b1fa2bdcd66674f60c9ca93833b8106355e34c603c",
+          "version": "v0.22.0"
+        },
+        {
+          "importpath": "golang.org/x/sys",
+          "sha256": "57f4393ea18d5446a12363b35c23a616d843fa1669c7121a70a2bc3a9677d665",
+          "version": "v0.47.0"
+        },
+        {
+          "importpath": "golang.org/x/text",
+          "sha256": "e69fb09b14637cab6245a1253c22d80121b79d9fe3ddd19b558629e15baadaf3",
+          "version": "v0.40.0"
         },
         {
           "importpath": "golang.org/x/telemetry",
           "sha256": "b3db3a6093c95190ba4c799a41b18ed8cab5f9d5329e6d327eecd8bb54d7ff76",
           "version": "v0.0.0-20260924152758-ed294f943157"
-        },
-        {
-          "importpath": "golang.org/x/tools",
-          "sha256": "9b1d543349c9346f85900c656a566d1780d59ff479cf0d888b9516d21ec7df7b",
-          "version": "v0.51.0"
         },
         {
           "importpath": "golang.org/x/vuln",
@@ -5643,21 +5668,6 @@
           "version": "v0.60.0"
         },
         {
-          "importpath": "golang.org/x/net",
-          "sha256": "f7034587fa012c43de66d8c276ddab161032931abf116a629daa8d66f1c80023",
-          "version": "v0.59.0"
-        },
-        {
-          "importpath": "golang.org/x/sync",
-          "sha256": "febf4fed5dc12c0de24528f7065bf071cc74a2424070194aaf24617b91066cda",
-          "version": "v0.23.0"
-        },
-        {
-          "importpath": "golang.org/x/sys",
-          "sha256": "9522f4c9806d1c26586ea80fa56292929bd295865e71981927f52996c6b1c831",
-          "version": "v0.48.0"
-        },
-        {
           "importpath": "golang.org/x/telemetry",
           "sha256": "b3db3a6093c95190ba4c799a41b18ed8cab5f9d5329e6d327eecd8bb54d7ff76",
           "version": "v0.0.0-20260908163034-4bcc4b2ee518"
@@ -5668,19 +5678,9 @@
           "version": "v0.46.0"
         },
         {
-          "importpath": "golang.org/x/text",
-          "sha256": "4756c4b8eeeae2a20cb43c198c10701d20c53493bd90b91c6632153c9cbac240",
-          "version": "v0.42.0"
-        },
-        {
           "importpath": "golang.org/x/tools",
           "sha256": "3af7ad5226f7a05b4b340e29692c9262fdd4852337ce94ca4a9c8e5de32f1cb1",
           "version": "v0.50.0"
-        },
-        {
-          "importpath": "golang.org/x/crypto",
-          "sha256": "93438fc90cca15b1b253be9df648ca54fb80838400239cc294f794ca2f242575",
-          "version": "v0.57.0"
         },
         {
           "importpath": "github.com/bazelbuild/rules_go",
