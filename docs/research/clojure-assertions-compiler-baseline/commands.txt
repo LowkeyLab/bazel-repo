@@ -1,0 +1,17 @@
+# Run from the research checkout, based on 39075c1280f357d58b06a9a471e617cd73949bdf.
+# EVIDENCE denotes a private, writable directory outside the checkout.
+# The first two required Gazelle invocations used --config=remote before the coordinator paused remote checks.
+# Later commands disable executor, remote cache, and BES while explicit approval is pending.
+# Local sandbox execution remains local even when a target configuration path contains remote_linux.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run //:gazelle --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor=
+nix develop --command bazel --host_jvm_args=-Xmx1536m run //:clojure_gen_build_files --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor=
+nix develop --command bazel --host_jvm_args=-Xmx1536m build //clojure_sample/research:experiment --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor= --verbose_failures
+# Declared outputs: bazel-bin/clojure_sample/research/experiment.evidence.
+# The assertion validator is fatal. Compiler location expectations and raw form-line comparisons preserve baseline limitations.
+nix develop --command aspect --host_jvm_args=-Xmx1536m format --scope=all --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor=
+nix develop --command bazel --host_jvm_args=-Xmx1536m test //clojure_sample/research:native_test //clojure_sample/test/lowkeylab/clojure_sample:core_test.test --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor= --nocache_test_results --test_output=all
+nix develop --command aspect --host_jvm_args=-Xmx1536m lint //clojure_sample/research:experiment //clojure_sample/research:runner //clojure_sample/research:production //clojure_sample/research:cases //clojure_sample/research:native_test --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor=
+# Copy compiler baseline-process/measured.lcov, parent measured.lcov, and child-process/measured.lcov to 0.dat, 1.dat, and 2.dat in EVIDENCE/merge-forward.
+# Reverse those assignments in EVIDENCE/merge-reverse. Exclude initialization and diagnostic reset records.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run @bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor= -- --coverage_dir="${EVIDENCE}/merge-forward" --output_file="${EVIDENCE}/combined-forward.lcov"
+nix develop --command bazel --host_jvm_args=-Xmx1536m run @bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main --jobs=4 --local_resources=cpu=2 --local_resources=memory=2048 --bes_backend= --remote_cache= --remote_executor= -- --coverage_dir="${EVIDENCE}/merge-reverse" --output_file="${EVIDENCE}/combined-reverse.lcov"

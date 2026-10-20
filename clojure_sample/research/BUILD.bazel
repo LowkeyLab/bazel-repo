@@ -1,0 +1,84 @@
+load("@rules_clojure//:rules.bzl", "clojure_library", "clojure_test")
+load("@rules_java//java:defs.bzl", "java_binary", "java_library")
+load(":probe.bzl", "clojure_research")
+
+# gazelle:ignore
+
+exports_files(["maven_install.json"])
+
+clojure_library(
+    name = "production",
+    srcs = ["src/coverage_research/production.clj"],
+    aot = ["coverage-research.production"],
+    resource_strip_prefix = "clojure_sample/research/src",
+    resources = ["src/coverage_research/production.clj"],
+    deps = ["@clj_research_maven//:org_clojure_clojure"],
+)
+
+clojure_library(
+    name = "helper",
+    resource_strip_prefix = "clojure_sample/research/src",
+    resources = ["src/coverage_research/helper.clj"],
+    deps = ["@clj_research_maven//:org_clojure_clojure"],
+)
+
+clojure_library(
+    name = "disconnected",
+    resource_strip_prefix = "clojure_sample/research/src",
+    resources = ["src/coverage_research/disconnected.clj"],
+    deps = ["@clj_research_maven//:org_clojure_clojure"],
+)
+
+clojure_library(
+    name = "child",
+    resource_strip_prefix = "clojure_sample/research/src",
+    resources = ["src/coverage_research/child.clj"],
+    deps = ["@clj_research_maven//:org_clojure_clojure"],
+)
+
+clojure_library(
+    name = "cases",
+    resource_strip_prefix = "clojure_sample/research/src",
+    resources = ["src/coverage_research/cases_test.clj"],
+    deps = [
+        ":helper",
+        ":production",
+    ],
+)
+
+clojure_test(
+    name = "native_test",
+    tags = ["manual"],
+    test_ns = "coverage-research.cases-test",
+    deps = [":cases"],
+)
+
+java_library(
+    name = "harness",
+    resource_strip_prefix = "clojure_sample/research/src",
+    resources = ["src/coverage_research/runner.clj"],
+    runtime_deps = ["@cloverage_research//:cloverage"],
+)
+
+java_binary(
+    name = "runner",
+    args = [
+        "-m",
+        "coverage-research.runner",
+    ],
+    jvm_flags = ["-Xmx512m"],
+    main_class = "clojure.main",
+    runtime_deps = [
+        ":cases",
+        ":child",
+        ":disconnected",
+        ":harness",
+        "//clojure_sample/test/lowkeylab/clojure_sample:core_test",
+    ],
+)
+
+clojure_research(
+    name = "experiment",
+    runner = ":runner",
+    tags = ["manual"],
+)

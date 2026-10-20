@@ -808,3 +808,69 @@ book_smartz_apt.install(
     ],
 )
 use_repo(book_smartz_apt, "book_smartz_docker")
+
+# Research-only pins for the bounded Clojure coverage experiment.
+maven.install(
+    name = "clj_research_maven",
+    artifacts = [
+        "org.clojure:clojure:1.12.6",
+        "org.clojure:tools.reader:1.5.2",
+        "org.clojure:tools.cli:1.1.230",
+        "org.clojure:tools.logging:1.3.0",
+        "org.clojure:tools.namespace:1.5.0",
+        "org.clojure:java.classpath:1.1.0",
+        "org.clojure:data.xml:0.2.0-alpha9",
+        "org.clojure:data.json:2.5.1",
+        "riddley:riddley:0.2.2",
+        "slingshot:slingshot:0.12.2",
+    ],
+    lock_file = "//clojure_sample/research:maven_install.json",
+    repositories = [
+        "https://repo.maven.apache.org/maven2",
+        "https://repo.clojars.org",
+    ],
+)
+maven.artifact(
+    name = "clj_research_maven",
+    artifact = "spec.alpha",
+    exclusions = ["org.clojure:clojure"],
+    group = "org.clojure",
+    version = "0.5.238",
+)
+maven.artifact(
+    name = "clj_research_maven",
+    artifact = "core.specs.alpha",
+    exclusions = ["org.clojure:clojure"],
+    group = "org.clojure",
+    version = "0.4.74",
+)
+use_repo(maven, "clj_research_maven")
+
+http_archive(
+    name = "cloverage_research",
+    build_file_content = """
+load("@rules_java//java:defs.bzl", "java_library")
+java_library(
+    name = "cloverage",
+    resources = glob(["cloverage/src/**/*.clj"]),
+    resource_strip_prefix = "cloverage/src",
+    visibility = ["//visibility:public"],
+    runtime_deps = [
+        "@clj_research_maven//:org_clojure_clojure",
+        "@clj_research_maven//:org_clojure_tools_reader",
+        "@clj_research_maven//:org_clojure_tools_cli",
+        "@clj_research_maven//:org_clojure_tools_logging",
+        "@clj_research_maven//:org_clojure_tools_namespace",
+        "@clj_research_maven//:org_clojure_java_classpath",
+        "@clj_research_maven//:org_clojure_data_xml",
+        "@clj_research_maven//:org_clojure_data_json",
+        "@clj_research_maven//:riddley_riddley",
+        "@clj_research_maven//:slingshot_slingshot",
+    ],
+)
+""",
+    sha256 = "ccd574a9e5180c4e3834fa9c4b44d97d45f799c9639868b6689d4aaab407bf50",
+    strip_prefix = "cloverage-e427762f75d3e1fe461554c08ad247a7365580d2",
+    type = "tar.gz",
+    urls = ["https://codeload.github.com/cloverage/cloverage/tar.gz/e427762f75d3e1fe461554c08ad247a7365580d2"],
+)

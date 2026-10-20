@@ -1,0 +1,9 @@
+{
+  "sameMergeBytes": true,
+  "allAvailableInputLinesPreserved": true,
+  "allMeasuredHitsPreserved": true,
+  "disconnectedBodyZero": true,
+  "childOnlyPositive": true,
+  "assertionPositive": true,
+  "sha256": "4d4f672a95ba314b4e445ca4ccdb1b5875ed32001f9db00fca5d4b50adacec79"
+}

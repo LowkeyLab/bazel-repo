@@ -1,0 +1,132 @@
+[
+  {
+    "path": "clojure_sample/research/src/coverage_research/cases_test.clj",
+    "formLines": [
+      1,
+      6,
+      7,
+      8
+    ],
+    "compilerLines": [
+      1,
+      6,
+      7,
+      8
+    ],
+    "missingFromCompiler": [],
+    "extraCompilerLines": []
+  },
+  {
+    "path": "clojure_sample/research/src/coverage_research/child.clj",
+    "formLines": [
+      1,
+      3,
+      4
+    ],
+    "compilerLines": [
+      1,
+      3,
+      4
+    ],
+    "missingFromCompiler": [],
+    "extraCompilerLines": []
+  },
+  {
+    "path": "clojure_sample/research/src/coverage_research/disconnected.clj",
+    "formLines": [
+      1,
+      3,
+      4,
+      6,
+      7
+    ],
+    "compilerLines": [
+      1,
+      3,
+      4,
+      6,
+      7
+    ],
+    "missingFromCompiler": [],
+    "extraCompilerLines": []
+  },
+  {
+    "path": "clojure_sample/research/src/coverage_research/helper.clj",
+    "formLines": [
+      1,
+      3,
+      4
+    ],
+    "compilerLines": [
+      1,
+      3,
+      4
+    ],
+    "missingFromCompiler": [],
+    "extraCompilerLines": []
+  },
+  {
+    "path": "clojure_sample/research/src/coverage_research/production.clj",
+    "formLines": [
+      1,
+      3,
+      4,
+      6,
+      7,
+      9,
+      10,
+      11
+    ],
+    "compilerLines": [
+      1,
+      3,
+      4,
+      6,
+      9,
+      10,
+      11
+    ],
+    "missingFromCompiler": [
+      7
+    ],
+    "extraCompilerLines": []
+  },
+  {
+    "path": "clojure_sample/src/lowkeylab/clojure_sample/core.clj",
+    "formLines": [
+      1,
+      4,
+      7,
+      9,
+      11,
+      12
+    ],
+    "compilerLines": [
+      1,
+      4,
+      7,
+      9,
+      11,
+      12
+    ],
+    "missingFromCompiler": [],
+    "extraCompilerLines": []
+  },
+  {
+    "path": "clojure_sample/test/lowkeylab/clojure_sample/core_test.clj",
+    "formLines": [
+      1,
+      5,
+      6,
+      7
+    ],
+    "compilerLines": [
+      1,
+      5,
+      6,
+      7
+    ],
+    "missingFromCompiler": [],
+    "extraCompilerLines": []
+  }
+]
