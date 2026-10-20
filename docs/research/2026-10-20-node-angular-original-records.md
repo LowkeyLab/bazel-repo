@@ -142,11 +142,12 @@ A successful merge does not establish branch provenance.
 
 ## Validation and decision input
 
-The final research test executes freshly in a local Bazel sandbox with test-result caching disabled.
+The initial research test executed freshly in a local Bazel sandbox with test-result caching disabled.
 Remote executor, remote cache, and BES remain disabled for these commands.
 Full formatting, required Gazelle runs, applicable lint, strict English, source hashes, and archive hashes pass.
 The applicable lint aspects are ESLint and KeepSorted.
-Fresh configured-remote validation remains unproved while the coordinator awaits explicit payload approval.
+The initial run preceded explicit approval for remote research transfers.
+The approved check below supplies fresh remote execution evidence.
 No hosted CI, Codecov upload, or repository-wide production acceptance ran.
 
 Candidate direction: use mapped AST conversion plus an independent original statement model for the tested native line semantics.
@@ -160,3 +161,50 @@ The [commands](node-angular-original-records/commands.txt) and [evidence archive
 Published command logs use directory placeholders.
 Raw profiles, maps, and emitted code retain exact bytes and technical execution paths.
 Private raw records remain intact outside the reusable checkout.
+
+## Approved remote validation
+
+The user later approved research fixture and build-artifact transfers to `remote.buildbuddy.io`.
+The [approved BuildBuddy check](https://app.buildbuddy.io/invocation/b3045f3a-d287-4ddf-8970-5bde41bc5716) tested commit `10e6f23a85b6947b1b18dbf42ef5a37474ca9dc0`.
+The real test-setup execution record states `runner=remote`, `cacheHit=false`, and `exitCode=0`.
+The test took 6.342 seconds.
+A second `TestRunner` record generates XML and does not represent another test.
+The native parent/child work and both Angular runs execute inside the single research test.
+
+```sh
+nix develop --command bazel --host_jvm_args=-Xmx1536m test \
+  //tools/coverage/node_research:faithful --config=remote --jobs=4 \
+  --local_resources=cpu=2 --local_resources=memory=2048 \
+  --remote_download_toplevel --nocache_test_results --test_output=all \
+  --build_event_json_file=/private/output/check.bep.json \
+  --execution_log_compact_file= --execution_log_json_file=/private/output/execution.json
+```
+
+The action summary records 574 action-cache hits, 149 remote-cache hits, 170 internal processes, and fourteen remote processes.
+These counts do not mean that fourteen tests ran.
+The explicit execution record establishes fresh remote test execution separately from prerequisite caching.
+
+The local comparison checked the downloaded raw profiles and all twelve original source models.
+Every expected original line set matches.
+The two native process profiles remain present.
+All twelve missing/partial teardown controls reject after functional success, while all six complete controls pass.
+The native validator also rejects missing profiles and removal of the child profile.
+These remain research-adapter checks around exact snapshot functions, not executions of six maintained private test targets.
+
+The lowered conditional expectation remains false.
+The mapped generated `if` still records arm counts `0,1` after the original true case returns `9`.
+The supplement preserves this incorrect branch attribution as evidence.
+The Angular provider hook remains an internal pinned seam.
+The existing feasibility questions and collector limitations remain unchanged.
+
+Both pinned mergers ran locally with remote services disabled.
+They preserved every available serialized line and branch count.
+Both orders equal the original published merge bytes.
+Their SHA-256 remains `d38be7d70f763907e8e61f6e62f6f1cbf29e46405da23637974a5a7a60bb0390`.
+This equality does not establish correct original branch polarity.
+
+Only this Markdown report receives publication changes.
+The original evidence archive remains byte-identical, with SHA-256 `99183d37ec94a0c016290116a3e2d7192c501d7745ddff360748a2636bb0c883`.
+All new raw logs, downloaded profiles, expected comparisons, and execution records remain private in runtime receipts.
+Readers need private receipt access to inspect those complete repeated-check records.
+This check establishes no Codecov upload or production acceptance.
