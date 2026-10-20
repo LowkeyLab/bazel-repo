@@ -1,0 +1,19 @@
+# Run from REPO, the research checkout. EVIDENCE is an absolute writable artifact directory.
+# Published logs replace private prefixes with REPO, EVIDENCE, HOME, BAZEL_CACHE, TMPDIR, and REMOTE_EXECROOT placeholders.
+# All configured remote commands retain the repository's approved BuildBuddy services.
+# The committed Maven lock already contains all checksum pins.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run //:gazelle --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048
+nix develop --command bazel --host_jvm_args=-Xmx1536m run //:clojure_gen_build_files --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048
+nix develop --command bazel --host_jvm_args=-Xmx1536m build //clojure_sample/research:experiment --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 --remote_download_toplevel --verbose_failures
+# The declared tree is bazel-bin/clojure_sample/research/experiment.evidence.
+# Orchestration exit 0 does not imply parentLocationValidatorPassed=true.
+# The expected test assertion locations remain unchanged and false.
+# The historical fatal validator can be reproduced from the preserved source-before-nonfatal snapshot.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run //clojure_sample/research:runner --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 -- parent "${EVIDENCE}/local-reproduction"
+nix develop --command bazel --host_jvm_args=-Xmx1536m test //clojure_sample/research:native_test //clojure_sample/test/lowkeylab/clojure_sample:core_test.test --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 --nocache_test_results --test_output=all
+# Copy reset-baseline, parent-measured, and child-measured LCOV to 01.dat, 02.dat, and 03.dat under EVIDENCE/merge-forward.
+# Reverse those file assignments under EVIDENCE/merge-reverse. Do not include initialization LCOV.
+nix develop --command bazel --host_jvm_args=-Xmx1536m run @bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 -- --coverage_dir="${EVIDENCE}/merge-forward" --output_file="${EVIDENCE}/combined-forward.lcov"
+nix develop --command bazel --host_jvm_args=-Xmx1536m run @bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048 -- --coverage_dir="${EVIDENCE}/merge-reverse" --output_file="${EVIDENCE}/combined-reverse.lcov"
+nix develop --command aspect --host_jvm_args=-Xmx1536m lint //clojure_sample/research:experiment //clojure_sample/research:runner //clojure_sample/research:production //clojure_sample/research:cases //clojure_sample/research:native_test --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048
+nix develop --command aspect --host_jvm_args=-Xmx1536m format --scope=all --config=remote --jobs=8 --local_resources=cpu=2 --local_resources=memory=2048

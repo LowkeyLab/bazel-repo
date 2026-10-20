@@ -1,0 +1,1097 @@
+[
+  {
+    "path": "ARTIFACTS.md",
+    "sha256": "da81270842cc949a8057932997bf60fb083d673d4859b9ae4a7fb26b44bed644",
+    "bytes": 927
+  },
+  {
+    "path": "commands-and-logs/acquire.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/build-final.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/build-final.log",
+    "sha256": "865b96d258701860b435f3ed6f50b286b319bd76ceee94374bc0b2f1ea5d33f5",
+    "bytes": 1469
+  },
+  {
+    "path": "commands-and-logs/catalog.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/clojure-gen-inputs.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/clojure-gen-inputs.log",
+    "sha256": "7dde1ecf5242c0e2e1e3c882d12928a8fe60ce2c482a839af610302e6559d071",
+    "bytes": 2157
+  },
+  {
+    "path": "commands-and-logs/clojure-gen-validator.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/clojure-gen-validator.log",
+    "sha256": "2d7b892e29aa89862a30603659f7041d4e418e987b455e80594b0adaffedfd0a",
+    "bytes": 2156
+  },
+  {
+    "path": "commands-and-logs/clojure-gen.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/clojure-gen.log",
+    "sha256": "e8e44307150b394eee85a5bce86053b551c0882677e7d1dbc9c28cb20d7c8564",
+    "bytes": 2180
+  },
+  {
+    "path": "commands-and-logs/experiment-fifth.exit",
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-fifth.log",
+    "sha256": "7b0e5271d49c0f237e4365bde36c803db6eaa3f380a625dd98160255a4d65e83",
+    "bytes": 1292
+  },
+  {
+    "path": "commands-and-logs/experiment-first.exit",
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-first.log",
+    "sha256": "205036f21ad5a9c64292170f30ee40c47fd55e4ffb131ce8183cf55711a92bc8",
+    "bytes": 2689
+  },
+  {
+    "path": "commands-and-logs/experiment-fourth.exit",
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-fourth.log",
+    "sha256": "868fed09084fe5bdffa36b522ac8342c35ee0b0ed2a52b5ec24e06923fd4e199",
+    "bytes": 1574
+  },
+  {
+    "path": "commands-and-logs/experiment-independent.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-independent.log",
+    "sha256": "eb7cca4756843d6f6b6703346caa69e67d230a15d103d788f46a22548026635b",
+    "bytes": 2563
+  },
+  {
+    "path": "commands-and-logs/experiment-inputs.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-inputs.log",
+    "sha256": "1c2632c8af96140fc576a0f0fd7c08652e77c05f42c40a0e27377a45b202d13a",
+    "bytes": 2411
+  },
+  {
+    "path": "commands-and-logs/experiment-second.exit",
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-second.log",
+    "sha256": "bbf4e62640c9e3fb61bc86ac600b0ef2531f0b6e7083b46e21afcafdc5d120c0",
+    "bytes": 2629
+  },
+  {
+    "path": "commands-and-logs/experiment-seventh.exit",
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-seventh.log",
+    "sha256": "72b29b562b9f73d171e14ab3e117464a9407a302438d9862f79a93e5b29b6179",
+    "bytes": 3027
+  },
+  {
+    "path": "commands-and-logs/experiment-sixth.exit",
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-sixth.log",
+    "sha256": "11a3d32dd7b472215f7be6a0ef2830c38f774788ef29a27a282650b1c150205e",
+    "bytes": 2601
+  },
+  {
+    "path": "commands-and-logs/experiment-third.exit",
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/experiment-third.log",
+    "sha256": "2cbebe75301c791ad3258e2ac03cbcd335091f49770f5ffd8a8b004b8b2ab649",
+    "bytes": 5111
+  },
+  {
+    "path": "commands-and-logs/format-final.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/format-final.log",
+    "sha256": "614457ffc86808e8fd0bb273c3bb25e3503938ab4702bfa18c9d69e66728ace6",
+    "bytes": 5752
+  },
+  {
+    "path": "commands-and-logs/format.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/format.log",
+    "sha256": "ff9ce220f9a05aa8ef8958a59a75df2215ac598fa0c99bcd1b0a24180ac879af",
+    "bytes": 8826
+  },
+  {
+    "path": "commands-and-logs/gazelle-archive.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-archive.log",
+    "sha256": "bff6bb67280f258ff657cc112e6225050f5c4d000b6180158013745d473eae69",
+    "bytes": 2314
+  },
+  {
+    "path": "commands-and-logs/gazelle-exclusions.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-exclusions.log",
+    "sha256": "8bc1b74d473eff45ba75d5b40e82c459df66db7139e2315858a1c9d600defeb9",
+    "bytes": 2628
+  },
+  {
+    "path": "commands-and-logs/gazelle-fixture.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-fixture.log",
+    "sha256": "7d32eb56b565c7cc41065bbe022a4405e9dff9fc1e8a9cf3d8f4eb085f2bac76",
+    "bytes": 2522
+  },
+  {
+    "path": "commands-and-logs/gazelle-formatted.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-formatted.log",
+    "sha256": "ad76bb3de7eb7fb280b05b1d1318057cc100222aaccb8a3bf379e9b79ecdb97b",
+    "bytes": 2540
+  },
+  {
+    "path": "commands-and-logs/gazelle-inputs.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-inputs.log",
+    "sha256": "b2d59dda2928e26bf52766ae21535682bc84976d63feb56b4776b70b51622146",
+    "bytes": 2143
+  },
+  {
+    "path": "commands-and-logs/gazelle-launch.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-launch.log",
+    "sha256": "adbac756d2b21ee239103dade342d562cf0f6d0c7e4935bc74584b14bce597ac",
+    "bytes": 2250
+  },
+  {
+    "path": "commands-and-logs/gazelle-locked.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-locked.log",
+    "sha256": "b891b0ed78c1971268021affd43a929c1dce6f2c6558a906884d2c877e9d4060",
+    "bytes": 2317
+  },
+  {
+    "path": "commands-and-logs/gazelle-pins.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-pins.log",
+    "sha256": "074a7e57fa8c306c1e8b561d5c984ce7796f95890c2649fe333a3f7a0d951eee",
+    "bytes": 7881
+  },
+  {
+    "path": "commands-and-logs/gazelle-process.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-process.log",
+    "sha256": "f0f67e1168077cf1ad2541d429b4403f5a859b92f2c509fc7b1afc18fe3eb9c2",
+    "bytes": 2041
+  },
+  {
+    "path": "commands-and-logs/gazelle-timeout.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-timeout.log",
+    "sha256": "691c0ab112e98720d08576f91f5ec3871d6c6e885c55c32aa5579fd28dc09bd7",
+    "bytes": 2041
+  },
+  {
+    "path": "commands-and-logs/gazelle-validator.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/gazelle-validator.log",
+    "sha256": "e0dd8da566d4de3b35ccc8db982e33befa69ba3244ef4f87369a03ccf7d623cc",
+    "bytes": 2041
+  },
+  {
+    "path": "commands-and-logs/lint.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/lint.log",
+    "sha256": "6f582ae29f664dbafebaf0ac9b8f298f04ead874552db47a8fca456d99d54316",
+    "bytes": 5182
+  },
+  {
+    "path": "commands-and-logs/local-first.exit",
+    "sha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/local-first.log",
+    "sha256": "4747d488dfee7dbc55137e75430518c669d02deffa76a4389984ae27df3ef6cc",
+    "bytes": 4588
+  },
+  {
+    "path": "commands-and-logs/merge-forward.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/merge-forward.log",
+    "sha256": "ef53759f4f4e66cadff3f332beb9c448c68d6391c47f80de390bad89a27c50c2",
+    "bytes": 1952
+  },
+  {
+    "path": "commands-and-logs/merge-reverse.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/merge-reverse.log",
+    "sha256": "608fcce5d9bf9600798db34cfa93a214e09d31da5fb1c5becb7664fc3b3c9295",
+    "bytes": 1883
+  },
+  {
+    "path": "commands-and-logs/native-test.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/native-test.log",
+    "sha256": "933553218194dfe911c43228562bb13ae4870e395fb35fb76871ef1d141033e8",
+    "bytes": 3690
+  },
+  {
+    "path": "commands-and-logs/pin-exclusions.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/pin-exclusions.log",
+    "sha256": "d6230019c8982d7ed1d957d45ffb6329cb4cb74575defa070d4520fdb59f16ed",
+    "bytes": 2811
+  },
+  {
+    "path": "commands-and-logs/pin.exit",
+    "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+    "bytes": 2
+  },
+  {
+    "path": "commands-and-logs/pin.log",
+    "sha256": "a11a8df77b165c66c666654db2822dca8ecf7b7051e73a189ceac85348cb7878",
+    "bytes": 2851
+  },
+  {
+    "path": "formatted-inputs/MODULE.bazel",
+    "sha256": "4a92ac8985e678065b4e8e704868f046f3b1c56e534fbd1fa7e4de83c2ec42dd",
+    "bytes": 28812
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/BUILD.bazel",
+    "sha256": "d2cc9584917d8b22cd76da6bc59c305bc97ec5d38f9841636b9fa3179124e5de",
+    "bytes": 2197
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/maven_install.json",
+    "sha256": "9801349a7e3284cbee97ce6e1dd7854092bdc47c9d9c748d280363635c3eb080",
+    "bytes": 5601
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/probe.bzl",
+    "sha256": "76a810c69263394023d866629ca0477ec762012991f606a500aca1fbcf94250e",
+    "bytes": 930
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/src/coverage_research/cases_test.clj",
+    "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+    "bytes": 288
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/src/coverage_research/child.clj",
+    "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+    "bytes": 59
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/src/coverage_research/disconnected.clj",
+    "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+    "bytes": 78
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/src/coverage_research/helper.clj",
+    "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+    "bytes": 67
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/src/coverage_research/production.clj",
+    "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+    "bytes": 235
+  },
+  {
+    "path": "formatted-inputs/clojure_sample/research/src/coverage_research/runner.clj",
+    "sha256": "e68cbf2609ec779fec35b7de7ce7e2ab34d8cc231d6d39f6d86941e473f1c28a",
+    "bytes": 14183
+  },
+  {
+    "path": "historical-and-inputs/MODULE-before-nonfatal.bazel",
+    "sha256": "e6dd0dfa30846b09a891873d97365164f8ac191916ad792a204460bb3b61da9b",
+    "bytes": 28812
+  },
+  {
+    "path": "historical-and-inputs/clojure-tag.json",
+    "sha256": "8e8a26449e1948d7265bca4f3940b411d128ca65856e30695c43a00e1dad5656",
+    "bytes": 167
+  },
+  {
+    "path": "historical-and-inputs/local-first-error.edn",
+    "sha256": "990cd8c2d406e8076825a3e264db833d6c30d8898755ec791da24beb3ada08c7",
+    "bytes": 1809
+  },
+  {
+    "path": "historical-and-inputs/maven-before-exclusions.json",
+    "sha256": "ed9bfc9002cfbc9e0c97cdaff8b61a978f21a6be6ba06658a787e45588b9c80f",
+    "bytes": 5655
+  },
+  {
+    "path": "historical-and-inputs/runtime-MODULE.bazel",
+    "sha256": "e6dd0dfa30846b09a891873d97365164f8ac191916ad792a204460bb3b61da9b",
+    "bytes": 28812
+  },
+  {
+    "path": "inputs/cloverage-source.tar.gz",
+    "sha256": "ccd574a9e5180c4e3834fa9c4b44d97d45f799c9639868b6689d4aaab407bf50",
+    "bytes": 71921
+  },
+  {
+    "path": "local-first/baseline.forms.edn",
+    "sha256": "c4958ef276457aa5782914193f5ca2e3ddc2e1a1608acaac649ba204173a71cc",
+    "bytes": 60258
+  },
+  {
+    "path": "local-first/baseline.forms.json",
+    "sha256": "ab5bc608f418851a2f0de4045b9b98312fad911b0a795b85cc2e0c7b278b5318",
+    "bytes": 68379
+  },
+  {
+    "path": "local-first/baseline.lcov",
+    "sha256": "146735699710bf444392a081d9775d63137203a4fbbb23fbe93374d8e16b3c32",
+    "bytes": 820
+  },
+  {
+    "path": "local-first/baseline.raw.lcov",
+    "sha256": "7ac58ba5ecee155f595526884d0ff4a7dfeb5cad1f15eaef143cba35b79a7607",
+    "bytes": 641
+  },
+  {
+    "path": "local-first/initialization.forms.edn",
+    "sha256": "012b3536d61cf8e57a19bc43dc97cf99f8d19c5f16541cd4c416399d77649d2d",
+    "bytes": 60213
+  },
+  {
+    "path": "local-first/initialization.forms.json",
+    "sha256": "b7cdb6021246f400b0842a9269f6055ad8ed0e7c4c7f4e7b46b8d5ef8001f5e3",
+    "bytes": 68334
+  },
+  {
+    "path": "local-first/initialization.lcov",
+    "sha256": "b78af34cdfbd597dd43cb88f45aa447aa5e52f9203e68c8170af9da7b3786421",
+    "bytes": 821
+  },
+  {
+    "path": "local-first/initialization.raw.lcov",
+    "sha256": "79ce64dbe8647f9a48a9655e2e15cd02202cf7ac80bce7214db25b1c0093dccb",
+    "bytes": 642
+  },
+  {
+    "path": "local-first/measured.forms.edn",
+    "sha256": "81f85e8a89f2dd953b2c7b88bd4f7c4b51c5d9940671053dcd93eaf3f3ebb13b",
+    "bytes": 60243
+  },
+  {
+    "path": "local-first/measured.forms.json",
+    "sha256": "8b5e7e7235088b168198cbaee2d1b4af2245c0a95748aa2d23155a6bc239b792",
+    "bytes": 68364
+  },
+  {
+    "path": "local-first/measured.lcov",
+    "sha256": "cdeab1c89790ec2445bbcde5ec50a0c0af34a9da09e4d4ab8167f3b99d4e5d96",
+    "bytes": 820
+  },
+  {
+    "path": "local-first/measured.raw.lcov",
+    "sha256": "075ed3d44ab7d1a521f2118bf26fb397b74b388a3882960e73a8af785b5a8b5c",
+    "bytes": 641
+  },
+  {
+    "path": "local-first/sources/clojure_sample/research/src/coverage_research/cases_test.clj",
+    "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+    "bytes": 288
+  },
+  {
+    "path": "local-first/sources/clojure_sample/research/src/coverage_research/child.clj",
+    "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+    "bytes": 59
+  },
+  {
+    "path": "local-first/sources/clojure_sample/research/src/coverage_research/disconnected.clj",
+    "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+    "bytes": 78
+  },
+  {
+    "path": "local-first/sources/clojure_sample/research/src/coverage_research/helper.clj",
+    "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+    "bytes": 67
+  },
+  {
+    "path": "local-first/sources/clojure_sample/research/src/coverage_research/production.clj",
+    "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+    "bytes": 235
+  },
+  {
+    "path": "local-first/sources/clojure_sample/src/lowkeylab/clojure_sample/core.clj",
+    "sha256": "3dc0da7644b2566d3d9a09fd1b6a4dd4c165d1193e0865b88488c99e532cd942",
+    "bytes": 312
+  },
+  {
+    "path": "local-first/sources/clojure_sample/test/lowkeylab/clojure_sample/core_test.clj",
+    "sha256": "5845f600b85bc3edfd6c6ccab4b24ecea027a69689b9998c7c192adeaf175940",
+    "bytes": 254
+  },
+  {
+    "path": "maintained-inputs/.bazelversion",
+    "sha256": "14ebdd5f5d8dfccb0fc574ea9aabecc07d7cdd99d53e4fc01e58f9c3d23d18ef",
+    "bytes": 6
+  },
+  {
+    "path": "maintained-inputs/clojure_sample/src/lowkeylab/clojure_sample/BUILD.bazel",
+    "sha256": "9a726c98e3079ba7118940fbe2bcdfccbe1f0d82fda25dde726719b210548f34",
+    "bytes": 594
+  },
+  {
+    "path": "maintained-inputs/clojure_sample/src/lowkeylab/clojure_sample/core.clj",
+    "sha256": "3dc0da7644b2566d3d9a09fd1b6a4dd4c165d1193e0865b88488c99e532cd942",
+    "bytes": 312
+  },
+  {
+    "path": "maintained-inputs/clojure_sample/test/lowkeylab/clojure_sample/BUILD.bazel",
+    "sha256": "23f3494d984a64d23921495b5d09d325023b64e97d9888d5804e4720dde3924a",
+    "bytes": 763
+  },
+  {
+    "path": "maintained-inputs/clojure_sample/test/lowkeylab/clojure_sample/core_test.clj",
+    "sha256": "5845f600b85bc3edfd6c6ccab4b24ecea027a69689b9998c7c192adeaf175940",
+    "bytes": 254
+  },
+  {
+    "path": "maintained-inputs/deps.edn",
+    "sha256": "8ef57560897e9b9c0db8b89a9ef441a2e35e36ba48bb6512932a2daf8e9831ec",
+    "bytes": 206
+  },
+  {
+    "path": "readable-summaries/baseline.lcov",
+    "sha256": "146735699710bf444392a081d9775d63137203a4fbbb23fbe93374d8e16b3c32",
+    "bytes": 820
+  },
+  {
+    "path": "readable-summaries/capabilities.json",
+    "sha256": "f7b4999ce7be003bcbafc9252ef50e0e6aeb5546c92be0d3b760b82ece1e262e",
+    "bytes": 967
+  },
+  {
+    "path": "readable-summaries/child.lcov",
+    "sha256": "ac19eb11255037f1a9e4de9e9f3cb2c6a65993d840a346df3193133325ef1948",
+    "bytes": 820
+  },
+  {
+    "path": "readable-summaries/combined-forward.lcov",
+    "sha256": "6f59190ce5dad61a136678c1aac238688fdac8608801cc797e11108e21663f74",
+    "bytes": 876
+  },
+  {
+    "path": "readable-summaries/combined-reverse.lcov",
+    "sha256": "6f59190ce5dad61a136678c1aac238688fdac8608801cc797e11108e21663f74",
+    "bytes": 876
+  },
+  {
+    "path": "readable-summaries/commands.txt",
+    "sha256": "fcb925aad8ba1140982a5bfe71f51d0bf652bf769d070d19a5e46146be999f6e",
+    "bytes": 3080
+  },
+  {
+    "path": "readable-summaries/deftest-metadata.json",
+    "sha256": "c0e062451576a9ee4094290b417afb4b3c34c3e3cbc04df9c477d5530ade4d02",
+    "bytes": 1825
+  },
+  {
+    "path": "readable-summaries/expected-locations.json",
+    "sha256": "715b93eba1b507d4150faefc33a55df5707a955cb7d2f88f069b45ce612130e5",
+    "bytes": 1547
+  },
+  {
+    "path": "readable-summaries/initialization.lcov",
+    "sha256": "b78af34cdfbd597dd43cb88f45aa447aa5e52f9203e68c8170af9da7b3786421",
+    "bytes": 821
+  },
+  {
+    "path": "readable-summaries/parent.lcov",
+    "sha256": "cdeab1c89790ec2445bbcde5ec50a0c0af34a9da09e4d4ab8167f3b99d4e5d96",
+    "bytes": 820
+  },
+  {
+    "path": "remote-inputs/aot-inputs/coverage_research/production__init.class",
+    "sha256": "2ee18413abe6f47e1bad9c87b0e509cb6f032ec280de366601ecb9d80cf90c18",
+    "bytes": 3549
+  },
+  {
+    "path": "remote-inputs/aot-inputs/lowkeylab/clojure_sample/core__init.class",
+    "sha256": "17b1773a4212a95053e05d66fdeb6e322bd8c7ab5ae82fc92394f15376d6760b",
+    "bytes": 3615
+  },
+  {
+    "path": "remote-inputs/baseline-process/aot-inputs/coverage_research/production__init.class",
+    "sha256": "2ee18413abe6f47e1bad9c87b0e509cb6f032ec280de366601ecb9d80cf90c18",
+    "bytes": 3549
+  },
+  {
+    "path": "remote-inputs/baseline-process/aot-inputs/lowkeylab/clojure_sample/core__init.class",
+    "sha256": "17b1773a4212a95053e05d66fdeb6e322bd8c7ab5ae82fc92394f15376d6760b",
+    "bytes": 3615
+  },
+  {
+    "path": "remote-inputs/baseline-process/baseline.forms.edn",
+    "sha256": "c4958ef276457aa5782914193f5ca2e3ddc2e1a1608acaac649ba204173a71cc",
+    "bytes": 60258
+  },
+  {
+    "path": "remote-inputs/baseline-process/baseline.forms.json",
+    "sha256": "ab5bc608f418851a2f0de4045b9b98312fad911b0a795b85cc2e0c7b278b5318",
+    "bytes": 68379
+  },
+  {
+    "path": "remote-inputs/baseline-process/baseline.lcov",
+    "sha256": "146735699710bf444392a081d9775d63137203a4fbbb23fbe93374d8e16b3c32",
+    "bytes": 820
+  },
+  {
+    "path": "remote-inputs/baseline-process/baseline.raw.lcov",
+    "sha256": "7ac58ba5ecee155f595526884d0ff4a7dfeb5cad1f15eaef143cba35b79a7607",
+    "bytes": 641
+  },
+  {
+    "path": "remote-inputs/baseline-process/completion.json",
+    "sha256": "7731531867e693b9852e9c7b436eb20fa6a70a9a974ec5d94d61ae8a6145dc89",
+    "bytes": 5054
+  },
+  {
+    "path": "remote-inputs/baseline-process/initialization.forms.edn",
+    "sha256": "012b3536d61cf8e57a19bc43dc97cf99f8d19c5f16541cd4c416399d77649d2d",
+    "bytes": 60213
+  },
+  {
+    "path": "remote-inputs/baseline-process/initialization.forms.json",
+    "sha256": "b7cdb6021246f400b0842a9269f6055ad8ed0e7c4c7f4e7b46b8d5ef8001f5e3",
+    "bytes": 68334
+  },
+  {
+    "path": "remote-inputs/baseline-process/initialization.lcov",
+    "sha256": "b78af34cdfbd597dd43cb88f45aa447aa5e52f9203e68c8170af9da7b3786421",
+    "bytes": 821
+  },
+  {
+    "path": "remote-inputs/baseline-process/initialization.raw.lcov",
+    "sha256": "79ce64dbe8647f9a48a9655e2e15cd02202cf7ac80bce7214db25b1c0093dccb",
+    "bytes": 642
+  },
+  {
+    "path": "remote-inputs/baseline-process/input-inventory.json",
+    "sha256": "7a5f61e3346e6df15ed5229ba386318f2316c6b1c5b5a6967dc6f6b950fc56ac",
+    "bytes": 7800
+  },
+  {
+    "path": "remote-inputs/baseline-process/measured.forms.edn",
+    "sha256": "c4958ef276457aa5782914193f5ca2e3ddc2e1a1608acaac649ba204173a71cc",
+    "bytes": 60258
+  },
+  {
+    "path": "remote-inputs/baseline-process/measured.forms.json",
+    "sha256": "ab5bc608f418851a2f0de4045b9b98312fad911b0a795b85cc2e0c7b278b5318",
+    "bytes": 68379
+  },
+  {
+    "path": "remote-inputs/baseline-process/measured.lcov",
+    "sha256": "146735699710bf444392a081d9775d63137203a4fbbb23fbe93374d8e16b3c32",
+    "bytes": 820
+  },
+  {
+    "path": "remote-inputs/baseline-process/measured.raw.lcov",
+    "sha256": "7ac58ba5ecee155f595526884d0ff4a7dfeb5cad1f15eaef143cba35b79a7607",
+    "bytes": 641
+  },
+  {
+    "path": "remote-inputs/baseline-process/receipt.json",
+    "sha256": "e4a58b87611275161c9fa9eb026151232e5b1a5c922164e2f6733f1e17fa2614",
+    "bytes": 1371
+  },
+  {
+    "path": "remote-inputs/baseline-process/sources/clojure_sample/research/src/coverage_research/cases_test.clj",
+    "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+    "bytes": 288
+  },
+  {
+    "path": "remote-inputs/baseline-process/sources/clojure_sample/research/src/coverage_research/child.clj",
+    "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+    "bytes": 59
+  },
+  {
+    "path": "remote-inputs/baseline-process/sources/clojure_sample/research/src/coverage_research/disconnected.clj",
+    "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+    "bytes": 78
+  },
+  {
+    "path": "remote-inputs/baseline-process/sources/clojure_sample/research/src/coverage_research/helper.clj",
+    "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+    "bytes": 67
+  },
+  {
+    "path": "remote-inputs/baseline-process/sources/clojure_sample/research/src/coverage_research/production.clj",
+    "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+    "bytes": 235
+  },
+  {
+    "path": "remote-inputs/baseline-process/sources/clojure_sample/src/lowkeylab/clojure_sample/core.clj",
+    "sha256": "3dc0da7644b2566d3d9a09fd1b6a4dd4c165d1193e0865b88488c99e532cd942",
+    "bytes": 312
+  },
+  {
+    "path": "remote-inputs/baseline-process/sources/clojure_sample/test/lowkeylab/clojure_sample/core_test.clj",
+    "sha256": "5845f600b85bc3edfd6c6ccab4b24ecea027a69689b9998c7c192adeaf175940",
+    "bytes": 254
+  },
+  {
+    "path": "remote-inputs/baseline-process/stderr.txt",
+    "sha256": "9a0df0db4fa654dda7d0aa84b1dbdfcacfc177206c979cd6789ef8b7e58c7b87",
+    "bytes": 38
+  },
+  {
+    "path": "remote-inputs/baseline-process/stdout.txt",
+    "sha256": "b68766e7bed541fa51764c0cf059a1e5653272fdd511d60e61f7a5edfb2156c9",
+    "bytes": 336
+  },
+  {
+    "path": "remote-inputs/baseline.forms.edn",
+    "sha256": "c4958ef276457aa5782914193f5ca2e3ddc2e1a1608acaac649ba204173a71cc",
+    "bytes": 60258
+  },
+  {
+    "path": "remote-inputs/baseline.forms.json",
+    "sha256": "ab5bc608f418851a2f0de4045b9b98312fad911b0a795b85cc2e0c7b278b5318",
+    "bytes": 68379
+  },
+  {
+    "path": "remote-inputs/baseline.lcov",
+    "sha256": "146735699710bf444392a081d9775d63137203a4fbbb23fbe93374d8e16b3c32",
+    "bytes": 820
+  },
+  {
+    "path": "remote-inputs/baseline.raw.lcov",
+    "sha256": "7ac58ba5ecee155f595526884d0ff4a7dfeb5cad1f15eaef143cba35b79a7607",
+    "bytes": 641
+  },
+  {
+    "path": "remote-inputs/capabilities.json",
+    "sha256": "ee6169ede38141aafd25e1762fbcb8626162b34ef466e5de749b1e11bf4f2337",
+    "bytes": 834
+  },
+  {
+    "path": "remote-inputs/child-process/aot-inputs/coverage_research/production__init.class",
+    "sha256": "2ee18413abe6f47e1bad9c87b0e509cb6f032ec280de366601ecb9d80cf90c18",
+    "bytes": 3549
+  },
+  {
+    "path": "remote-inputs/child-process/aot-inputs/lowkeylab/clojure_sample/core__init.class",
+    "sha256": "17b1773a4212a95053e05d66fdeb6e322bd8c7ab5ae82fc92394f15376d6760b",
+    "bytes": 3615
+  },
+  {
+    "path": "remote-inputs/child-process/baseline.forms.edn",
+    "sha256": "c4958ef276457aa5782914193f5ca2e3ddc2e1a1608acaac649ba204173a71cc",
+    "bytes": 60258
+  },
+  {
+    "path": "remote-inputs/child-process/baseline.forms.json",
+    "sha256": "ab5bc608f418851a2f0de4045b9b98312fad911b0a795b85cc2e0c7b278b5318",
+    "bytes": 68379
+  },
+  {
+    "path": "remote-inputs/child-process/baseline.lcov",
+    "sha256": "146735699710bf444392a081d9775d63137203a4fbbb23fbe93374d8e16b3c32",
+    "bytes": 820
+  },
+  {
+    "path": "remote-inputs/child-process/baseline.raw.lcov",
+    "sha256": "7ac58ba5ecee155f595526884d0ff4a7dfeb5cad1f15eaef143cba35b79a7607",
+    "bytes": 641
+  },
+  {
+    "path": "remote-inputs/child-process/completion.json",
+    "sha256": "8617c180cf779d399af461fe4302b9a3406d01024a1826718c7761d048fbfc7c",
+    "bytes": 5045
+  },
+  {
+    "path": "remote-inputs/child-process/initialization.forms.edn",
+    "sha256": "012b3536d61cf8e57a19bc43dc97cf99f8d19c5f16541cd4c416399d77649d2d",
+    "bytes": 60213
+  },
+  {
+    "path": "remote-inputs/child-process/initialization.forms.json",
+    "sha256": "b7cdb6021246f400b0842a9269f6055ad8ed0e7c4c7f4e7b46b8d5ef8001f5e3",
+    "bytes": 68334
+  },
+  {
+    "path": "remote-inputs/child-process/initialization.lcov",
+    "sha256": "b78af34cdfbd597dd43cb88f45aa447aa5e52f9203e68c8170af9da7b3786421",
+    "bytes": 821
+  },
+  {
+    "path": "remote-inputs/child-process/initialization.raw.lcov",
+    "sha256": "79ce64dbe8647f9a48a9655e2e15cd02202cf7ac80bce7214db25b1c0093dccb",
+    "bytes": 642
+  },
+  {
+    "path": "remote-inputs/child-process/input-inventory.json",
+    "sha256": "7a5f61e3346e6df15ed5229ba386318f2316c6b1c5b5a6967dc6f6b950fc56ac",
+    "bytes": 7800
+  },
+  {
+    "path": "remote-inputs/child-process/measured.forms.edn",
+    "sha256": "14f18a9cb4e83b05adf042327173de2ab46f5cad939e2ac07ca2ef198daf4c09",
+    "bytes": 60255
+  },
+  {
+    "path": "remote-inputs/child-process/measured.forms.json",
+    "sha256": "ce2283238edc49f6cdf9d0bbe6ec1481743c49ab5ce9bbb1836ace70d8e22fa2",
+    "bytes": 68376
+  },
+  {
+    "path": "remote-inputs/child-process/measured.lcov",
+    "sha256": "ac19eb11255037f1a9e4de9e9f3cb2c6a65993d840a346df3193133325ef1948",
+    "bytes": 820
+  },
+  {
+    "path": "remote-inputs/child-process/measured.raw.lcov",
+    "sha256": "c3eb5406391c5d35d90d8415f9f1cbf3ef17c07e2d2f671c19c7fbe48cd3ee69",
+    "bytes": 641
+  },
+  {
+    "path": "remote-inputs/child-process/receipt.json",
+    "sha256": "0b86280a4f3dc4b68c17eabb36819b1744f1aa6a241313a2e7bae3b4f65d35b0",
+    "bytes": 1361
+  },
+  {
+    "path": "remote-inputs/child-process/sources/clojure_sample/research/src/coverage_research/cases_test.clj",
+    "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+    "bytes": 288
+  },
+  {
+    "path": "remote-inputs/child-process/sources/clojure_sample/research/src/coverage_research/child.clj",
+    "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+    "bytes": 59
+  },
+  {
+    "path": "remote-inputs/child-process/sources/clojure_sample/research/src/coverage_research/disconnected.clj",
+    "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+    "bytes": 78
+  },
+  {
+    "path": "remote-inputs/child-process/sources/clojure_sample/research/src/coverage_research/helper.clj",
+    "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+    "bytes": 67
+  },
+  {
+    "path": "remote-inputs/child-process/sources/clojure_sample/research/src/coverage_research/production.clj",
+    "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+    "bytes": 235
+  },
+  {
+    "path": "remote-inputs/child-process/sources/clojure_sample/src/lowkeylab/clojure_sample/core.clj",
+    "sha256": "3dc0da7644b2566d3d9a09fd1b6a4dd4c165d1193e0865b88488c99e532cd942",
+    "bytes": 312
+  },
+  {
+    "path": "remote-inputs/child-process/sources/clojure_sample/test/lowkeylab/clojure_sample/core_test.clj",
+    "sha256": "5845f600b85bc3edfd6c6ccab4b24ecea027a69689b9998c7c192adeaf175940",
+    "bytes": 254
+  },
+  {
+    "path": "remote-inputs/child-process/stderr.txt",
+    "sha256": "9a0df0db4fa654dda7d0aa84b1dbdfcacfc177206c979cd6789ef8b7e58c7b87",
+    "bytes": 38
+  },
+  {
+    "path": "remote-inputs/child-process/stdout.txt",
+    "sha256": "b68766e7bed541fa51764c0cf059a1e5653272fdd511d60e61f7a5edfb2156c9",
+    "bytes": 336
+  },
+  {
+    "path": "remote-inputs/corrupt-control/measured.lcov",
+    "sha256": "06d0083ba740ff26c91cb17f10d15d398eea1affd3112599b429f30452b59db4",
+    "bytes": 8
+  },
+  {
+    "path": "remote-inputs/corrupt-control/receipt.json",
+    "sha256": "0b86280a4f3dc4b68c17eabb36819b1744f1aa6a241313a2e7bae3b4f65d35b0",
+    "bytes": 1361
+  },
+  {
+    "path": "remote-inputs/expected-locations.json",
+    "sha256": "3a7c5f9c37ed812bb2e122f8a21c64b1d75ae9a6cd4453bb7633a12f7fc48d1b",
+    "bytes": 1031
+  },
+  {
+    "path": "remote-inputs/initialization.forms.edn",
+    "sha256": "012b3536d61cf8e57a19bc43dc97cf99f8d19c5f16541cd4c416399d77649d2d",
+    "bytes": 60213
+  },
+  {
+    "path": "remote-inputs/initialization.forms.json",
+    "sha256": "b7cdb6021246f400b0842a9269f6055ad8ed0e7c4c7f4e7b46b8d5ef8001f5e3",
+    "bytes": 68334
+  },
+  {
+    "path": "remote-inputs/initialization.lcov",
+    "sha256": "b78af34cdfbd597dd43cb88f45aa447aa5e52f9203e68c8170af9da7b3786421",
+    "bytes": 821
+  },
+  {
+    "path": "remote-inputs/initialization.raw.lcov",
+    "sha256": "79ce64dbe8647f9a48a9655e2e15cd02202cf7ac80bce7214db25b1c0093dccb",
+    "bytes": 642
+  },
+  {
+    "path": "remote-inputs/input-inventory.json",
+    "sha256": "7a5f61e3346e6df15ed5229ba386318f2316c6b1c5b5a6967dc6f6b950fc56ac",
+    "bytes": 7800
+  },
+  {
+    "path": "remote-inputs/measured.forms.edn",
+    "sha256": "81f85e8a89f2dd953b2c7b88bd4f7c4b51c5d9940671053dcd93eaf3f3ebb13b",
+    "bytes": 60243
+  },
+  {
+    "path": "remote-inputs/measured.forms.json",
+    "sha256": "8b5e7e7235088b168198cbaee2d1b4af2245c0a95748aa2d23155a6bc239b792",
+    "bytes": 68364
+  },
+  {
+    "path": "remote-inputs/measured.lcov",
+    "sha256": "cdeab1c89790ec2445bbcde5ec50a0c0af34a9da09e4d4ab8167f3b99d4e5d96",
+    "bytes": 820
+  },
+  {
+    "path": "remote-inputs/measured.raw.lcov",
+    "sha256": "075ed3d44ab7d1a521f2118bf26fb397b74b388a3882960e73a8af785b5a8b5c",
+    "bytes": 641
+  },
+  {
+    "path": "remote-inputs/missing-control/receipt.json",
+    "sha256": "0b86280a4f3dc4b68c17eabb36819b1744f1aa6a241313a2e7bae3b4f65d35b0",
+    "bytes": 1361
+  },
+  {
+    "path": "remote-inputs/receipt.json",
+    "sha256": "af2c5bcbeec94cb0fbff8f3d1ea0cbccd8c013a568f043b695b79d67b7f5d50c",
+    "bytes": 1400
+  },
+  {
+    "path": "remote-inputs/sources/clojure_sample/research/src/coverage_research/cases_test.clj",
+    "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+    "bytes": 288
+  },
+  {
+    "path": "remote-inputs/sources/clojure_sample/research/src/coverage_research/child.clj",
+    "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+    "bytes": 59
+  },
+  {
+    "path": "remote-inputs/sources/clojure_sample/research/src/coverage_research/disconnected.clj",
+    "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+    "bytes": 78
+  },
+  {
+    "path": "remote-inputs/sources/clojure_sample/research/src/coverage_research/helper.clj",
+    "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+    "bytes": 67
+  },
+  {
+    "path": "remote-inputs/sources/clojure_sample/research/src/coverage_research/production.clj",
+    "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+    "bytes": 235
+  },
+  {
+    "path": "remote-inputs/sources/clojure_sample/src/lowkeylab/clojure_sample/core.clj",
+    "sha256": "3dc0da7644b2566d3d9a09fd1b6a4dd4c165d1193e0865b88488c99e532cd942",
+    "bytes": 312
+  },
+  {
+    "path": "remote-inputs/sources/clojure_sample/test/lowkeylab/clojure_sample/core_test.clj",
+    "sha256": "5845f600b85bc3edfd6c6ccab4b24ecea027a69689b9998c7c192adeaf175940",
+    "bytes": 254
+  },
+  {
+    "path": "runtime-sources/BUILD.bazel",
+    "sha256": "cac7041815c9051e8f67de805bd43edccee652bae122d37c4fe7218939d9f4ec",
+    "bytes": 2151
+  },
+  {
+    "path": "runtime-sources/maven_install.json",
+    "sha256": "9801349a7e3284cbee97ce6e1dd7854092bdc47c9d9c748d280363635c3eb080",
+    "bytes": 5601
+  },
+  {
+    "path": "runtime-sources/probe.bzl",
+    "sha256": "76a810c69263394023d866629ca0477ec762012991f606a500aca1fbcf94250e",
+    "bytes": 930
+  },
+  {
+    "path": "runtime-sources/src/coverage_research/cases_test.clj",
+    "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+    "bytes": 288
+  },
+  {
+    "path": "runtime-sources/src/coverage_research/child.clj",
+    "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+    "bytes": 59
+  },
+  {
+    "path": "runtime-sources/src/coverage_research/disconnected.clj",
+    "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+    "bytes": 78
+  },
+  {
+    "path": "runtime-sources/src/coverage_research/helper.clj",
+    "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+    "bytes": 67
+  },
+  {
+    "path": "runtime-sources/src/coverage_research/production.clj",
+    "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+    "bytes": 235
+  },
+  {
+    "path": "runtime-sources/src/coverage_research/runner.clj",
+    "sha256": "e68cbf2609ec779fec35b7de7ce7e2ab34d8cc231d6d39f6d86941e473f1c28a",
+    "bytes": 14183
+  },
+  {
+    "path": "source-before-nonfatal/BUILD.bazel",
+    "sha256": "cac7041815c9051e8f67de805bd43edccee652bae122d37c4fe7218939d9f4ec",
+    "bytes": 2151
+  },
+  {
+    "path": "source-before-nonfatal/maven_install.json",
+    "sha256": "9801349a7e3284cbee97ce6e1dd7854092bdc47c9d9c748d280363635c3eb080",
+    "bytes": 5601
+  },
+  {
+    "path": "source-before-nonfatal/probe.bzl",
+    "sha256": "76a810c69263394023d866629ca0477ec762012991f606a500aca1fbcf94250e",
+    "bytes": 930
+  },
+  {
+    "path": "source-before-nonfatal/src/coverage_research/cases_test.clj",
+    "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+    "bytes": 288
+  },
+  {
+    "path": "source-before-nonfatal/src/coverage_research/child.clj",
+    "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+    "bytes": 59
+  },
+  {
+    "path": "source-before-nonfatal/src/coverage_research/disconnected.clj",
+    "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+    "bytes": 78
+  },
+  {
+    "path": "source-before-nonfatal/src/coverage_research/helper.clj",
+    "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+    "bytes": 67
+  },
+  {
+    "path": "source-before-nonfatal/src/coverage_research/production.clj",
+    "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+    "bytes": 235
+  },
+  {
+    "path": "source-before-nonfatal/src/coverage_research/runner.clj",
+    "sha256": "0f9606a6a105e8185648211c943e4559727b2222d3feb7428c61101ac72de227",
+    "bytes": 12542
+  },
+  {
+    "path": "source-manifest.json",
+    "sha256": "7ce7d64eaed3418c2abec9d439ba88cbd9474fbdfe2d791c892413866b00c701",
+    "bytes": 7896
+  }
+]

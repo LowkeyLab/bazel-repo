@@ -1,0 +1,12 @@
+{
+  "fullForm": "(^{:line 5} def ^{:line 5, :column 10, :end-line 5, :end-column 32, :test (clojure.core/fn [] ^{:line 6, :column 3, :end-line 7, :end-column 35} (^{:line 6, :column 4, :end-line 6, :end-column 6} is ^{:line 6, :column 7, :end-line 7, :end-column 34} (^{:line 6, :column 8, :end-line 6, :end-column 9} = \"Hello, Bazel from rules_clojure!\" ^{:line 7, :column 10, :end-line 7, :end-column 33} (^{:line 7, :column 11, :end-line 7, :end-column 24} core/greeting \"Bazel\"))))} greeting-includes-name (cloverage.instrument/wrapm cloverage.coverage/track-coverage 5 ^{:line 5} (^{:line 5} clojure.core/fn ^{:line 5} [] ^{:line 5} (^{:line 5} clojure.test/test-var ^{:line 5} (^{:line 5} var ^{:line 5, :column 10, :end-line 5, :end-column 32} greeting-includes-name)))))",
+  "tracked": true,
+  "index": 75,
+  "file": "lowkeylab/clojure_sample/core_test.clj",
+  "canonicalFile": "clojure_sample/test/lowkeylab/clojure_sample/core_test.clj",
+  "hits": 0,
+  "line": 5,
+  "lib": "lowkeylab.clojure-sample.core-test",
+  "form": "(^{:line 5} def ^{:line 5, :column 10, :end-line 5, :end-column 32, :test (clojure.core/fn [] ^{:line 6, :column 3, :end-line 7, :end-column 35} (^{:line 6, :column 4, :end-line 6, :end-column 6} is ^{:line 6, :column 7, :end-line 7, :end-column 34} (^{:line 6, :column 8, :end-line 6, :end-column 9} = \"Hello, Bazel from rules_clojure!\" ^{:line 7, :column 10, :end-line 7, :end-column 33} (^{:line 7, :column 11, :end-line 7, :end-column 24} core/greeting \"Bazel\"))))} greeting-includes-name (cloverage.instrument/wrapm cloverage.coverage/track-coverage 5 ^{:line 5} (^{:line 5} clojure.core/fn ^{:line 5} [] ^{:line 5} (^{:line 5} clojure.test/test-var ^{:line 5} (^{:line 5} var ^{:line 5, :column 10, :end-line 5, :end-column 32} greeting-includes-name)))))",
+  "covered": false
+}

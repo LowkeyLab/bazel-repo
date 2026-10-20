@@ -1,0 +1,221 @@
+{
+  "base": "61e9f955bc2d75f7108c6332abae49e232ea21c4",
+  "sources": [
+    {
+      "path": "clojure_sample/research/BUILD.bazel",
+      "stage": "fatal-location-runtime",
+      "sha256": "cac7041815c9051e8f67de805bd43edccee652bae122d37c4fe7218939d9f4ec",
+      "bytes": 2151
+    },
+    {
+      "path": "clojure_sample/research/maven_install.json",
+      "stage": "fatal-location-runtime",
+      "sha256": "9801349a7e3284cbee97ce6e1dd7854092bdc47c9d9c748d280363635c3eb080",
+      "bytes": 5601
+    },
+    {
+      "path": "clojure_sample/research/probe.bzl",
+      "stage": "fatal-location-runtime",
+      "sha256": "76a810c69263394023d866629ca0477ec762012991f606a500aca1fbcf94250e",
+      "bytes": 930
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/cases_test.clj",
+      "stage": "fatal-location-runtime",
+      "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+      "bytes": 288
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/child.clj",
+      "stage": "fatal-location-runtime",
+      "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+      "bytes": 59
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/disconnected.clj",
+      "stage": "fatal-location-runtime",
+      "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+      "bytes": 78
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/helper.clj",
+      "stage": "fatal-location-runtime",
+      "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+      "bytes": 67
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/production.clj",
+      "stage": "fatal-location-runtime",
+      "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+      "bytes": 235
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/runner.clj",
+      "stage": "fatal-location-runtime",
+      "sha256": "0f9606a6a105e8185648211c943e4559727b2222d3feb7428c61101ac72de227",
+      "bytes": 12542
+    },
+    {
+      "path": "MODULE.bazel",
+      "stage": "fatal-location-runtime",
+      "sha256": "e6dd0dfa30846b09a891873d97365164f8ac191916ad792a204460bb3b61da9b",
+      "bytes": 28812
+    },
+    {
+      "path": "clojure_sample/research/BUILD.bazel",
+      "stage": "successful-runtime",
+      "sha256": "cac7041815c9051e8f67de805bd43edccee652bae122d37c4fe7218939d9f4ec",
+      "bytes": 2151
+    },
+    {
+      "path": "clojure_sample/research/maven_install.json",
+      "stage": "successful-runtime",
+      "sha256": "9801349a7e3284cbee97ce6e1dd7854092bdc47c9d9c748d280363635c3eb080",
+      "bytes": 5601
+    },
+    {
+      "path": "clojure_sample/research/probe.bzl",
+      "stage": "successful-runtime",
+      "sha256": "76a810c69263394023d866629ca0477ec762012991f606a500aca1fbcf94250e",
+      "bytes": 930
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/cases_test.clj",
+      "stage": "successful-runtime",
+      "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+      "bytes": 288
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/child.clj",
+      "stage": "successful-runtime",
+      "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+      "bytes": 59
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/disconnected.clj",
+      "stage": "successful-runtime",
+      "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+      "bytes": 78
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/helper.clj",
+      "stage": "successful-runtime",
+      "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+      "bytes": 67
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/production.clj",
+      "stage": "successful-runtime",
+      "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+      "bytes": 235
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/runner.clj",
+      "stage": "successful-runtime",
+      "sha256": "e68cbf2609ec779fec35b7de7ce7e2ab34d8cc231d6d39f6d86941e473f1c28a",
+      "bytes": 14183
+    },
+    {
+      "path": "MODULE.bazel",
+      "stage": "successful-runtime",
+      "sha256": "e6dd0dfa30846b09a891873d97365164f8ac191916ad792a204460bb3b61da9b",
+      "bytes": 28812
+    },
+    {
+      "path": "clojure_sample/research/BUILD.bazel",
+      "stage": "formatted-inputs",
+      "sha256": "d2cc9584917d8b22cd76da6bc59c305bc97ec5d38f9841636b9fa3179124e5de",
+      "bytes": 2197
+    },
+    {
+      "path": "clojure_sample/research/maven_install.json",
+      "stage": "formatted-inputs",
+      "sha256": "9801349a7e3284cbee97ce6e1dd7854092bdc47c9d9c748d280363635c3eb080",
+      "bytes": 5601
+    },
+    {
+      "path": "clojure_sample/research/probe.bzl",
+      "stage": "formatted-inputs",
+      "sha256": "76a810c69263394023d866629ca0477ec762012991f606a500aca1fbcf94250e",
+      "bytes": 930
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/cases_test.clj",
+      "stage": "formatted-inputs",
+      "sha256": "a35216006ecc02b36a8c844bc4f7459494a42f575940ed2308935b85a092f4ea",
+      "bytes": 288
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/child.clj",
+      "stage": "formatted-inputs",
+      "sha256": "b42ee17c91ffcd2339f6306e033ee6cc7820646034fa7087de2139c0055fd44c",
+      "bytes": 59
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/disconnected.clj",
+      "stage": "formatted-inputs",
+      "sha256": "d12e4f364e14cae5a9778ce8d3e50b9662d4d44cbbcbe5813104e73663333e4a",
+      "bytes": 78
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/helper.clj",
+      "stage": "formatted-inputs",
+      "sha256": "23dd57656ad5e3da84e24dfb365949efad0de770e26d7798e91b4a2f340f71b0",
+      "bytes": 67
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/production.clj",
+      "stage": "formatted-inputs",
+      "sha256": "5e73da9cd2ed84e2cba53b1571ec8b41ad899151e997b981a28d370684050e53",
+      "bytes": 235
+    },
+    {
+      "path": "clojure_sample/research/src/coverage_research/runner.clj",
+      "stage": "formatted-inputs",
+      "sha256": "e68cbf2609ec779fec35b7de7ce7e2ab34d8cc231d6d39f6d86941e473f1c28a",
+      "bytes": 14183
+    },
+    {
+      "path": "MODULE.bazel",
+      "stage": "formatted-inputs",
+      "sha256": "4a92ac8985e678065b4e8e704868f046f3b1c56e534fbd1fa7e4de83c2ec42dd",
+      "bytes": 28812
+    },
+    {
+      "path": "clojure_sample/src/lowkeylab/clojure_sample/core.clj",
+      "stage": "maintained-base",
+      "sha256": "3dc0da7644b2566d3d9a09fd1b6a4dd4c165d1193e0865b88488c99e532cd942",
+      "bytes": 312
+    },
+    {
+      "path": "clojure_sample/src/lowkeylab/clojure_sample/BUILD.bazel",
+      "stage": "maintained-base",
+      "sha256": "9a726c98e3079ba7118940fbe2bcdfccbe1f0d82fda25dde726719b210548f34",
+      "bytes": 594
+    },
+    {
+      "path": "clojure_sample/test/lowkeylab/clojure_sample/core_test.clj",
+      "stage": "maintained-base",
+      "sha256": "5845f600b85bc3edfd6c6ccab4b24ecea027a69689b9998c7c192adeaf175940",
+      "bytes": 254
+    },
+    {
+      "path": "clojure_sample/test/lowkeylab/clojure_sample/BUILD.bazel",
+      "stage": "maintained-base",
+      "sha256": "23f3494d984a64d23921495b5d09d325023b64e97d9888d5804e4720dde3924a",
+      "bytes": 763
+    },
+    {
+      "path": "deps.edn",
+      "stage": "maintained-base",
+      "sha256": "8ef57560897e9b9c0db8b89a9ef441a2e35e36ba48bb6512932a2daf8e9831ec",
+      "bytes": 206
+    },
+    {
+      "path": ".bazelversion",
+      "stage": "maintained-base",
+      "sha256": "14ebdd5f5d8dfccb0fc574ea9aabecc07d7cdd99d53e4fc01e58f9c3d23d18ef",
+      "bytes": 6
+    }
+  ]
+}
