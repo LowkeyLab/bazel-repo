@@ -1,0 +1,55 @@
+name: Coverage
+permissions:
+  contents: read
+  pull-requests: write
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+env:
+  MISE_EXPERIMENTAL: true
+jobs:
+  prepare-nix-tools:
+    uses: ./.github/workflows/prepare-nix-tools.yml
+    with:
+      tool: lcov
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+  coverage:
+    needs: prepare-nix-tools
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Prepare lcov from public cache
+        uses: ./.github/actions/install-nix-tool
+        id: lcov
+        with:
+          tool: lcov
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
+        with:
+          bazelisk-cache: true
+          bazelrc: |
+            common --config=ci
+            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+            test --test_env=XDG_CACHE_HOME
+      - name: Log in to Docker Hub
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
+        with:
+          username: ${{ vars.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Install lcov from Nix
+        env:
+          LCOV_PATH: ${{ steps.lcov.outputs.path }}
+        run: |
+          install -m755 "$LCOV_PATH/bin/lcov" "$LCOV_PATH/bin/genhtml" "$LCOV_PATH/bin/geninfo" /usr/local/bin/
+      - name: Run Coverage
+        run: bazel run //tools/coverage -- //...
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
+        with:
+          files: coverage-report.lcov
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true

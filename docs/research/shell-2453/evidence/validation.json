@@ -1,0 +1,47 @@
+{
+  "build": {
+    "exit": 1,
+    "limit": "initial CMake dependency search failed; corrected build passed"
+  },
+  "build-2": {
+    "exit": 0,
+    "execution": "one local Bazel action, CMake parallelism 2"
+  },
+  "format": {
+    "exit": 0
+  },
+  "format-typed": {
+    "exit": 0
+  },
+  "gazelle-final": {
+    "exit": 0
+  },
+  "gazelle-explicit-check": {
+    "exit": 0
+  },
+  "lint": {
+    "exit": 1
+  },
+  "lint-final": {
+    "exit": 1
+  },
+  "lint-passed": {
+    "exit": 1
+  },
+  "lint-verified": {
+    "exit": 0
+  },
+  "probe-validated": {
+    "exit": 0,
+    "execution": "fresh local collector calls; Bazel run builds may use cache"
+  },
+  "validated-merge-forward": {
+    "exit": 0
+  },
+  "validated-merge-reverse": {
+    "exit": 0
+  },
+  "format-final": {
+    "exit": 0
+  }
+}

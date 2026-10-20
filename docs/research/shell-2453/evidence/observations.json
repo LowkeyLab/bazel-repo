@@ -1,0 +1,286 @@
+{
+  "deleted-child-report": {
+    "functional_exit": 0,
+    "adapter_rejected": true,
+    "error": "Collector emitted no Cobertura report"
+  },
+  "corrupt-child-report": {
+    "functional_exit": 0,
+    "adapter_rejected": true,
+    "error": "syntax error: line 1, column 0"
+  },
+  "bash_version": "GNU bash, version 5.3.15(1)-release (x86_64-pc-linux-gnu)",
+  "branch_records": "No BRDA export. Collector source emits only line hits.",
+  "interpolation": {
+    "workflow_values": "Environment-variable interpolation preserves the line.",
+    "launcher_values": "Two literal path replacements preserve the line.",
+    "multiline_replacement": "Not tested. A candidate needs a segment map and must reject ambiguous mapping."
+  },
+  "collector_sha256": "dfd63df938fad2142b6edb8581c5b41f9a381a2b7e7ac697a5e42eaab58a0f00",
+  "baseline": {
+    "argv": [
+      "[COLLECTOR]",
+      "--bash-parser=/usr/bin/bash",
+      "--include-path=[FIXTURE_ROOT]",
+      "--bash-parse-files-in-dirs=[FIXTURE_ROOT]",
+      "[OUTPUT_ROOT]/baseline",
+      "[OUTPUT_ROOT]/baseline-driver.sh"
+    ],
+    "exit": 0,
+    "records": {
+      "main.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "8": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0
+      },
+      "disconnected.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "workflow.sh": {
+        "2": 0
+      },
+      "launcher.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "helper.sh": {
+        "2": 0,
+        "4": 0
+      },
+      "child.sh": {
+        "2": 0
+      }
+    }
+  },
+  "regular": {
+    "argv": [
+      "[COLLECTOR]",
+      "--bash-parser=/usr/bin/bash",
+      "--include-path=[FIXTURE_ROOT]",
+      "--bash-parse-files-in-dirs=[FIXTURE_ROOT]",
+      "[OUTPUT_ROOT]/regular",
+      "[FIXTURE_ROOT]/main.sh"
+    ],
+    "exit": 0,
+    "records": {
+      "main.sh": {
+        "2": 1,
+        "3": 2,
+        "4": 1,
+        "5": 1,
+        "6": 1,
+        "8": 0,
+        "10": 2,
+        "11": 1,
+        "12": 1
+      },
+      "disconnected.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "workflow.sh": {
+        "2": 0
+      },
+      "launcher.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "helper.sh": {
+        "2": 1,
+        "4": 0
+      },
+      "child.sh": {
+        "2": 1
+      }
+    }
+  },
+  "child-trace-loss": {
+    "argv": [
+      "[COLLECTOR]",
+      "--bash-parser=/usr/bin/bash",
+      "--include-path=[FIXTURE_ROOT]",
+      "--bash-parse-files-in-dirs=[FIXTURE_ROOT]",
+      "[OUTPUT_ROOT]/child-trace-loss",
+      "[FIXTURE_ROOT]/main.sh"
+    ],
+    "exit": 0,
+    "records": {
+      "main.sh": {
+        "2": 1,
+        "3": 2,
+        "4": 1,
+        "5": 1,
+        "6": 1,
+        "8": 0,
+        "10": 2,
+        "11": 1,
+        "12": 1
+      },
+      "disconnected.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "workflow.sh": {
+        "2": 0
+      },
+      "launcher.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "helper.sh": {
+        "2": 1,
+        "4": 0
+      },
+      "child.sh": {
+        "2": 1,
+        "3": 0
+      }
+    },
+    "collector_rejected_loss": false
+  },
+  "child-owned": {
+    "argv": [
+      "[COLLECTOR]",
+      "--bash-parser=/usr/bin/bash",
+      "--include-path=[FIXTURE_ROOT]",
+      "--bash-parse-files-in-dirs=[FIXTURE_ROOT]",
+      "[OUTPUT_ROOT]/child-owned",
+      "[FIXTURE_ROOT]/child.sh"
+    ],
+    "exit": 0,
+    "records": {
+      "main.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "8": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0
+      },
+      "disconnected.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "workflow.sh": {
+        "2": 0
+      },
+      "launcher.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "helper.sh": {
+        "2": 0,
+        "4": 0
+      },
+      "child.sh": {
+        "2": 1
+      }
+    }
+  },
+  "workflow": {
+    "argv": [
+      "[COLLECTOR]",
+      "--bash-parser=/usr/bin/bash",
+      "--include-path=[FIXTURE_ROOT]",
+      "--bash-parse-files-in-dirs=[FIXTURE_ROOT]",
+      "[OUTPUT_ROOT]/workflow",
+      "[FIXTURE_ROOT]/workflow.sh"
+    ],
+    "exit": 0,
+    "records": {
+      "main.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "8": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0
+      },
+      "disconnected.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "workflow.sh": {
+        "2": 1
+      },
+      "launcher.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "helper.sh": {
+        "2": 0,
+        "4": 0
+      },
+      "child.sh": {
+        "2": 0
+      }
+    }
+  },
+  "launcher": {
+    "argv": [
+      "[COLLECTOR]",
+      "--bash-parser=/usr/bin/bash",
+      "--include-path=[FIXTURE_ROOT]",
+      "--bash-parse-files-in-dirs=[FIXTURE_ROOT]",
+      "[OUTPUT_ROOT]/launcher",
+      "[FIXTURE_ROOT]/launcher.sh"
+    ],
+    "exit": 0,
+    "records": {
+      "main.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "8": 0,
+        "10": 0,
+        "11": 0,
+        "12": 0
+      },
+      "disconnected.sh": {
+        "2": 0,
+        "3": 0,
+        "4": 0
+      },
+      "workflow.sh": {
+        "2": 0
+      },
+      "launcher.sh": {
+        "2": 1,
+        "3": 1,
+        "4": 1
+      },
+      "helper.sh": {
+        "2": 0,
+        "4": 0
+      },
+      "child.sh": {
+        "2": 0
+      }
+    }
+  }
+}

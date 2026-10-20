@@ -1,0 +1,56 @@
+<?xml version="1.0" ?>
+<!DOCTYPE coverage SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-04.dtd'>
+<coverage line-rate="0.053" lines-covered="1" lines-valid="19" branch-rate="1.0" branches-covered="1.0" branches-rate="1.0" complexity="1.0" version="1.9" timestamp="0">
+	<sources>
+		<source>[FIXTURE_ROOT]/</source>
+	</sources>
+	<packages>
+		<package name="workflow_sh" line-rate="0.053" lines-covered="1" lines-valid="19" branch-rate="1.0" complexity="1.0">
+			<classes>
+				<class name="main_sh__0" filename="main.sh" branch-rate="1.0" complexity="1.0" line-rate="0.000">
+					<lines>
+						<line number="2" hits="0"/>
+						<line number="3" hits="0"/>
+						<line number="4" hits="0"/>
+						<line number="5" hits="0"/>
+						<line number="6" hits="0"/>
+						<line number="8" hits="0"/>
+						<line number="10" hits="0"/>
+						<line number="11" hits="0"/>
+						<line number="12" hits="0"/>
+					</lines>
+				</class>
+				<class name="disconnected_sh__1" filename="disconnected.sh" branch-rate="1.0" complexity="1.0" line-rate="0.000">
+					<lines>
+						<line number="2" hits="0"/>
+						<line number="3" hits="0"/>
+						<line number="4" hits="0"/>
+					</lines>
+				</class>
+				<class name="workflow_sh__2" filename="workflow.sh" branch-rate="1.0" complexity="1.0" line-rate="1.000">
+					<lines>
+						<line number="2" hits="1"/>
+					</lines>
+				</class>
+				<class name="launcher_sh__3" filename="launcher.sh" branch-rate="1.0" complexity="1.0" line-rate="0.000">
+					<lines>
+						<line number="2" hits="0"/>
+						<line number="3" hits="0"/>
+						<line number="4" hits="0"/>
+					</lines>
+				</class>
+				<class name="helper_sh__4" filename="helper.sh" branch-rate="1.0" complexity="1.0" line-rate="0.000">
+					<lines>
+						<line number="2" hits="0"/>
+						<line number="4" hits="0"/>
+					</lines>
+				</class>
+				<class name="child_sh__5" filename="child.sh" branch-rate="1.0" complexity="1.0" line-rate="0.000">
+					<lines>
+						<line number="2" hits="0"/>
+					</lines>
+				</class>
+			</classes>
+		</package>
+	</packages>
+</coverage>

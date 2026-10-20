@@ -1,0 +1,1 @@
+WORKFLOW_FUNCTIONAL_PASS -m755 /fixture/lcov/bin/lcov /fixture/lcov/bin/genhtml /fixture/lcov/bin/geninfo /usr/local/bin/

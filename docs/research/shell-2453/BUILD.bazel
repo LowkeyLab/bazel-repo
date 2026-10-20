@@ -1,0 +1,42 @@
+load("//tools/python:defs.bzl", "py_binary")
+
+# gazelle:ignore
+
+genrule(
+    name = "kcov_bin",
+    srcs = ["kcov.tar.gz"],
+    outs = ["kcov"],
+    cmd = """
+set -eu
+work=$$(mktemp -d)
+trap 'rm -rf "$$work"' EXIT
+mkdir "$$work/source"
+tar -xzf $(location kcov.tar.gz) --strip-components=1 -C "$$work/source"
+cmake -S "$$work/source" -B "$$work/build" -DCMAKE_BUILD_TYPE=Release \
+  "-DCMAKE_INCLUDE_PATH=$$(pkg-config --variable=includedir zlib);$$(pkg-config --variable=includedir libcurl);$$(pkg-config --variable=includedir openssl)" \
+  "-DCMAKE_LIBRARY_PATH=$$(pkg-config --variable=libdir zlib);$$(pkg-config --variable=libdir libcurl);$$(pkg-config --variable=libdir openssl)"
+cmake --build "$$work/build" --target kcov --parallel 2
+cp "$$work/build/src/kcov" $@
+""",
+    tags = [
+        "local",
+        "no-remote",
+    ],
+)
+
+py_binary(
+    name = "probe",
+    srcs = ["probe.py"],
+    args = [
+        "$(location :kcov_bin)",
+        "$(location workflow.yml)",
+        "$(location launcher.bzl.txt)",
+        "$(location fixtures/main.sh)",
+    ],
+    data = [
+        "launcher.bzl.txt",
+        "workflow.yml",
+        ":kcov_bin",
+    ] + glob(["fixtures/*.sh"]),
+    main = "probe.py",
+)

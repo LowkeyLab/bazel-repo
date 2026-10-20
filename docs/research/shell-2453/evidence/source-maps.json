@@ -1,0 +1,26 @@
+{
+  "[FIXTURE_ROOT]/workflow.sh": {
+    "2": {
+      "path": ".github/workflows/coverage.yml",
+      "line": 47
+    }
+  },
+  "[FIXTURE_ROOT]/launcher.sh": {
+    "1": {
+      "path": "tools/topcoat/format.bzl",
+      "line": 10
+    },
+    "2": {
+      "path": "tools/topcoat/format.bzl",
+      "line": 11
+    },
+    "3": {
+      "path": "tools/topcoat/format.bzl",
+      "line": 12
+    },
+    "4": {
+      "path": "tools/topcoat/format.bzl",
+      "line": 13
+    }
+  }
+}

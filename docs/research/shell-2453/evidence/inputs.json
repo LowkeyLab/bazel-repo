@@ -1,0 +1,49 @@
+{
+  "repository_base": "5e246a47cd7ea0a9c506e915db0c053d7d84d023",
+  "kcov_revision": "39bda2f4f6fe04529c3479c6494acb6bc78a0857",
+  "bash_version": "GNU bash, version 5.3.15(1)-release (x86_64-pc-linux-gnu)",
+  "collector_sha256": "dfd63df938fad2142b6edb8581c5b41f9a381a2b7e7ac697a5e42eaab58a0f00",
+  "nixpkgs_revision": "f20cd90e28fe0403873f473b29e42662cd86e8c4",
+  "source_inputs": [
+    {
+      "path": "docs/research/shell-2453/BUILD.bazel",
+      "sha256": "4c34345b75da3cdc40f5492c86b8e50ba40c53fcc8e252efdb4a87635a85cb2d"
+    },
+    {
+      "path": "docs/research/shell-2453/build-deps.nix",
+      "sha256": "45c4a3e899b034183072973445731c11c339c030d1e59e2c672491a65a405a4c"
+    },
+    {
+      "path": "docs/research/shell-2453/fixtures/child.sh",
+      "sha256": "64f147e2d7512a084f8ce821895c5f0de4c761afe87bd1d3f7aaf1c3c4e10abd"
+    },
+    {
+      "path": "docs/research/shell-2453/fixtures/disconnected.sh",
+      "sha256": "8c23903b3aec71b139bec825f340d3772a1c2884541331307bc9ff29f6aa2c61"
+    },
+    {
+      "path": "docs/research/shell-2453/fixtures/helper.sh",
+      "sha256": "1c09817b8d9f8d877d88fe65e934e0da393091f99be9b0e27534142268ad7954"
+    },
+    {
+      "path": "docs/research/shell-2453/fixtures/main.sh",
+      "sha256": "3b191b72718d1b391df8b035d812c34c2776c289d17dfe37943765890a231f82"
+    },
+    {
+      "path": "docs/research/shell-2453/kcov.tar.gz",
+      "sha256": "86110036d30b2ce10b6b42da1a1a0957979d5a4ea865fe4cf7344b1cdd1b7bda"
+    },
+    {
+      "path": "docs/research/shell-2453/launcher.bzl.txt",
+      "sha256": "1f73b068590e7484b676cead9889fc40eacdfc973f8d8787d1fd79e1583e98f1"
+    },
+    {
+      "path": "docs/research/shell-2453/probe.py",
+      "sha256": "ad0f0e1152544b6574fb577c732dd7ee56c8b0897830856a02e561f3ff6fadaa"
+    },
+    {
+      "path": "docs/research/shell-2453/workflow.yml",
+      "sha256": "1c51956adde1b5f22eed4c7b412daf7cd90dc55e63903354115ac685a8251e52"
+    }
+  ]
+}

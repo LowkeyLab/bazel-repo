@@ -1,0 +1,19 @@
+{
+  "canonical_sources": [
+    ".github/workflows/coverage.yml",
+    "docs/research/shell-2453/fixtures/child.sh",
+    "docs/research/shell-2453/fixtures/disconnected.sh",
+    "docs/research/shell-2453/fixtures/helper.sh",
+    "docs/research/shell-2453/fixtures/main.sh",
+    "tools/topcoat/format.bzl"
+  ],
+  "source_count": 6,
+  "baseline_all_zero": true,
+  "identical_merge_orders": true,
+  "preserved_measured_hits": true,
+  "workflow_original_line": 47,
+  "launcher_original_lines": [11, 12, 13],
+  "merged_sha256": "36414b7d765d65cf2fd4d6403f4b3c23bdc634b0b8756f76fadf656c6fe08c70",
+  "native_branch_summary": "constant 1.0, no condition outcomes",
+  "BRDA_records": 0
+}
