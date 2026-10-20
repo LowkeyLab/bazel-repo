@@ -177,8 +177,10 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 !store.plan_path().try_exists()?,
                 "reconstruction cannot replace existing state"
             );
-            recovery::reconstruct(&mut saved, &store)?;
-            Ok(json!({"status":local_status(&saved), "batch_id":saved.id, "tickets":saved.tickets}))
+            let conflicts = recovery::reconstruct(&mut saved, &store)?;
+            Ok(
+                json!({"status":if conflicts {"conflict"} else {local_status(&saved)}, "batch_id":saved.id, "tickets":saved.tickets, "error":if conflicts {Some("multiple identity matches remain unresolved; use recover adopt")} else {None}}),
+            )
         }
         Action::Recover {
             command:
@@ -196,7 +198,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let store = Store::open(&root, &id, false)?;
             let mut saved = store.read(&id)?;
             recovery::authorize_retry(&mut saved, &ticket, &store)?;
-            Ok(json!({"status":"partial", "batch_id":saved.id, "tickets":saved.tickets}))
+            Ok(json!({"status":local_status(&saved), "batch_id":saved.id, "tickets":saved.tickets}))
         }
         Action::Recover {
             command:
@@ -210,7 +212,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let store = Store::open(&root, &id, false)?;
             let mut saved = store.read(&id)?;
             recovery::adopt(&mut saved, &ticket, &issue, &store)?;
-            Ok(json!({"status":"partial", "batch_id":saved.id, "tickets":saved.tickets}))
+            Ok(json!({"status":local_status(&saved), "batch_id":saved.id, "tickets":saved.tickets}))
         }
         Action::Status { batch } => {
             let id = BatchId::try_from(batch)?;
@@ -241,7 +243,14 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
     }
 }
 fn local_status(batch: &Batch) -> &'static str {
-    if batch
+    if batch.tickets.iter().any(|p| {
+        matches!(
+            p.status,
+            TicketStatus::Creating | TicketStatus::RetryAuthorized
+        )
+    }) {
+        "uncertain"
+    } else if batch
         .tickets
         .iter()
         .all(|p| matches!(p.status, plan::TicketStatus::Pending))

@@ -109,7 +109,8 @@ A successful creation phase returns `status: partial` and `phase: issues_created
 It does not establish publication completion. This phase applies no labels or
 native relationships. A stopped run returns a nonzero exit code and reports
 `partial`, `uncertain`, or `conflict`, with the available ticket progress.
-`status` checks saved mappings and enumerates unresolved identities. It reports
+`status` checks saved mappings and enumerates unresolved identities.
+Status and reconstruction each enumerate the repository once for the batch. It reports
 `prepared`, `partial`, `uncertain`, `conflict`, or `unverified`. Failed remote
 reads return `unverified` and a nonzero exit code. Conflicts also return a nonzero
 exit code. `publication_complete` remains false during this creation phase.
@@ -188,9 +189,12 @@ a signature and cannot establish who approved a plan.
 Reconstruction checks all issue pages across open and closed states. It excludes
 pull requests. Each unique match must pass content and repository checks.
 Missing matches become uncertain. Reconstruction never restores retry
-authorization from a copied export. An absent exported mapping, multiple matches,
-or changed content stops reconstruction. Existing state, including corrupt
-state, remains intact. Use a separate private directory to preserve that evidence.
+authorization from a copied export. Multiple matches without an exported mapping
+save unresolved progress and return `conflict`. Use `recover adopt` to select
+a checked issue. Publication rejects those unresolved matches until adoption.
+An existing exported mapping retains its explicit issue choice after fresh checks.
+An absent exported mapping or changed content stops reconstruction.
+Existing state, including corrupt state, remains intact. Use a separate private directory to preserve that evidence.
 Reconstruction neither creates issues nor applies labels or relationships.
 
 Missing inputs stop the command. Do not use `prepare` to replace a lost batch.

@@ -52,15 +52,29 @@ pub fn authorize_retry(batch: &mut Batch, ticket: &TicketKey, store: &Store) -> 
     store.save(batch)
 }
 
-pub fn reconstruct(batch: &mut Batch, store: &Store) -> Result<()> {
+pub fn reconstruct(batch: &mut Batch, store: &Store) -> Result<bool> {
     github::read(&batch.plan.parent)?;
+    let issues = github::enumerate()?;
+    let mut conflicts = false;
     for index in 0..batch.tickets.len() {
-        let found = github::find(&batch.tickets[index].marker)?;
-        ensure!(
-            found.len() <= 1,
-            "multiple exact matches require explicit resolution"
-        );
-        batch.tickets[index].status = if let Some(remote) = found.first() {
+        let found: Vec<_> = issues
+            .iter()
+            .filter(|issue| issue.has_marker(&batch.tickets[index].marker))
+            .collect();
+        let selected = if let TicketStatus::Created(mapping) = &batch.tickets[index].status {
+            Some(
+                *found
+                    .iter()
+                    .find(|issue| issue.mapping() == *mapping)
+                    .context("exported issue mapping is absent or conflicting")?,
+            )
+        } else if found.len() > 1 {
+            conflicts = true;
+            None
+        } else {
+            found.first().copied()
+        };
+        batch.tickets[index].status = if let Some(remote) = selected {
             remote.check_content(
                 &batch.plan.tickets[index].title,
                 &format!(
@@ -84,5 +98,6 @@ pub fn reconstruct(batch: &mut Batch, store: &Store) -> Result<()> {
         };
     }
     batch.check(&batch.id)?;
-    store.save_new(batch)
+    store.save_new(batch)?;
+    Ok(conflicts)
 }

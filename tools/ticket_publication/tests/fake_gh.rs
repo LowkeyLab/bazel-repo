@@ -1,7 +1,11 @@
 //! Persistent fake GitHub process for command tests.
 use anyhow::{Result, ensure};
 use serde_json::{Value, json};
-use std::{fs, io, path::PathBuf};
+use std::{
+    fs,
+    io::{self, Write},
+    path::PathBuf,
+};
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     ensure!(
@@ -57,6 +61,13 @@ fn main() -> Result<()> {
             args.contains(&"--paginate".to_owned()) && args.contains(&"--slurp".to_owned()),
             "complete paginated reads required"
         );
+        if let Some(path) = std::env::var_os("REMOTE_ENUMERATIONS") {
+            let mut log = fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(path)?;
+            log.write_all(b"enumeration\n")?;
+        }
         if state["mode"] == "incomplete" {
             println!("{{}} ");
             return Ok(());

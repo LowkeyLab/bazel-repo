@@ -100,6 +100,15 @@ fn check_mappings(batch: &Batch) -> Result<()> {
 /// Read remote evidence without changing saved progress or GitHub state.
 pub fn observe(batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {
     github::read(&batch.plan.parent)?;
+    let issues = if batch
+        .tickets
+        .iter()
+        .any(|p| !matches!(p.status, TicketStatus::Created(_)))
+    {
+        github::enumerate()?
+    } else {
+        Vec::new()
+    };
     batch
         .tickets
         .iter()
@@ -110,7 +119,11 @@ pub fn observe(batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {
                 ensure!(remote.mapping() == *mapping, Conflict);
                 Some(remote)
             } else {
-                let mut found = github::find(&progress.marker)?;
+                let mut found: Vec<_> = issues
+                    .iter()
+                    .filter(|issue| issue.has_marker(&progress.marker))
+                    .cloned()
+                    .collect();
                 ensure!(found.len() <= 1, Conflict);
                 found.pop()
             };

@@ -42,7 +42,11 @@ impl Fixture {
             .args(args)
             .current_dir(self.directory.path())
             .env("PATH", self.directory.path().join("bin"))
-            .env("REMOTE_STATE", self.directory.path().join("remote.log"));
+            .env("REMOTE_STATE", self.directory.path().join("remote.log"))
+            .env(
+                "REMOTE_ENUMERATIONS",
+                self.directory.path().join("enumerations.log"),
+            );
         command
     }
     fn successful(&self, args: &[&str]) -> anyhow::Result<Value> {
@@ -58,7 +62,7 @@ impl Fixture {
 }
 
 #[googletest::test]
-fn prepared_batch_survives_restart_without_github_calls() -> anyhow::Result<()> {
+fn prepared_batch_survives_restart_without_github_writes() -> anyhow::Result<()> {
     let f = Fixture::new()?;
     let prepared = f.successful(&["--state-dir", "state", "prepare", "--plan", "plan.json"])?;
     let batch = prepared["batch_id"].as_str().context("batch identity")?;
@@ -880,7 +884,14 @@ fn repeated_preparation_reports_preserved_publication_progress() -> anyhow::Resu
             "--batch",
             &id,
         ])?;
-        assert_that!(result["status"].as_str(), eq(Some("partial")));
+        assert_that!(
+            result["status"].as_str(),
+            eq(Some(if complete_creation {
+                "partial"
+            } else {
+                "uncertain"
+            }))
+        );
         let status = f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
         assert_that!(status["status"].as_str(), eq(Some("partial")));
         assert_that!(
@@ -1241,7 +1252,7 @@ fn reconstructed_absence_never_authorizes_creation_and_invalid_inputs_preserve_e
         eq(false)
     );
     assert_that!(f.directory.path().join("missing").exists(), eq(false));
-    f.successful(&[
+    let reconstructed = f.successful(&[
         "--state-dir",
         "restored",
         "recover",
@@ -1252,6 +1263,7 @@ fn reconstructed_absence_never_authorizes_creation_and_invalid_inputs_preserve_e
         "export.json",
         "--publisher-stopped",
     ])?;
+    assert_that!(reconstructed["status"].as_str(), eq(Some("uncertain")));
     let output = f.run(&["--state-dir", "restored", "publish", "--batch", &id])?;
     assert_that!(output.status.success(), eq(false));
     let result: Value = serde_json::from_slice(&output.stdout)?;
@@ -1386,6 +1398,94 @@ fn interrupted_authorization_writes_never_publish_and_can_resume_explicitly() ->
             f.successful(&["--state-dir", "state", "publish", "--batch", &id])?;
             assert_that!(f.remote()?["creations"].as_u64(), eq(Some(1)));
         }
+    }
+    Ok(())
+}
+
+#[googletest::test]
+fn reconstruction_keeps_duplicate_matches_recoverable_through_explicit_adoption()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    f.save_remote(&json!({"creations":0,"issues":[],"mode":"lose-response"}))?;
+    let id = f.prepare()?;
+    assert_that!(
+        f.run(&["--state-dir", "state", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    let mut remote = f.remote()?;
+    let mut duplicate = remote["issues"][0].clone();
+    duplicate["number"] = json!(3001);
+    duplicate["id"] = json!(13001);
+    duplicate["node_id"] = json!("I_3001");
+    remote["issues"].as_array_mut().unwrap().push(duplicate);
+    f.save_remote(&remote)?;
+    let restored = f.run(&[
+        "--state-dir",
+        "restored",
+        "recover",
+        "reconstruct",
+        "--batch",
+        &id,
+        "--plan",
+        "plan.json",
+        "--publisher-stopped",
+    ])?;
+    assert_that!(restored.status.success(), eq(false));
+    let report: Value = serde_json::from_slice(&restored.stdout)?;
+    assert_that!(report["status"].as_str(), eq(Some("conflict")));
+    assert_that!(
+        f.run(&["--state-dir", "restored", "publish", "--batch", &id])?
+            .status
+            .success(),
+        eq(false)
+    );
+    f.successful(&[
+        "--state-dir",
+        "restored",
+        "recover",
+        "adopt",
+        "--batch",
+        &id,
+        "--ticket",
+        "first",
+        "--issue",
+        "3001",
+    ])?;
+    f.successful(&["--state-dir", "restored", "publish", "--batch", &id])?;
+    assert_that!(f.remote()?, eq(&remote));
+    Ok(())
+}
+
+#[googletest::test]
+fn status_and_reconstruction_enumerate_the_repository_once_per_batch() -> anyhow::Result<()> {
+    for command in ["status", "reconstruct"] {
+        let f = Fixture::with_github()?;
+        let path = f.directory.path().join("plan.json");
+        let mut plan: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        let mut second = plan["tickets"][0].clone();
+        second["key"] = json!("second");
+        plan["tickets"].as_array_mut().unwrap().push(second);
+        fs::write(path, serde_json::to_vec(&plan)?)?;
+        let id = f.prepare()?;
+        if command == "status" {
+            f.successful(&["--state-dir", "state", "status", "--batch", &id])?;
+        } else {
+            f.successful(&[
+                "--state-dir",
+                "restored",
+                "recover",
+                "reconstruct",
+                "--batch",
+                &id,
+                "--plan",
+                "plan.json",
+                "--publisher-stopped",
+            ])?;
+        }
+        let log = fs::read_to_string(f.directory.path().join("enumerations.log"))?;
+        assert_that!(log.lines().count(), eq(1));
     }
     Ok(())
 }
