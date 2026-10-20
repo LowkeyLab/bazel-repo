@@ -76,3 +76,38 @@ The evidence directory also retains `commands.jsonl`, `revision.txt`,
 `working-tree.patch`, dependency-query results, and failure logs with exit status.
 Run acceptance alone in the assigned checkout. Temporary invalid sources can
 cause concurrent formatting, lint, or build commands to fail.
+
+## Verified execution on 2026-10-20
+
+The acceptance revision is `eef18dd1c2887c644ae5fd7b6126e4767b360c71`. Both execution modes passed.
+The main coverage command returned zero in each mode.
+Each combined report contains 15 source records.
+
+| Check                                                                 | Local           | Configured remote |
+| --------------------------------------------------------------------- | --------------- | ----------------- |
+| Selected tests                                                        | 12              | 12                |
+| Execution strategy                                                    | `linux-sandbox` | `remote`          |
+| Cached test results                                                   | 0               | 0                 |
+| Collection, combination, report, and dependency failure exit statuses | 3               | 3                 |
+| Invalid-source coverage exit status                                   | 1               | 1                 |
+
+Both reports include imported execution, generated binaries, and child interpreters.
+Ordinary and hidden packages include disconnected sources with zero hits.
+The Go production file retains 11 executed lines from 13 executable lines.
+The ordinary tests pass before each deliberate collector failure.
+
+The remote coverage invocation is
+[`d752b483-b811-4bb2-9089-899097216dcd`](https://app.buildbuddy.io/invocation/d752b483-b811-4bb2-9089-899097216dcd).
+The local coverage invocation is `6bc51cb7-303b-4e13-b95f-4161fa8a4ac4`.
+Local acceptance disables the build-event service.
+
+Private evidence remains under
+`/home/tacascer/.local/state/worktree-pool/agent-receipts/implement-2395-acquire-35mi2MIx`.
+The `local` and `remote` directories retain exact commands, revisions, combined reports,
+exit statuses, and build-event metadata.
+The `local-acceptance.log` and `remote-acceptance.log` files record acceptance output.
+
+This acceptance checks Python and one Go package.
+The individual failure commands retain no separate execution metadata.
+Hosted workflow and Codecov acceptance remain separate work under
+[issue #2396](https://github.com/LowkeyLab/bazel-repo/issues/2396).
