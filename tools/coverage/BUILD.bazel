@@ -89,3 +89,27 @@ config_setting(
     values = {"collect_code_coverage": "true"},
     visibility = ["//visibility:public"],
 )
+
+py_test(
+    name = "rust_baseline_test",
+    size = "small",
+    srcs = ["rust_baseline_test.py"],
+    args = [
+        "-o",
+        "python_files=rust_baseline_test.py",
+    ],
+    data = [
+        ":rust_baseline",
+        "//tools/coverage/fixtures/rust_baseline:lib",
+        "@llvm//tools:llvm-ar",
+        "@llvm//tools:llvm-cov",
+        "@llvm//tools:llvm-profdata",
+    ],
+    env = {
+        "BASELINE_FIXTURE": "$(rootpath //tools/coverage/fixtures/rust_baseline:lib)",
+        "COVERAGE_CORE": "ctrace",
+        "LLVM_AR": "$(rootpath @llvm//tools:llvm-ar)",
+        "LLVM_COV": "$(rootpath @llvm//tools:llvm-cov)",
+        "LLVM_PROFDATA": "$(rootpath @llvm//tools:llvm-profdata)",
+    },
+)
