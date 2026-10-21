@@ -1,5 +1,5 @@
-load("@aspect_rules_js//js:defs.bzl", "js_test")
 load("//personal_website/bzl:ts.bzl", "personal_website_ts_library", "personal_website_ts_test_sources")
+load("//tools/coverage:javascript.bzl", "js_test")
 
 test_suite(
     name = "tests",

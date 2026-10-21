@@ -1,3 +1,4 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 bzl_library(
@@ -7,5 +8,14 @@ bzl_library(
     deps = [
         "@rules_angular//src/architect:ng_application",
         "@rules_angular//src/architect:ng_test",
+    ],
+)
+
+js_library(
+    name = "vitest_coverage",
+    srcs = ["vitest-coverage.mjs"],
+    visibility = [
+        "//angular:__subpackages__",
+        "//tools/coverage:__pkg__",
     ],
 )

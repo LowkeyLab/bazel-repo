@@ -16,7 +16,9 @@ jq(
     if .value.architect.test.builder != "@angular/build:unit-test" then
       .value.architect.test.options.preserveSymlinks = true
     else
-      .
+      .value.architect.test.options.coverageInclude = [
+        ((.value.sourceRoot // (.value.root + "/src")) + "/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}")
+      ]
     end
     |
     if .value.projectType == "application" then

@@ -55,6 +55,7 @@ class CoverageInventory(TypedDict):
     coverage_roots: list[str]
     baseline_sources: list[str]
     jvm_tests: list[str]
+    javascript_tests: list[str]
     jvm_source_declarations: dict[str, list[str]]
 
 
@@ -242,6 +243,9 @@ def discover(root: Path, options: list[str]) -> CoverageInventory:
         if not declarations:
             missing.append(name)
     return {
+        "javascript_tests": sorted(
+            label for label, rule in rules.items() if rule["kind"] == "js_test"
+        ),
         "jvm_source_declarations": jvm_source_declarations,
         "jvm_tests": sorted(
             label

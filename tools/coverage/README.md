@@ -23,7 +23,8 @@ or `no-coverage` tags.
 The Python integration selects baselines for maintained production sources, tests,
 and executable helpers. Test-only roots select metadata without changing test
 execution filters. The inventory also reports JavaScript/TypeScript and Astro sources.
-Their remaining collector integrations belong to tickets #2507 and #2508. Measurement requires collector evidence.
+The browser and Astro integration remains under ticket #2508.
+Measurement requires collector evidence.
 Pending integrations supply no accepted collector limits.
 Ticket #2509 adds reconciliation across collector families.
 
@@ -254,3 +255,72 @@ Inactive source limits retain each declaring owner, even if another owner select
 Native Java binaries expose their runtime jars through the public [`JavaInfo.compilation_info.runtime_classpath`](https://bazel.build/rules/lib/providers/java_compilation_info#runtime_classpath) API. Their `transitive_runtime_jars` set is empty by design. The adapter uses the public transitive runtime set when compilation metadata is absent. Exact configured artifacts establish profile identity even when `-g:none` removes source names. Source attribution then remains an explicit limit.
 
 The command prepares the analyzer with `bazel run --script_path`. Bazel materializes the selected executable and its runtime files. The report does not infer an analyzer path from `bazel info bazel-bin`.
+
+## Node and Angular sources
+
+The existing command selects JavaScript and TypeScript sources from the independent
+inventory. Native baselines use the pinned rules_js collector and its manifest
+interface. No project list controls native membership. This local analysis runs
+through a Bazel-prepared executable. It does not execute disconnected applications.
+The native Bazel LCOV merger combines baselines and measured records.
+
+The [pinned collector](https://github.com/aspect-build/rules_js/blob/e67442a2ccf329841c9227d66ee013afcf5633c6/js/private/coverage/coverage.js)
+supplies its standard JavaScript empty-script baseline semantics. Native JavaScript
+records retain that model, including its branch semantics.
+Native TypeScript and JSX empty-script fallbacks do not establish original
+executable records. The adapter retains these raw reports as evidence. It records
+exact source and rule limits and excludes unsupported fallback records from the
+combined report. Supported mapped records retain their counts.
+The native library configuration requests documented TypeScript source maps and
+inline sources. The native original-manifest limit can still prevent attribution.
+The adapter adds no original executable lines or branch identities.
+
+Angular projects use the documented
+[coverageInclude option](https://angular.dev/cli/test) for their source directories.
+The shared BUILD adapter derives this option from each project root. This includes
+disconnected application entry points and libraries without a project list.
+All six Vitest configurations use one adapter. Reports use the writable test
+temporary directory. Missing reports, incomplete records, invalid paths, invalid
+counts, and invalid branches cause failure. Ordinary tests need no coverage report.
+The adapter uses the documented
+[autoAttachSubprocess option](https://vitest.dev/config/coverage.html#coverage-autoattachsubprocess).
+
+The command writes `coverage-javascript/receipt.json`. Configured native test
+metadata uses the public `InstrumentedFilesInfo` provider. Each executed native
+JavaScript test requires configured metadata, a valid report, and valid Node
+profiles. Native report membership must match its configured original sources.
+Angular reports must retain eligible application sources under their explicit
+inclusion patterns. Test-source, declaration, and runner-configuration omissions
+retain exact source and rule limits. An Angular project whose builder does not
+execute retains a separate limit. Its documented inclusion option requires a test
+run. Such a limit does not establish measured zero coverage.
+
+The receipt distinguishes native baselines, observed sources, execution strategy,
+and local cache status. It links exact reports, profiles, configured inputs, and
+limits. The command excludes generated sources, GraphQL documents, and Angular
+HTML records. Eligible clients and neighboring application code remain included.
+The JavaScript validator preserves its input when required output fails. Low and zero percentages add
+no failure. Native collector attribution and lowered branch semantics remain in effect.
+
+Run command and adapter checks:
+
+```bash
+nix develop --command aspect test //tools/coverage:javascript_report_test //tools/coverage:vitest_adapter_test
+```
+
+Command tests use controlled build-event and report inputs with the real native
+baseline collector and Bazel merger. These tests establish validation behavior.
+Real coverage acceptance must establish measured execution separately.
+
+Run real configured acceptance:
+
+```bash
+nix develop --command bazel run //tools/coverage:javascript_membership_test -- --execution configured --evidence /absolute/new/private/directory
+```
+
+The acceptance command creates ordinary and hidden packages. It checks native
+TypeScript attribution or its exact original-manifest limit, native Node children,
+Angular children, disconnected sources,
+and preservation of other language records. Local mode clears execution, cache,
+and BES endpoints. Configured mode retains execution and cache evidence.
+The existing hosted workflow runs the same command and retains its evidence.

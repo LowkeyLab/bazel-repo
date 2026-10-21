@@ -1,6 +1,9 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@rules_java//java:defs.bzl", "java_import")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//tools/coverage:javascript.bzl", "js_test")
 load("//tools/coverage:jvm.bzl", "java_binary")
 load("//tools/python:defs.bzl", "py_binary", "py_test")
 
@@ -173,4 +176,67 @@ py_test(
         "//tools/coverage/fixtures/jvm_profile:profile_variant.jar",
     ],
     env = {"COVERAGE_CORE": "ctrace"},
+)
+
+js_binary(
+    name = "javascript_baseline",
+    data = ["@aspect_rules_js//js/private/coverage:coverage.js"],
+    entry_point = "javascript_baseline.cjs",
+    env = {"NATIVE_JAVASCRIPT_COLLECTOR": "$(rootpath @aspect_rules_js//js/private/coverage:coverage.js)"},
+    no_copy_to_bin = ["@aspect_rules_js//js/private/coverage:coverage.js"],
+)
+
+py_binary(
+    name = "javascript_report",
+    srcs = ["javascript_report.py"],
+)
+
+js_test(
+    name = "vitest_adapter_test",
+    size = "small",
+    data = ["//angular/bzl:vitest_coverage"],
+    entry_point = "vitest_adapter_test.mjs",
+)
+
+py_test(
+    name = "javascript_report_test",
+    size = "small",
+    srcs = ["javascript_report_test.py"],
+    args = [
+        "-o",
+        "python_files=javascript_report_test.py",
+    ],
+    data = [
+        ":javascript_baseline",
+        ":javascript_report",
+        "@bazel_tools//tools/test:lcov_merger",
+    ],
+    env = {
+        "COVERAGE_CORE": "ctrace",
+        "JAVASCRIPT_COLLECTOR": "$(rootpath :javascript_baseline)",
+        "LCOV_MERGER": "$(rootpath @bazel_tools//tools/test:lcov_merger)",
+    },
+)
+
+py_binary(
+    name = "javascript_membership_test",
+    testonly = True,
+    srcs = ["javascript_membership_test.py"],
+    tags = ["manual"],
+)
+
+bzl_library(
+    name = "javascript",
+    srcs = ["javascript.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@aspect_rules_js//js:defs",
+        "@aspect_rules_js//js:providers",
+    ],
+)
+
+config_setting(
+    name = "javascript_coverage",
+    values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
 )
