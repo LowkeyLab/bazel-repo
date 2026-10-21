@@ -65,7 +65,11 @@ acceptance retains real Git, Bazel, and collector execution.
 Gazelle uses shared declarations for Go libraries, executables, and tests.
 Each declaration adds independent metadata. Discovery selects that metadata
 through Bazel ownership, including hidden and disconnected packages.
-The added roots do not compile packages or execute tests.
+The added roots collect baselines without test execution.
+The native target supplies its public `GoArchive` source providers.
+Native transitions select direct and embedded sources before baseline collection.
+A source rule exposes these files through `DefaultInfo`. This gives Bazel the
+local sources that it requires before it retains custom baseline files.
 The coverage build filter includes their `go-coverage` tag.
 Existing test filters retain their behavior.
 
@@ -73,7 +77,7 @@ The [pinned rules_go baseline builder](https://github.com/bazel-contrib/rules_go
 uses the SDK cover tool and coverage metadata to obtain real executable lines. Internal and external test sources
 use that same builder. Build constraints exclude sources for the selected
 configuration. Declaration-only sources retain the builder's empty executable
-set. Baselines and measured reports use the native Bazel LCOV merger.
+set. Baselines and measured reports use the native Bazel `LCOV` merger.
 The report command applies the inventory's Go exclusions after native merging.
 It checks Go executable records and their line totals before HTML generation.
 Other language records retain their contents.
@@ -81,8 +85,9 @@ Go contributes its maintained line model. This integration adds no branch record
 
 The pinned collector patch rejects missing profiles, empty profiles, invalid
 modes, corrupt records, and scanner failures. It propagates profile-generation
-errors and report-write errors. A valid header with no executable records remains
-valid. The patch does not change line attribution or execution counts.
+errors and report-write errors. Child collector errors fail the child process.
+A valid header with no executable records remains valid.
+The patch preserves line attribution and execution counts.
 
 Run the real collector checks and command acceptance:
 
@@ -91,11 +96,21 @@ nix develop --command aspect test //tools/go:collector_test
 nix develop --command bazel run //tools/coverage:go_membership_test
 ```
 
-The collector checks use subprocesses with separate output directories.
-They check invalid required output and known measured records through the
-[maintained converter](https://github.com/bazel-contrib/rules_go/blob/f5a8f6a338fb9d7862f0f2247bec6da17711e392/go/tools/bzltestutil/lcov.go). Command acceptance checks ordinary and hidden packages,
-internal and external test sources, declarations, and build constraints.
-It also checks measured tests, a separate Go executable, report preservation,
-and required-profile failures after successful functional tests.
+The collector tests use subprocesses with separate output directories.
+They verify collector failures and measured records through the
+[maintained converter](https://github.com/bazel-contrib/rules_go/blob/f5a8f6a338fb9d7862f0f2247bec6da17711e392/go/tools/bzltestutil/lcov.go).
+Command acceptance covers these cases:
+
+- Ordinary and hidden packages.
+- Internal and external test sources.
+- Sources without executable lines and sources with build constraints.
+- Build tags and the `cgo`, `race`, and `msan` settings.
+- Platform selection and source filegroups.
+- Measured tests and a separate Go executable.
+- Report preservation and required-profile failures after successful functional tests.
+- Child collector errors after successful ordinary execution.
+
+Child collection requires a Bazel-instrumented Go executable and an inherited
+`COVERAGE_DIR`. The acceptance test uses a real `os/exec` child.
 Pass `--evidence <directory>` after `--` to retain commands, inputs, and reports.
 The existing hosted workflow runs this acceptance and retains its evidence.

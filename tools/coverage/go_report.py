@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 
@@ -10,6 +11,9 @@ def main() -> None:
     parser.add_argument("--inventory", required=True, type=Path)
     parser.add_argument("--report", required=True, type=Path)
     args = parser.parse_args()
+    root = Path(os.environ.get("BUILD_WORKSPACE_DIRECTORY", os.getcwd()))
+    args.inventory = root / args.inventory
+    args.report = root / args.report
     try:
         inventory = json.loads(args.inventory.read_text())
         excluded = {

@@ -1,4 +1,4 @@
-load("//tools/go:defs.bzl", "go_test")
+load("//tools/go:defs.bzl", "go_coverage_settings", "go_test")
 
 exports_files([
     "defs.bzl",
@@ -10,4 +10,10 @@ go_test(
     size = "small",
     srcs = ["collector_test.go"],
     deps = ["@rules_go//go/tools/bzltestutil"],
+)
+
+go_coverage_settings(
+    name = "coverage_original_settings",
+    build_setting_default = "",
+    visibility = ["//visibility:public"],
 )

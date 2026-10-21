@@ -24,7 +24,16 @@ def redact_output(output: str) -> str:
 def command(root: Path, *arguments: str, success: bool = True) -> str:
     global COMMAND_COUNT
     result = subprocess.run(
-        ["bazel", *arguments], cwd=root, capture_output=True, text=True, check=False
+        ["bazel", *arguments],
+        cwd=root,
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key not in {"PYTHONHOME", "PYTHONEXECUTABLE"}
+        },
+        capture_output=True,
+        text=True,
+        check=False,
     )
     output = redact_output(result.stdout + result.stderr)
     if EVIDENCE is not None:
@@ -84,10 +93,13 @@ def main() -> None:
                     "generated.go coverage-scope=generated\n"
                 )
                 for name, text in {
+                    "configured_test.go": "//go:build custom && cgo\n\npackage fixture\n\nfunc configuredUnused() int {\n return 12\n}\n",
+                    "race_test.go": "//go:build race\n\npackage fixture\n\nfunc raceUnused() int {\n return 13\n}\n",
+                    "msan_test.go": "//go:build msan\n\npackage fixture\n\nfunc msanUnused() int {\n return 14\n}\n",
                     "generated.go": "package fixture\n\nfunc Generated() int { return 42 }\n",
                     "library.go": "package fixture\n\nfunc Unused() int {\n return 7\n}\n",
                     "internal_test.go": """package fixture
-import ("testing"; "os"; "os/exec"; "path/filepath"; "strings")
+import ("bytes"; "testing"; "os"; "os/exec"; "path/filepath"; "strings")
 func unusedInternal() int {
  return 8
 }
@@ -96,9 +108,14 @@ func TestMeasured(t *testing.T) {
  if child := os.Getenv("GO_MEMBERSHIP_CHILD"); child != "" {
   path := filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("TEST_WORKSPACE"), child)
   child := exec.Command(path)
-  child.Env = append(os.Environ(), "GOCOVERDIR=" + os.Getenv("COVERAGE_DIR"))
+  directory := os.Getenv("COVERAGE_DIR")
+  if bad := os.Getenv("GO_CHILD_BAD_COVERAGE"); bad != "" && directory != "" { directory = bad }
+  child.Env = append(os.Environ(), "COVERAGE_DIR=" + directory, "GOCOVERDIR=" + os.Getenv("TEST_TMPDIR"))
+  var errors bytes.Buffer
+  child.Stderr = &errors
   output, err := child.Output()
-  if err != nil || strings.TrimSpace(string(output)) != "7" { t.Fatalf("Child result: %s, %v", output, err) }
+  if err != nil { t.Fatalf("Child failure: %v: %s", err, errors.String()) }
+  if strings.TrimSpace(string(output)) != "7" { t.Fatalf("Child result: %s", output) }
  }
 }
 """,
@@ -132,6 +149,22 @@ func TestFunctional(t *testing.T) {
 }
 """,
             )
+            for operating_system in ("linux", "windows"):
+                source(
+                    root,
+                    packages[0] / f"platform/{operating_system}_test.go",
+                    f"package platform\n\nfunc unusedPlatform() int {{\n return 15\n}}\n",
+                )
+            platform_build = packages[0] / "platform/BUILD.bazel"
+            platform_build_text = 'load("//tools/go:defs.bzl", "go_test")\ngo_test(name = "platform_sources", srcs = select({"@platforms//os:windows": ["windows_test.go"], "//conditions:default": ["linux_test.go"]}), goos = "windows", goarch = "amd64", pure = "on", tags = ["manual"])\n'
+            for mode in ("plain", "racing"):
+                source(
+                    root,
+                    packages[0] / f"selection/{mode}_test.go",
+                    f"package selection\n\nfunc unusedSelection() int {{\n return 16\n}}\n",
+                )
+            selection_build = packages[0] / "selection/BUILD.bazel"
+            selection_build_text = 'load("//tools/go:defs.bzl", "go_test")\nconfig_setting(name = "racing", flag_values = {"@rules_go//go/config:race": "true"})\nfilegroup(name = "selected_sources", srcs = select({":racing": ["racing_test.go"], "//conditions:default": ["plain_test.go"]}))\ngo_test(name = "selection_sources", srcs = [":selected_sources"], race = "on", tags = ["manual"])\n'
             for package in packages:
                 build = package / "BUILD.bazel"
                 text = (
@@ -145,6 +178,17 @@ func TestFunctional(t *testing.T) {
                         'tags = ["manual", "no-remote", "no-coverage"],\n    srcs = [',
                     )
                 )
+                text = text.replace(
+                    '"internal_test.go",',
+                    '"internal_test.go",\n        "configured_test.go",  # keep',
+                ).replace(
+                    'name = "' + package.name + '_test",',
+                    'name = "'
+                    + package.name
+                    + '_test",\n    gotags = ["custom"],\n    pure = "off",',
+                )
+                for mode in ("race", "msan"):
+                    text += f'\ngo_test(name = "{mode}_sources", srcs = ["{mode}_test.go"], {mode} = "on", tags = ["manual"])\n'
                 if package == packages[0]:
                     text = text.replace(
                         'name = "' + package.name + '_test",',
@@ -153,6 +197,8 @@ func TestFunctional(t *testing.T) {
                         f'    env = {{"GO_MEMBERSHIP_CHILD": "$(rootpath {child_label})"}},',
                     )
                 build.write_text(text)
+            platform_build.write_text(platform_build_text)
+            selection_build.write_text(selection_build_text)
             if EVIDENCE is not None:
                 shutil.copytree(packages[0], EVIDENCE / "ordinary", dirs_exist_ok=True)
                 shutil.copytree(packages[1], EVIDENCE / "hidden", dirs_exist_ok=True)
@@ -167,6 +213,15 @@ func TestFunctional(t *testing.T) {
                 assert "LF:0" in baseline[f"{name}/declarations.go"]
                 assert f"{name}/excluded.go" not in baseline
                 assert f"{name}/generated.go" not in baseline
+                for filename in ("configured_test.go", "race_test.go", "msan_test.go"):
+                    assert "DA:6,0" in baseline.get(f"{name}/{filename}", []), (
+                        name,
+                        filename,
+                    )
+            assert "DA:4,0" in baseline.get(f"{prefix}/platform/windows_test.go", [])
+            assert f"{prefix}/platform/linux_test.go" not in baseline
+            assert "DA:4,0" in baseline.get(f"{prefix}/selection/plain_test.go", [])
+            assert f"{prefix}/selection/racing_test.go" not in baseline
             target = f"//{prefix}:{packages[0].name}_test"
             options = (
                 []
@@ -200,6 +255,24 @@ func TestFunctional(t *testing.T) {
             for name, lines in baseline.items():
                 if not name.startswith(prefix + "/"):
                     assert measured[name] == lines, name
+            command(
+                root,
+                "test",
+                target,
+                "--test_tag_filters=",
+                "--test_env=GO_CHILD_BAD_COVERAGE=/dev/null",
+            )
+            output = command(
+                root,
+                "run",
+                "//tools/coverage",
+                "--",
+                target,
+                "--test_tag_filters=",
+                "--test_env=GO_CHILD_BAD_COVERAGE=/dev/null",
+                success=False,
+            )
+            assert "converting to lcov:" in output, output
             fault = f"//{prefix}/fault:fault_test"
             command(root, "test", fault, "--test_env=GO_BAD_PROFILE=/dev/null")
             for path in ("/dev/null", "/missing-go-coverage-directory/profile"):
@@ -215,6 +288,19 @@ func TestFunctional(t *testing.T) {
                 assert (
                     "PASS\n" in output and "error generating coverage report:" in output
                 ), output
+            output = command(
+                root,
+                "run",
+                "//tools/coverage",
+                "--",
+                fault,
+                "--test_arg=-test.coverprofile=",
+                success=False,
+            )
+            assert (
+                "PASS\n" in output
+                and "required Go coverage profile path is empty" in output
+            ), output
             print(
                 "Go membership, measured execution, child execution, and failure acceptance passed."
             )

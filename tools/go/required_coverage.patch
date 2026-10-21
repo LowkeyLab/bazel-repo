@@ -9,11 +9,14 @@ diff --git a/go/tools/bzltestutil/lcov.go b/go/tools/bzltestutil/lcov.go
  
  	"github.com/bazelbuild/rules_go/go/tools/coverdata"
  )
-@@ -41,11 +40,12 @@
+@@ -41,11 +40,15 @@
  // The conversion emits line and branch coverage, but not function coverage.
  func ConvertCoverToLcov() error {
  	inPath := testFlags.Lookup("test.coverprofile").Value.String()
 +	if inPath == "" {
++		if os.Getenv("COVERAGE_OUTPUT_FILE") != "" {
++			return fmt.Errorf("required Go coverage profile path is empty")
++		}
 +		return nil
 +	}
  	in, err := os.Open(inPath)
@@ -25,7 +28,7 @@ diff --git a/go/tools/bzltestutil/lcov.go b/go/tools/bzltestutil/lcov.go
  	}
  	defer in.Close()
  
-@@ -80,16 +80,23 @@
+@@ -80,16 +83,23 @@
  func convertCoverToLcov(coverReader io.Reader, lcovWriter io.Writer) error {
  	cover := bufio.NewScanner(coverReader)
  	lcov := bufio.NewWriter(lcovWriter)
@@ -53,7 +56,7 @@ diff --git a/go/tools/bzltestutil/lcov.go b/go/tools/bzltestutil/lcov.go
  			return fmt.Errorf("invalid go cover line: %s", l)
  		}
  
-@@ -132,12 +139,15 @@
+@@ -132,12 +142,15 @@
  			}
  		}
  	}
@@ -84,3 +87,50 @@ diff --git a/go/tools/builders/generate_test_main.go b/go/tools/builders/generat
  				return bzltestutil.ConvertCoverToLcov()
  			}
  		{{ else }}
+diff --git a/go/tools/bzltestutil/bincov/exit_hook.go b/go/tools/bzltestutil/bincov/exit_hook.go
+--- a/go/tools/bzltestutil/bincov/exit_hook.go
++++ b/go/tools/bzltestutil/bincov/exit_hook.go
+@@ -43,7 +43,7 @@
+ 	ignoredCoverageDir, err := os.MkdirTemp(os.Getenv("TEST_TMPDIR"), "ignored")
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "creating temp dir for scratch coverage: %v\n", err)
+-		return
++		panic(err)
+ 	}
+ 	os.Setenv("GOCOVERDIR", ignoredCoverageDir)
+ 
+@@ -52,16 +52,16 @@
+ 			dir, err := os.MkdirTemp(os.Getenv("TEST_TMPDIR"), "coverage")
+ 			if err != nil {
+ 				fmt.Fprintf(os.Stderr, "create temp dir for coverage: %v\n", err)
+-				return
++				panic(err)
+ 			}
+ 
+ 			if err := coverage.WriteMetaDir(dir); err != nil {
+ 				fmt.Fprintf(os.Stderr, "write meta: %v\n", err)
+-				return
++				panic(err)
+ 			}
+ 			if err := coverage.WriteCountersDir(dir); err != nil {
+ 				fmt.Fprintf(os.Stderr, "write counters: %v\n", err)
+-				return
++				panic(err)
+ 			}
+ 
+ 			buf := new(bytes.Buffer)
+@@ -72,12 +72,12 @@
+ 			reader := cov.MakeCovDataReader(visitor, []string{dir}, verbosityLevel, flags, nil)
+ 			if err := reader.Visit(); err != nil {
+ 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+-				return
++				panic(err)
+ 			}
+ 
+ 			if err := bzltestutil.ConvertCoverFromReaderToLcov(buf); err != nil {
+ 				fmt.Fprintf(os.Stderr, "converting to lcov: %v\n", err)
+-				return
++				panic(err)
+ 			}
+ 		},
+ 		RunOnFailure: true,
