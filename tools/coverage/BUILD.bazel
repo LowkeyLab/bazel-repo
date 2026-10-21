@@ -214,7 +214,7 @@ py_test(
     env = {
         "COVERAGE_CORE": "ctrace",
         "JAVASCRIPT_COLLECTOR": "$(rootpath :javascript_baseline)",
-        "LCOV_MERGER": "$(rootpath @bazel_tools//tools/test:lcov_merger)",
+        "JAVASCRIPT_LCOV_MERGER": "$(rootpath @bazel_tools//tools/test:lcov_merger)",
     },
 )
 

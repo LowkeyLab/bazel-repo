@@ -10,7 +10,7 @@ import pytest
 RUNFILES = Path(os.environ["TEST_SRCDIR"]) / os.environ["TEST_WORKSPACE"]
 REPORTER = RUNFILES / "tools/coverage/javascript_report"
 COLLECTOR = RUNFILES / os.environ["JAVASCRIPT_COLLECTOR"]
-MERGER = RUNFILES / os.environ["LCOV_MERGER"]
+MERGER = RUNFILES / os.environ["JAVASCRIPT_LCOV_MERGER"]
 LCOV = "SF:module.js\nDA:1,4\nLF:1\nLH:1\nend_of_record\n"
 
 
