@@ -95,7 +95,7 @@ git_override(
 bazel_dep(name = "rules_nodejs")
 git_override(
     module_name = "rules_nodejs",
-    commit = "5fd53b1684fc3fc92d6f480a9704e795e5039d55",
+    commit = "1d84554344a28a76b7fb20d204ef465a1d5d0884",
     remote = "https://github.com/bazel-contrib/rules_nodejs.git",
 )
 
