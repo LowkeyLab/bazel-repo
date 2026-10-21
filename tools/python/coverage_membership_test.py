@@ -1,8 +1,9 @@
-"""Check complete coverage through Bazel with temporary production packages."""
+"""Check source membership through the existing Bazel coverage command."""
 
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,6 +21,13 @@ BAZEL_OPTIONS: list[str] = []
 COMMAND_LOG: Path | None = None
 
 
+def redact_output(output: str) -> str:
+    """Remove BuildBuddy credentials from captured command output."""
+    return re.sub(
+        r"""(?i)(x-buildbuddy-api-key[=:])[^\s"'\\]+""", r"\1<REDACTED>", output
+    )
+
+
 def command(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     options = BAZEL_ENDPOINT_OPTIONS + (
         [] if arguments[0] == "query" else BAZEL_OPTIONS
@@ -28,10 +36,17 @@ def command(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
         invocation,
         cwd=root,
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key not in {"PYTHONHOME", "PYTHONEXECUTABLE"}
+        },
         capture_output=True,
         text=True,
         check=False,
     )
+    result.stdout = redact_output(result.stdout)
+    result.stderr = redact_output(result.stderr)
     if COMMAND_LOG is not None:
         with COMMAND_LOG.open("a") as output:
             output.write(
@@ -63,16 +78,32 @@ def check_report(report: str, ordinary: str, hidden: str) -> None:
         assert "DA:4,0" in lines
         assert "BRF:2" in lines
         assert "BRH:0" in lines
+        dormant = records[f"{package}/dormant_test.py"]
+        assert "DA:2,0" in dormant
+        assert "DA:3,0" in dormant
+        assert "DA:7,0" in dormant
+        assert "BRF:2" in dormant
+        assert "BRH:0" in dormant
+    helper = records[f"{hidden}/helper.py"]
+    assert "DA:3,1" in helper
+    assert "DA:4,0" in helper
+    assert "BRF:4" in helper
+    assert "BRH:2" in helper
     observed = records[f"{ordinary}/observed/observed.py"]
     assert "DA:3,1" in observed
     assert "DA:4,0" in observed
     assert "BRF:2" in observed
     assert "BRH:1" in observed
     assert f"{ordinary}/generated.py" not in records
-    assert f"{ordinary}/test_helpers/support.py" not in records
+    support = records[f"{ordinary}/test_helpers/support.py"]
+    assert "DA:2,0" in support
+    assert "DA:3,0" in support
+    assert "BRF:2" in support
+    assert "BRH:0" in support
+    test = records[f"{ordinary}/fixture_test.py"]
+    assert "DA:6,1" in test
     for source in records:
         assert not source.startswith(("/", "external/", "bazel-out/")), source
-        assert not source.endswith("_test.py"), source
     assert "DA:3,2" in records["python_sample/versions.py"]
     assert "DA:6,2" in records["python_sample/__main__.py"]
     assert "DA:43,1" in records[".github/scripts/bazel_dependencies.py"]
@@ -188,6 +219,25 @@ def main() -> None:
         hidden = Path(hidden_directory)
         generate(root, ordinary / "untested.py", SOURCE)
         generate(root, hidden / "untested.py", SOURCE)
+        for package in (ordinary, hidden):
+            generate(
+                root,
+                package / "dormant_test.py",
+                SOURCE
+                + '\ndef test_must_not_run():\n    raise AssertionError("Filtered test executed.")\n',
+            )
+            build = package / "BUILD.bazel"
+            build.write_text(
+                build.read_text().replace(
+                    'name = "dormant_test",',
+                    'name = "dormant_test",\n    tags = ["manual", "no-remote", "no-coverage"],  # keep',
+                )
+            )
+        generate(
+            root,
+            hidden / "helper.py",
+            SOURCE + '\nif __name__ == "__main__":\n    print(choose(True))\n',
+        )
         observed = ordinary / "observed"
         observed.mkdir()
         generate(root, observed / "observed.py", SOURCE)
@@ -198,7 +248,7 @@ def main() -> None:
         )
         support = ordinary / "test_helpers"
         support.mkdir()
-        generate(root, support / "support.py", "TEST_SUPPORT = True\n")
+        generate(root, support / "support.py", SOURCE)
         build = support / "BUILD.bazel"
         text = build.read_text()
         position = text.index("\n\n")
@@ -206,12 +256,27 @@ def main() -> None:
             text[:position] + "\n\npackage(default_testonly = True)" + text[position:]
         )
         generate(
-            root, ordinary / "fixture_test.py", "def test_passes():\n    assert True\n"
+            root,
+            ordinary / "fixture_test.py",
+            f"""import os
+import subprocess
+from pathlib import Path
+
+def test_passes():
+    root = Path(os.environ["TEST_SRCDIR"]) / os.environ["TEST_WORKSPACE"]
+    result = subprocess.run(
+        [str(root / ".github/{hidden.name}/helper_bin")],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert result.stdout == "1\\n"
+""",
         )
         build = ordinary / "BUILD.bazel"
         text = build.read_text().replace(
             'name = "fixture_test",',
-            f'name = "fixture_test",\n    data = [":generated", "//{support.relative_to(root)}:test_helpers"],',
+            f'name = "fixture_test",\n    data = [":generated", "//{support.relative_to(root)}:test_helpers", "//{hidden.relative_to(root)}:helper_bin"],',
         )
         build.write_text(text)
         with (ordinary / "BUILD.bazel").open("a") as build:
@@ -238,6 +303,17 @@ py_library(name = "generated", srcs = [":generated.py"])
             'name = "fault_test",\n    data = ["report.coveragerc"],',
         )
         fault_build.write_text(text)
+        hidden_build = hidden / "BUILD.bazel"
+        text = hidden_build.read_text()
+        position = text.index("\n\n")
+        text = (
+            text[:position] + "\n\npackage(default_testonly = True)" + text[position:]
+        )
+        hidden_build.write_text(
+            'load("//tools/python:defs.bzl", "py_binary")\n'
+            + text
+            + f'\npy_binary(name = "helper_bin", testonly = True, srcs = ["helper.py"], main = "helper.py", visibility = ["//{ordinary.relative_to(root)}:__pkg__"])\n'
+        )
         targets = [
             "//python_sample/...",
             "//.github/...",
@@ -262,12 +338,18 @@ py_library(name = "generated", srcs = [":generated.py"])
         (evidence / "coverage.exit").write_text(f"{result.returncode}\n")
         assert result.returncode == 0, result.stdout + result.stderr
         executions = []
-        for line in events.read_text().splitlines():
+        event_text = redact_output(events.read_text())
+        events.write_text(event_text)
+        for line in event_text.splitlines():
             event = json.loads(line)
             if "testResult" in event:
                 executions.append({"id": event["id"], **event["testResult"]})
         (evidence / "test-results.json").write_text(json.dumps(executions, indent=2))
         assert executions, "No test execution metadata"
+        assert not any(
+            item["id"]["testResult"]["label"].endswith(":dormant_test")
+            for item in executions
+        ), executions
         assert all(not item.get("cachedLocally", False) for item in executions)
         if arguments.execution == "remote":
             assert all(

@@ -144,6 +144,7 @@ def test_inventory_resolves_owners_and_preserves_scope(workspace: Path) -> None:
     assert set((workspace / "roots.txt").read_text().splitlines()) == {
         "//:lib",
         "//.hidden:tool",
+        "//:test_support.python_coverage",
     }
     assert set(inventory["baseline_sources"]) == {"library.py", ".hidden/tool.py"}
 

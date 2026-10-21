@@ -9,8 +9,8 @@ def _coverage_tool():
     })
 
 def _coverage_sources_impl(ctx):
-    production = not ctx.attr.testonly and not ctx.label.workspace_name and not ctx.label.package.startswith("3rdparty/")
-    source_attributes = ["srcs", "main"] if production else []
+    eligible = not ctx.label.workspace_name and not ctx.label.package.startswith("3rdparty/")
+    source_attributes = ["srcs", "main"] if eligible else []
     sources = []
     if ctx.executable.tool and ctx.coverage_instrumented():
         for attribute in source_attributes:
@@ -52,7 +52,7 @@ _coverage_sources = rule(
     },
 )
 
-def _coverage_data(name, srcs, main, kwargs):
+def _coverage_data(name, srcs, main, kwargs, conditional = True):
     metadata = name + ".python_coverage"
     testonly = {"testonly": kwargs["testonly"]} if "testonly" in kwargs else {}
     _coverage_sources(
@@ -60,16 +60,20 @@ def _coverage_data(name, srcs, main, kwargs):
         srcs = srcs,
         main = main,
         tool = _coverage_tool(),
-        tags = ["manual"],
+        tags = ["manual", "python-coverage"],
         **testonly
     )
+
+    # rules_py adds pytest paths to a concrete data list before analysis.
+    if not conditional:
+        return [":" + metadata]
     return select({
         "//tools/python:coverage_enabled": [":" + metadata],
         "//conditions:default": [],
     })
 
 def py_library(name, srcs = [], data = [], tags = [], **kwargs):
-    """Declare a library with a production coverage baseline.
+    """Declare a library with a source coverage baseline.
 
     Args:
         name: Target name.
@@ -87,7 +91,7 @@ def py_library(name, srcs = [], data = [], tags = [], **kwargs):
     )
 
 def py_binary(name, srcs = [], main = None, data = [], tags = [], **kwargs):
-    """Declare a binary with a production coverage baseline.
+    """Declare a binary with a source coverage baseline.
 
     Args:
         name: Target name.
@@ -106,11 +110,13 @@ def py_binary(name, srcs = [], main = None, data = [], tags = [], **kwargs):
         **kwargs
     )
 
-def py_test(name, main = None, deps = [], **kwargs):
+def py_test(name, srcs = [], main = None, data = [], deps = [], **kwargs):
     """Use pytest for generated test sources instead of a source entry point.
 
     Args:
         name: Target name.
+        srcs: Test source files.
+        data: Runtime dependencies.
         main: Gazelle's generated entry point, replaced by pytest.
         deps: Dependencies inferred by Gazelle.
         **kwargs: Remaining rules_py test attributes.
@@ -125,6 +131,8 @@ def py_test(name, main = None, deps = [], **kwargs):
     _py_test(
         name = name,
         pytest_main = True,
+        srcs = srcs,
+        data = data + _coverage_data(name, srcs, None, dict(kwargs, testonly = True), conditional = False),
         deps = deps,
         **kwargs
     )

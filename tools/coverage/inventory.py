@@ -180,14 +180,18 @@ def discover(root: Path, options: list[str]) -> CoverageInventory:
         for source in resolved:
             owners[source].append(label)
 
-        if rule["kind"] == "_coverage_sources" and not rule["testonly"]:
+        if rule["kind"] == "_coverage_sources":
             sources = {
                 name
                 for name in resolved
                 if name.endswith(".py") and scopes.get(name) == "unspecified"
             }
             if sources:
-                roots.append(label.removesuffix(".python_coverage"))
+                roots.append(
+                    label
+                    if rule["testonly"]
+                    else label.removesuffix(".python_coverage")
+                )
                 baseline_sources.update(sources)
     eligible: list[CoverageSource] = []
     excluded: list[ScopeExclusion] = []
