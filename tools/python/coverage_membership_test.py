@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -20,6 +21,13 @@ BAZEL_OPTIONS: list[str] = []
 COMMAND_LOG: Path | None = None
 
 
+def redact_output(output: str) -> str:
+    """Remove BuildBuddy credentials from captured command output."""
+    return re.sub(
+        r"""(?i)(x-buildbuddy-api-key[=:])[^\s"'\\]+""", r"\1<REDACTED>", output
+    )
+
+
 def command(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     options = BAZEL_ENDPOINT_OPTIONS + (
         [] if arguments[0] == "query" else BAZEL_OPTIONS
@@ -28,10 +36,17 @@ def command(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
     result = subprocess.run(
         invocation,
         cwd=root,
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key not in {"PYTHONHOME", "PYTHONEXECUTABLE"}
+        },
         capture_output=True,
         text=True,
         check=False,
     )
+    result.stdout = redact_output(result.stdout)
+    result.stderr = redact_output(result.stderr)
     if COMMAND_LOG is not None:
         with COMMAND_LOG.open("a") as output:
             output.write(
@@ -323,7 +338,9 @@ py_library(name = "generated", srcs = [":generated.py"])
         (evidence / "coverage.exit").write_text(f"{result.returncode}\n")
         assert result.returncode == 0, result.stdout + result.stderr
         executions = []
-        for line in events.read_text().splitlines():
+        event_text = redact_output(events.read_text())
+        events.write_text(event_text)
+        for line in event_text.splitlines():
             event = json.loads(line)
             if "testResult" in event:
                 executions.append({"id": event["id"], **event["testResult"]})

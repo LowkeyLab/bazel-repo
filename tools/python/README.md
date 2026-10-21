@@ -121,7 +121,12 @@ Hosted workflow and Codecov acceptance remain separate work under
 
 ## Hosted evidence
 
-The existing Coverage workflow retains a `coverage-evidence-<run>-<attempt>` artifact for 30 days.
+The existing Coverage workflow also runs the Python membership acceptance command.
+It uses the Bazel-managed collector to measure that command and merges its real
+hits with the full combined report. The original inventory and test results remain
+with that report. Existing thresholds and Codecov policy remain in use.
+
+The workflow retains a `coverage-evidence-<run>-<attempt>` artifact for 30 days.
 It contains the combined report, `coverage-report.lcov`, and the Bazel test results, `coverage-test-results.jsonl`.
 The result file retains test results, test summaries, and the build result.
 It excludes command-line and environment details.
