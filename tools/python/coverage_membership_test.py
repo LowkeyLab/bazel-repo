@@ -108,8 +108,9 @@ def check_report(report: str, ordinary: str, hidden: str) -> None:
     assert "DA:6,2" in records["python_sample/__main__.py"]
     assert "DA:43,1" in records[".github/scripts/bazel_dependencies.py"]
     go = records["predix/internal/domain/user/user.go"]
-    assert "LH:11" in go
-    assert "LF:13" in go
+    # Go versions can exclude brace-only lines from coverage spans.
+    for line in ("DA:29,1", "DA:34,1", "DA:35,0", "DA:38,1"):
+        assert line in go, line
 
 
 def check_failures(root: Path, evidence: Path, package: Path) -> None:
