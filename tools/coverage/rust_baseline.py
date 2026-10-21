@@ -14,6 +14,7 @@ def main() -> None:
     parser.add_argument("--llvm-ar", required=True)
     parser.add_argument("--llvm-profdata", required=True)
     parser.add_argument("--generated-source", action="append", default=[])
+    parser.add_argument("--child-source", nargs=3, action="append", default=[])
     parser.add_argument("--object", required=True)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--metadata", required=True, type=Path)
@@ -76,6 +77,7 @@ def main() -> None:
                 "llvm_cov": args.llvm_cov,
                 "llvm_profdata": args.llvm_profdata,
                 "generated_sources": sorted(set(args.generated_source)),
+                "children": args.child_source,
                 "no_mapping": missing_mapping,
                 "diagnostic": result.stderr,
             }

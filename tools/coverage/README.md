@@ -146,6 +146,11 @@ This status does not establish zero coverage.
 
 Separate native executables in a Rust test's `data` receive matching coverage
 objects. The coverage manifest includes their maintained sources.
+A declared child can remain unexecuted. LLVM profiles cannot distinguish this case
+from a child whose complete profile disappeared. The receipt identifies this
+guarantee limit for each child source, rule, and object. Acceptance removes only
+the child profile and retains the available object and profile IDs.
+The collector still requires the main test profile when executable mappings exist.
 Coverage links retain ELF build IDs on configured Linux targets.
 The collector uses LLVM object and profile IDs to require matching input.
 It rejects invalid required profiles, missing objects, and failed LLVM export. Native line coverage uses stable Rust. WebAssembly execution remains

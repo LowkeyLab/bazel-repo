@@ -225,12 +225,15 @@ def collector_failures(
         "truncated-object",
         "missing-child-object",
         "missing-main-profile",
+        "missing-child-profile",
     ]:
         case = runtime / fault
         case.mkdir()
         for profile in profiles:
-            if fault == "missing" or (
-                fault == "missing-main-profile" and profile in own_profiles
+            if (
+                fault == "missing"
+                or (fault == "missing-main-profile" and profile in own_profiles)
+                or (fault == "missing-child-profile" and profile not in own_profiles)
             ):
                 continue
             shutil.copyfile(profile, case / profile.name)
@@ -251,6 +254,7 @@ def collector_failures(
             "TEST_WORKSPACE": "_main",
             "TEST_BINARY": str(binary),
             "RUST_COVERAGE_REQUIRED": "1",
+            "VERBOSE_COVERAGE": "1",
             "RUST_LLVM_READOBJ": str(reader),
             "RUST_COVERAGE_OBJECTS": str(execroot / child["object"]),
             "RUST_LLVM_COV": str(execroot / main["llvm_cov"]),
@@ -296,6 +300,7 @@ def collector_failures(
                                 for key, value in env.items()
                                 if key
                                 in {
+                                    "VERBOSE_COVERAGE",
                                     "ROOT",
                                     "RUNFILES_DIR",
                                     "TEST_WORKSPACE",
@@ -313,9 +318,23 @@ def collector_failures(
                     )
                     + "\n"
                 )
-        assert (result.returncode == 0) == (fault == "valid"), (
-            f"{fault}: {result.stdout}{result.stderr}"
-        )
+        if fault == "missing-child-profile":
+            assert "Object IDs:" in result.stderr and "Profile IDs:" in result.stderr
+            child_source = child_label[2:].split(":")[0] + "/main.rs"
+            child_record = next(
+                record
+                for record in (case / "coverage.dat").read_text().split("end_of_record")
+                if child_source in record
+            )
+            counts = [
+                int(line[3:].split(",")[1])
+                for line in child_record.splitlines()
+                if line.startswith("DA:")
+            ]
+            assert counts and not any(counts), child_record
+        assert (result.returncode == 0) == (
+            fault in {"valid", "missing-child-profile"}
+        ), f"{fault}: {result.stdout}{result.stderr}"
 
 
 def retain_baselines(events: Path, root: Path) -> None:
@@ -465,6 +484,12 @@ def main() -> None:
             receipt = json.loads((root / "coverage-rust-baselines.json").read_text())
             assert any(
                 limit["source"] == str(empty.relative_to(root))
+                for limit in receipt["limits"]
+            )
+            assert any(
+                limit["source"] == str(child.relative_to(root))
+                and limit["rule"] == child_label
+                and "profile" in limit["missing_guarantee"]
                 for limit in receipt["limits"]
             )
             collector_failures(

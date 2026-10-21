@@ -14,6 +14,7 @@ class RustObjectMetadata:
     no_mapping: bool
     diagnostic: str
     generated_sources: frozenset[str]
+    children: tuple[tuple[str, str, str], ...]
 
 
 def read_rust_object(path: Path) -> RustObjectMetadata:
@@ -24,6 +25,7 @@ def read_rust_object(path: Path) -> RustObjectMetadata:
     no_mapping = data.get("no_mapping")
     diagnostic = data.get("diagnostic")
     generated = data.get("generated_sources")
+    children = data.get("children")
     if (
         not isinstance(object_path, str)
         or not object_path
@@ -35,15 +37,27 @@ def read_rust_object(path: Path) -> RustObjectMetadata:
             not isinstance(data.get(name), str) or not data[name]
             for name in ("llvm_cov", "llvm_profdata")
         )
+        or not isinstance(children, list)
+        or any(
+            not isinstance(child, list)
+            or len(child) != 3
+            or not all(isinstance(value, str) and value for value in child)
+            for child in children
+        )
         or (no_mapping and "no coverage data found" not in diagnostic)
     ):
         raise ValueError(f"Invalid Rust object evidence: {path}")
     return RustObjectMetadata(
-        path, object_path, no_mapping, diagnostic, frozenset(generated)
+        path,
+        object_path,
+        no_mapping,
+        diagnostic,
+        frozenset(generated),
+        tuple((child[0], child[1], child[2]) for child in children),
     )
 
 
-def go_lines(
+def lcov_lines(
     lines: list[str], name: str, family: str = "Go", check_summary: bool = True
 ) -> set[int]:
     counts: dict[int, int] = {}
@@ -126,6 +140,18 @@ def baseline_lines(
                 raise ValueError(f"Missing Rust object evidence: {label}")
             metadata = read_rust_object(metadata_paths[0])
             excluded.update(metadata.generated_sources)
+            for source, child_rule, child_object in metadata.children:
+                limits.append(
+                    {
+                        "source": source,
+                        "rule": child_rule,
+                        "object": child_object,
+                        "collection_rule": label,
+                        "missing_guarantee": "LLVM profiles cannot distinguish an unexecuted child from a child whose complete profile disappeared.",
+                        "evidence": str(metadata.path),
+                        "diagnostic": "The declared child object does not prove execution. Available profile IDs establish only observed executions.",
+                    }
+                )
             paths = [path for path in paths if path.suffix == ".lcov"]
             if len(paths) != 1:
                 raise ValueError(f"Missing Rust baseline artifact: {label}")
@@ -150,7 +176,7 @@ def baseline_lines(
                 if metadata is not None and name in excluded:
                     mapped.add(name)
                     continue
-                numbers = go_lines(
+                numbers = lcov_lines(
                     lines, name, family, check_summary=language != "rust"
                 )
                 if metadata is not None and int(
@@ -250,7 +276,7 @@ def main() -> None:
             if name.endswith(extension):
                 if name in observed:
                     raise ValueError(f"Duplicate {family} coverage source: {name}")
-                observed[name] = go_lines(lines, name, family)
+                observed[name] = lcov_lines(lines, name, family)
             retained.append(record + "end_of_record")
         for name, numbers in expected.items():
             if name not in observed or not numbers.issubset(observed[name]):

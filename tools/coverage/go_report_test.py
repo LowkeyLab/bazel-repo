@@ -141,6 +141,7 @@ def test_rust_baseline_validation_preserves_hits_and_records_mapping_limits(
                 "llvm_cov": "llvm-cov",
                 "llvm_profdata": "llvm-profdata",
                 "generated_sources": ["generated.rs"],
+                "children": [["kept.rs", "//fixture:child", "child-object"]],
                 "no_mapping": False,
                 "diagnostic": "",
             }
@@ -206,7 +207,16 @@ def test_rust_baseline_validation_preserves_hits_and_records_mapping_limits(
     assert (tmp_path / "report.lcov").read_text() == measured + EMPTY
     receipt = json.loads((tmp_path / "receipt.json").read_text())
     assert receipt["sources"] == {"kept.rs": [4]}
-    assert [limit["source"] for limit in receipt["limits"]] == ["declaration.rs"]
+    assert {limit["source"] for limit in receipt["limits"]} == {
+        "declaration.rs",
+        "kept.rs",
+    }
+    assert any(
+        limit["rule"] == "//fixture:child"
+        and limit["object"] == "child-object"
+        and "profile" in limit["missing_guarantee"]
+        for limit in receipt["limits"]
+    )
     (tmp_path / "report.lcov").write_text(EMPTY)
     result = subprocess.run(arguments, capture_output=True, text=True, check=False)
     assert result.returncode != 0

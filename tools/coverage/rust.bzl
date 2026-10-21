@@ -41,6 +41,14 @@ def _rust_coverage_sources_impl(ctx):
                 files += dependency.srcs.to_list() + dependency.compile_data.to_list()
         originals = {file.short_path: True for file in sources.to_list() if file.is_source}
         generated = [file for file in depset(files).to_list() if not file.is_source and not file.owner.workspace_name and file.extension == "rs" and file.short_path not in originals]
+        for child in ctx.attr.data:
+            if rust_common.crate_info in child and child[rust_common.crate_info].type == "bin":
+                for source in child[InstrumentedFilesInfo].instrumented_files.to_list():
+                    if source.is_source and not source.owner.workspace_name:
+                        args.add("--child-source")
+                        args.add(source.short_path)
+                        args.add(str(child.label))
+                        args.add(child[rust_common.crate_info].output.path)
         args.add_all(generated, before_each = "--generated-source")
         args.add_all(generated, before_each = "--generated-source", map_each = _short_path)
         ctx.actions.run(
@@ -69,6 +77,7 @@ _rust_coverage_sources = rule(
     attrs = {
         "target": attr.label(mandatory = True, providers = [rust_common.crate_info]),
         "srcs": attr.label_list(),
+        "data": attr.label_list(allow_files = True),
         "_llvm_ar": attr.label(default = "@llvm//tools:llvm-ar", executable = True, allow_single_file = True, cfg = "exec"),
         "_baseline": attr.label(default = "//tools/coverage:rust_baseline", executable = True, cfg = "exec"),
     },
@@ -86,6 +95,7 @@ def _baseline(name, kwargs, testonly = False):
         srcs = [":" + name + ".rust_coverage_inputs"],
         name = name + ".rust_coverage",
         target = ":" + name,
+        data = kwargs.get("data", []),
         testonly = testonly or kwargs.get("testonly", False),
         tags = ["manual", "rust-coverage"],
     )
