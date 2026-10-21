@@ -133,7 +133,10 @@ rust_test(
     ],
     compile_data = ["fixtures/public-test-key.pem"],
     crate_root = "http_test.rs",
-    data = [":package"] + image_data("postgres_18"),
+    data = [
+        ":bin",
+        ":package",
+    ] + image_data("postgres_18"),
     env = image_env("postgres_18") | {"PACKAGE_ARCHIVE": "$(rlocationpath :package)"},
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
@@ -178,7 +181,10 @@ rust_test(
     ],
     compile_data = ["fixtures/public-test-key.pem"],
     crate_root = "application_test.rs",
-    data = [":package"] + image_data("postgres_18"),
+    data = [
+        ":bin",
+        ":package",
+    ] + image_data("postgres_18"),
     env = image_env("postgres_18") | {"PACKAGE_ARCHIVE": "$(rlocationpath :package)"},
     exec_properties = {
         "test.workload-isolation-type": "firecracker",
@@ -223,6 +229,7 @@ rust_test(
     compile_data = ["fixtures/public-test-key.pem"],
     crate_root = "package_test.rs",
     data = [
+        ":bin",
         ":package",
         ":run",
     ] + image_data("postgres_18"),
@@ -292,6 +299,7 @@ rust_test(
     data = [
         "fixtures/browser-test-certificate.pem",
         "fixtures/public-test-key.pem",
+        ":bin",
         ":browser_runner",
         ":package",
     ] + image_data("postgres_18"),

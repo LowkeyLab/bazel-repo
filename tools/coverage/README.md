@@ -146,6 +146,8 @@ This status does not establish zero coverage.
 
 Separate native executables in a Rust test's `data` receive matching coverage
 objects. The coverage manifest includes their maintained sources.
+For an executable inside an archive, declare its original Rust binary target in
+the test's `data` too. An archive alone does not expose the matching LLVM object.
 A declared child can remain unexecuted. LLVM profiles cannot distinguish this case
 from a child whose complete profile disappeared. The receipt identifies this
 guarantee limit for each child source, rule, and object. Acceptance removes only
