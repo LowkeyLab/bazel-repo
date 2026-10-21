@@ -507,7 +507,7 @@ func TestCircleService(t *testing.T) {
 			assert.Equal(t, 120, updatedContest.Predictions[0].Clout)
 		})
 
-		t.Run("ResolveContestAndCalculatePayouts", func(t *testing.T) {
+		t.Run("CompleteSettlement", func(t *testing.T) {
 			svc, _, _, q := setup(t)
 
 			creatorID := createTestUser(t, sqlDB, "creator_resolve")
@@ -534,7 +534,7 @@ func TestCircleService(t *testing.T) {
 			require.NoError(t, err)
 
 			// Resolve with Option 1 as winner
-			payouts, err := svc.ResolveContestAndCalculatePayouts(ctx, contestObj.ID, creatorID, 1)
+			err = svc.ResolveAndDistributeContestClout(ctx, circleObj.ID, contestObj.ID, creatorID, 1)
 			require.NoError(t, err)
 
 			// Validate Contest State
@@ -544,11 +544,11 @@ func TestCircleService(t *testing.T) {
 			assert.NotNil(t, updatedContest.ResultOptionID)
 			assert.Equal(t, 1, *updatedContest.ResultOptionID)
 
-			// Validate Payouts
-			// Losing pot = 200. Rake 10% = 20. Distributable = 180.
-			// Winner share = 100 + (100 * 180 / 100) = 280.
-			assert.Len(t, payouts, 1)
-			assert.Equal(t, 280, payouts[winnerID])
+			// Check persisted balances after the winner receives 280 Clout.
+			settledCircle, err := svc.GetCircleWithUsernames(ctx, circleObj.ID)
+			require.NoError(t, err)
+			assert.Contains(t, settledCircle.Members, service.EnrichedMember{UserID: winnerID, Username: "winner", Clout: 1180})
+			assert.Contains(t, settledCircle.Members, service.EnrichedMember{UserID: loserID, Username: "loser", Clout: 800})
 
 			// Verify that the contest in DB is actually updated
 			dbContest, err := q.GetContest(ctx, int32(contestObj.ID))
@@ -556,7 +556,7 @@ func TestCircleService(t *testing.T) {
 			assert.Equal(t, string(contest.StatusResolved), string(dbContest.Status))
 		})
 
-		t.Run("ResolveContestAndCalculatePayouts_Unauthorized", func(t *testing.T) {
+		t.Run("CompleteSettlement_Unauthorized", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
 			creatorID := createTestUser(t, sqlDB, "creator_auth")
@@ -570,11 +570,11 @@ func TestCircleService(t *testing.T) {
 			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Q?", []string{"Yes", "No"}, contest.Duration1Day, 10)
 			require.NoError(t, err)
 
-			_, err = svc.ResolveContestAndCalculatePayouts(ctx, contestObj.ID, otherID, 1)
+			err = svc.ResolveAndDistributeContestClout(ctx, circleObj.ID, contestObj.ID, otherID, 1)
 			assert.ErrorIs(t, err, service.ErrNotContestCreator)
 		})
 
-		t.Run("ResolveContestAndCalculatePayouts_InvalidOption", func(t *testing.T) {
+		t.Run("CompleteSettlement_InvalidOption", func(t *testing.T) {
 			svc, _, _, _ := setup(t)
 
 			creatorID := createTestUser(t, sqlDB, "creator_opt")
@@ -584,7 +584,7 @@ func TestCircleService(t *testing.T) {
 			contestObj, err := svc.CreateContest(ctx, circleObj.ID, creatorID, "Q?", []string{"Yes", "No"}, contest.Duration1Day, 10)
 			require.NoError(t, err)
 
-			_, err = svc.ResolveContestAndCalculatePayouts(ctx, contestObj.ID, creatorID, 99)
+			err = svc.ResolveAndDistributeContestClout(ctx, circleObj.ID, contestObj.ID, creatorID, 99)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "invalid winning option")
 		})

@@ -540,16 +540,6 @@ func (s *Service) ProcessContestExpirations(ctx context.Context) error {
 	return nil
 }
 
-// ResolveContestAndCalculatePayouts resolves a contest and returns winner payouts.
-func (s *Service) ResolveContestAndCalculatePayouts(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) (map[user.ID]int, error) {
-	c, payouts, err := s.resolveContestAndCalculatePayouts(ctx, contestID, resolverID, winningOptionID)
-	if err != nil {
-		return nil, err
-	}
-	s.dispatchEvents(c.PopEvents())
-	return payouts, nil
-}
-
 func (s *Service) resolveContestAndCalculatePayouts(ctx context.Context, contestID contest.ID, resolverID user.ID, winningOptionID int) (*contest.Contest, map[user.ID]int, error) {
 	// Load contest from repository
 	c, err := s.contestRepo.FindByID(ctx, contestID)
