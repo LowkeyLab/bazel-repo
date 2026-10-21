@@ -660,7 +660,7 @@ use_repo(crate, "crates")
 interpreters = use_extension("@aspect_rules_py//py/unstable:extension.bzl", "python_interpreters")
 interpreters.configure(
     # renovate: datasource=github-releases depName=astral-sh/python-build-standalone
-    releases = ["20261020"],
+    releases = ["20261021"],
 )
 interpreters.toolchain(
     is_default = True,
