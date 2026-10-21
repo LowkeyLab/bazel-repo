@@ -289,6 +289,11 @@ The command writes `coverage-javascript/receipt.json`. Configured native test
 metadata uses the public `InstrumentedFilesInfo` provider. Each executed native
 JavaScript test requires configured metadata, a valid report, and valid Node
 profiles. Native report membership must match its configured original sources.
+Native profiles do not declare the expected process set. A valid parent profile
+cannot prove that every executed child profile remains available. The receipt
+records this limit for each configured source and test rule. Detectable missing
+or invalid required profiles still cause failure.
+
 Angular reports must retain eligible application sources under their explicit
 inclusion patterns. Test-source, declaration, and runner-configuration omissions
 retain exact source and rule limits. An Angular project whose builder does not

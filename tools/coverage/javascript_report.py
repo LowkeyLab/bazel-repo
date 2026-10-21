@@ -325,11 +325,7 @@ def main() -> None:
         angular_test = any(
             label.startswith(project["target_prefix"]) for project in projects.values()
         )
-        for name in set(
-            configured[configured_key].get(
-                "originals", configured[configured_key]["sources"]
-            )
-        ) & set(native_sources):
+        for name in set(configured[configured_key]["sources"]) & set(native_sources):
             if name not in measured:
                 if angular_test and any(
                     label.startswith(project["target_prefix"])
@@ -394,6 +390,15 @@ def main() -> None:
                             raise ValueError(
                                 f"Invalid native Node range profile: {profile}"
                             )
+        for name in sorted(set(configured[configured_key]["sources"]) & set(sources)):
+            limits.append(
+                {
+                    "source": name,
+                    "rule": label,
+                    "missing_guarantee": "Native Node profiles do not declare the expected process set. A valid parent profile cannot prove that every executed child profile remains available.",
+                    "evidence": [str(saved_test / path.name) for path in profiles],
+                }
+            )
         executions.append(
             {
                 "rule": label,

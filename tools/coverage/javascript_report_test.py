@@ -349,3 +349,23 @@ def test_native_branch_hits_survive_fallback_baselines(workspace: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     assert "SF:library.ts\n" in (workspace / "report.lcov").read_text()
     assert "BRDA:1,0,0,1\n" in (workspace / "report.lcov").read_text()
+
+
+def test_selective_child_profile_loss_records_exact_limit(workspace: Path) -> None:
+    child = workspace / "test/_coverage/coverage-child.json"
+    child.write_text(
+        json.dumps({"result": [{"url": "file:///module.js", "functions": []}]})
+    )
+    child.unlink()
+    result = run(workspace)
+    assert result.returncode == 0, result.stdout + result.stderr
+    receipt = json.loads((workspace / "evidence/receipt.json").read_text())
+    limits = [
+        item
+        for item in receipt["limits"]
+        if "child profile" in item["missing_guarantee"]
+    ]
+    assert any(
+        item["source"] == "module.js" and item["rule"] == "//:test" for item in limits
+    )
+    assert len(receipt["executions"][0]["retained_profiles"]) == 1
