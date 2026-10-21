@@ -1,6 +1,6 @@
 # gazelle:resolve rust cli @crates//:sea-orm-migration
 
-load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("//tools/coverage:rust.bzl", "rust_binary")
 
 package(default_visibility = ["//nicknamer"])
 

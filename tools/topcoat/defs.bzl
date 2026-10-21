@@ -3,8 +3,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
-load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_library")
 
 def _manifest_impl(ctx):
     output = ctx.actions.declare_file(ctx.label.name + "/Cargo.toml")

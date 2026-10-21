@@ -1,7 +1,6 @@
 """Hermetic Topcoat compilation, bundling, and formatting tools."""
 
-load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
-load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_test")
 load(":format.bzl", "format_adapter")
 
 package(default_visibility = ["//visibility:public"])

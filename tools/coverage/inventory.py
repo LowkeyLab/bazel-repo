@@ -160,7 +160,7 @@ def discover(root: Path, options: list[str]) -> CoverageInventory:
             return set()
         references = []
         element = elements[label]
-        for attribute in ("srcs", "main", "src", "actual", "embed", "target"):
+        for attribute in ("srcs", "main", "src", "actual", "embed", "target", "crate"):
             references.extend(
                 item.attrib["value"]
                 for item in element.findall(f'./list[@name="{attribute}"]/label')
@@ -193,11 +193,12 @@ def discover(root: Path, options: list[str]) -> CoverageInventory:
                     else label.removesuffix(".python_coverage")
                 )
                 baseline_sources.update(sources)
-        if rule["kind"] in ("_go_coverage_sources",):
+        if rule["kind"] in ("_go_coverage_sources", "_rust_coverage_sources"):
+            extension = ".rs" if rule["kind"] == "_rust_coverage_sources" else ".go"
             sources = {
                 name
                 for name in resolved
-                if name.endswith(".go") and scopes.get(name) == "unspecified"
+                if name.endswith(extension) and scopes.get(name) == "unspecified"
             }
             if sources:
                 roots.append(label)

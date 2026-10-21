@@ -125,3 +125,89 @@ def test_configured_root_without_matching_sources_has_explicit_empty_evidence(
     result = invoke(tmp_path, OTHER, "empty")
     assert result.returncode == 0, result.stderr
     assert (tmp_path / "report.lcov").read_text() == OTHER
+
+
+def test_rust_baseline_validation_preserves_hits_and_records_mapping_limits(
+    tmp_path: Path,
+) -> None:
+    measured = MEASURED.replace("kept.go", "kept.rs")
+    baseline = measured.replace("DA:4,7", "DA:4,0").replace("LH:1", "LH:0")
+    generated = "SF:generated.rs\nDA:1,9\nLF:1\nLH:1\nend_of_record\n"
+    (tmp_path / "baseline.lcov").write_text(baseline + generated)
+    (tmp_path / "baseline.json").write_text(
+        json.dumps(
+            {
+                "object": "fixture.rlib",
+                "llvm_cov": "llvm-cov",
+                "llvm_profdata": "llvm-profdata",
+                "generated_sources": ["generated.rs"],
+                "no_mapping": False,
+                "diagnostic": "",
+            }
+        )
+    )
+    label = "//fixture:fixture.rust_coverage"
+    (tmp_path / "events.jsonl").write_text(
+        "\n".join(
+            json.dumps(event)
+            for event in [
+                {
+                    "id": {"namedSet": {"id": "baseline"}},
+                    "namedSetOfFiles": {
+                        "files": [
+                            {"name": str(tmp_path / "baseline.lcov")},
+                            {"name": str(tmp_path / "baseline.json")},
+                        ]
+                    },
+                },
+                {
+                    "id": {"targetCompleted": {"label": label}},
+                    "completed": {
+                        "success": True,
+                        "outputGroup": [
+                            {
+                                "name": "rust_coverage_baselines",
+                                "fileSets": [{"id": "baseline"}],
+                            }
+                        ],
+                    },
+                },
+            ]
+        )
+    )
+    (tmp_path / "inventory.json").write_text(
+        json.dumps(
+            {
+                "coverage_roots": [label],
+                "excluded": [],
+                "eligible": [
+                    {"path": name, "language": "rust", "owners": [{"label": label}]}
+                    for name in ["kept.rs", "declaration.rs"]
+                ],
+            }
+        )
+    )
+    (tmp_path / "report.lcov").write_text(measured + EMPTY + generated)
+    arguments = [
+        str(ROOT / "tools/coverage/go_report"),
+        "--language",
+        "rust",
+        "--events",
+        str(tmp_path / "events.jsonl"),
+        "--inventory",
+        str(tmp_path / "inventory.json"),
+        "--report",
+        str(tmp_path / "report.lcov"),
+        "--expected-output",
+        str(tmp_path / "receipt.json"),
+    ]
+    result = subprocess.run(arguments, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (tmp_path / "report.lcov").read_text() == measured + EMPTY
+    receipt = json.loads((tmp_path / "receipt.json").read_text())
+    assert receipt["sources"] == {"kept.rs": [4]}
+    assert [limit["source"] for limit in receipt["limits"]] == ["declaration.rs"]
+    (tmp_path / "report.lcov").write_text(EMPTY)
+    result = subprocess.run(arguments, capture_output=True, text=True, check=False)
+    assert result.returncode != 0
+    assert "Missing Rust baseline" in result.stderr

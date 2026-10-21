@@ -22,9 +22,8 @@ or `no-coverage` tags.
 
 The Python integration selects baselines for maintained production sources, tests,
 and executable helpers. Test-only roots select metadata without changing test
-execution filters. The inventory also reports native Rust, Java/Kotlin,
-JavaScript/TypeScript, and Astro sources. Their remaining collector integrations
-belong to tickets #2505 through #2508. Measurement requires collector evidence.
+execution filters. The inventory also reports Java/Kotlin, JavaScript/TypeScript, and Astro sources.
+Their remaining collector integrations belong to tickets #2506 through #2508. Measurement requires collector evidence.
 Pending integrations supply no accepted collector limits.
 Ticket #2509 adds reconciliation across collector families.
 
@@ -120,3 +119,52 @@ The command retains configured Go baseline sources and executable lines in
 for each selected Go root. The report validator rejects absent roots, artifacts,
 source records, or executable lines. Native build constraints select these
 baselines. The validator preserves measured counts and other language records.
+
+## Native Rust sources
+
+Rust declarations add coverage roots for libraries, executables, and tests.
+Baseline actions extract Rust archive objects through
+[`llvm-ar`](https://llvm.org/docs/CommandGuide/llvm-ar.html).
+They run [`llvm-cov export -empty-profile`](https://llvm.org/docs/CommandGuide/llvm-cov.html)
+with the configured LLVM tools. The native Bazel merger combines baselines and
+observations. It retains measured hits.
+
+Discovery includes ordinary and hidden packages. Metadata roots build test
+executables without test execution. Existing execution filters retain their
+behavior. The command rejects required roots outside the instrumentation filter.
+
+The command writes `coverage-rust-baselines.json`. This receipt identifies configured
+roots, executable lines, and exact mapping limits. Missing roots, artifacts,
+source records, or exported executable lines cause failure.
+
+LLVM sometimes reports more lines in `LF` than it identifies with `DA` records.
+The receipt records this limit for each affected source and rule. It retains
+the raw artifact path. The integration adds no line identities.
+Some procedural test macros produce no native mapping for their source file.
+Sources without mapping retain an exact object and diagnostic reference.
+This status does not establish zero coverage.
+
+Separate native executables in a Rust test's `data` receive matching coverage
+objects. The coverage manifest includes their maintained sources.
+Coverage links retain ELF build IDs on configured Linux targets.
+The collector uses LLVM object and profile IDs to require matching input.
+It rejects invalid required profiles, missing objects, and failed LLVM export. Native line coverage uses stable Rust. WebAssembly execution remains
+outside scope. The integration adds no nightly branch instrumentation.
+
+Run local collector acceptance from an assigned checkout:
+
+```bash
+nix develop --command bazel run //tools/coverage:rust_membership_test -- --evidence /absolute/new/private/directory
+```
+
+The command checks hidden and ordinary packages, disconnected baselines,
+generated sources, empty mappings, measured tests, separate executables, and
+required-output failures.
+It retains command results, raw profiles, reports, and object evidence.
+
+Evidence directories must be new and outside the checkout.
+Local mode clears remote execution, cache, and BES endpoints.
+Use `--execution configured` to inherit the caller's Bazel configuration.
+The evidence records actual execution and cache status.
+Configuration alone does not establish remote execution.
+The existing hosted workflow runs configured acceptance and retains its evidence.

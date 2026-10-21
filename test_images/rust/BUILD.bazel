@@ -1,6 +1,4 @@
-load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
-load("@rules_rs//rs:rust_library.bzl", "rust_library")
-load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_library", "rust_test")
 
 # gazelle:resolve rust futures_util @crates//:futures-util-0.3.34
 # gazelle:resolve rust tokio_util @crates//:tokio-util-0.7.20

@@ -2,8 +2,7 @@
 # gazelle:ignore
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
-load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
-load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_test")
 load("//tools/test_images:defs.bzl", "image_data", "image_env")
 load("//tools/topcoat:defs.bzl", "topcoat_assets", "topcoat_package", "topcoat_rust_binary", "topcoat_rust_library", "topcoat_tailwind")
 
