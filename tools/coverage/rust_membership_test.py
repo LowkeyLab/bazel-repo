@@ -196,6 +196,7 @@ def collector_failures(
         "build",
         "@rules_rust//rust/coverage:collect_rust_coverage",
         "//tools/coverage:llvm-readobj",
+        "--remote_download_outputs=all",
     )
     collector = (
         execroot
@@ -467,6 +468,7 @@ def main() -> None:
                 test_label,
                 empty_label,
                 *BAZEL_OPTIONS,
+                "--remote_download_outputs=all",
                 "--build_event_json_file=" + str(events),
             )
             report = records(root)
