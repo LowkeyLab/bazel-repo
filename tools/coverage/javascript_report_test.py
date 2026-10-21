@@ -252,8 +252,10 @@ def test_required_output_failures_preserve_report(workspace: Path, fault: str) -
     assert (workspace / "report.lcov").read_text() == LCOV
 
 
+@pytest.mark.parametrize("aggregate_only", [False, True])
 def test_native_original_manifest_limits_do_not_publish_false_zeros(
     workspace: Path,
+    aggregate_only: bool,
 ) -> None:
     source = workspace / "library.ts"
     source.write_text("export const value: number = 7;\n")
@@ -276,13 +278,17 @@ def test_native_original_manifest_limits_do_not_publish_false_zeros(
     configured = json.loads(
         (workspace / "fixture.javascript-test-inputs.json").read_text()
     )
-    configured["sources"].append("library.ts")
+    if not aggregate_only:
+        configured["sources"].append("library.ts")
     (workspace / "fixture.javascript-test-inputs.json").write_text(
         json.dumps(configured)
     )
     unsupported = "SF:library.ts\nFN:1,(empty-report)\nFNF:1\nFNH:0\nFNDA:0,(empty-report)\nDA:1,0\nLF:1\nLH:0\nend_of_record\n"
     other = "SF:keep.rs\nDA:9,3\nLF:1\nLH:1\nend_of_record\n"
-    (workspace / "test/coverage.dat").write_text(LCOV + unsupported)
+    if aggregate_only:
+        unsupported = "SF:library.ts\nFNF:0\nFNH:0\nLF:0\nLH:0\nend_of_record\n"
+    else:
+        (workspace / "test/coverage.dat").write_text(LCOV + unsupported)
     (workspace / "report.lcov").write_text(LCOV + unsupported + other)
     result = run(workspace)
     assert result.returncode == 0, result.stdout + result.stderr

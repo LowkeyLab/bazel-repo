@@ -500,6 +500,12 @@ def main() -> None:
     for name, lines in combined.items():
         if name in raw_sources:
             continue
+        if (
+            name in native_sources
+            and Path(name).suffix in {".ts", ".mts", ".cts", ".tsx", ".jsx"}
+            and not has_hits(lines)
+        ):
+            continue
         if Path(name).suffix in EXTENSIONS and (
             name in excluded or name not in sources
         ):
