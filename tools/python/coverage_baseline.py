@@ -1,4 +1,4 @@
-"""Generate zero-hit LCOV from Bazel-declared production sources."""
+"""Generate zero-hit LCOV from Bazel-declared maintained sources."""
 
 import sys
 from pathlib import Path

@@ -36,11 +36,11 @@ diff --git a/py/private/py_library.bzl b/py/private/py_library.bzl
  load("//py/private:pth.bzl", "make_imports_depset")
 
  def _make_instrumented_files_info(ctx, extra_source_attributes = [], extra_dependency_attributes = []):
-+    production = not ctx.attr.testonly and not ctx.label.workspace_name and not ctx.label.package.startswith("3rdparty/")
++    eligible = not ctx.label.workspace_name and not ctx.label.package.startswith("3rdparty/")
      return coverage_common.instrumented_files_info(
          ctx,
 -        source_attributes = ["srcs"] + extra_source_attributes,
-+        source_attributes = (["srcs"] + extra_source_attributes) if production else [],
++        source_attributes = (["srcs"] + extra_source_attributes) if eligible else [],
          dependency_attributes = ["data", "deps"] + extra_dependency_attributes,
          extensions = ["py"],
 +        baseline_coverage_files = [],

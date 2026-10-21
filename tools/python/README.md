@@ -9,16 +9,19 @@ Run the existing combined report command:
 nix develop --command bazel run //tools/coverage -- //...
 ```
 
-Coverage mode also selects production Python targets through a shared wrapper tag.
+Coverage mode selects Python baselines through automatic Bazel owner discovery.
 Bazel retains the existing test selection for all languages. Each eligible Python rule declares a
-baseline action with its production sources as inputs. The real collector emits
+baseline action with its maintained sources as inputs. The real collector emits
 zero-hit line and branch records. Bazel merges these records with test execution.
 Sources outside test dependencies therefore remain in the denominator.
 
-The rules exclude test-only sources, generated sources, and external dependencies.
+The rules include maintained tests and executable helpers. They exclude generated
+sources and external dependencies. Test-only roots select baseline metadata, so
+execution filters still control which tests run.
 Each eligible source also travels through Python coverage metadata.
-Metadata targets use the `.python_coverage` suffix in the instrumentation filter.
-The existing language boundaries remain in place. Python discovery requires no directory list.
+Metadata targets use the `.python_coverage` suffix. Broad instrumentation includes
+their sources.
+Python discovery requires no directory list.
 Baseline failures fail the coverage command. Ordinary test runs select no baseline
 tool. Existing aggregation and Codecov policy remain in use.
 
@@ -39,7 +42,7 @@ nix develop --command bazel run //tools/python:coverage_membership_test -- /abso
 ```
 
 The manual test creates temporary ordinary and hidden packages. It runs Gazelle
-after each source addition. The ordinary package is outside the original instrumentation paths. The test checks imported execution, zero-hit sources, exclusions, and
+after each source addition. The ordinary package is outside the original instrumentation paths. The test checks test and helper membership, imported execution, zero-hit sources, exclusions, and
 merged records through `bazel coverage`. The production module with zero hits remains outside every test dependency.
 
 The test then introduces invalid syntax and requires a baseline failure. It removes
@@ -62,7 +65,7 @@ nix develop --command bazel run //tools/python:coverage_membership_test -- /abso
 The remote mode uses `--config=ci`, `--nocache_test_results`, and
 `--remote_accept_cached=false`. It requires remote execution metadata for every
 selected test. Fresh remote acceptance requires executed tests.
-Bazel supplies the interpreter, collector, production sources, and subprocess
+Bazel supplies the interpreter, collector, maintained sources, and subprocess
 inputs through the declared targets.
 
 Both modes retain `coverage.log`, `coverage.exit`, `coverage.bep.json`,

@@ -20,10 +20,11 @@ Existing test targets, execution filters, reports, and thresholds retain their
 behavior. The inventory retains sources whose owners use `manual`, `no-remote`,
 or `no-coverage` tags.
 
-This first integration selects Python production baselines. The inventory also
-reports eligible Python tests, helpers, Go, native Rust, Java/Kotlin,
+The Python integration selects baselines for maintained production sources, tests,
+and executable helpers. Test-only roots select metadata without changing test
+execution filters. The inventory also reports Go, native Rust, Java/Kotlin,
 JavaScript/TypeScript, and Astro sources. Their remaining collector integrations
-belong to tickets #2503 through #2508. Measurement requires collector evidence.
+belong to tickets #2504 through #2508. Measurement requires collector evidence.
 Pending integrations supply no accepted collector limits.
 Ticket #2509 adds reconciliation across collector families.
 
