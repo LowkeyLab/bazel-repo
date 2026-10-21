@@ -6,7 +6,7 @@ we don't want to trigger eager fetches of these for builds that don't want to ru
 
 load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@npm//:prettier/package_json.bzl", prettier = "bin")
-load("@rules_java//java:defs.bzl", "java_binary")
+load("//tools/coverage:jvm.bzl", "java_binary")
 
 package(default_visibility = ["//:__subpackages__"])
 

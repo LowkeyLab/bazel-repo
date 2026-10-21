@@ -100,6 +100,10 @@ git_override(
 )
 
 bazel_dep(name = "rules_java")
+
+java_coverage_tools = use_extension("@rules_java//java:extensions.bzl", "toolchains")
+use_repo(java_coverage_tools, "remote_java_tools")
+
 git_override(
     module_name = "rules_java",
     commit = "cd2030164287fdcbfc104036f7aebb788ef48c08",

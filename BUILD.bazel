@@ -89,6 +89,12 @@ js_library(
 )
 
 # Gazelle configuration
+# gazelle:map_kind java_library java_library //tools/coverage:jvm.bzl
+# gazelle:map_kind java_binary java_binary //tools/coverage:jvm.bzl
+# gazelle:map_kind java_test java_test //tools/coverage:jvm.bzl
+# gazelle:map_kind kt_jvm_library kt_jvm_library //tools/coverage:jvm.bzl
+# gazelle:map_kind kt_jvm_binary kt_jvm_binary //tools/coverage:jvm.bzl
+# gazelle:map_kind kt_jvm_test kt_jvm_test //tools/coverage:jvm.bzl
 # gazelle:map_kind rust_library rust_library //tools/coverage:rust.bzl
 # gazelle:map_kind rust_binary rust_binary //tools/coverage:rust.bzl
 # gazelle:map_kind rust_test rust_test //tools/coverage:rust.bzl

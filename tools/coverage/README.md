@@ -22,8 +22,8 @@ or `no-coverage` tags.
 
 The Python integration selects baselines for maintained production sources, tests,
 and executable helpers. Test-only roots select metadata without changing test
-execution filters. The inventory also reports Java/Kotlin, JavaScript/TypeScript, and Astro sources.
-Their remaining collector integrations belong to tickets #2506 through #2508. Measurement requires collector evidence.
+execution filters. The inventory also reports JavaScript/TypeScript and Astro sources.
+Their remaining collector integrations belong to tickets #2507 and #2508. Measurement requires collector evidence.
 Pending integrations supply no accepted collector limits.
 Ticket #2509 adds reconciliation across collector families.
 
@@ -175,3 +175,65 @@ Use `--execution configured` to inherit the caller's Bazel configuration.
 The evidence records actual execution and cache status.
 Configuration alone does not establish remote execution.
 The existing hosted workflow runs configured acceptance and retains its evidence.
+
+## Java and Kotlin sources
+
+Shared JVM declarations add configured class-analysis roots for libraries,
+executables, and tests. Gazelle selects these declarations for Java.
+Kotlin declarations use the same adapter. Discovery selects ordinary, hidden,
+and disconnected sources without a project list. Metadata roots do not execute tests.
+
+The analyzer uses the pinned JaCoCo libraries from Bazel's Java tools.
+It uses the documented [Analyzer](https://www.jacoco.org/jacoco/trunk/doc/api/org/jacoco/core/analysis/Analyzer.html),
+[CoverageBuilder](https://www.jacoco.org/jacoco/trunk/doc/api/org/jacoco/core/analysis/CoverageBuilder.html),
+and [ExecFileLoader](https://www.jacoco.org/jacoco/trunk/doc/api/org/jacoco/core/tools/ExecFileLoader.html)
+APIs. Standard class analysis supplies zero-hit baselines without class execution.
+The native JVM runner supplies raw execution profiles.
+The adapter analyzes original classes from each configured owner separately.
+It preserves class names and applies standard JaCoCo filters.
+Coverage builds enable the documented
+[rules_kotlin ABI-jar option](https://bazel-contrib.github.io/rules_kotlin/kotlin#define_kt_toolchain).
+This keeps instrumented runtime bytecode outside Kotlin inline compilation.
+Ordinary builds retain their existing configuration.
+
+The command writes `coverage-jvm/receipt.json`.
+The directory retains raw profiles, configured class jars, metadata, baseline XML,
+and measured XML. The receipt identifies source mappings, execution evidence,
+and exact collector limits. Build events use local file URIs for downloaded outputs.
+Missing roots, required class inputs, required profiles, corrupt data, and incomplete
+source analysis cause command failure. Other language records retain their contents.
+Clojure remains outside scope.
+
+A unique source filename within a configured owner supplies an exact path.
+This permits package/directory mismatches and duplicate filenames across owners.
+Ambiguous filenames within one owner retain source-specific limits.
+The adapter does not guess their owners.
+Standard Kotlin filters and compiler mappings retain their inline attribution limits.
+Out-of-range compiler locations retain an exact source and report reference.
+These limits do not establish measured zero coverage.
+Configured compiler output identifies sources that emit no class.
+The receipt records these empty executable sets without adding executable lines.
+
+The native runner can emit empty profiles when its agent is inactive.
+The receipt records these files separately.
+An executed JVM test requires at least one valid, nonempty profile.
+JaCoCo profiles cannot distinguish an unexecuted child from a child whose complete profile disappeared.
+The receipt records this limit for each declared child source and rule.
+
+JaCoCo supplies binary line coverage and branch totals for each source line.
+LCOV retains line hits. Standard XML and the receipt retain branch totals.
+The maintained LCOV merger does not retain totals without individual branch records.
+The adapter adds no branch identities or execution counts.
+The receipt records this branch limit for affected sources.
+
+Run the real command checks from an assigned checkout:
+
+```bash
+nix develop --command aspect test //tools/coverage:jvm_report_test
+nix develop --command bazel run //tools/coverage:jvm_membership_test -- --execution configured --evidence /absolute/new/private/directory
+```
+
+The acceptance checks retain commands, fixture inputs, build events, raw reports,
+and configured class evidence. Local mode clears execution, cache, and BES endpoints.
+Configured mode uses the repository's remote Linux configuration.
+Read the execution evidence before claiming fresh remote execution.

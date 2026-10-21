@@ -35,3 +35,9 @@ def config(ctx):
         ctx.tasks[name].args.bazel_flags = [
             "--remote_cache=grpcs://remote.buildbuddy.io",
         ]
+
+    # The pinned Java formatter requires the compatible hermetic JDK.
+    ctx.tasks["format"].args.bazel_flags += [
+        "--java_runtime_version=remotejdk_21",
+        "--tool_java_runtime_version=remotejdk_21",
+    ]

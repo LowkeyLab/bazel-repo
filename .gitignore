@@ -73,3 +73,5 @@ coverage-inventory.json
 coverage-go-baselines.json
 
 /coverage-rust-baselines.json
+
+/coverage-jvm/

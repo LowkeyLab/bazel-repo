@@ -1,4 +1,4 @@
-load("@rules_java//java:defs.bzl", "java_library")
+load("//tools/coverage:jvm.bzl", "java_library")
 
 package(default_visibility = ["//mindreadr/src/test:__subpackages__"])
 

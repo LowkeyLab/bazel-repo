@@ -54,6 +54,7 @@ class CoverageInventory(TypedDict):
     missing_owners: list[str]
     coverage_roots: list[str]
     baseline_sources: list[str]
+    jvm_tests: list[str]
 
 
 def run(root: Path, arguments: list[str]) -> str:
@@ -193,12 +194,20 @@ def discover(root: Path, options: list[str]) -> CoverageInventory:
                     else label.removesuffix(".python_coverage")
                 )
                 baseline_sources.update(sources)
-        if rule["kind"] in ("_go_coverage_sources", "_rust_coverage_sources"):
-            extension = ".rs" if rule["kind"] == "_rust_coverage_sources" else ".go"
+        if rule["kind"] in (
+            "_go_coverage_sources",
+            "_rust_coverage_sources",
+            "_jvm_coverage_sources",
+        ):
+            extensions = {
+                "_rust_coverage_sources": (".rs",),
+                "_go_coverage_sources": (".go",),
+                "_jvm_coverage_sources": (".java", ".kt", ".kts"),
+            }[rule["kind"]]
             sources = {
                 name
                 for name in resolved
-                if name.endswith(extension) and scopes.get(name) == "unspecified"
+                if name.endswith(extensions) and scopes.get(name) == "unspecified"
             }
             if sources:
                 roots.append(label)
@@ -222,6 +231,11 @@ def discover(root: Path, options: list[str]) -> CoverageInventory:
         if not declarations:
             missing.append(name)
     return {
+        "jvm_tests": sorted(
+            label
+            for label, rule in rules.items()
+            if rule["kind"] in ("java_test", "kt_jvm_test")
+        ),
         "schema_version": 1,
         "eligible": eligible,
         "excluded": excluded,

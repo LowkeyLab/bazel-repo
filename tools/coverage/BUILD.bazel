@@ -1,5 +1,7 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@rules_java//java:defs.bzl", "java_import")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//tools/coverage:jvm.bzl", "java_binary")
 load("//tools/python:defs.bzl", "py_binary", "py_test")
 
 sh_binary(
@@ -112,4 +114,55 @@ py_test(
         "LLVM_COV": "$(rootpath @llvm//tools:llvm-cov)",
         "LLVM_PROFDATA": "$(rootpath @llvm//tools:llvm-profdata)",
     },
+)
+
+py_binary(
+    name = "jvm_membership_test",
+    testonly = True,
+    srcs = ["jvm_membership_test.py"],
+    tags = ["manual"],
+)
+
+java_binary(
+    name = "jvm_analyzer",
+    srcs = ["JvmReport.java"],
+    main_class = "coverage.JvmReport",
+    visibility = ["//visibility:public"],
+    deps = [":jacoco"],
+)
+
+exports_files(["jvm.bzl"])
+
+py_binary(
+    name = "jvm_report",
+    srcs = ["jvm_report.py"],
+    data = [":jvm_analyzer"],
+)
+
+java_import(
+    name = "jacoco",
+    jars = [
+        "@remote_java_tools//:java_tools/third_party/java/jacoco/org.jacoco.core-0.8.14.jar",
+        "@remote_java_tools//:java_tools/third_party/java/jacoco/org.jacoco.report-0.8.14.jar",
+        "@remote_java_tools//:java_tools/third_party/java/jacoco/asm-9.10.jar",
+        "@remote_java_tools//:java_tools/third_party/java/jacoco/asm-commons-9.10.jar",
+        "@remote_java_tools//:java_tools/third_party/java/jacoco/asm-tree-9.10.jar",
+    ],
+)
+
+py_test(
+    name = "jvm_report_test",
+    size = "small",
+    srcs = ["jvm_report_test.py"],
+    args = [
+        "-o",
+        "python_files=jvm_report_test.py",
+    ],
+    data = [
+        "JvmReport.java",
+        ":jvm_analyzer",
+        ":jvm_analyzer.jar",
+        ":jvm_report",
+    ],
+    env = {"COVERAGE_CORE": "ctrace"},
 )
