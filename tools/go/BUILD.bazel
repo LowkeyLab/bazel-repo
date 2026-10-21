@@ -1,0 +1,13 @@
+load("//tools/go:defs.bzl", "go_test")
+
+exports_files([
+    "defs.bzl",
+    "required_coverage.patch",
+])
+
+go_test(
+    name = "collector_test",
+    size = "small",
+    srcs = ["collector_test.go"],
+    deps = ["@rules_go//go/tools/bzltestutil"],
+)

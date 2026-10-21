@@ -66,6 +66,8 @@ fi
 # preserve those mode bits.
 cp "${COVERAGE_DAT}" "${COMBINED_LCOV}"
 chmod u+w "${COMBINED_LCOV}"
+bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
+	--inventory coverage-inventory.json --report "${COMBINED_LCOV}"
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available

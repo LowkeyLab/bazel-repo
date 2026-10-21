@@ -89,6 +89,9 @@ js_library(
 )
 
 # Gazelle configuration
+# gazelle:map_kind go_library go_library //tools/go:defs.bzl
+# gazelle:map_kind go_binary go_binary //tools/go:defs.bzl
+# gazelle:map_kind go_test go_test //tools/go:defs.bzl
 # gazelle:map_kind py_library py_library //tools/python:defs.bzl
 # gazelle:map_kind py_binary py_binary //tools/python:defs.bzl
 # gazelle:map_kind py_test py_test //tools/python:defs.bzl

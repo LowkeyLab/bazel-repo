@@ -23,3 +23,6 @@ predix/internal/db/query.sql.go coverage-scope=generated
 nicknamer/server/lib/src/entities/mod.rs coverage-scope=generated
 nicknamer/server/lib/src/entities/name.rs coverage-scope=generated
 nicknamer/server/lib/src/entities/prelude.rs coverage-scope=generated
+
+# Preserve context whitespace in the pinned Go collector patch.
+tools/go/*.patch -whitespace rules-lint-ignored

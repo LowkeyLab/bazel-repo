@@ -1,0 +1,86 @@
+diff --git a/go/tools/bzltestutil/lcov.go b/go/tools/bzltestutil/lcov.go
+--- a/go/tools/bzltestutil/lcov.go
++++ b/go/tools/bzltestutil/lcov.go
+@@ -24,7 +24,6 @@
+ 	"regexp"
+ 	"sort"
+ 	"strconv"
+-	"strings"
+ 
+ 	"github.com/bazelbuild/rules_go/go/tools/coverdata"
+ )
+@@ -41,11 +40,12 @@
+ // The conversion emits line and branch coverage, but not function coverage.
+ func ConvertCoverToLcov() error {
+ 	inPath := testFlags.Lookup("test.coverprofile").Value.String()
++	if inPath == "" {
++		return nil
++	}
+ 	in, err := os.Open(inPath)
+ 	if err != nil {
+-		// This can happen if there are no tests and should not be an error.
+-		log.Printf("Not collecting coverage: %s has not been created: %s", inPath, err)
+-		return nil
++		return fmt.Errorf("required Go coverage profile: %w", err)
+ 	}
+ 	defer in.Close()
+ 
+@@ -80,16 +80,23 @@
+ func convertCoverToLcov(coverReader io.Reader, lcovWriter io.Writer) error {
+ 	cover := bufio.NewScanner(coverReader)
+ 	lcov := bufio.NewWriter(lcovWriter)
+-	defer lcov.Flush()
++	if !cover.Scan() {
++		if err := cover.Err(); err != nil {
++			return err
++		}
++		return fmt.Errorf("required Go coverage profile is empty")
++	}
++	switch cover.Text() {
++	case "mode: set", "mode: count", "mode: atomic":
++	default:
++		return fmt.Errorf("invalid Go coverage mode: %s", cover.Text())
++	}
+ 	currentPath := ""
+ 	var lineCounts map[uint32]uint32
+ 	for cover.Scan() {
+ 		l := cover.Text()
+ 		m := _coverLinePattern.FindStringSubmatch(l)
+ 		if m == nil {
+-			if strings.HasPrefix(l, "mode: ") {
+-				continue
+-			}
+ 			return fmt.Errorf("invalid go cover line: %s", l)
+ 		}
+ 
+@@ -132,12 +139,15 @@
+ 			}
+ 		}
+ 	}
++	if err := cover.Err(); err != nil {
++		return err
++	}
+ 	if currentPath != "" {
+ 		if err := emitLcovLines(lcov, currentPath, lineCounts); err != nil {
+ 			return err
+ 		}
+ 	}
+-	return nil
++	return lcov.Flush()
+ }
+ 
+ func emitLcovLines(lcov io.StringWriter, path string, lineCounts map[uint32]uint32) error {
+diff --git a/go/tools/builders/generate_test_main.go b/go/tools/builders/generate_test_main.go
+--- a/go/tools/builders/generate_test_main.go
++++ b/go/tools/builders/generate_test_main.go
+@@ -183,7 +183,9 @@
+ 		testdeps.CoverSnapshotFunc = cfile.Snapshot
+   		{{if eq .CoverFormat "lcov"}}
+ 			testdeps.CoverProcessTestDirFunc = func(dir string, covfile string, cm string, cpkg string, w io.Writer, selpkgs []string) error {
+-				cfile.ProcessCoverTestDir(dir, covfile, cm, cpkg, w, selpkgs)
++				if err := cfile.ProcessCoverTestDir(dir, covfile, cm, cpkg, w, selpkgs); err != nil {
++					return err
++				}
+ 				return bzltestutil.ConvertCoverToLcov()
+ 			}
+ 		{{ else }}
