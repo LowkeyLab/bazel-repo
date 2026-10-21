@@ -95,7 +95,7 @@ git_override(
 bazel_dep(name = "rules_nodejs")
 git_override(
     module_name = "rules_nodejs",
-    commit = "5fd53b1684fc3fc92d6f480a9704e795e5039d55",
+    commit = "1d84554344a28a76b7fb20d204ef465a1d5d0884",
     remote = "https://github.com/bazel-contrib/rules_nodejs.git",
 )
 
@@ -660,7 +660,7 @@ use_repo(crate, "crates")
 interpreters = use_extension("@aspect_rules_py//py/unstable:extension.bzl", "python_interpreters")
 interpreters.configure(
     # renovate: datasource=github-releases depName=astral-sh/python-build-standalone
-    releases = ["20261020"],
+    releases = ["20261021"],
 )
 interpreters.toolchain(
     is_default = True,
@@ -757,7 +757,7 @@ oci_extension.pull(
 # Test fixtures: PostgreSQL 18 shared by all Testcontainers tests.
 oci_extension.pull(
     name = "test_postgres_18",
-    digest = "sha256:1267c7e692de235fda2a50dbcdbcbca4672ea6a0298576a6bd9d07cafc319b32",
+    digest = "sha256:edb0c08dc33befd0262ab3b5cf1c4f3f8cfd8b09e88c05b45adee29d6761ddb6",
     image = "docker.io/library/postgres",
     platforms = ["linux/amd64"],
     tag = "18",
