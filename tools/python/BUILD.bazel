@@ -76,6 +76,20 @@ py_binary(
     tags = ["manual"],
 )
 
+py_test(
+    name = "coverage_membership_assertions_test",
+    size = "small",
+    srcs = [
+        "coverage_membership_assertions_test.py",
+        "coverage_membership_test.py",
+    ],
+    args = [
+        "-o",
+        "python_files=coverage_membership_assertions_test.py",
+    ],
+    deps = ["@pypi//pytest"],
+)
+
 filegroup(
     name = "markdown",
     srcs = ["README.md"],

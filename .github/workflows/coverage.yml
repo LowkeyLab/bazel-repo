@@ -52,6 +52,7 @@ jobs:
           cp coverage-javascript/receipt.json coverage-javascript-receipt.json
           jq -c 'select(has("testResult") or has("testSummary") or has("finished"))' "$RUNNER_TEMP/coverage.bep.json" > coverage-test-results.jsonl
       - name: Check Python membership
+        id: python_membership
         env:
           BUILD_WORKSPACE_DIRECTORY: ${{ github.workspace }}
         run: |
@@ -171,6 +172,20 @@ jobs:
           cp "$RUNNER_TEMP/all-targets-javascript-inventory.json" coverage-inventory.json
           cp "$RUNNER_TEMP/all-targets-go-baselines-before-javascript.json" coverage-go-baselines.json
           cp "$RUNNER_TEMP/all-targets-rust-baselines-before-javascript.json" coverage-rust-baselines.json
+      - name: Retain Python membership evidence
+        if: ${{ always() && steps.python_membership.outcome != 'skipped' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: python-coverage-membership-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/python-membership/*.lcov
+            ${{ runner.temp }}/python-membership/commands.jsonl
+            ${{ runner.temp }}/python-membership/test-results.json
+            ${{ runner.temp }}/python-membership/revision.txt
+            ${{ runner.temp }}/python-membership/coverage.log
+            ${{ runner.temp }}/python-membership/coverage.exit
+          if-no-files-found: error
+          retention-days: 30
       - name: Retain JavaScript coverage evidence
         if: ${{ always() && steps.javascript_membership.outcome != 'skipped' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
