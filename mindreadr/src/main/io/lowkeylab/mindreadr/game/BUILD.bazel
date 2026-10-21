@@ -1,4 +1,4 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
+load("//tools/coverage:jvm.bzl", "kt_jvm_library")
 
 package(default_visibility = ["//mindreadr:__subpackages__"])
 

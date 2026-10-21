@@ -2,7 +2,7 @@
 Kotlin rules.
 """
 
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_test")
+load("//tools/coverage:jvm.bzl", "kt_jvm_test")
 
 def kt_junit5_test(name, test_package, srcs = [], deps = [], runtime_deps = [], **kwargs):
     kt_jvm_test(

@@ -1,5 +1,5 @@
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_binary", "kt_jvm_library")
 load("//bzl:kotlin.bzl", "kt_junit5_test")
+load("//tools/coverage:jvm.bzl", "kt_jvm_binary", "kt_jvm_library")
 
 kt_jvm_library(
     name = "ktor_tutorial_lib",

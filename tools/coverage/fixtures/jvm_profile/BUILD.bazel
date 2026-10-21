@@ -1,0 +1,34 @@
+load("//tools/coverage:jvm.bzl", "java_binary")
+
+java_binary(
+    name = "profile",
+    testonly = True,
+    srcs = [
+        "Marker.java",
+        "Profile.java",
+    ],
+    main_class = "coverage.fixture.Profile",
+    visibility = ["//tools/coverage:__pkg__"],
+    deps = ["//tools/coverage:jacoco"],
+)
+
+exports_files(
+    [
+        "Profile.java",
+        "Marker.java",
+    ],
+    visibility = ["//tools/coverage:__pkg__"],
+)
+
+java_binary(
+    name = "profile_variant",
+    testonly = True,
+    srcs = [
+        "Marker.java",
+        "Profile.java",
+    ],
+    javacopts = ["-g:none"],
+    main_class = "coverage.fixture.Profile",
+    visibility = ["//tools/coverage:__pkg__"],
+    deps = ["//tools/coverage:jacoco"],
+)

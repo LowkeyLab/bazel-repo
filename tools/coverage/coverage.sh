@@ -45,6 +45,7 @@ for arg in "${INFO_ARGS[@]}"; do
 done
 ROOTS_FILE="$(mktemp)"
 TEMP_EVENTS_FILE="$(mktemp)"
+ANALYZER_SCRIPT="$(mktemp)"
 EVENTS_FILE="$TEMP_EVENTS_FILE"
 EVENTS_ARGS=("--build_event_json_file=$EVENTS_FILE")
 for arg in "${ARGS[@]}"; do
@@ -55,7 +56,7 @@ for arg in "${ARGS[@]}"; do
 		;;
 	esac
 done
-trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE"' EXIT
+trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE" "$ANALYZER_SCRIPT"' EXIT
 bazel run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
 	--output coverage-inventory.json --roots-output "$ROOTS_FILE" "${INVENTORY_ARGS[@]}"
 mapfile -t COVERAGE_ROOTS <"$ROOTS_FILE"
@@ -63,7 +64,9 @@ COVERAGE_DAT="$(bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_re
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
 bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" \
-	--output_groups=+go_coverage_baselines,rust_coverage_baselines 2>&1
+	--aspects=//tools/coverage:jvm.bzl%jvm_test_inputs \
+	--output_groups=+go_coverage_baselines,rust_coverage_baselines,jvm_coverage_baselines,jvm_test_inputs \
+	--nobuild_event_json_file_path_conversion 2>&1
 
 if [[ ! -f "${COVERAGE_DAT}" ]]; then
 	echo "ERROR: Combined coverage report not found at ${COVERAGE_DAT}"
@@ -84,6 +87,11 @@ bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 	--language rust --inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --expected-output coverage-rust-baselines.json
+bazel run "${INFO_ARGS[@]}" --script_path="$ANALYZER_SCRIPT" //tools/coverage:jvm_analyzer
+bazel run "${INFO_ARGS[@]}" //tools/coverage:jvm_report -- \
+	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
+	--events "$EVENTS_FILE" --evidence coverage-jvm \
+	--analyzer "$ANALYZER_SCRIPT"
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available

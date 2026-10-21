@@ -120,7 +120,7 @@ def baseline_lines(
     expected: dict[str, set[int]] = {}
     for event in events:
         label = event.get("id", {}).get("targetCompleted", {}).get("label")
-        if label not in roots:
+        if label not in roots or event["id"]["targetCompleted"].get("aspect"):
             continue
         completed = event["completed"]
         if not completed.get("success"):

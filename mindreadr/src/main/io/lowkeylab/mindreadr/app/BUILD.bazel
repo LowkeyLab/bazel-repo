@@ -1,7 +1,6 @@
-load("@rules_java//java:defs.bzl", "java_binary")
-load("@rules_kotlin//kotlin:jvm.bzl", "kt_jvm_library")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@rules_pkg//:pkg.bzl", "pkg_tar")
+load("//tools/coverage:jvm.bzl", "java_binary", "kt_jvm_library")
 
 kt_jvm_library(
     name = "ApplicationKt",

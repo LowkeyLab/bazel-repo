@@ -2,6 +2,7 @@
 
 import json
 import os
+import runpy
 import subprocess
 from pathlib import Path
 
@@ -86,3 +87,40 @@ def test_invalid_required_objects_fail_without_writing_a_baseline(
     assert result.stderr
     assert not (tmp_path / "baseline.lcov").exists()
     assert not (tmp_path / "baseline.json").exists()
+
+
+@pytest.mark.parametrize("aspect_first", [False, True])
+def test_membership_metadata_ignores_aspect_events(
+    tmp_path: Path, aspect_first: bool
+) -> None:
+    metadata = {"object": "fixture.o"}
+    (tmp_path / "metadata.json").write_text(json.dumps(metadata))
+    label = "//fixture:test.rust_coverage"
+    target = {
+        "id": {"targetCompleted": {"label": label}},
+        "completed": {
+            "outputGroup": [
+                {"name": "rust_coverage_baselines", "fileSets": [{"id": "metadata"}]}
+            ]
+        },
+    }
+    aspect = {
+        "id": {
+            "targetCompleted": {
+                "label": label,
+                "aspect": "//tools/coverage:jvm.bzl%jvm_test_inputs",
+            }
+        },
+        "completed": {"success": True},
+    }
+    events = [
+        {
+            "id": {"namedSet": {"id": "metadata"}},
+            "namedSetOfFiles": {"files": [{"name": "metadata.json"}]},
+        },
+        *([aspect, target] if aspect_first else [target, aspect]),
+    ]
+    events_file = tmp_path / "events.jsonl"
+    events_file.write_text("".join(json.dumps(event) + "\n" for event in events))
+    module = runpy.run_path(str(ROOT / "tools/coverage/rust_membership_test.py"))
+    assert module["object_metadata"](events_file, label, tmp_path) == metadata
