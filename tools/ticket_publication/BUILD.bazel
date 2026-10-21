@@ -1,8 +1,7 @@
 """Prepare and inspect private ticket-publication state."""
 
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
-load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
-load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_test")
 
 rust_binary(
     name = "ticket_publication",

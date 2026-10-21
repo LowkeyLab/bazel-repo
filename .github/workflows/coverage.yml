@@ -57,6 +57,7 @@ jobs:
           cp coverage-report.lcov "$RUNNER_TEMP/all-targets.lcov"
           cp coverage-inventory.json "$RUNNER_TEMP/all-targets-inventory.json"
           cp coverage-go-baselines.json "$RUNNER_TEMP/all-targets-go-baselines.json"
+          cp coverage-rust-baselines.json "$RUNNER_TEMP/all-targets-rust-baselines.json"
           bazel run //tools/python:coverage_baseline.venv -- --dest "$RUNNER_TEMP" --name coverage-venv
           collector="$RUNNER_TEMP/coverage-venv/bin/python"
           "$collector" -m coverage run --rcfile=/dev/null --branch \
@@ -72,6 +73,7 @@ jobs:
             --output_file="$GITHUB_WORKSPACE/coverage-report.lcov"
           cp "$RUNNER_TEMP/all-targets-inventory.json" coverage-inventory.json
           cp "$RUNNER_TEMP/all-targets-go-baselines.json" coverage-go-baselines.json
+          cp "$RUNNER_TEMP/all-targets-rust-baselines.json" coverage-rust-baselines.json
           cp "$RUNNER_TEMP/python-membership/test-results.json" coverage-membership-test-results.json
           cp "$RUNNER_TEMP/python-membership/combined.lcov" coverage-membership-combined.lcov
       - name: Check Go membership
@@ -81,6 +83,7 @@ jobs:
           cp coverage-report.lcov "$RUNNER_TEMP/all-targets-go.lcov"
           cp coverage-inventory.json "$RUNNER_TEMP/all-targets-go-inventory.json"
           cp coverage-go-baselines.json "$RUNNER_TEMP/all-targets-go-baselines-after-python.json"
+          cp coverage-rust-baselines.json "$RUNNER_TEMP/all-targets-rust-baselines-after-python.json"
           collector="$RUNNER_TEMP/coverage-venv/bin/python"
           "$collector" -m coverage run --rcfile=/dev/null --branch \
             --include=tools/coverage/go_membership_test.py \
@@ -95,6 +98,40 @@ jobs:
             --output_file="$GITHUB_WORKSPACE/coverage-report.lcov"
           cp "$RUNNER_TEMP/all-targets-go-inventory.json" coverage-inventory.json
           cp "$RUNNER_TEMP/all-targets-go-baselines-after-python.json" coverage-go-baselines.json
+          cp "$RUNNER_TEMP/all-targets-rust-baselines-after-python.json" coverage-rust-baselines.json
+      - name: Check Rust membership
+        id: rust_membership
+        env:
+          BUILD_WORKSPACE_DIRECTORY: ${{ github.workspace }}
+        run: |
+          cp coverage-report.lcov "$RUNNER_TEMP/all-targets-rust.lcov"
+          cp coverage-inventory.json "$RUNNER_TEMP/all-targets-rust-inventory.json"
+          cp coverage-go-baselines.json "$RUNNER_TEMP/all-targets-go-baselines-before-rust.json"
+          cp coverage-rust-baselines.json "$RUNNER_TEMP/all-targets-rust-baselines-before-rust.json"
+          collector="$RUNNER_TEMP/coverage-venv/bin/python"
+          "$collector" -m coverage run --rcfile=/dev/null --branch \
+            --include=tools/coverage/rust_membership_test.py \
+            --data-file="$RUNNER_TEMP/rust-membership.coverage" \
+            tools/coverage/rust_membership_test.py --execution configured --evidence "$RUNNER_TEMP/rust-membership"
+          "$collector" -m coverage lcov --rcfile=/dev/null \
+            --data-file="$RUNNER_TEMP/rust-membership.coverage" \
+            -o coverage-rust-membership.lcov
+          printf '%s\n' "$RUNNER_TEMP/all-targets-rust.lcov" "$GITHUB_WORKSPACE/coverage-rust-membership.lcov" > "$RUNNER_TEMP/rust-coverage-reports.txt"
+          bazel run @bazel_tools//tools/test:lcov_merger -- \
+            --reports_file="$RUNNER_TEMP/rust-coverage-reports.txt" \
+            --output_file="$GITHUB_WORKSPACE/coverage-report.lcov"
+          cp "$RUNNER_TEMP/all-targets-rust-inventory.json" coverage-inventory.json
+          cp "$RUNNER_TEMP/all-targets-go-baselines-before-rust.json" coverage-go-baselines.json
+          cp "$RUNNER_TEMP/all-targets-rust-baselines-before-rust.json" coverage-rust-baselines.json
+      - name: Retain Rust membership evidence
+        if: ${{ always() && steps.rust_membership.outcome != 'skipped' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: rust-coverage-membership-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rust-membership
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
       - name: Retain Go membership evidence
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
@@ -110,10 +147,12 @@ jobs:
             coverage-report.lcov
             coverage-inventory.json
             coverage-go-baselines.json
+            coverage-rust-baselines.json
             coverage-test-results.jsonl
             coverage-revision.txt
             coverage-membership.lcov
             coverage-go-membership.lcov
+            coverage-rust-membership.lcov
             coverage-membership-test-results.json
             coverage-membership-combined.lcov
           if-no-files-found: error

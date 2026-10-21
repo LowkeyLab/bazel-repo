@@ -195,6 +195,7 @@ rules_rust.patch(
     patches = [
         "//3rdparty/rules_rs:rust_analyzer_proc_macro_exec_deps.patch",
         "//3rdparty/rules_rs:skip_working_directory_scan_during_coverage.patch",
+        "//3rdparty/rules_rs:required_rust_coverage.patch",
     ],
     strip = 1,
 )

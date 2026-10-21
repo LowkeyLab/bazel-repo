@@ -90,7 +90,7 @@ test --test_verbose_timeout_warnings
 # Or run: coverage (via the flake dev shell wrapper)
 coverage --combined_report=lcov
 coverage --nobuild_tests_only
-coverage --build_tag_filters=python-coverage,go-coverage
+coverage --build_tag_filters=python-coverage,go-coverage,rust-coverage
 # Rust integration-test binaries must be instrumented to emit dependency coverage.
 coverage --instrument_test_targets
 coverage --instrumentation_filter="^//"

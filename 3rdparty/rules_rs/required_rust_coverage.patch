@@ -1,0 +1,281 @@
+diff --git a/rust/coverage/collect_rust_coverage.rs b/rust/coverage/collect_rust_coverage.rs
+--- a/rust/coverage/collect_rust_coverage.rs
++++ b/rust/coverage/collect_rust_coverage.rs
+@@ -21,6 +21,7 @@
+ //! (profraw) and uses lcov to get the coverage data. The coverage data
+ //! is placed in $COVERAGE_DIR as a `coverage.dat` file.
+ 
++use std::collections::BTreeSet;
+ use std::env;
+ use std::fs;
+ use std::path::Path;
+@@ -129,6 +130,7 @@
+         None => debug_log!("RUNFILES_DIR: not set (split coverage postprocessing)"),
+     }
+ 
++    let requested = env::var("RUST_COVERAGE_REQUIRED").as_deref() == Ok("1");
+     let coverage_output_file = coverage_dir.join("coverage.dat");
+     let profdata_file = coverage_dir.join("coverage.profdata");
+     let llvm_cov_path = env::var("RUST_LLVM_COV").unwrap();
+@@ -152,6 +154,29 @@
+             test_binary
+         }
+     };
++    let required = if requested {
++        let baseline = process::Command::new(&llvm_cov)
++            .args(["export", "-empty-profile", "-format=lcov"])
++            .arg(&test_binary)
++            .output()
++            .expect("Failed to inspect required Rust mappings");
++        let diagnostic = String::from_utf8_lossy(&baseline.stderr);
++        let no_mapping = !baseline.status.success() && diagnostic.trim() == format!(
++            "error: failed to load coverage: '{}': no coverage data found\nerror: could not load coverage information",
++            test_binary.display()
++        );
++        assert!(
++            baseline.status.success() || no_mapping,
++            "Invalid required Rust object: {}",
++            diagnostic
++        );
++        baseline
++            .stdout
++            .split(|byte| *byte == b'\n')
++            .any(|line| line.starts_with(b"DA:"))
++    } else {
++        false
++    };
+     let profraw_files: Vec<PathBuf> = fs::read_dir(coverage_dir)
+         .unwrap()
+         .flatten()
+@@ -166,17 +191,26 @@
+         })
+         .collect();
+ 
++    for profile in &profraw_files {
++        assert!(
++            fs::metadata(profile).unwrap().len() > 0,
++            "Required Rust profile is empty: {}",
++            profile.display()
++        );
++    }
++
+     // A test that ran without `-Cinstrument-coverage` (e.g. filtered out by
+     // `--instrumentation_filter` or a `rust_test` without `--instrument_test_targets`)
+     // produces no `.profraw` files. Skip the merge step and emit an empty lcov
+     // report instead of letting `llvm-profdata merge` fail on empty input.
+     if profraw_files.is_empty() {
++        assert!(!required, "Required Rust profiles are missing");
+         debug_log!("No .profraw files in COVERAGE_DIR; writing empty report");
+         fs::write(&coverage_output_file, "").unwrap();
+         return;
+     }
+ 
+-    let mut llvm_profdata_cmd = process::Command::new(llvm_profdata);
++    let mut llvm_profdata_cmd = process::Command::new(&llvm_profdata);
+     llvm_profdata_cmd
+         .arg("merge")
+         .arg("--sparse")
+@@ -193,6 +227,101 @@
+         process::exit(status.code().unwrap_or(1));
+     }
+ 
++    let mut objects = vec![test_binary];
++    for path in env::var("RUST_COVERAGE_OBJECTS")
++        .unwrap_or_default()
++        .lines()
++    {
++        let object = execroot.join(path);
++        let object = if object.is_file() {
++            object
++        } else if let Some(ref rd) = runfiles_dir {
++            rd.join(env::var("TEST_WORKSPACE").unwrap()).join(path)
++        } else {
++            object
++        };
++        objects.push(object);
++    }
++    for object in &objects {
++        assert!(
++            object.is_file(),
++            "Required Rust object is missing: {}",
++            object.display()
++        );
++    }
++    if requested {
++        let reader_path =
++            env::var("RUST_LLVM_READOBJ").expect("Required LLVM object reader is missing");
++        let reader = match runfiles_dir {
++            Some(ref rd) => find_metadata_file(&execroot, rd, &reader_path),
++            None => execroot.join(&reader_path),
++        };
++        let identities = process::Command::new(&llvm_profdata)
++            .args(["show", "--binary-ids"])
++            .arg(&profdata_file)
++            .output()
++            .expect("Failed to inspect required Rust profile identities");
++        assert!(
++            identities.status.success(),
++            "Invalid required Rust profile identities"
++        );
++        let identities = String::from_utf8_lossy(&identities.stdout);
++        let mut profile_ids = BTreeSet::new();
++        for line in identities
++            .lines()
++            .skip_while(|line| line.trim() != "Binary IDs:")
++            .skip(1)
++        {
++            let identity = line.trim();
++            if identity.is_empty() {
++                continue;
++            }
++            if !identity.bytes().all(|byte| byte.is_ascii_hexdigit()) {
++                break;
++            }
++            profile_ids.insert(identity.to_ascii_lowercase());
++        }
++        let mut object_ids = BTreeSet::new();
++        let mut test_identity = None;
++        for (index, object) in objects.iter().enumerate() {
++            let notes = process::Command::new(&reader)
++                .arg("--notes")
++                .arg(object)
++                .output()
++                .expect("Failed to read required Rust object identity");
++            assert!(
++                notes.status.success(),
++                "Invalid required Rust object identity"
++            );
++            let notes = String::from_utf8_lossy(&notes.stdout);
++            if let Some(identity) = notes
++                .lines()
++                .find_map(|line| line.trim().strip_prefix("Build ID: "))
++            {
++                let identity = identity.to_ascii_lowercase();
++                if index == 0 {
++                    test_identity = Some(identity.clone());
++                }
++                object_ids.insert(identity);
++            }
++        }
++        assert!(
++            profile_ids.is_subset(&object_ids),
++            "Required Rust profile references a missing or mismatched object"
++        );
++        if required {
++            let identity = test_identity.expect("Required native Rust object has no build ID");
++            assert!(
++                profile_ids.contains(&identity),
++                "Required Rust profile does not match its test object"
++            );
++        }
++        debug_log!(
++            "Object IDs: {:?}. Profile IDs: {:?}",
++            object_ids,
++            profile_ids
++        );
++    }
+     let mut llvm_cov_cmd = process::Command::new(llvm_cov);
+     llvm_cov_cmd
+         .arg("export")
+@@ -202,7 +331,12 @@
+         .arg("-ignore-filename-regex=.*external/.+")
+         .arg("-ignore-filename-regex=/tmp/.+")
+         .arg(format!("-path-equivalence=.,{}", execroot.display()))
+-        .arg(test_binary)
++        .arg(&objects[0])
++        .args(
++            objects[1..]
++                .iter()
++                .map(|object| format!("-object={}", object.display())),
++        )
+         .stdout(process::Stdio::piped())
+         .stderr(process::Stdio::piped());
+ 
+@@ -215,7 +349,7 @@
+ 
+     if !output.status.success() {
+         let stderr = std::str::from_utf8(&output.stderr).unwrap_or("<non-utf8>");
+-        if stderr.contains("no coverage data found") {
++        if !required && stderr.contains("no coverage data found") {
+             debug_log!("No coverage data found in binary; writing empty report");
+             fs::write(&coverage_output_file, "").unwrap();
+             fs::remove_file(&profdata_file).ok();
+@@ -223,6 +357,18 @@
+         }
+         eprintln!("llvm-cov export failed:\n{}", stderr);
+         process::exit(output.status.code().unwrap_or(1));
++    }
++
++    if required {
++        assert!(
++            output.stderr.is_empty(),
++            "LLVM coverage diagnostics: {}",
++            String::from_utf8_lossy(&output.stderr)
++        );
++        assert!(
++            !output.stdout.is_empty(),
++            "Required Rust coverage output is empty"
++        );
+     }
+ 
+     // Parse the child process's stdout to a string now that it's complete.
+diff --git a/rust/private/rust.bzl b/rust/private/rust.bzl
+--- a/rust/private/rust.bzl
++++ b/rust/private/rust.bzl
+@@ -562,6 +562,21 @@
+             if llvm_profdata_path.startswith("../"):
+                 llvm_profdata_path = llvm_profdata_path[len("../"):]
+ 
++        instrumented = ctx.coverage_instrumented()
++        if ctx.attr.crate:
++            instrumented = instrumented or ctx.coverage_instrumented(ctx.attr.crate)
++        env["RUST_COVERAGE_REQUIRED"] = "1" if instrumented else "0"
++        env["RUST_COVERAGE_OBJECTS"] = "\n".join([
++            target[rust_common.crate_info].output.short_path
++            for target in data
++            if rust_common.crate_info in target and target[rust_common.crate_info].type == "bin"
++        ])
++        if ctx.executable.coverage_readobj:
++            reader_path = ctx.executable.coverage_readobj.path
++            if not toolchain._experimental_use_coverage_metadata_files:
++                reader_path = ctx.executable.coverage_readobj.short_path
++                reader_path = reader_path[3:] if reader_path.startswith("../") else ctx.workspace_name + "/" + reader_path
++            env["RUST_LLVM_READOBJ"] = reader_path
+         env["RUST_LLVM_COV"] = llvm_cov_path
+         env["RUST_LLVM_PROFDATA"] = llvm_profdata_path
+ 
+@@ -973,6 +988,12 @@
+ }
+ 
+ _COVERAGE_ATTRS = {
++    "coverage_readobj": attr.label(
++        doc = "LLVM object reader for required-profile validation.",
++        executable = True,
++        cfg = "exec",
++        allow_single_file = True,
++    ),
+     "_collect_cc_coverage": attr.label(
+         default = Label("//rust/coverage:collect_rust_coverage"),
+         executable = True,
+diff --git a/rust/private/rustc.bzl b/rust/private/rustc.bzl
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -2503,6 +2503,9 @@
+     coverage_runfiles = []
+     if rust_toolchain.coverage_supported and ctx.configuration.coverage_enabled and crate_info.is_test:
+         coverage_runfiles = [rust_toolchain.llvm_cov, rust_toolchain.llvm_profdata] + rust_toolchain.llvm_lib
++        reader = getattr(ctx.executable, "coverage_readobj", None)
++        if reader:
++            coverage_runfiles.append(reader)
+         collect_cc_coverage = getattr(ctx.executable, "_collect_cc_coverage", None)
+         if not collect_cc_coverage:
+             collect_cc_coverage = getattr(file, "_collect_cc_coverage", None)
+@@ -2579,7 +2582,7 @@
+     executable = crate_info.output if crate_info.type == "bin" or crate_info.is_test else None
+ 
+     instrumented_files_kwargs = {
+-        "dependency_attributes": ["deps", "crate"],
++        "dependency_attributes": ["deps", "crate", "data"],
+         "extensions": ["rs"],
+         "source_attributes": ["srcs"],
+     }

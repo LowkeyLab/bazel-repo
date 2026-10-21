@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//tools/python:defs.bzl", "py_binary", "py_test")
 
@@ -61,4 +62,54 @@ py_test(
     ],
     data = [":go_report"],
     env = {"COVERAGE_CORE": "ctrace"},
+)
+
+py_binary(
+    name = "rust_membership_test",
+    testonly = True,
+    srcs = ["rust_membership_test.py"],
+    tags = ["manual"],
+)
+
+py_binary(
+    name = "rust_baseline",
+    srcs = ["rust_baseline.py"],
+)
+
+native_binary(
+    name = "llvm-readobj",
+    src = "@llvm//tools:llvm-readobj",
+    out = "llvm-readobj",
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "rust_elf_coverage",
+    constraint_values = ["@platforms//os:linux"],
+    values = {"collect_code_coverage": "true"},
+    visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "rust_baseline_test",
+    size = "small",
+    srcs = ["rust_baseline_test.py"],
+    args = [
+        "-o",
+        "python_files=rust_baseline_test.py",
+    ],
+    data = [
+        ":rust_baseline",
+        "//tools/coverage/fixtures/rust_baseline:lib",
+        "@llvm//tools:llvm-ar",
+        "@llvm//tools:llvm-cov",
+        "@llvm//tools:llvm-profdata",
+    ],
+    env = {
+        "BASELINE_FIXTURE": "$(rootpath //tools/coverage/fixtures/rust_baseline:lib)",
+        "COVERAGE_CORE": "ctrace",
+        "LLVM_AR": "$(rootpath @llvm//tools:llvm-ar)",
+        "LLVM_COV": "$(rootpath @llvm//tools:llvm-cov)",
+        "LLVM_PROFDATA": "$(rootpath @llvm//tools:llvm-profdata)",
+    },
 )

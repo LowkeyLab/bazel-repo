@@ -1,0 +1,11 @@
+load("//tools/coverage:rust.bzl", "rust_library")
+
+rust_library(
+    name = "lib",
+    testonly = True,
+    srcs = ["lib.rs"],
+    edition = "2024",
+    rustc_flags = ["-Cinstrument-coverage"],
+    tags = ["manual"],
+    visibility = ["//tools/coverage:__pkg__"],
+)

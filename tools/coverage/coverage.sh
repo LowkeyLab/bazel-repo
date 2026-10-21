@@ -63,7 +63,7 @@ COVERAGE_DAT="$(bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_re
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
 bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" \
-	--output_groups=+go_coverage_baselines 2>&1
+	--output_groups=+go_coverage_baselines,rust_coverage_baselines 2>&1
 
 if [[ ! -f "${COVERAGE_DAT}" ]]; then
 	echo "ERROR: Combined coverage report not found at ${COVERAGE_DAT}"
@@ -81,6 +81,9 @@ chmod u+w "${COMBINED_LCOV}"
 bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --expected-output coverage-go-baselines.json
+bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
+	--language rust --inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
+	--events "$EVENTS_FILE" --expected-output coverage-rust-baselines.json
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available

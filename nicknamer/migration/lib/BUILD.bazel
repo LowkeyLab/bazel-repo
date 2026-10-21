@@ -1,7 +1,7 @@
 # async_trait is re-exported by sea_orm_migration::prelude.
 # gazelle:rust_ignore_import async_trait
 
-load("@rules_rs//rs:rust_library.bzl", "rust_library")
+load("//tools/coverage:rust.bzl", "rust_library")
 
 package(default_visibility = ["//nicknamer"])
 

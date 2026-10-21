@@ -26,3 +26,6 @@ nicknamer/server/lib/src/entities/prelude.rs coverage-scope=generated
 
 # Preserve context whitespace in the pinned Go collector patch.
 tools/go/*.patch -whitespace rules-lint-ignored
+
+# Preserve context whitespace in the pinned Rust collector patch.
+3rdparty/rules_rs/required_rust_coverage.patch -whitespace rules-lint-ignored
