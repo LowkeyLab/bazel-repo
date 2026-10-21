@@ -259,7 +259,7 @@
     },
     "@@aspect_rules_esbuild+//esbuild:extensions.bzl%esbuild": {
       "general": {
-        "bzlTransitiveDigest": "l6O7utIRHAz+1CQVRYJ1vEOOIdnxL5GZSwoppc201b4=",
+        "bzlTransitiveDigest": "S1+OFNwEg8QaMbQuHJzSfBKEiwfMzEI68XbEbIFQzAY=",
         "usagesDigest": "zscLXmeKw3CswJvSNF5UkxkAt00c48BDnmYqvy/Xca4=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_rules_esbuild+,aspect_rules_js aspect_rules_js+",
@@ -359,7 +359,7 @@
     },
     "@@aspect_rules_lint+//lint:extensions.bzl%tools": {
       "general": {
-        "bzlTransitiveDigest": "gRf2NA+R8QeoQFKvfCUWWpyj9bD1jmASMK//AR9yg0A=",
+        "bzlTransitiveDigest": "UHBI/JbTdM4RyNZXeSNjDmTgvRlwgm9vs755TYTjMk8=",
         "usagesDigest": "ik3QEVpVsob12Gf6AQVgf3PiD2yctinfjfy1lO3mp38=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_rules_lint+,aspect_rules_lint aspect_rules_lint+",
