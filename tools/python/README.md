@@ -132,7 +132,8 @@ Compare its parents with the final pull request head.
 Download the artifact from the Coverage workflow run.
 Check Python `SF`, `DA`, and `BRDA` records in the report.
 Check imported modules, generated binary execution, child interpreters, and zero-hit sources.
-Check that Python records exclude tests, generated sources, and external dependencies.
+Check that Python records include maintained tests and executable helpers.
+Check that generated sources and external dependencies remain excluded.
 Use `testResult` events to distinguish executed tests from cached results.
 The artifact can contain coverage from cached test results.
 
