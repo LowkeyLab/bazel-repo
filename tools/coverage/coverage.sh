@@ -45,6 +45,7 @@ for arg in "${INFO_ARGS[@]}"; do
 done
 ROOTS_FILE="$(mktemp)"
 TEMP_EVENTS_FILE="$(mktemp)"
+ANALYZER_SCRIPT="$(mktemp)"
 EVENTS_FILE="$TEMP_EVENTS_FILE"
 EVENTS_ARGS=("--build_event_json_file=$EVENTS_FILE")
 for arg in "${ARGS[@]}"; do
@@ -55,7 +56,7 @@ for arg in "${ARGS[@]}"; do
 		;;
 	esac
 done
-trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE"' EXIT
+trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE" "$ANALYZER_SCRIPT"' EXIT
 bazel run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
 	--output coverage-inventory.json --roots-output "$ROOTS_FILE" "${INVENTORY_ARGS[@]}"
 mapfile -t COVERAGE_ROOTS <"$ROOTS_FILE"
@@ -86,11 +87,11 @@ bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 	--language rust --inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --expected-output coverage-rust-baselines.json
-BAZEL_BIN="$(bazel info "${INFO_ARGS[@]}" bazel-bin)"
+bazel run "${INFO_ARGS[@]}" --script_path="$ANALYZER_SCRIPT" //tools/coverage:jvm_analyzer
 bazel run "${INFO_ARGS[@]}" //tools/coverage:jvm_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --evidence coverage-jvm \
-	--analyzer "${BAZEL_BIN}/tools/coverage/jvm_analyzer"
+	--analyzer "$ANALYZER_SCRIPT"
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available

@@ -252,3 +252,5 @@ JVM profile validation uses each native test's configured runtime jars and origi
 Inactive source limits retain each declaring owner, even if another owner selects the same source. Receipts retain branch totals per owner. They omit aggregate branch totals when configured owners report different branch states, including an owner with no branches. The source-specific limit links the separate analyses.
 
 Native Java binaries expose their runtime jars through the public [`JavaInfo.compilation_info.runtime_classpath`](https://bazel.build/rules/lib/providers/java_compilation_info#runtime_classpath) API. Their `transitive_runtime_jars` set is empty by design. The adapter uses the public transitive runtime set when compilation metadata is absent. Exact configured artifacts establish profile identity even when `-g:none` removes source names. Source attribution then remains an explicit limit.
+
+The command prepares the analyzer with `bazel run --script_path`. Bazel materializes the selected executable and its runtime files. The report does not infer an analyzer path from `bazel info bazel-bin`.
