@@ -142,7 +142,11 @@ def check_report(report: str, ordinary: str, hidden: str, native_go: str) -> Non
     assert "DA:3,2" in records["python_sample/versions.py"]
     assert "DA:6,2" in records["python_sample/__main__.py"]
     assert "DA:43,1" in records[".github/scripts/bazel_dependencies.py"]
-    assert_go_coverage(records[GO_SOURCE], source_records(native_go)[GO_SOURCE])
+    go = records[GO_SOURCE]
+    # Go versions can exclude brace-only lines from coverage spans.
+    for line in ("DA:29,1", "DA:34,1", "DA:35,0", "DA:38,1"):
+        assert line in go, line
+    assert_go_coverage(go, source_records(native_go)[GO_SOURCE])
 
 
 def check_failures(root: Path, evidence: Path, package: Path) -> None:
