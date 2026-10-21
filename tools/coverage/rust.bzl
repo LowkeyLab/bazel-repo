@@ -42,12 +42,12 @@ def _rust_coverage_sources_impl(ctx):
         originals = {file.short_path: True for file in sources.to_list() if file.is_source}
         generated = [file for file in depset(files).to_list() if not file.is_source and not file.owner.workspace_name and file.extension == "rs" and file.short_path not in originals]
         for child in ctx.attr.data:
-            if rust_common.crate_info in child and child[rust_common.crate_info].type == "bin":
+            if not child.label.workspace_name and rust_common.crate_info in child and child[rust_common.crate_info].type == "bin":
                 for source in child[InstrumentedFilesInfo].instrumented_files.to_list():
-                    if source.is_source and not source.owner.workspace_name:
+                    if source.is_source and not source.owner.workspace_name and source.extension == "rs":
                         args.add("--child-source")
                         args.add(source.short_path)
-                        args.add(str(child.label))
+                        args.add("//{}:{}".format(child.label.package, child.label.name))
                         args.add(child[rust_common.crate_info].output.path)
         args.add_all(generated, before_each = "--generated-source")
         args.add_all(generated, before_each = "--generated-source", map_each = _short_path)
