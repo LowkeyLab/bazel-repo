@@ -114,3 +114,9 @@ Child collection requires a Bazel-instrumented Go executable and an inherited
 `COVERAGE_DIR`. The acceptance test uses a real `os/exec` child.
 Pass `--evidence <directory>` after `--` to retain commands, inputs, and reports.
 The existing hosted workflow runs this acceptance and retains its evidence.
+
+The command retains configured Go baseline sources and executable lines in
+`coverage-go-baselines.json`. Build events identify a required baseline artifact
+for each selected Go root. The report validator rejects absent roots, artifacts,
+source records, or executable lines. Native build constraints select these
+baselines. The validator preserves measured counts and other language records.

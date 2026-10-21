@@ -98,7 +98,12 @@ def _go_coverage_sources_impl(ctx):
             toolchain = "@rules_go//go:toolchain",
         )
         baselines.append(output)
+    if go.coverage_enabled and not baselines:
+        output = ctx.actions.declare_file(ctx.label.name + ".lcov")
+        ctx.actions.write(output, "")
+        baselines.append(output)
     return [
+        OutputGroupInfo(go_coverage_baselines = depset(baselines)),
         DefaultInfo(files = depset()),
         coverage_common.instrumented_files_info(
             ctx,

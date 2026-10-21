@@ -62,6 +62,9 @@ def report(root: Path, name: str) -> dict[str, list[str]]:
         shutil.copyfile(
             root / "coverage-inventory.json", EVIDENCE / f"{name}-inventory.json"
         )
+        shutil.copyfile(
+            root / "coverage-go-baselines.json", EVIDENCE / f"{name}-go-baselines.json"
+        )
     records: dict[str, list[str]] = {}
     for record in text.split("end_of_record"):
         lines = record.strip().splitlines()
@@ -223,11 +226,8 @@ func TestFunctional(t *testing.T) {
             assert "DA:4,0" in baseline.get(f"{prefix}/selection/plain_test.go", [])
             assert f"{prefix}/selection/racing_test.go" not in baseline
             target = f"//{prefix}:{packages[0].name}_test"
-            options = (
-                []
-                if EVIDENCE is None
-                else [f"--build_event_json_file={EVIDENCE / 'measured.bep.json'}"]
-            )
+            measured_events = (EVIDENCE or packages[0]) / "measured.bep.json"
+            options = [f"--build_event_json_file={measured_events}"]
             command(
                 root,
                 "run",
@@ -255,6 +255,48 @@ func TestFunctional(t *testing.T) {
             for name, lines in baseline.items():
                 if not name.startswith(prefix + "/"):
                     assert measured[name] == lines, name
+            report_path = root / "coverage-report.lcov"
+            original = report_path.read_text()
+            source_name = f"{prefix}/library.go"
+            try:
+                for missing_source in (True, False):
+                    damaged = []
+                    for name, lines in measured.items():
+                        if name == source_name:
+                            if missing_source:
+                                continue
+                            lines = [
+                                line for line in lines if not line.startswith("DA:4,")
+                            ]
+                            found = sum(line.startswith("DA:") for line in lines)
+                            hit = sum(
+                                line.startswith("DA:") and int(line.split(",")[1]) > 0
+                                for line in lines
+                            )
+                            lines = [
+                                line
+                                for line in lines
+                                if not line.startswith(("LF:", "LH:"))
+                            ]
+                            lines.extend([f"LF:{found}", f"LH:{hit}"])
+                        damaged.append("\n".join(lines) + "\nend_of_record\n")
+                    report_path.write_text("".join(damaged))
+                    output = command(
+                        root,
+                        "run",
+                        "//tools/coverage:go_report",
+                        "--",
+                        "--inventory",
+                        "coverage-inventory.json",
+                        "--report",
+                        "coverage-report.lcov",
+                        "--events",
+                        str(measured_events),
+                        success=False,
+                    )
+                    assert "Missing Go baseline source or lines:" in output, output
+            finally:
+                report_path.write_text(original)
             command(
                 root,
                 "test",

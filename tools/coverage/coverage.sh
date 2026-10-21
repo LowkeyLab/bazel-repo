@@ -44,14 +44,26 @@ for arg in "${INFO_ARGS[@]}"; do
 	INVENTORY_ARGS+=("--bazel-option=${arg}")
 done
 ROOTS_FILE="$(mktemp)"
-trap 'rm -f "$ROOTS_FILE"' EXIT
+TEMP_EVENTS_FILE="$(mktemp)"
+EVENTS_FILE="$TEMP_EVENTS_FILE"
+EVENTS_ARGS=("--build_event_json_file=$EVENTS_FILE")
+for arg in "${ARGS[@]}"; do
+	case "$arg" in
+	--build_event_json_file=*)
+		EVENTS_ARGS=()
+		EVENTS_FILE="${arg#*=}"
+		;;
+	esac
+done
+trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE"' EXIT
 bazel run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
 	--output coverage-inventory.json --roots-output "$ROOTS_FILE" "${INVENTORY_ARGS[@]}"
 mapfile -t COVERAGE_ROOTS <"$ROOTS_FILE"
 COVERAGE_DAT="$(bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_report.dat"
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
-bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" 2>&1
+bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" \
+	--output_groups=+go_coverage_baselines 2>&1
 
 if [[ ! -f "${COVERAGE_DAT}" ]]; then
 	echo "ERROR: Combined coverage report not found at ${COVERAGE_DAT}"
@@ -67,7 +79,8 @@ fi
 cp "${COVERAGE_DAT}" "${COMBINED_LCOV}"
 chmod u+w "${COMBINED_LCOV}"
 bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
-	--inventory coverage-inventory.json --report "${COMBINED_LCOV}"
+	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
+	--events "$EVENTS_FILE" --expected-output coverage-go-baselines.json
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available
