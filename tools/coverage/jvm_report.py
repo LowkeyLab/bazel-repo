@@ -14,6 +14,14 @@ from typing import NotRequired, TypedDict
 from urllib.parse import unquote, urlparse
 
 
+class JvmExecution(TypedDict):
+    rule: str
+    profiles: list[str]
+    empty_profiles: list[str]
+    cached: bool
+    execution: dict[str, object]
+
+
 class FileReference(TypedDict):
     name: str
     uri: NotRequired[str]
@@ -69,7 +77,7 @@ def main() -> None:
         declarations = {}
         for event in events:
             label = event.get("id", {}).get("targetCompleted", {}).get("label")
-            if label not in roots:
+            if label not in roots or event["id"]["targetCompleted"].get("aspect"):
                 continue
             completed = event["completed"]
             if not completed.get("success"):
@@ -108,25 +116,26 @@ def main() -> None:
             for source in inventory["eligible"]
             if source["language"] == "jvm"
         }
-        declared = {
-            name for data, _, _, _ in declarations.values() for name in data["sources"]
-        }
         limits = []
         root_indexes = {
             label: index for index, label in enumerate(sorted(declarations))
         }
         for source in inventory["eligible"]:
             name = source["path"]
-            if source["language"] != "jvm" or name in declared:
+            if source["language"] != "jvm":
                 continue
             configured = [
                 (label, data)
                 for label, (data, _, _, _) in declarations.items()
                 if name in inventory.get("jvm_source_declarations", {}).get(label, [])
             ]
-            if not configured:
+            if not configured and not any(
+                name in data["sources"] for data, _, _, _ in declarations.values()
+            ):
                 raise ValueError(f"JVM source has no configured analysis root: {name}")
-            for label, _ in configured:
+            for label, data in configured:
+                if name in data["sources"]:
+                    continue
                 limits.append(
                     {
                         "source": name,
@@ -141,6 +150,7 @@ def main() -> None:
         class_owners = defaultdict(set)
         identities = defaultdict(set)
         fingerprints = {}
+        class_artifacts = defaultdict(set)
         uncertain_identities = set()
         identity_owners = defaultdict(set)
         for label, (data, _, baseline, jars) in declarations.items():
@@ -157,6 +167,7 @@ def main() -> None:
                             continue
                         digest = hashlib.sha256(archive.read(entry)).hexdigest()
                         fingerprints[label, name] = digest
+                        class_artifacts[label, name].add(str(jar.resolve()))
                         candidates = [
                             path
                             for path in data["sources"]
@@ -171,16 +182,66 @@ def main() -> None:
         }
         unmatched = defaultdict(set)
         ambiguous_sources = set()
-        executed = {
+        candidates = set(inventory.get("jvm_tests", []))
+        candidates.update(
             owner["label"]
             for source in inventory["eligible"]
             if source["language"] == "jvm"
             for owner in source["owners"]
             if owner["kind"] in ("java_test", "kt_jvm_test")
+        )
+        test_labels = {
+            event["id"]["testResult"]["label"]
+            for event in events
+            if "testResult" in event.get("id", {})
         }
-        executed.update(inventory.get("jvm_tests", []))
+        test_inputs = {}
+        for event in events:
+            label = event.get("id", {}).get("targetCompleted", {}).get("label")
+            completed = event.get("completed", {})
+            groups = [
+                group
+                for group in completed.get("outputGroup", [])
+                if group["name"] == "jvm_test_inputs"
+            ]
+            if not groups:
+                continue
+            if not completed.get("success"):
+                raise ValueError(f"Required JVM test inputs failed: {label}")
+            paths = [
+                path
+                for group in groups
+                for reference in group.get("fileSets", [])
+                for path in files(reference["id"])
+            ]
+            if len(paths) != 1:
+                raise ValueError(f"Missing configured JVM test inputs: {label}")
+            data = json.loads(paths[0].read_text())
+            if (
+                not isinstance(label, str)
+                or data["rule"] != label
+                or not isinstance(data["jars"], list)
+                or any(not isinstance(name, str) for name in data["jars"])
+                or (data["sources"] and not data["jars"])
+                or not isinstance(data["sources"], list)
+                or any(not isinstance(name, str) for name in data["sources"])
+            ):
+                raise ValueError(f"Invalid configured JVM test inputs: {label}")
+            retained = evidence / f"test-inputs-{len(test_inputs)}.json"
+            shutil.copyfile(paths[0], retained)
+            test_inputs[label] = {**data, "evidence": str(retained)}
+        missing = (test_labels & candidates) - test_inputs.keys()
+        if missing:
+            raise ValueError(
+                f"Missing required configured JVM test inputs: {sorted(missing)}"
+            )
+        executed = {
+            label
+            for label, data in test_inputs.items()
+            if set(data["sources"]) & eligible
+        }
         profiles = set()
-        execution = []
+        execution: list[JvmExecution] = []
         for event in events:
             label = event.get("id", {}).get("testResult", {}).get("label")
             if "testResult" not in event:
@@ -215,7 +276,9 @@ def main() -> None:
                 }
             )
         observed: dict[str, dict[int, int]] = defaultdict(dict)
-        branches: dict[str, dict[int, tuple[int, int]]] = defaultdict(dict)
+        branches = defaultdict(lambda: defaultdict(dict))
+        profile_info = {}
+        matched_classes = []
         mappings = []
         empty_sources = []
         retained_profiles = []
@@ -264,7 +327,37 @@ def main() -> None:
             )
             result.check_returncode()
             for line in result.stdout.splitlines():
-                if line.startswith("JACOCO_NO_MATCH "):
+                if line.startswith("JACOCO_PROFILE "):
+                    _, number, sessions, classes = line.split()
+                    profile = str(sorted(profiles)[int(number)])
+                    info = {"sessions": int(sessions), "classes": int(classes)}
+                    if profile in profile_info and profile_info[profile] != info:
+                        raise ValueError(
+                            f"Conflicting JaCoCo profile metadata: {profile}"
+                        )
+                    profile_info[profile] = info
+                elif line.startswith("JACOCO_MATCH "):
+                    _, number, identity, name = line.split(maxsplit=3)
+                    node = next(
+                        node
+                        for node in baseline.findall("./package/class")
+                        if node.attrib["name"] == name
+                    )
+                    matched_classes.append(
+                        {
+                            "profile": str(sorted(profiles)[int(number)]),
+                            "rule": label,
+                            "class": name,
+                            "id": identity,
+                            "jars": sorted(class_artifacts[label, name]),
+                            "sources": [
+                                source
+                                for source in data["sources"]
+                                if Path(source).name == node.get("sourcefilename")
+                            ],
+                        }
+                    )
+                elif line.startswith("JACOCO_NO_MATCH "):
                     unmatched[line.removeprefix("JACOCO_NO_MATCH ")].add(label)
             analysis = ET.parse(report).getroot()
             if analysis.tag != "report":
@@ -334,6 +427,7 @@ def main() -> None:
                     if name not in eligible:
                         continue
                     observed.setdefault(name, {})
+                    branches[name].setdefault(label, {})
                     count = len((root / name).read_text().splitlines())
                     for line in source.findall("line"):
                         number, missed, covered, mb, cb = (
@@ -357,12 +451,7 @@ def main() -> None:
                                 observed[name].get(number, 0), int(covered > 0)
                             )
                         if mb + cb:
-                            prior = branches[name].get(number)
-                            if prior is not None and prior != (mb, cb):
-                                raise ValueError(
-                                    f"Conflicting JaCoCo branch attribution: {name}:{number}"
-                                )
-                            branches[name][number] = (mb, cb)
+                            branches[name][label][number] = (mb, cb)
                     mappings.append(
                         {
                             "source": name,
@@ -415,9 +504,58 @@ def main() -> None:
                 raise ValueError(
                     f"No configured class matches JaCoCo execution data: {name}"
                 )
+        for result in execution:
+            label = result["rule"]
+            if label not in executed:
+                continue
+            for profile in result["profiles"]:
+                info = profile_info[profile]
+                if not info["sessions"] and not info["classes"]:
+                    raise ValueError(
+                        f"Incomplete required JVM profile: {label}: {profile}"
+                    )
+                if info["classes"] and not any(
+                    item["profile"] == profile
+                    and set(item["jars"])
+                    & {
+                        str((root / jar).resolve())
+                        for jar in test_inputs[label]["jars"]
+                    }
+                    for item in matched_classes
+                ):
+                    raise ValueError(
+                        f"No required JVM profile matches a configured class: {label}: {profile}"
+                    )
         for name in ambiguous_sources:
             observed.pop(name, None)
             branches.pop(name, None)
+        owner_branch_totals = defaultdict(dict)
+        branch_totals = {}
+        for name, owners in branches.items():
+            for label, counters in owners.items():
+                owner_branch_totals[label][name] = {
+                    "missed": sum(missed for missed, _ in counters.values()),
+                    "covered": sum(covered for _, covered in counters.values()),
+                }
+            first = next(iter(owners.values()))
+            if all(counters == first for counters in owners.values()):
+                branch_totals[name] = {
+                    "missed": sum(missed for missed, _ in first.values()),
+                    "covered": sum(covered for _, covered in first.values()),
+                }
+            else:
+                limits.append(
+                    {
+                        "source": name,
+                        "rules": sorted(owners),
+                        "evidence": [
+                            mapping["analysis"]
+                            for mapping in mappings
+                            if mapping["source"] == name
+                        ],
+                        "missing_guarantee": "Configured owners report different branch states. Per-owner totals remain separate because JaCoCo supplies no common original branch identities.",
+                    }
+                )
         original = (root / args.report).read_text()
         records = original.split("end_of_record")
         if len(records) < 2 or records[-1].strip():
@@ -435,7 +573,7 @@ def main() -> None:
             record = [f"SF:{name}"]
             record.extend(f"DA:{number},{hit}" for number, hit in sorted(lines.items()))
             record.extend([f"LF:{len(lines)}", f"LH:{sum(lines.values())}"])
-            if branches[name]:
+            if any(branches[name].values()):
                 limits.append(
                     {
                         "source": name,
@@ -466,15 +604,13 @@ def main() -> None:
                     "limits": limits,
                     "mappings": mappings,
                     "execution": execution,
+                    "test_inputs": test_inputs,
                     "profiles": retained_profiles,
                     "empty_sources": empty_sources,
-                    "branch_totals": {
-                        name: {
-                            "missed": sum(missed for missed, _ in counters.values()),
-                            "covered": sum(covered for _, covered in counters.values()),
-                        }
-                        for name, counters in branches.items()
-                    },
+                    "branch_totals": branch_totals,
+                    "owner_branch_totals": owner_branch_totals,
+                    "profile_info": profile_info,
+                    "matched_classes": matched_classes,
                 },
                 indent=2,
             )

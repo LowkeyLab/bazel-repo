@@ -197,6 +197,11 @@ This keeps instrumented runtime bytecode outside Kotlin inline compilation.
 Ordinary builds retain their existing configuration.
 
 The command writes `coverage-jvm/receipt.json`.
+A metadata aspect reads the public [InstrumentedFilesInfo](https://bazel.build/rules/lib/providers/InstrumentedFilesInfo) provider for each configured native JVM test.
+Only eligible Java/Kotlin sources in that configured dependency closure require profiles.
+An inactive Java dependency does not require profiles from an excluded Clojure execution.
+Missing or invalid configured test metadata causes collection failure.
+
 The directory retains raw profiles, configured class jars, metadata, baseline XML,
 and measured XML. The receipt identifies source mappings, execution evidence,
 and exact collector limits. Build events use local file URIs for downloaded outputs.
@@ -241,3 +246,9 @@ The acceptance checks retain commands, fixture inputs, build events, raw reports
 and configured class evidence. Local mode clears execution, cache, and BES endpoints.
 Configured mode uses the repository's remote Linux configuration.
 Read the execution evidence before claiming fresh remote execution.
+
+JVM profile validation uses each native test's configured runtime jars and original sources, including declared JVM executable children. Each required raw profile must pass standard JaCoCo parsing. A profile with class data must match a class ID in those exact configured artifacts. A session-only profile is valid zero coverage. A profile with neither sessions nor class data is incomplete. Unrelated profiles cause failure and preserve the existing report.
+
+Inactive source limits retain each declaring owner, even if another owner selects the same source. Receipts retain branch totals per owner. They omit aggregate branch totals when configured owners report different branch states, including an owner with no branches. The source-specific limit links the separate analyses.
+
+Native Java binaries expose their runtime jars through the public [`JavaInfo.compilation_info.runtime_classpath`](https://bazel.build/rules/lib/providers/java_compilation_info#runtime_classpath) API. Their `transitive_runtime_jars` set is empty by design. The adapter uses the public transitive runtime set when compilation metadata is absent. Exact configured artifacts establish profile identity even when `-g:none` removes source names. Source attribution then remains an explicit limit.

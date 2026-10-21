@@ -193,3 +193,39 @@ def test_failed_discovery_never_reports_an_empty_inventory(
     assert "Coverage discovery failed:" in result.stderr
     assert not (workspace / "inventory.json").exists()
     assert not (workspace / "roots.txt").exists()
+
+
+def test_jvm_candidates_preserve_independent_source_scope(workspace: Path) -> None:
+    protocol = workspace / "protocol.json"
+    configuration = json.loads(protocol.read_text())
+    configuration["files"].extend(["Library.java", "excluded.clj"])
+    protocol.write_text(json.dumps(configuration))
+    (workspace / "Library.java").write_text("public class Library {}\n")
+    (workspace / "excluded.clj").write_text("(ns excluded)\n")
+    extra = """
+<source-file name="//:Library.java"/>
+<source-file name="//:excluded.clj"/>
+<rule class="java_library" name="//:java_lib">
+  <list name="srcs"><label value="//:Library.java"/></list>
+</rule>
+<rule class="alias" name="//:java_alias">
+  <label name="actual" value="//:java_lib"/>
+</rule>
+<rule class="java_test" name="//:java_test">
+  <list name="deps"><label value="//:java_alias"/></list>
+</rule>
+<rule class="clojure_library" name="//:clj_lib">
+  <list name="srcs"><label value="//:excluded.clj"/></list>
+</rule>
+<rule class="java_test" name="//:clojure_test">
+  <list name="deps"><label value="//:clj_lib"/></list>
+</rule>
+"""
+    query = workspace / "query.xml"
+    query.write_text(query.read_text().replace("</query>", extra + "</query>"))
+    result = run_inventory(workspace)
+    assert result.returncode == 0, result.stdout + result.stderr
+    inventory = json.loads((workspace / "inventory.json").read_text())
+    assert inventory["jvm_tests"] == ["//:clojure_test", "//:java_test"]
+    assert any(source["path"] == "Library.java" for source in inventory["eligible"])
+    assert any(source["path"] == "excluded.clj" for source in inventory["excluded"])

@@ -20,6 +20,7 @@ public final class JvmReport {
     Path output = Path.of(args[0]);
     ExecFileLoader execution = new ExecFileLoader();
     List<File> jars = new ArrayList<>();
+    List<ExecFileLoader> profiles = new ArrayList<>();
     Set<String> sharedNames = new HashSet<>();
     for (int i = 1; i < args.length; i += 2) {
       if (args[i].equals("--classfiles")) {
@@ -31,6 +32,16 @@ public final class JvmReport {
         if (profile.length() == 0) {
           throw new IOException("Empty or missing required JaCoCo profile: " + profile);
         }
+        ExecFileLoader data = new ExecFileLoader();
+        data.load(profile);
+        System.out.println(
+            "JACOCO_PROFILE "
+                + profiles.size()
+                + " "
+                + data.getSessionInfoStore().getInfos().size()
+                + " "
+                + data.getExecutionDataStore().getContents().size());
+        profiles.add(data);
         execution.load(profile);
       } else {
         throw new IOException("Unknown JaCoCo report option: " + args[i]);
@@ -61,6 +72,19 @@ public final class JvmReport {
               analyzer.analyzeClass(stream, input + "!" + entry.getName());
             }
           }
+        }
+      }
+    }
+    for (var configured : coverage.getClasses()) {
+      for (int i = 0; i < profiles.size(); i++) {
+        if (profiles.get(i).getExecutionDataStore().get(configured.getId()) != null) {
+          System.out.println(
+              "JACOCO_MATCH "
+                  + i
+                  + " "
+                  + Long.toUnsignedString(configured.getId(), 16)
+                  + " "
+                  + configured.getName());
         }
       }
     }

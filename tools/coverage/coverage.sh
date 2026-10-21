@@ -63,7 +63,8 @@ COVERAGE_DAT="$(bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_re
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
 bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" \
-	--output_groups=+go_coverage_baselines,rust_coverage_baselines,jvm_coverage_baselines \
+	--aspects=//tools/coverage:jvm.bzl%jvm_test_inputs \
+	--output_groups=+go_coverage_baselines,rust_coverage_baselines,jvm_coverage_baselines,jvm_test_inputs \
 	--nobuild_event_json_file_path_conversion 2>&1
 
 if [[ ! -f "${COVERAGE_DAT}" ]]; then

@@ -187,10 +187,16 @@ java_library(name="empty_selected", srcs=select({":inactive": ["InactiveEmpty.ja
             )
             + """
 java_binary(name="child", srcs=["Child.java"], main_class="child.Child")
-java_test(name="execution", srcs=["Execution.java"], main_class="runner.Execution", use_testrunner=False, deps=[":lib", ":copy", ":variant", ":unique_duplicate"], data=[":child"])
+java_test(name="execution", srcs=["Execution.java"], main_class="runner.Execution", use_testrunner=False, deps=[":lib", ":copy", ":variant", ":unique_duplicate", ":shared_executed"], data=[":child"])
 kt_jvm_library(name="inline", srcs=["Inline.kt"])
 kt_jvm_test(name="kotlin_test", srcs=["KotlinTest.kt"], main_class="runner.KotlinTestKt", deps=[":inline"])
+java_library(name="conditional_runtime", srcs=["Conditional.java"], deps=["//PACKAGE/runtime_flags:flags"])
+java_library(name="conditional_constant", srcs=["Conditional.java"], deps=["//PACKAGE/constant_flags:flags"])
+java_library(name="shared_executed", srcs=["Shared.java"], javacopts=["-g"])
+java_library(name="shared_unused", srcs=["Shared.java"], javacopts=["-g:source,lines"])
+java_library(name="inactive_owner", srcs=select({":inactive": ["Unused.java"], "//conditions:default": []}))
 java_library(name="unique_duplicate", srcs=["Same.java"])
+java_test(name="excluded", srcs=[], main_class="clojure.main", use_testrunner=False, args=["PACKAGE/Excluded.clj"], data=["Excluded.clj"], runtime_deps=select({":inactive": [":lib"], "//conditions:default": ["@deps//:org_clojure_clojure"]}))
 java_library(name="duplicates", srcs=["//PACKAGE/a:Same.java", "//PACKAGE/b:Same.java"])
 """.replace("PACKAGE", package)
         )
@@ -204,6 +210,25 @@ java_library(name="duplicates", srcs=["//PACKAGE/a:Same.java", "//PACKAGE/b:Same
             directory / "Same.java",
             "package a;\npublic class Same { public int value() { return 7; } }\n",
         )
+        for name, modifier in (("runtime_flags", ""), ("constant_flags", "final ")):
+            flags = directory / name
+            flags.mkdir()
+            (flags / "BUILD.bazel").write_text(
+                '# gazelle:ignore\nload("//tools/coverage:jvm.bzl", "java_library")\njava_library(name="flags", srcs=["Flags.java"], visibility=["//visibility:public"])\n'
+            )
+            write(
+                flags / "Flags.java",
+                f"package flags;\npublic class Flags {{ public static {modifier}boolean ENABLED = true; }}\n",
+            )
+        write(
+            directory / "Conditional.java",
+            "package conditional;\npublic class Conditional {\n  public static int value() {\n    if (flags.Flags.ENABLED) { return 7; }\n    return 3;\n  }\n}\n",
+        )
+        write(
+            directory / "Shared.java",
+            "package shared;\npublic class Shared {\n  public static int choose(boolean enabled) {\n    if (enabled) { return 7; }\n    return 3;\n  }\n}\n",
+        )
+        write(directory / "Excluded.clj", '(println "excluded-only")\n')
         write(
             directory / "Child.java",
             'package child;\npublic class Child {\n  public static void main(String[] args) {\n    if (args.length == 0) {\n      System.out.println("child-only");\n    }\n  }\n}\n',
@@ -214,6 +239,7 @@ java_library(name="duplicates", srcs=["//PACKAGE/a:Same.java", "//PACKAGE/b:Same
 public class Execution {{
   public static void main(String[] args) throws Exception {{
     if (new a.Same().value() != 7) {{ throw new AssertionError(); }}
+    if (shared.Shared.choose(true) != 7) {{ throw new AssertionError(); }}
     if (fixture0.Unused.value(true) != 7) {{ throw new AssertionError(); }}
     if (collision.Twin.value() != 13 || versions.Variant.value() != 13) {{ throw new AssertionError(); }}
     String child = System.getenv("TEST_SRCDIR") + "/" + System.getenv("TEST_WORKSPACE") + "/{package}/child";
@@ -237,6 +263,16 @@ public class Execution {{
             )
         shutil.copytree(directory, evidence / "ordinary-inputs")
         shutil.copytree(directories[1], evidence / "hidden-inputs")
+        excluded = cover(f"//{package}:excluded", "excluded")
+        assert expected[0] in excluded
+        assert all(
+            line.endswith(",0")
+            for line in excluded[expected[0]].splitlines()
+            if line.startswith("DA:")
+        )
+        assert f"{package}/Excluded.clj" not in excluded
+        excluded_receipt = json.loads((root / "coverage-jvm/receipt.json").read_text())
+        assert excluded_receipt["test_inputs"][f"//{package}:excluded"]["sources"] == []
         measured = cover(f"//{package}:execution", "measured")
         assert "DA:5,1" in measured[expected[0]], measured[expected[0]]
         assert all(
@@ -247,6 +283,49 @@ public class Execution {{
         child = f"{package}/Child.java"
         assert "DA:5,1" in measured[child], measured[child]
         measured_receipt = json.loads((root / "coverage-jvm/receipt.json").read_text())
+        assert (
+            f"{package}/Execution.java"
+            in measured_receipt["test_inputs"][f"//{package}:execution"]["sources"]
+        )
+        assert (
+            expected[0]
+            in measured_receipt["test_inputs"][f"//{package}:execution"]["sources"]
+        )
+        assert any(
+            limit["source"] == expected[0]
+            and limit.get("rule") == f"//{package}:inactive_owner.jvm_coverage"
+            and "configured source selection" in limit["missing_guarantee"]
+            for limit in measured_receipt["limits"]
+        )
+        conditional = f"{package}/Conditional.java"
+        assert conditional not in measured_receipt["branch_totals"]
+        assert (
+            measured_receipt["owner_branch_totals"][
+                f"//{package}:conditional_runtime.jvm_coverage"
+            ][conditional]["missed"]
+            > 0
+        )
+        assert measured_receipt["owner_branch_totals"][
+            f"//{package}:conditional_constant.jvm_coverage"
+        ][conditional] == {"missed": 0, "covered": 0}
+        assert (
+            child
+            in measured_receipt["test_inputs"][f"//{package}:execution"]["sources"]
+        )
+        shared = f"{package}/Shared.java"
+        assert shared not in measured_receipt["branch_totals"]
+        assert (
+            measured_receipt["owner_branch_totals"][
+                f"//{package}:shared_executed.jvm_coverage"
+            ][shared]["covered"]
+            > 0
+        )
+        assert (
+            measured_receipt["owner_branch_totals"][
+                f"//{package}:shared_unused.jvm_coverage"
+            ][shared]["covered"]
+            == 0
+        )
         assert measured_receipt["branch_totals"][expected[0]] == {
             "missed": 1,
             "covered": 1,
@@ -285,6 +364,10 @@ public class Execution {{
             if line.startswith("DA:")
         )
         receipt = json.loads((root / "coverage-jvm/receipt.json").read_text())
+        assert (
+            f"{package}/KotlinTest.kt"
+            in receipt["test_inputs"][f"//{package}:kotlin_test"]["sources"]
+        )
         for name in (
             f"{package}/a/Same.java",
             f"{package}/b/Same.java",

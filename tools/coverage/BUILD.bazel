@@ -148,6 +148,7 @@ java_import(
         "@remote_java_tools//:java_tools/third_party/java/jacoco/asm-commons-9.10.jar",
         "@remote_java_tools//:java_tools/third_party/java/jacoco/asm-tree-9.10.jar",
     ],
+    visibility = ["//tools/coverage:__subpackages__"],
 )
 
 py_test(
@@ -163,6 +164,12 @@ py_test(
         ":jvm_analyzer",
         ":jvm_analyzer.jar",
         ":jvm_report",
+        "//tools/coverage/fixtures/jvm_profile:Marker.java",
+        "//tools/coverage/fixtures/jvm_profile:Profile.java",
+        "//tools/coverage/fixtures/jvm_profile:profile",
+        "//tools/coverage/fixtures/jvm_profile:profile.jar",
+        "//tools/coverage/fixtures/jvm_profile:profile_variant",
+        "//tools/coverage/fixtures/jvm_profile:profile_variant.jar",
     ],
     env = {"COVERAGE_CORE": "ctrace"},
 )

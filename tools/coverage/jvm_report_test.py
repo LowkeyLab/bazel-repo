@@ -108,6 +108,52 @@ def report(root: Path) -> subprocess.CompletedProcess[str]:
     )
 
 
+def add_test_result(
+    fixture: Path, sources: list[str], jars: list[str] | None = None
+) -> None:
+    label = "//tools/coverage:jvm_analyzer"
+    data = json.loads((fixture / "inventory.json").read_text())
+    data["jvm_tests"] = [label]
+    (fixture / "inventory.json").write_text(json.dumps(data))
+    path = fixture / "test-inputs.json"
+    path.write_text(
+        json.dumps(
+            {
+                "rule": label,
+                "sources": sources,
+                "jars": jars
+                if jars is not None
+                else [str(ROOT / "tools/coverage/jvm_analyzer.jar")],
+            }
+        )
+    )
+    events = [
+        {
+            "id": {"namedSet": {"id": "test-inputs"}},
+            "namedSetOfFiles": {"files": [{"name": str(path)}]},
+        },
+        {
+            "id": {"targetCompleted": {"label": label}},
+            "completed": {
+                "success": True,
+                "outputGroup": [
+                    {"name": "jvm_test_inputs", "fileSets": [{"id": "test-inputs"}]}
+                ],
+            },
+        },
+        {
+            "id": {"testResult": {"label": label}},
+            "testResult": {
+                "testActionOutput": [
+                    {"name": "test.log", "uri": (fixture / "test.log").as_uri()}
+                ]
+            },
+        },
+    ]
+    with (fixture / "events.jsonl").open("a") as stream:
+        stream.write("".join(json.dumps(event) + "\n" for event in events))
+
+
 def test_standard_jacoco_baseline_preserves_other_languages(fixture: Path) -> None:
     result = report(fixture)
     assert result.returncode == 0, result.stdout + result.stderr
@@ -179,16 +225,7 @@ def test_required_output_failure_preserves_existing_report(
         data = json.loads((fixture / "inventory.json").read_text())
         data["eligible"][0]["owners"][0]["kind"] = "java_test"
         (fixture / "inventory.json").write_text(json.dumps(data))
-        event = {
-            "id": {"testResult": {"label": "//tools/coverage:jvm_analyzer"}},
-            "testResult": {
-                "testActionOutput": [
-                    {"name": "test.log", "uri": (fixture / "test.log").as_uri()}
-                ]
-            },
-        }
-        with (fixture / "events.jsonl").open("a") as stream:
-            stream.write(json.dumps(event) + "\n")
+        add_test_result(fixture, [SOURCE])
         if fault != "profile":
             directory = fixture / "_coverage"
             directory.mkdir()
@@ -221,3 +258,292 @@ def test_inactive_source_requires_declaration_evidence(fixture: Path) -> None:
     )
     assert "configured source selection" in limit["missing_guarantee"]
     assert all(Path(path).is_file() for path in limit["evidence"])
+
+
+def test_configured_non_jvm_test_preserves_jvm_baselines(fixture: Path) -> None:
+    add_test_result(fixture, [])
+    result = report(fixture)
+    assert result.returncode == 0, result.stdout + result.stderr
+    text = (fixture / "report.lcov").read_text()
+    assert text.startswith(OTHER)
+    assert "SF:" + SOURCE in text
+    assert all(
+        line.endswith(",0")
+        for line in text.splitlines()
+        if line.startswith("DA:") and line != "DA:9,3"
+    )
+    receipt = json.loads((fixture / "evidence/receipt.json").read_text())
+    assert receipt["test_inputs"]["//tools/coverage:jvm_analyzer"]["sources"] == []
+
+
+@pytest.mark.parametrize(
+    "fault", ["event", "missing", "empty", "corrupt", "incomplete", "identity"]
+)
+def test_required_configured_inputs_failure_preserves_report(
+    fixture: Path, fault: str
+) -> None:
+    add_test_result(fixture, [SOURCE])
+    path = fixture / "test-inputs.json"
+    if fault == "event":
+        events = [
+            json.loads(line)
+            for line in (fixture / "events.jsonl").read_text().splitlines()
+        ]
+        events = [
+            event
+            for event in events
+            if event.get("id", {}).get("targetCompleted", {}).get("label")
+            != "//tools/coverage:jvm_analyzer"
+        ]
+        (fixture / "events.jsonl").write_text(
+            "".join(json.dumps(event) + "\n" for event in events)
+        )
+    elif fault == "missing":
+        path.unlink()
+    elif fault in {"empty", "corrupt"}:
+        path.write_text("" if fault == "empty" else "{")
+    elif fault == "incomplete":
+        path.write_text(json.dumps({"rule": "//tools/coverage:jvm_analyzer"}))
+    else:
+        path.write_text(json.dumps({"rule": "//wrong:identity", "sources": [SOURCE]}))
+    result = report(fixture)
+    assert result.returncode != 0
+    assert "JVM coverage report failed:" in result.stderr
+    assert (fixture / "report.lcov").read_text() == OTHER
+
+
+def test_baseline_ignores_independent_aspect_events(fixture: Path) -> None:
+    path = fixture / "events.jsonl"
+    event = {
+        "id": {
+            "targetCompleted": {
+                "label": LABEL,
+                "aspect": "//tools/coverage:jvm.bzl%jvm_test_inputs",
+            }
+        },
+        "completed": {"success": True},
+    }
+    path.write_text(json.dumps(event) + "\n" + path.read_text())
+    result = report(fixture)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "SF:" + SOURCE in (fixture / "report.lcov").read_text()
+
+
+def test_unrelated_valid_profile_preserves_report(fixture: Path) -> None:
+    add_test_result(fixture, [SOURCE])
+    profile = fixture / "_coverage/required.exec"
+    profile.parent.mkdir()
+    result = run(
+        str(ROOT / "tools/coverage/fixtures/jvm_profile/profile"),
+        str(profile),
+        cwd=fixture,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    result = report(fixture)
+    assert result.returncode != 0
+    assert "No required JVM profile matches a configured class" in result.stderr
+    assert (fixture / "report.lcov").read_text() == OTHER
+
+
+def test_inactive_owner_retains_limit_for_an_active_source(fixture: Path) -> None:
+    inactive = "//tools/coverage:inactive.jvm_coverage"
+    (fixture / "inactive.xml").write_text('<report name="empty"/>')
+    (fixture / "inactive.json").write_text(
+        json.dumps({"rule": "//tools/coverage:inactive", "sources": [], "jars": []})
+    )
+    events = [
+        {
+            "id": {"namedSet": {"id": "inactive"}},
+            "namedSetOfFiles": {
+                "files": [
+                    {"name": str(fixture / name)}
+                    for name in ("inactive.xml", "inactive.json")
+                ]
+            },
+        },
+        {
+            "id": {"targetCompleted": {"label": inactive}},
+            "completed": {
+                "success": True,
+                "outputGroup": [
+                    {"name": "jvm_coverage_baselines", "fileSets": [{"id": "inactive"}]}
+                ],
+            },
+        },
+    ]
+    with (fixture / "events.jsonl").open("a") as stream:
+        stream.write("".join(json.dumps(event) + "\n" for event in events))
+    data = json.loads((fixture / "inventory.json").read_text())
+    data["coverage_roots"].append(inactive)
+    data["jvm_source_declarations"] = {LABEL: [SOURCE], inactive: [SOURCE]}
+    (fixture / "inventory.json").write_text(json.dumps(data))
+    result = report(fixture)
+    assert result.returncode == 0, result.stdout + result.stderr
+    receipt = json.loads((fixture / "evidence/receipt.json").read_text())
+    assert "SF:" + SOURCE in (fixture / "report.lcov").read_text()
+    assert any(
+        item["source"] == SOURCE
+        and item.get("rule") == inactive
+        and "configured source selection" in item["missing_guarantee"]
+        for item in receipt["limits"]
+    )
+
+
+@pytest.mark.parametrize("kind", ["session", "header"])
+def test_profile_without_class_data(fixture: Path, kind: str) -> None:
+    add_test_result(fixture, [SOURCE])
+    profile = fixture / "_coverage/required.exec"
+    profile.parent.mkdir()
+    result = run(
+        str(ROOT / "tools/coverage/fixtures/jvm_profile/profile"),
+        str(profile),
+        kind,
+        cwd=fixture,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    result = report(fixture)
+    if kind == "header":
+        assert result.returncode != 0
+        assert "Incomplete required JVM profile" in result.stderr
+        assert (fixture / "report.lcov").read_text() == OTHER
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        receipt = json.loads((fixture / "evidence/receipt.json").read_text())
+        assert list(receipt["profile_info"].values()) == [{"sessions": 1, "classes": 0}]
+        assert receipt["matched_classes"] == []
+        assert all(
+            line.endswith(",0")
+            for line in (fixture / "report.lcov").read_text().splitlines()
+            if line.startswith("DA:") and line != "DA:9,3"
+        )
+
+
+@pytest.mark.parametrize(
+    "fault",
+    ["none", "unmapped", "foreign-owner", "foreign-version", "additional-profile"],
+)
+def test_profile_matches_its_configured_sources(fixture: Path, fault: str) -> None:
+    owner = "//tools/coverage/fixtures/jvm_profile:profile.jvm_coverage"
+    sources = [
+        "tools/coverage/fixtures/jvm_profile/" + name
+        for name in ("Profile.java", "Marker.java")
+    ]
+    for name in sources:
+        path = fixture / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(ROOT / name, path)
+    jar = (
+        ROOT
+        / "tools/coverage/fixtures/jvm_profile"
+        / ("profile_variant.jar" if fault == "unmapped" else "profile.jar")
+    )
+    result = run(
+        str(ROOT / "tools/coverage/jvm_analyzer"),
+        str(fixture / "profile-baseline.xml"),
+        "--classfiles",
+        str(jar),
+        cwd=fixture,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    (fixture / "profile-metadata.json").write_text(
+        json.dumps(
+            {
+                "rule": "//tools/coverage/fixtures/jvm_profile:profile",
+                "sources": sources,
+                "jars": [str(jar)],
+            }
+        )
+    )
+    events = [
+        {
+            "id": {"namedSet": {"id": "profile-root"}},
+            "namedSetOfFiles": {
+                "files": [
+                    {"name": str(fixture / name)}
+                    for name in ("profile-baseline.xml", "profile-metadata.json")
+                ]
+            },
+        },
+        {
+            "id": {"targetCompleted": {"label": owner}},
+            "completed": {
+                "success": True,
+                "outputGroup": [
+                    {
+                        "name": "jvm_coverage_baselines",
+                        "fileSets": [{"id": "profile-root"}],
+                    }
+                ],
+            },
+        },
+    ]
+    with (fixture / "events.jsonl").open("a") as stream:
+        stream.write("".join(json.dumps(event) + "\n" for event in events))
+    data = json.loads((fixture / "inventory.json").read_text())
+    data["coverage_roots"].append(owner)
+    data["eligible"].extend(
+        {
+            "path": source,
+            "language": "jvm",
+            "owners": [
+                {
+                    "label": "//tools/coverage/fixtures/jvm_profile:profile",
+                    "kind": "java_binary",
+                }
+            ],
+        }
+        for source in sources
+    )
+    (fixture / "inventory.json").write_text(json.dumps(data))
+    add_test_result(
+        fixture,
+        [SOURCE] if fault == "foreign-owner" else sources,
+        [str(ROOT / "tools/coverage/fixtures/jvm_profile/profile_variant.jar")]
+        if fault == "foreign-version"
+        else [str(ROOT / "tools/coverage/jvm_analyzer.jar")]
+        if fault == "foreign-owner"
+        else [str(jar)],
+    )
+    profile = fixture / "_coverage/related.exec"
+    profile.parent.mkdir()
+    result = run(
+        str(
+            ROOT
+            / "tools/coverage/fixtures/jvm_profile"
+            / ("profile_variant" if fault == "unmapped" else "profile")
+        ),
+        str(profile),
+        "marker",
+        cwd=fixture,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    if fault == "additional-profile":
+        result = run(
+            str(
+                ROOT
+                / "tools/coverage/fixtures/jvm_profile"
+                / ("profile_variant" if fault == "unmapped" else "profile")
+            ),
+            str(profile.parent / "unrelated.exec"),
+            cwd=fixture,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+    result = report(fixture)
+    if fault in {"none", "unmapped"}:
+        assert result.returncode == 0, result.stdout + result.stderr
+        receipt = json.loads((fixture / "evidence/receipt.json").read_text())
+        assert any(
+            item["class"] == "coverage/fixture/Marker"
+            for item in receipt["matched_classes"]
+        )
+        if fault == "unmapped":
+            assert "SF:" + sources[1] not in (fixture / "report.lcov").read_text()
+            assert any(
+                item["source"] == sources[1]
+                and "no unique source record" in item["missing_guarantee"]
+                for item in receipt["limits"]
+            )
+    else:
+        assert result.returncode != 0
+        assert "No required JVM profile matches a configured class" in result.stderr
+        assert (fixture / "report.lcov").read_text() == OTHER

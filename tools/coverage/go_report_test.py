@@ -43,6 +43,19 @@ def invoke(
             },
         },
     ]
+    if fault == "aspect":
+        events.insert(
+            1,
+            {
+                "id": {
+                    "targetCompleted": {
+                        "label": "//fixture:fixture.go_coverage",
+                        "aspect": "//tools/coverage:jvm.bzl%jvm_test_inputs",
+                    }
+                },
+                "completed": {"success": True},
+            },
+        )
     if fault == "root":
         events.pop()
     elif fault == "artifact":
@@ -221,3 +234,9 @@ def test_rust_baseline_validation_preserves_hits_and_records_mapping_limits(
     result = subprocess.run(arguments, capture_output=True, text=True, check=False)
     assert result.returncode != 0
     assert "Missing Rust baseline" in result.stderr
+
+
+def test_baseline_ignores_independent_aspect_events(tmp_path: Path) -> None:
+    result = invoke(tmp_path, MEASURED + OTHER, "aspect")
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (tmp_path / "report.lcov").read_text() == MEASURED + OTHER
