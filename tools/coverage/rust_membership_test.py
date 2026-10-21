@@ -127,6 +127,7 @@ def object_metadata(events_file: Path, label: str, execroot: Path) -> ObjectMeta
         event["completed"]
         for event in events
         if event.get("id", {}).get("targetCompleted", {}).get("label") == label
+        and not event["id"]["targetCompleted"].get("aspect")
     )
     group = next(
         group

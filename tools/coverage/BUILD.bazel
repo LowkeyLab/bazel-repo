@@ -101,6 +101,7 @@ py_test(
         "python_files=rust_baseline_test.py",
     ],
     data = [
+        "rust_membership_test.py",
         ":rust_baseline",
         "//tools/coverage/fixtures/rust_baseline:lib",
         "@llvm//tools:llvm-ar",
