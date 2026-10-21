@@ -1,0 +1,127 @@
+"""Check Go report scope and required-output validation through the command."""
+
+import json
+import os
+import subprocess
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(os.environ["TEST_SRCDIR"]) / os.environ["TEST_WORKSPACE"]
+MEASURED = "SF:kept.go\nDA:4,7\nLF:1\nLH:1\nend_of_record\n"
+EMPTY = "SF:declaration.go\nLF:0\nLH:0\nend_of_record\n"
+OTHER = "SF:keep.rs\nDA:9,3\nLF:1\nLH:1\nend_of_record\n"
+
+
+def invoke(
+    tmp_path: Path, report: str, fault: str | None = None
+) -> subprocess.CompletedProcess[str]:
+    (tmp_path / "inventory.json").write_text(
+        json.dumps(
+            {
+                "coverage_roots": ["//fixture:fixture.go_coverage"],
+                "excluded": [
+                    {"path": "generated.go", "reason": "generated"},
+                    {"path": "keep.rs", "reason": "generated"},
+                ],
+            }
+        )
+    )
+    (tmp_path / "baseline.lcov").write_text(MEASURED)
+    events = [
+        {
+            "id": {"namedSet": {"id": "baseline"}},
+            "namedSetOfFiles": {"files": [{"name": str(tmp_path / "baseline.lcov")}]},
+        },
+        {
+            "id": {"targetCompleted": {"label": "//fixture:fixture.go_coverage"}},
+            "completed": {
+                "success": True,
+                "outputGroup": [
+                    {"name": "go_coverage_baselines", "fileSets": [{"id": "baseline"}]}
+                ],
+            },
+        },
+    ]
+    if fault == "root":
+        events.pop()
+    elif fault == "artifact":
+        (tmp_path / "baseline.lcov").unlink()
+    elif fault == "empty":
+        (tmp_path / "baseline.lcov").write_text("")
+    (tmp_path / "events.jsonl").write_text(
+        "".join(json.dumps(event) + "\n" for event in events)
+    )
+    (tmp_path / "report.lcov").write_text(report)
+    return subprocess.run(
+        [
+            str(ROOT / "tools/coverage/go_report"),
+            "--events",
+            str(tmp_path / "events.jsonl"),
+            "--inventory",
+            str(tmp_path / "inventory.json"),
+            "--report",
+            str(tmp_path / "report.lcov"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def test_scope_retains_measured_hits_empty_sets_and_other_languages(
+    tmp_path: Path,
+) -> None:
+    excluded = "SF:generated.go\nDA:3,1\nLF:1\nLH:1\nend_of_record\n"
+    result = invoke(tmp_path, MEASURED + excluded + EMPTY + OTHER)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert (tmp_path / "report.lcov").read_text() == MEASURED + EMPTY + OTHER
+
+
+@pytest.mark.parametrize(
+    "report",
+    [
+        "",
+        "SF:kept.go\nDA:4,7\n",
+        "SF:kept.go\nLF:1\nLH:0\nend_of_record\n",
+        "SF:kept.go\nDA:4,7\nLF:1\nLH:0\nend_of_record\n",
+        "SF:kept.go\nDA:4,7\nDA:4,7\nLF:2\nLH:2\nend_of_record\n",
+        "SF:kept.go\nDA:4,-1\nLF:1\nLH:0\nend_of_record\n",
+        "SF:kept.go\nDA:0,1\nLF:1\nLH:1\nend_of_record\n",
+        "SF:kept.go\nDA:bad\nLF:1\nLH:1\nend_of_record\n",
+        "LF:0\nLH:0\nend_of_record\n",
+    ],
+)
+def test_invalid_required_output_fails_without_replacing_report(
+    tmp_path: Path, report: str
+) -> None:
+    result = invoke(tmp_path, report)
+    assert result.returncode != 0
+    assert "Go coverage report failed:" in result.stderr
+    assert (tmp_path / "report.lcov").read_text() == report
+
+
+@pytest.mark.parametrize(
+    "report", [OTHER, "SF:kept.go\nLF:0\nLH:0\nend_of_record\n" + OTHER]
+)
+def test_missing_native_source_or_line_fails(tmp_path: Path, report: str) -> None:
+    result = invoke(tmp_path, report)
+    assert result.returncode != 0
+    assert "Missing Go baseline" in result.stderr
+    assert (tmp_path / "report.lcov").read_text() == report
+
+
+@pytest.mark.parametrize("fault", ["root", "artifact"])
+def test_missing_required_baseline_evidence_fails(tmp_path: Path, fault: str) -> None:
+    result = invoke(tmp_path, MEASURED, fault)
+    assert result.returncode != 0
+    assert "Go coverage report failed:" in result.stderr
+    assert (tmp_path / "report.lcov").read_text() == MEASURED
+
+
+def test_configured_root_without_matching_sources_has_explicit_empty_evidence(
+    tmp_path: Path,
+) -> None:
+    result = invoke(tmp_path, OTHER, "empty")
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "report.lcov").read_text() == OTHER

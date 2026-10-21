@@ -1,3 +1,7 @@
+# gazelle:map_kind go_library go_library @rules_go//go:def.bzl
+# gazelle:map_kind go_binary go_binary @rules_go//go:def.bzl
+# gazelle:map_kind go_test go_test @rules_go//go:def.bzl
+
 exports_files(["README.md"])
 
 # Local maintenance docs are first-party; the nested upstream module is vendored.

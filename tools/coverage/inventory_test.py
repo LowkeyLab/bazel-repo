@@ -11,6 +11,10 @@ import pytest
 ROOT = Path(os.environ["TEST_SRCDIR"]) / os.environ["TEST_WORKSPACE"]
 QUERY = """<query>
 <source-file name="//:library.py"/>
+<source-file name="//:library.go"/>
+<rule class="_go_coverage_sources" name="//:go_library.go_coverage">
+  <list name="srcs"><label value="//:library.go"/></list>
+</rule>
 <source-file name="//.hidden:tool.py"/>
 <rule class="filegroup" name="//:sources">
   <list name="srcs"><label value="//:library.py"/></list>
@@ -67,6 +71,7 @@ def workspace(tmp_path: Path) -> Path:
     files = [
         "BUILD.bazel",
         "library.py",
+        "library.go",
         ".hidden/BUILD.bazel",
         ".hidden/tool.py",
         "generated.py",
@@ -122,7 +127,7 @@ def test_inventory_resolves_owners_and_preserves_scope(workspace: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
     inventory = json.loads((workspace / "inventory.json").read_text())
     sources = {source["path"]: source for source in inventory["eligible"]}
-    assert set(sources) == {"library.py", ".hidden/tool.py"}
+    assert set(sources) == {"library.py", "library.go", ".hidden/tool.py"}
     owner = next(
         item for item in sources["library.py"]["owners"] if item["label"] == "//:lib"
     )
@@ -143,10 +148,15 @@ def test_inventory_resolves_owners_and_preserves_scope(workspace: Path) -> None:
     )
     assert set((workspace / "roots.txt").read_text().splitlines()) == {
         "//:lib",
+        "//:go_library.go_coverage",
         "//.hidden:tool",
         "//:test_support.python_coverage",
     }
-    assert set(inventory["baseline_sources"]) == {"library.py", ".hidden/tool.py"}
+    assert set(inventory["baseline_sources"]) == {
+        "library.py",
+        "library.go",
+        ".hidden/tool.py",
+    }
 
 
 def test_unowned_source_fails_and_retains_diagnostics(workspace: Path) -> None:

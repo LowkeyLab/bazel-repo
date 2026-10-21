@@ -69,3 +69,5 @@ user.bazelrc
 
 # Coverage source inventory
 coverage-inventory.json
+
+coverage-go-baselines.json

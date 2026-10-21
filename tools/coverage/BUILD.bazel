@@ -38,3 +38,27 @@ py_test(
     data = [":inventory"],
     env = {"COVERAGE_CORE": "ctrace"},
 )
+
+py_binary(
+    name = "go_membership_test",
+    testonly = True,
+    srcs = ["go_membership_test.py"],
+    tags = ["manual"],
+)
+
+py_binary(
+    name = "go_report",
+    srcs = ["go_report.py"],
+)
+
+py_test(
+    name = "go_report_test",
+    size = "small",
+    srcs = ["go_report_test.py"],
+    args = [
+        "-o",
+        "python_files=go_report_test.py",
+    ],
+    data = [":go_report"],
+    env = {"COVERAGE_CORE": "ctrace"},
+)
