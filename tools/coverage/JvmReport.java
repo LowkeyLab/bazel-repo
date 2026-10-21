@@ -20,9 +20,12 @@ public final class JvmReport {
     Path output = Path.of(args[0]);
     ExecFileLoader execution = new ExecFileLoader();
     List<File> jars = new ArrayList<>();
+    Set<String> sharedNames = new HashSet<>();
     for (int i = 1; i < args.length; i += 2) {
       if (args[i].equals("--classfiles")) {
         jars.add(new File(args[i + 1]));
+      } else if (args[i].equals("--allow-class-name")) {
+        sharedNames.add(args[i + 1]);
       } else if (args[i].equals("--exec")) {
         File profile = new File(args[i + 1]);
         if (profile.length() == 0) {
@@ -32,9 +35,6 @@ public final class JvmReport {
       } else {
         throw new IOException("Unknown JaCoCo report option: " + args[i]);
       }
-    }
-    if (jars.isEmpty()) {
-      throw new IOException("Required JaCoCo class inputs are absent.");
     }
     CoverageBuilder coverage = new CoverageBuilder();
     Analyzer analyzer = new Analyzer(execution.getExecutionDataStore(), coverage);
@@ -64,8 +64,11 @@ public final class JvmReport {
         }
       }
     }
-    if (!coverage.getNoMatchClasses().isEmpty()) {
-      throw new IOException("JaCoCo execution data does not match configured class files.");
+    for (var unmatched : coverage.getNoMatchClasses()) {
+      if (!sharedNames.contains(unmatched.getName())) {
+        throw new IOException("JaCoCo execution data does not match configured class files.");
+      }
+      System.out.println("JACOCO_NO_MATCH " + unmatched.getName());
     }
     try (var stream = Files.newOutputStream(output)) {
       var report = new XMLFormatter().createVisitor(stream);

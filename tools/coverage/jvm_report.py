@@ -1,11 +1,13 @@
 """Merge standard JaCoCo analysis with exact configured source ownership."""
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import defaultdict
 from pathlib import Path
 from typing import NotRequired, TypedDict
@@ -89,7 +91,7 @@ def main() -> None:
                 raise ValueError(f"Missing required JVM baseline artifacts: {label}")
             data = json.loads(metadata[0].read_text())
             jars = [root / path for path in data["jars"]]
-            if not jars or any(
+            if (data["sources"] and not jars) or any(
                 not jar.is_file() or jar.stat().st_size == 0 for jar in jars
             ):
                 raise ValueError(f"Missing required JVM class input: {label}")
@@ -109,10 +111,66 @@ def main() -> None:
         declared = {
             name for data, _, _, _ in declarations.values() for name in data["sources"]
         }
-        if eligible - declared:
-            raise ValueError(
-                f"JVM sources have no configured analysis root: {sorted(eligible - declared)}"
-            )
+        limits = []
+        root_indexes = {
+            label: index for index, label in enumerate(sorted(declarations))
+        }
+        for source in inventory["eligible"]:
+            name = source["path"]
+            if source["language"] != "jvm" or name in declared:
+                continue
+            configured = [
+                (label, data)
+                for label, (data, _, _, _) in declarations.items()
+                if name in inventory.get("jvm_source_declarations", {}).get(label, [])
+            ]
+            if not configured:
+                raise ValueError(f"JVM source has no configured analysis root: {name}")
+            for label, _ in configured:
+                limits.append(
+                    {
+                        "source": name,
+                        "rule": label,
+                        "evidence": [
+                            str(root / args.inventory),
+                            str(evidence / f"inputs-{root_indexes[label]}.json"),
+                        ],
+                        "missing_guarantee": "The configured source selection excludes this inventoried source.",
+                    }
+                )
+        class_owners = defaultdict(set)
+        identities = defaultdict(set)
+        fingerprints = {}
+        uncertain_identities = set()
+        identity_owners = defaultdict(set)
+        for label, (data, _, baseline, jars) in declarations.items():
+            for node in baseline.findall("./package/class"):
+                class_owners[node.attrib["name"]].add(label)
+            for jar in jars:
+                with zipfile.ZipFile(jar) as archive:
+                    for node in baseline.findall("./package/class"):
+                        name = node.attrib["name"]
+                        entry = name + ".class"
+                        if entry + ".uninstrumented" in archive.namelist():
+                            entry += ".uninstrumented"
+                        if entry not in archive.namelist():
+                            continue
+                        digest = hashlib.sha256(archive.read(entry)).hexdigest()
+                        fingerprints[label, name] = digest
+                        candidates = [
+                            path
+                            for path in data["sources"]
+                            if Path(path).name == node.get("sourcefilename")
+                        ]
+                        identity_owners[name, digest].add(label)
+                        identities[name, digest].update(candidates)
+                        if len(candidates) != 1:
+                            uncertain_identities.add((name, digest))
+        shared_names = {
+            name for name, owners in class_owners.items() if len(owners) > 1
+        }
+        unmatched = defaultdict(set)
+        ambiguous_sources = set()
         executed = {
             owner["label"]
             for source in inventory["eligible"]
@@ -156,7 +214,6 @@ def main() -> None:
                     "execution": result.get("executionInfo", {}),
                 }
             )
-        limits = []
         observed: dict[str, dict[int, int]] = defaultdict(dict)
         branches: dict[str, dict[int, tuple[int, int]]] = defaultdict(dict)
         mappings = []
@@ -197,7 +254,18 @@ def main() -> None:
                 command.extend(["--classfiles", str(jar)])
             for profile in sorted(profiles):
                 command.extend(["--exec", str(profile)])
-            subprocess.run(command, cwd=root, check=True)
+            for name in sorted(shared_names):
+                command.extend(["--allow-class-name", name])
+            result = subprocess.run(
+                command, cwd=root, text=True, capture_output=True, check=False
+            )
+            (evidence / f"analysis-{index}.log").write_text(
+                result.stdout + result.stderr
+            )
+            result.check_returncode()
+            for line in result.stdout.splitlines():
+                if line.startswith("JACOCO_NO_MATCH "):
+                    unmatched[line.removeprefix("JACOCO_NO_MATCH ")].add(label)
             analysis = ET.parse(report).getroot()
             if analysis.tag != "report":
                 raise ValueError(f"Invalid required JaCoCo analysis: {label}")
@@ -217,6 +285,31 @@ def main() -> None:
 
             if source_lines(baseline) != source_lines(analysis):
                 raise ValueError(f"Incomplete JaCoCo source analysis: {label}")
+            for node in analysis.findall("./package/class"):
+                name = node.attrib["name"]
+                digest = fingerprints.get((label, name))
+                candidates = identities.get((name, digest), set())
+                ambiguous = len(candidates) > 1 or (
+                    (name, digest) in uncertain_identities
+                    and len(identity_owners[name, digest]) > 1
+                )
+                if ambiguous and any(
+                    int(counter.get("covered", "0")) > 0
+                    for counter in node.findall("counter")
+                    if counter.get("type") == "INSTRUCTION"
+                ):
+                    ambiguous_sources.update(candidates)
+                    for source in sorted(candidates):
+                        limits.append(
+                            {
+                                "source": source,
+                                "rule": label,
+                                "class": name,
+                                "sha256": digest,
+                                "evidence": str(report),
+                                "missing_guarantee": "A JVM class identity is shared by distinct original sources. JaCoCo cannot identify the executed owner.",
+                            }
+                        )
             by_name = defaultdict(list)
             for name in data["sources"]:
                 by_name[Path(name).name].append(name)
@@ -317,6 +410,14 @@ def main() -> None:
                             "missing_guarantee": "The configured class analysis supplies no unique source record. This is not measured zero coverage.",
                         }
                     )
+        for name, owners in unmatched.items():
+            if owners == class_owners[name]:
+                raise ValueError(
+                    f"No configured class matches JaCoCo execution data: {name}"
+                )
+        for name in ambiguous_sources:
+            observed.pop(name, None)
+            branches.pop(name, None)
         original = (root / args.report).read_text()
         records = original.split("end_of_record")
         if len(records) < 2 or records[-1].strip():
@@ -386,6 +487,7 @@ def main() -> None:
         KeyError,
         TypeError,
         ET.ParseError,
+        zipfile.BadZipFile,
         subprocess.CalledProcessError,
     ) as error:
         parser.exit(1, f"JVM coverage report failed: {error}\n")

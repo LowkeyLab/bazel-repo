@@ -122,7 +122,7 @@ def main() -> None:
         expected = []
         for index, directory in enumerate(directories):
             (directory / "BUILD.bazel").write_text(
-                '# gazelle:ignore\nload("//tools/coverage:jvm.bzl", "java_library")\njava_library(name="lib", srcs=["Unused.java", "Empty.java"], tags=["manual", "no-coverage"])\n'
+                '# gazelle:ignore\nload("//tools/coverage:jvm.bzl", "java_library")\njava_library(name="lib", srcs=["Unused.java", "Empty.java"], tags=["manual", "no-coverage"])\njava_library(name="copy", srcs=["Twin.java"])\njava_library(name="variant", srcs=["Variant.java"])\n'
             )
             write(
                 directory / "Unused.java",
@@ -132,7 +132,30 @@ def main() -> None:
                 directory / "Empty.java",
                 f"package declaration{index};\n// This source declares no class.\n",
             )
+            write(
+                directory / "Twin.java",
+                "package collision;\npublic class Twin {\n  public static int value() { return 13; }\n}\n",
+            )
+            write(
+                directory / "Variant.java",
+                f"package versions;\npublic class Variant {{\n  public static int value() {{ return {13 + index}; }}\n}}\n",
+            )
             expected.append(str((directory / "Unused.java").relative_to(root)))
+        selected = directories[0]
+        selected_build = selected / "BUILD.bazel"
+        selected_build.write_text(
+            selected_build.read_text()
+            + """
+config_setting(name="inactive", define_values={"jvm_fixture_inactive": "yes"})
+java_library(name="selected", srcs=select({":inactive": ["Inactive.java"], "//conditions:default": ["Active.java"]}))
+java_library(name="empty_selected", srcs=select({":inactive": ["InactiveEmpty.java"], "//conditions:default": []}))
+"""
+        )
+        for name in ("Active", "Inactive", "InactiveEmpty"):
+            write(
+                selected / (name + ".java"),
+                f"package selected;\npublic class {name} {{ public int value() {{ return 7; }} }}\n",
+            )
         baseline = cover("//tools/coverage:inventory_test", "baseline")
         for name in expected:
             lines = [
@@ -144,6 +167,16 @@ def main() -> None:
             assert "LF:0" in baseline[name] and "DA:" not in baseline[name], baseline[
                 name
             ]
+        baseline_receipt = json.loads((root / "coverage-jvm/receipt.json").read_text())
+        for name in ("Inactive", "InactiveEmpty"):
+            source = str((selected / (name + ".java")).relative_to(root))
+            assert source not in baseline
+            assert any(
+                limit["source"] == source
+                and "configured source selection" in limit["missing_guarantee"]
+                for limit in baseline_receipt["limits"]
+            )
+        assert str((selected / "Active.java").relative_to(root)) in baseline
         directory = directories[0]
         package = directory.name
         build = directory / "BUILD.bazel"
@@ -154,9 +187,10 @@ def main() -> None:
             )
             + """
 java_binary(name="child", srcs=["Child.java"], main_class="child.Child")
-java_test(name="execution", srcs=["Execution.java"], main_class="runner.Execution", use_testrunner=False, deps=[":lib"], data=[":child"])
+java_test(name="execution", srcs=["Execution.java"], main_class="runner.Execution", use_testrunner=False, deps=[":lib", ":copy", ":variant", ":unique_duplicate"], data=[":child"])
 kt_jvm_library(name="inline", srcs=["Inline.kt"])
 kt_jvm_test(name="kotlin_test", srcs=["KotlinTest.kt"], main_class="runner.KotlinTestKt", deps=[":inline"])
+java_library(name="unique_duplicate", srcs=["Same.java"])
 java_library(name="duplicates", srcs=["//PACKAGE/a:Same.java", "//PACKAGE/b:Same.java"])
 """.replace("PACKAGE", package)
         )
@@ -167,6 +201,10 @@ java_library(name="duplicates", srcs=["//PACKAGE/a:Same.java", "//PACKAGE/b:Same
                 '# gazelle:ignore\nexports_files(["Same.java"])\n'
             )
         write(
+            directory / "Same.java",
+            "package a;\npublic class Same { public int value() { return 7; } }\n",
+        )
+        write(
             directory / "Child.java",
             'package child;\npublic class Child {\n  public static void main(String[] args) {\n    if (args.length == 0) {\n      System.out.println("child-only");\n    }\n  }\n}\n',
         )
@@ -175,7 +213,9 @@ java_library(name="duplicates", srcs=["//PACKAGE/a:Same.java", "//PACKAGE/b:Same
             f"""package runner;
 public class Execution {{
   public static void main(String[] args) throws Exception {{
+    if (new a.Same().value() != 7) {{ throw new AssertionError(); }}
     if (fixture0.Unused.value(true) != 7) {{ throw new AssertionError(); }}
+    if (collision.Twin.value() != 13 || versions.Variant.value() != 13) {{ throw new AssertionError(); }}
     String child = System.getenv("TEST_SRCDIR") + "/" + System.getenv("TEST_WORKSPACE") + "/{package}/child";
     if (new ProcessBuilder(child).inheritIO().start().waitFor() != 0) {{ throw new AssertionError(); }}
   }}
@@ -216,6 +256,28 @@ public class Execution {{
             and "unexecuted child JVM" in limit["missing_guarantee"]
             for limit in measured_receipt["limits"]
         )
+        assert f"{package}/Same.java" not in measured
+        assert any(
+            limit["source"] == f"{package}/Same.java"
+            and "class identity" in limit["missing_guarantee"]
+            for limit in measured_receipt["limits"]
+        )
+        for directory in directories:
+            name = str((directory / "Twin.java").relative_to(root))
+            assert name not in measured, name
+            assert any(
+                limit["source"] == name
+                and "class identity" in limit["missing_guarantee"]
+                for limit in measured_receipt["limits"]
+            ), name
+        ordinary_variant = str((directories[0] / "Variant.java").relative_to(root))
+        hidden_variant = str((directories[1] / "Variant.java").relative_to(root))
+        assert "DA:3,1" in measured[ordinary_variant], measured[ordinary_variant]
+        assert all(
+            line.endswith(",0")
+            for line in measured[hidden_variant].splitlines()
+            if line.startswith("DA:")
+        ), measured[hidden_variant]
         kotlin = cover(f"//{package}:kotlin_test", "kotlin")
         assert any(
             not line.endswith(",0")

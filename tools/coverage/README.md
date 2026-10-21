@@ -207,6 +207,10 @@ Clojure remains outside scope.
 A unique source filename within a configured owner supplies an exact path.
 This permits package/directory mismatches and duplicate filenames across owners.
 Ambiguous filenames within one owner retain source-specific limits.
+Identical class bytes under distinct original sources cannot identify the executed owner.
+The adapter omits affected measured records and records the exact class and source limits.
+Different configured versions of one class retain their own standard JaCoCo results.
+Inactive `select()` sources retain explicit configuration limits, including empty selected source sets.
 The adapter does not guess their owners.
 Standard Kotlin filters and compiler mappings retain their inline attribution limits.
 Out-of-range compiler locations retain an exact source and report reference.

@@ -55,6 +55,7 @@ class CoverageInventory(TypedDict):
     coverage_roots: list[str]
     baseline_sources: list[str]
     jvm_tests: list[str]
+    jvm_source_declarations: dict[str, list[str]]
 
 
 def run(root: Path, arguments: list[str]) -> str:
@@ -174,10 +175,20 @@ def discover(root: Path, options: list[str]) -> CoverageInventory:
             sources.update(declared_sources(reference, active | {label}))
         return sources
 
+    jvm_source_declarations = {}
     roots = []
     baseline_sources = set()
     for label, rule in rules.items():
         resolved = declared_sources(label, set())
+        if rule["kind"] == "_jvm_coverage_sources":
+            references = elements[label].findall('./list[@name="srcs"]/label')
+            jvm_source_declarations[label] = sorted(
+                {
+                    source
+                    for reference in references
+                    for source in declared_sources(reference.attrib["value"], set())
+                }
+            )
         for source in resolved:
             owners[source].append(label)
 
@@ -231,6 +242,7 @@ def discover(root: Path, options: list[str]) -> CoverageInventory:
         if not declarations:
             missing.append(name)
     return {
+        "jvm_source_declarations": jvm_source_declarations,
         "jvm_tests": sorted(
             label
             for label, rule in rules.items()

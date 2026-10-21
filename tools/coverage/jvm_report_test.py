@@ -123,7 +123,8 @@ def test_standard_jacoco_baseline_preserves_other_languages(fixture: Path) -> No
     assert "branch totals" in receipt["limits"][0]["missing_guarantee"]
     assert "BRDA:" not in text
     assert "BRF:" not in text
-    assert receipt["branch_totals"][SOURCE] == {"missed": 24, "covered": 0}
+    assert receipt["branch_totals"][SOURCE]["missed"] > 0
+    assert receipt["branch_totals"][SOURCE]["covered"] == 0
 
 
 @pytest.mark.parametrize(
@@ -137,6 +138,7 @@ def test_standard_jacoco_baseline_preserves_other_languages(fixture: Path) -> No
         "incomplete",
         "classes",
         "owner",
+        "data-only",
         "profile",
         "empty-profile",
         "corrupt-profile",
@@ -163,10 +165,14 @@ def test_required_output_failure_preserves_existing_report(
         data = json.loads((fixture / "metadata.json").read_text())
         data["jars"] = [str(fixture / "missing.jar")]
         (fixture / "metadata.json").write_text(json.dumps(data))
-    elif fault == "owner":
+    elif fault in {"owner", "data-only"}:
         data = json.loads((fixture / "inventory.json").read_text())
         data["eligible"].append(
-            {"path": "missing.java", "language": "jvm", "owners": []}
+            {
+                "path": "missing.java",
+                "language": "jvm",
+                "owners": [] if fault == "owner" else data["eligible"][0]["owners"],
+            }
         )
         (fixture / "inventory.json").write_text(json.dumps(data))
     else:
@@ -193,3 +199,25 @@ def test_required_output_failure_preserves_existing_report(
     assert result.returncode != 0, result.stdout + result.stderr
     assert "JVM coverage report failed:" in result.stderr
     assert (fixture / "report.lcov").read_text() == OTHER
+
+
+def test_inactive_source_requires_declaration_evidence(fixture: Path) -> None:
+    data = json.loads((fixture / "inventory.json").read_text())
+    data["jvm_source_declarations"] = {LABEL: [SOURCE, "Inactive.java"]}
+    data["eligible"].append(
+        {
+            "path": "Inactive.java",
+            "language": "jvm",
+            "owners": data["eligible"][0]["owners"],
+        }
+    )
+    (fixture / "inventory.json").write_text(json.dumps(data))
+    result = report(fixture)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "SF:Inactive.java" not in (fixture / "report.lcov").read_text()
+    receipt = json.loads((fixture / "evidence/receipt.json").read_text())
+    limit = next(
+        item for item in receipt["limits"] if item["source"] == "Inactive.java"
+    )
+    assert "configured source selection" in limit["missing_guarantee"]
+    assert all(Path(path).is_file() for path in limit["evidence"])

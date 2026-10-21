@@ -7,8 +7,8 @@ load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_
 def _jvm_coverage_sources_impl(ctx):
     sources = [file for file in ctx.files.srcs if file.is_source and file.extension in ("java", "kt", "kts") and not file.owner.workspace_name]
     outputs = []
-    if ctx.configuration.coverage_enabled and sources:
-        if not ctx.coverage_instrumented(ctx.attr.target) or not ctx.coverage_instrumented():
+    if ctx.configuration.coverage_enabled:
+        if sources and (not ctx.coverage_instrumented(ctx.attr.target) or not ctx.coverage_instrumented()):
             fail("A required JVM coverage root is outside the instrumentation filter: " + str(ctx.attr.target.label))
         jars = [output.class_jar for output in ctx.attr.target[JavaInfo].java_outputs]
         report = ctx.actions.declare_file(ctx.label.name + ".xml")
