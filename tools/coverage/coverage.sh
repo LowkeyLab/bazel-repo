@@ -30,6 +30,7 @@ else
 fi
 REPORT_DIR="coverage-report"
 COMBINED_LCOV="coverage-report.lcov"
+rm -f coverage-reconciliation.json
 # Preserve endpoint overrides when querying the report location.
 INFO_ARGS=()
 for arg in "${ARGS[@]}"; do
@@ -100,6 +101,11 @@ bazel run "${INFO_ARGS[@]}" //tools/coverage:javascript_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --evidence coverage-javascript \
 	--collector "$JAVASCRIPT_COLLECTOR" --merger "$JAVASCRIPT_MERGER"
+bazel run "${INFO_ARGS[@]}" //tools/coverage:reconcile -- \
+	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
+	--go coverage-go-baselines.json --rust coverage-rust-baselines.json \
+	--jvm coverage-jvm/receipt.json --javascript coverage-javascript/receipt.json \
+	--output coverage-reconciliation.json
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available

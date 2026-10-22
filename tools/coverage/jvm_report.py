@@ -144,6 +144,7 @@ def main() -> None:
                             str(root / args.inventory),
                             str(evidence / f"inputs-{root_indexes[label]}.json"),
                         ],
+                        "record_absence": True,
                         "missing_guarantee": "The configured source selection excludes this inventoried source.",
                     }
                 )
@@ -400,6 +401,7 @@ def main() -> None:
                                 "class": name,
                                 "sha256": digest,
                                 "evidence": str(report),
+                                "record_absence": True,
                                 "missing_guarantee": "A JVM class identity is shared by distinct original sources. JaCoCo cannot identify the executed owner.",
                             }
                         )
@@ -418,6 +420,7 @@ def main() -> None:
                                     "source": name,
                                     "rule": label,
                                     "evidence": str(report),
+                                    "record_absence": True,
                                     "missing_guarantee": "JaCoCo source identity is ambiguous within this configured owner.",
                                 }
                             )
@@ -496,6 +499,7 @@ def main() -> None:
                             "source": name,
                             "rule": label,
                             "evidence": str(baseline_path),
+                            "record_absence": True,
                             "missing_guarantee": "The configured class analysis supplies no unique source record. This is not measured zero coverage.",
                         }
                     )

@@ -1,6 +1,7 @@
 """Apply native scope exclusions and validate required LCOV records."""
 
 import argparse
+import hashlib
 import json
 import os
 from dataclasses import dataclass
@@ -92,7 +93,7 @@ def baseline_lines(
     root: Path,
     excluded: set[str],
     language: str,
-    limits: list[dict[str, str]],
+    limits: list[dict[str, object]],
     declarations: dict[str, set[str]],
 ) -> dict[str, set[int]]:
     family = language.title()
@@ -108,10 +109,17 @@ def baseline_lines(
         if identifier in active:
             raise ValueError(f"A {family} baseline artifact set contains a cycle.")
         entry = named_sets[identifier]
-        paths = [
-            root.joinpath(*file.get("pathPrefix", []), file["name"])
-            for file in entry.get("files", [])
-        ]
+        paths = []
+        for file in entry.get("files", []):
+            path = root.joinpath(*file.get("pathPrefix", []), file["name"])
+            contents = path.read_bytes()
+            if file.get("digest") != hashlib.sha256(contents).hexdigest() or int(
+                file.get("length", 0)
+            ) != len(contents):
+                raise ValueError(
+                    f"Invalid {family} baseline artifact integrity: {path}"
+                )
+            paths.append(path)
         for child in entry.get("fileSets", []):
             paths.extend(files(child["id"], active | {identifier}))
         return paths
@@ -128,6 +136,10 @@ def baseline_lines(
         paths = []
         for group in completed.get("outputGroup", []):
             if group["name"] == f"{language}_coverage_baselines":
+                if group.get("incomplete"):
+                    raise ValueError(
+                        f"Incomplete {family} baseline output group: {label}"
+                    )
                 for entry in group.get("fileSets", []):
                     paths.extend(files(entry["id"], set()))
         if not paths:
@@ -187,6 +199,7 @@ def baseline_lines(
                             "source": name,
                             "rule": label,
                             "object": metadata.object_path,
+                            "line_summary": True,
                             "missing_guarantee": "LLVM LCOV does not identify every summarized executable line with a DA record.",
                             "evidence": str(path),
                             "diagnostic": "The LLVM LF summary exceeds its exported DA records.",
@@ -195,6 +208,17 @@ def baseline_lines(
                 mapped.add(name)
                 if name not in excluded:
                     expected.setdefault(name, set()).update(numbers)
+        if language == "go":
+            for source in sorted(declarations.get(label, set()) - mapped):
+                limits.append(
+                    {
+                        "source": source,
+                        "rule": label,
+                        "record_absence": True,
+                        "evidence": [str(path) for path in paths],
+                        "missing_guarantee": "The configured Go source selection omits this declaration. The native builder emits no baseline record for this configuration.",
+                    }
+                )
         if metadata is not None:
             for source in sorted(declarations.get(label, set()) - mapped):
                 limits.append(
@@ -202,6 +226,7 @@ def baseline_lines(
                         "source": source,
                         "rule": label,
                         "object": metadata.object_path,
+                        "record_absence": True,
                         "missing_guarantee": "LLVM emitted no source mapping in this configured object.",
                         "evidence": str(metadata.path),
                         "diagnostic": metadata.diagnostic,
@@ -285,7 +310,7 @@ def main() -> None:
             (root / args.expected_output).write_text(
                 json.dumps(
                     {
-                        **({"limits": limits} if args.language == "rust" else {}),
+                        "limits": limits,
                         "sources": {
                             name: sorted(numbers)
                             for name, numbers in sorted(expected.items())

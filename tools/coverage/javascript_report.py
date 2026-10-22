@@ -528,6 +528,7 @@ def main() -> None:
                         {
                             "source": name,
                             "rule": label,
+                            "record_absence": True,
                             "missing_guarantee": "The authoritative Vitest report omits runner configuration and global setup code outside its test instrumentation context.",
                             "evidence": str(report),
                         }
@@ -621,6 +622,7 @@ def main() -> None:
                         {
                             "source": name,
                             "rule": label,
+                            "record_absence": True,
                             "missing_guarantee": "The native original-manifest path produced an empty-script fallback. It does not establish original executable records or measured zero coverage.",
                             "evidence": str(saved_test / "report.lcov"),
                         }
@@ -649,6 +651,7 @@ def main() -> None:
                         {
                             "source": name,
                             "rule": label,
+                            "record_absence": True,
                             "missing_guarantee": "The Angular builder excludes test sources and declarations from its coverage input.",
                             "evidence": str(report),
                         }
@@ -663,6 +666,7 @@ def main() -> None:
                 {
                     "source": name,
                     "owners": sources[name]["owners"],
+                    "record_absence": True,
                     "missing_guarantee": "The selected targets or execution filters did not run this Angular builder. Its documented coverage inclusion requires a test run.",
                     "evidence": str(args.events.resolve()),
                 }
@@ -672,6 +676,7 @@ def main() -> None:
             {
                 "source": name,
                 "owners": sources[name]["owners"],
+                "record_absence": True,
                 "missing_guarantee": "The native original-manifest baseline does not establish original TypeScript or JSX executable records. No supported mapped record is available in this run.",
                 "evidence": str(baseline_path),
             }
@@ -682,6 +687,7 @@ def main() -> None:
                 {
                     "source": name,
                     "owners": source["owners"],
+                    "record_absence": True,
                     "missing_guarantee": "The selected browser reports supply no map with the exact original Astro source content. Static build-time template execution and disconnected originals have no measured browser baseline. No processed-script bridge or original mapping is reconstructed.",
                     "evidence": [
                         str(run_directory),
@@ -746,6 +752,14 @@ def main() -> None:
     receipt = {
         "schema_version": 1,
         "native_sources": sorted(supported_baseline),
+        "sources": {
+            name: sorted(
+                int(line[3:].split(",")[0])
+                for line in final[name]
+                if line.startswith("DA:")
+            )
+            for name in sorted(set(supported_baseline) | set(observed))
+        },
         "native_manifest_sources": native_sources,
         "observed_sources": observed,
         "executions": executions,
