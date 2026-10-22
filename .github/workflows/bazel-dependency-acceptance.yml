@@ -1,289 +1,104 @@
-name: Temporary native snapshot transport acceptance
+name: Temporary extraction-timeout acceptance
 on:
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
-  independent-seeds:
+  isolated-entry:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        seed: [a, b]
-    env:
-      FIXTURE_MODE: ${{ matrix.seed }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-          ref: 6e91b4e8692674204289d42b3873ba9343131273
-      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
-        with:
-          bazelisk-cache: true
-          repository-cache: false
-      - name: Run the real fixture and verify output
+          ref: a3567e24ac5c8e51b8fc4b75409a6e769ee985db
+      - name: Prepare public fault material
         run: |
-          cat > "$RUNNER_TEMP/transport-fixture.py" <<'PYTHON'
-          import hashlib
-          import http.server
-          import json
-          import os
-          from pathlib import Path
-          import subprocess
-          import threading
-          import time
-
-          mode=os.environ['FIXTURE_MODE']
-          root=Path(os.environ['RUNNER_TEMP'])/'native-transport'
-          root.mkdir(exist_ok=True)
-          workspace=root/'workspace'
-          workspace.mkdir(exist_ok=True)
-          cache=Path.home()/'.cache'/'native-transport'
-          payloads={'a':b'public dependency one\n','b':b'public dependency two\n'}
-          requests=[]
-          class Handler(http.server.BaseHTTPRequestHandler):
-              def do_GET(self):
-                  body=payloads.get(self.path.strip('/'))
-                  requests.append({'path':self.path,'bytes':len(body or b'')})
-                  self.send_response(200 if body else 404)
-                  self.end_headers()
-                  if body:self.wfile.write(body)
-              def log_message(self,*_):pass
-          server=http.server.ThreadingHTTPServer(('127.0.0.1',18643),Handler)
-          threading.Thread(target=server.serve_forever,daemon=True).start()
-          (workspace/'BUILD.bazel').write_text('')
-          (workspace/'deps.bzl').write_text('''def _repo(ctx):
-              print("RULE_EXECUTED " + ctx.attr.label)
-              ctx.download(url = ctx.attr.url, output = "material", sha256 = ctx.attr.sha256)
-              ctx.file("BUILD.bazel", 'exports_files(["material"])\\n')
-              return ctx.repo_metadata(reproducible = True)
-          repo = repository_rule(implementation = _repo, attrs = {"url": attr.string(), "sha256": attr.string(), "label": attr.string()})
-          ''')
-          module='module(name = "transport_fixture")\nrepo = use_repo_rule("//:deps.bzl", "repo")\n'
-          for key,body in payloads.items():
-              module+=f'repo(name = "fixture_{key}", label = "{key}", url = "http://127.0.0.1:18643/{key}", sha256 = "{hashlib.sha256(body).hexdigest()}")\n'
-          (workspace/'MODULE.bazel').write_text(module)
-          query='@fixture_'+mode+'//:material' if mode in ('a','b') else 'set(@fixture_a//:material @fixture_b//:material)'
-          output=root/'output'
-          assert not output.exists()
-          cmd=['bazel','--batch','--nosystem_rc','--nohome_rc','--noworkspace_rc',f'--output_base={output}','query',query,f'--repository_cache={cache}',f'--repo_contents_cache={cache}/contents','--incompatible_autoload_externally=']
-          started=time.monotonic()
-          try:
-              result=subprocess.run(cmd,cwd=workspace,env=dict(os.environ,USE_BAZEL_VERSION='9.3.1'),stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-              (root/'query.log').write_text(result.stdout)
-              correct={}
-              for key in (mode,) if mode in ('a','b') else ('a','b'):
-                  correct[key]=(output/f'external/+repo+fixture_{key}/material').read_bytes()==payloads[key]
-              d={'mode':mode,'runner':os.environ['RUNNER_NAME'],'revision':os.environ['GITHUB_SHA'],'ref':os.environ['GITHUB_REF'],'seconds':time.monotonic()-started,'exit':result.returncode,'requests':requests,'correct':correct,'rule_executed':{key:'RULE_EXECUTED '+key in result.stdout for key in ('a','b')},'command':cmd,'scope':'Fixture HTTP requests and bytes are complete. Bazelisk and registry traffic are outside this observation.'}
-              (root/'result.json').write_text(json.dumps(d,indent=2)+'\n')
-              print(json.dumps(d),flush=True)
-              assert result.returncode==0 and all(correct.values()),d
-              if mode in ('a','b'):assert requests==[{'path':'/'+mode,'bytes':22}],d
-              if mode=='add':assert requests==[{'path':'/b','bytes':22}] and not d['rule_executed']['a'],d
-              if mode=='reuse':assert not requests and not any(d['rule_executed'].values()),d
-          finally:server.shutdown()
-          PYTHON
-          python3 "$RUNNER_TEMP/transport-fixture.py"
+          mkdir -p "$HOME/.cache/bazel-repo"
+          printf 'public extraction fixture\n' > "$HOME/.cache/bazel-repo/material"
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         timeout-minutes: 2
         with:
-          path: ~/.cache/native-transport
-          key: bazel-native-acceptance-v1-${{ github.run_id }}-${{ matrix.seed }}
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: always()
-        with:
-          name: transport-fixture-${{ env.FIXTURE_MODE }}-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/native-transport/result.json
-            ${{ runner.temp }}/native-transport/query.log
-          if-no-files-found: error
-  fetch-missing-addition:
-    needs: independent-seeds
+          path: ~/.cache/bazel-repo
+          key: bazel-extraction-fault-v1-${{ github.run_id }}-${{ github.run_attempt }}
+  extraction-timeout:
+    needs: isolated-entry
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      FIXTURE_MODE: add
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-          ref: 6e91b4e8692674204289d42b3873ba9343131273
+          ref: a3567e24ac5c8e51b8fc4b75409a6e769ee985db
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
           repository-cache: false
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        timeout-minutes: 2
-        with:
-          path: ~/.cache/native-transport
-          key: bazel-native-acceptance-v1-${{ github.run_id }}-a
-          fail-on-cache-miss: true
-      - name: Run the real fixture and verify output
+      - run: python3 .github/scripts/bazel_dependencies.py configure
+      - name: Start the public dependency fixture
+        run: python3 .github/scripts/bazel_dependency_faults.py start miss
+      - name: Inject a real GNU tar extraction stall
         run: |
-          cat > "$RUNNER_TEMP/transport-fixture.py" <<'PYTHON'
-          import hashlib
-          import http.server
-          import json
-          import os
-          from pathlib import Path
-          import subprocess
-          import threading
-          import time
-
-          mode=os.environ['FIXTURE_MODE']
-          root=Path(os.environ['RUNNER_TEMP'])/'native-transport'
-          root.mkdir(exist_ok=True)
-          workspace=root/'workspace'
-          workspace.mkdir(exist_ok=True)
-          cache=Path.home()/'.cache'/'native-transport'
-          payloads={'a':b'public dependency one\n','b':b'public dependency two\n'}
-          requests=[]
-          class Handler(http.server.BaseHTTPRequestHandler):
-              def do_GET(self):
-                  body=payloads.get(self.path.strip('/'))
-                  requests.append({'path':self.path,'bytes':len(body or b'')})
-                  self.send_response(200 if body else 404)
-                  self.end_headers()
-                  if body:self.wfile.write(body)
-              def log_message(self,*_):pass
-          server=http.server.ThreadingHTTPServer(('127.0.0.1',18643),Handler)
-          threading.Thread(target=server.serve_forever,daemon=True).start()
-          (workspace/'BUILD.bazel').write_text('')
-          (workspace/'deps.bzl').write_text('''def _repo(ctx):
-              print("RULE_EXECUTED " + ctx.attr.label)
-              ctx.download(url = ctx.attr.url, output = "material", sha256 = ctx.attr.sha256)
-              ctx.file("BUILD.bazel", 'exports_files(["material"])\\n')
-              return ctx.repo_metadata(reproducible = True)
-          repo = repository_rule(implementation = _repo, attrs = {"url": attr.string(), "sha256": attr.string(), "label": attr.string()})
-          ''')
-          module='module(name = "transport_fixture")\nrepo = use_repo_rule("//:deps.bzl", "repo")\n'
-          for key,body in payloads.items():
-              module+=f'repo(name = "fixture_{key}", label = "{key}", url = "http://127.0.0.1:18643/{key}", sha256 = "{hashlib.sha256(body).hexdigest()}")\n'
-          (workspace/'MODULE.bazel').write_text(module)
-          query='@fixture_'+mode+'//:material' if mode in ('a','b') else 'set(@fixture_a//:material @fixture_b//:material)'
-          output=root/'output'
-          assert not output.exists()
-          cmd=['bazel','--batch','--nosystem_rc','--nohome_rc','--noworkspace_rc',f'--output_base={output}','query',query,f'--repository_cache={cache}',f'--repo_contents_cache={cache}/contents','--incompatible_autoload_externally=']
-          started=time.monotonic()
-          try:
-              result=subprocess.run(cmd,cwd=workspace,env=dict(os.environ,USE_BAZEL_VERSION='9.3.1'),stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-              (root/'query.log').write_text(result.stdout)
-              correct={}
-              for key in (mode,) if mode in ('a','b') else ('a','b'):
-                  correct[key]=(output/f'external/+repo+fixture_{key}/material').read_bytes()==payloads[key]
-              d={'mode':mode,'runner':os.environ['RUNNER_NAME'],'revision':os.environ['GITHUB_SHA'],'ref':os.environ['GITHUB_REF'],'seconds':time.monotonic()-started,'exit':result.returncode,'requests':requests,'correct':correct,'rule_executed':{key:'RULE_EXECUTED '+key in result.stdout for key in ('a','b')},'command':cmd,'scope':'Fixture HTTP requests and bytes are complete. Bazelisk and registry traffic are outside this observation.'}
-              (root/'result.json').write_text(json.dumps(d,indent=2)+'\n')
-              print(json.dumps(d),flush=True)
-              assert result.returncode==0 and all(correct.values()),d
-              if mode in ('a','b'):assert requests==[{'path':'/'+mode,'bytes':22}],d
-              if mode=='add':assert requests==[{'path':'/b','bytes':22}] and not d['rule_executed']['a'],d
-              if mode=='reuse':assert not requests and not any(d['rule_executed'].values()),d
-          finally:server.shutdown()
-          PYTHON
-          python3 "$RUNNER_TEMP/transport-fixture.py"
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+          mkdir "$RUNNER_TEMP/slow-restore"
+          cat > "$RUNNER_TEMP/slow-restore/tar" <<'TAR'
+          #!/bin/bash
+          if [[ "$1" == "-xf" ]]; then
+            trap '' INT TERM
+            exec /usr/bin/tar --checkpoint=1 --checkpoint-action=sleep=600 "$@"
+          fi
+          exec /usr/bin/tar "$@"
+          TAR
+          chmod 700 "$RUNNER_TEMP/slow-restore/tar"
+          echo "$RUNNER_TEMP/slow-restore" >> "$GITHUB_PATH"
+          date +%s.%N > "$FAULT_EVIDENCE/restore-started"
+      - name: Restore with the real pinned action and deadline
+        id: dependencies
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         timeout-minutes: 2
+        continue-on-error: true
+        env:
+          BAZEL_DEPENDENCY_RESTORE_WRITER: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         with:
-          path: ~/.cache/native-transport
-          key: bazel-native-acceptance-v1-${{ github.run_id }}-expanded
+          path: ~/.cache/bazel-repo
+          key: bazel-extraction-fault-v1-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Stop owned extractors and run real preparation
+        env:
+          BAZEL_DEPENDENCY_RESTORE_MARKER: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+        run: |
+          date +%s.%N > "$FAULT_EVIDENCE/restore-completed"
+          mv "$RUNNER_TEMP/slow-restore/tar" "$FAULT_EVIDENCE/tar-fault-wrapper"
+          script="$PWD/.github/scripts/bazel_dependencies.py"
+          cd "$FAULT_WORKSPACE"
+          python3 "$script" prepare | tee "$FAULT_EVIDENCE/preparation.log"
+      - name: Require stopped writers, clean fallback, and valid workload
+        env:
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+        run: |
+          python3 - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['FAULT_EVIDENCE'])
+          d=json.loads((p/'preparation.log').read_text())
+          elapsed=float((p/'restore-completed').read_text())-float((p/'restore-started').read_text())
+          assert os.environ['RESTORE_OUTCOME']=='failure'
+          assert elapsed>=120
+          assert d['preparation_exit_status']==0 and d['stopped_restore_writers']>=1
+          assert d['discarded_unconfirmed_state']
+          cache=pathlib.Path.home()/'.cache/bazel-repo'
+          assert not (cache/'material').exists() and not (cache/'incomplete-restore').exists()
+          requests=[json.loads(line) for line in (p/'requests.jsonl').read_text().splitlines()]
+          assert any(r['path']=='/dependency' for r in requests)
+          d.update(restore_seconds=elapsed,cancellation_overhead_seconds=elapsed-120,scope='Isolated public entry with a GNU tar checkpoint stall. The pinned action reached its real step deadline.')
+          (p/'extraction-timeout.json').write_text(json.dumps(d,indent=2)+'\n')
+          print(json.dumps(d))
+          PY
+          cd "$FAULT_WORKSPACE"
+          bazel build --config=ci //:fixture
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
-          name: transport-fixture-${{ env.FIXTURE_MODE }}-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/native-transport/result.json
-            ${{ runner.temp }}/native-transport/query.log
-          if-no-files-found: error
-  reuse-published-addition:
-    needs: fetch-missing-addition
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      FIXTURE_MODE: reuse
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-          ref: 6e91b4e8692674204289d42b3873ba9343131273
-      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
-        with:
-          bazelisk-cache: true
-          repository-cache: false
-      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
-        timeout-minutes: 2
-        with:
-          path: ~/.cache/native-transport
-          key: bazel-native-acceptance-v1-${{ github.run_id }}-expanded
-          fail-on-cache-miss: true
-      - name: Run the real fixture and verify output
-        run: |
-          cat > "$RUNNER_TEMP/transport-fixture.py" <<'PYTHON'
-          import hashlib
-          import http.server
-          import json
-          import os
-          from pathlib import Path
-          import subprocess
-          import threading
-          import time
-
-          mode=os.environ['FIXTURE_MODE']
-          root=Path(os.environ['RUNNER_TEMP'])/'native-transport'
-          root.mkdir(exist_ok=True)
-          workspace=root/'workspace'
-          workspace.mkdir(exist_ok=True)
-          cache=Path.home()/'.cache'/'native-transport'
-          payloads={'a':b'public dependency one\n','b':b'public dependency two\n'}
-          requests=[]
-          class Handler(http.server.BaseHTTPRequestHandler):
-              def do_GET(self):
-                  body=payloads.get(self.path.strip('/'))
-                  requests.append({'path':self.path,'bytes':len(body or b'')})
-                  self.send_response(200 if body else 404)
-                  self.end_headers()
-                  if body:self.wfile.write(body)
-              def log_message(self,*_):pass
-          server=http.server.ThreadingHTTPServer(('127.0.0.1',18643),Handler)
-          threading.Thread(target=server.serve_forever,daemon=True).start()
-          (workspace/'BUILD.bazel').write_text('')
-          (workspace/'deps.bzl').write_text('''def _repo(ctx):
-              print("RULE_EXECUTED " + ctx.attr.label)
-              ctx.download(url = ctx.attr.url, output = "material", sha256 = ctx.attr.sha256)
-              ctx.file("BUILD.bazel", 'exports_files(["material"])\\n')
-              return ctx.repo_metadata(reproducible = True)
-          repo = repository_rule(implementation = _repo, attrs = {"url": attr.string(), "sha256": attr.string(), "label": attr.string()})
-          ''')
-          module='module(name = "transport_fixture")\nrepo = use_repo_rule("//:deps.bzl", "repo")\n'
-          for key,body in payloads.items():
-              module+=f'repo(name = "fixture_{key}", label = "{key}", url = "http://127.0.0.1:18643/{key}", sha256 = "{hashlib.sha256(body).hexdigest()}")\n'
-          (workspace/'MODULE.bazel').write_text(module)
-          query='@fixture_'+mode+'//:material' if mode in ('a','b') else 'set(@fixture_a//:material @fixture_b//:material)'
-          output=root/'output'
-          assert not output.exists()
-          cmd=['bazel','--batch','--nosystem_rc','--nohome_rc','--noworkspace_rc',f'--output_base={output}','query',query,f'--repository_cache={cache}',f'--repo_contents_cache={cache}/contents','--incompatible_autoload_externally=']
-          started=time.monotonic()
-          try:
-              result=subprocess.run(cmd,cwd=workspace,env=dict(os.environ,USE_BAZEL_VERSION='9.3.1'),stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-              (root/'query.log').write_text(result.stdout)
-              correct={}
-              for key in (mode,) if mode in ('a','b') else ('a','b'):
-                  correct[key]=(output/f'external/+repo+fixture_{key}/material').read_bytes()==payloads[key]
-              d={'mode':mode,'runner':os.environ['RUNNER_NAME'],'revision':os.environ['GITHUB_SHA'],'ref':os.environ['GITHUB_REF'],'seconds':time.monotonic()-started,'exit':result.returncode,'requests':requests,'correct':correct,'rule_executed':{key:'RULE_EXECUTED '+key in result.stdout for key in ('a','b')},'command':cmd,'scope':'Fixture HTTP requests and bytes are complete. Bazelisk and registry traffic are outside this observation.'}
-              (root/'result.json').write_text(json.dumps(d,indent=2)+'\n')
-              print(json.dumps(d),flush=True)
-              assert result.returncode==0 and all(correct.values()),d
-              if mode in ('a','b'):assert requests==[{'path':'/'+mode,'bytes':22}],d
-              if mode=='add':assert requests==[{'path':'/b','bytes':22}] and not d['rule_executed']['a'],d
-              if mode=='reuse':assert not requests and not any(d['rule_executed'].values()),d
-          finally:server.shutdown()
-          PYTHON
-          python3 "$RUNNER_TEMP/transport-fixture.py"
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        if: always()
-        with:
-          name: transport-fixture-${{ env.FIXTURE_MODE }}-${{ github.run_id }}
-          path: |
-            ${{ runner.temp }}/native-transport/result.json
-            ${{ runner.temp }}/native-transport/query.log
+          name: extraction-timeout-${{ github.run_id }}
+          path: ${{ runner.temp }}/bazel-dependency-faults/
           if-no-files-found: error
