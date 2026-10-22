@@ -21,6 +21,23 @@ rust_binary(
     ],
 )
 
+rust_test(
+    name = "bundle_test",
+    size = "small",
+    srcs = ["bundle_test.rs"],
+    crate_root = "bundle_test.rs",
+    data = [":bundle"],
+    env = {"BUNDLE_TOOL": "$(rlocationpath :bundle)"},
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:topcoat-asset",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
 rust_binary(
     name = "format_impl",
     srcs = ["format.rs"],

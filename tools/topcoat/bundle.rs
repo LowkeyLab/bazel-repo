@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::{
     fs,
-    path::{Component, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use anyhow::{Context, ensure};
@@ -47,8 +47,7 @@ fn main() -> anyhow::Result<()> {
                 "declared input escapes staging"
             );
             let staged = stage.path().join(destination);
-            fs::create_dir_all(staged.parent().context("input parent")?)?;
-            fs::copy(source, staged)?;
+            stage_input(source, &staged)?;
         }
     }
     std::env::set_current_dir(stage.path())?;
@@ -76,8 +75,7 @@ fn main() -> anyhow::Result<()> {
             matches.len()
         );
         let staged = stage.path().join(destination);
-        fs::create_dir_all(staged.parent().context("asset parent")?)?;
-        fs::copy(&matches[0].0, staged)?;
+        stage_input(&matches[0].0, &staged)?;
     }
     fs::create_dir_all(&output)?;
     fs::copy(binary, output.join(&executable_name))?;
@@ -89,6 +87,20 @@ fn main() -> anyhow::Result<()> {
         output.join("integrity.json"),
         serde_json::to_vec(&serde_json::json!({"binary": digest(&bytes)?, "files": files}))?,
     )?;
+    Ok(())
+}
+
+fn stage_input(source: &Path, destination: &Path) -> anyhow::Result<()> {
+    if destination.exists() {
+        ensure!(
+            fs::read(destination)? == fs::read(source)?,
+            "different declared inputs use the staged path {}",
+            destination.display()
+        );
+        return Ok(());
+    }
+    fs::create_dir_all(destination.parent().context("staged input parent")?)?;
+    fs::copy(source, destination)?;
     Ok(())
 }
 
