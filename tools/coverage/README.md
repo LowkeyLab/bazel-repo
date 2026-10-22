@@ -83,8 +83,8 @@ This API distinguishes an empty executable set from missing executable lines.
 Reconciliation removes excluded records. It preserves eligible records and measured counts.
 It adds no coverage threshold.
 
-The hosted workflow checks both the initial report and the final merged report.
-It retains both reconciliation receipts and the original collector receipts.
+The hosted workflow checks the repository report and retains reconciliation and collector receipts.
+It does not run the language membership acceptance suites.
 
 Run the command tests through Bazel:
 
@@ -149,14 +149,9 @@ The report merge itself can execute locally while tests execute remotely.
 The workflow retains these artifacts for 30 days.
 Each artifact name ends with the run ID and attempt.
 
-| Artifact prefix                  | Contents                                                                                                                                 |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `coverage-evidence`              | Inventory, initial and final combined `LCOV`, reconciliation receipts, collector receipts, membership `LCOV`, revision, and test results |
-| `python-coverage-membership`     | Commands, exit status, fixture `LCOV`, revision, and test results                                                                        |
-| `go-coverage-membership`         | Fixture commands, reports, and collector evidence                                                                                        |
-| `rust-coverage-membership`       | Fixture commands, raw profiles, matching objects, and reports                                                                            |
-| `jvm-coverage-membership`        | Initial collector directory and fixture commands, raw profiles, configured classes, XML, and `LCOV`                                      |
-| `javascript-coverage-membership` | Initial collector directory, browser evidence, and fixture commands, inputs, and reports                                                 |
+The `coverage-evidence` artifact contains the inventory, repository `LCOV`,
+reconciliation receipts, collector receipts, JVM and JavaScript collector directories,
+revision, and test results.
 
 Download the artifacts before their retention period ends.
 Check the following evidence independently of Codecov status:
@@ -169,8 +164,8 @@ Check the following evidence independently of Codecov status:
 3. Check measured hits, supported zero-hit sources, and empty executable sets.
    Check scope exclusions separately from source-specific collector limits.
    Each limit must identify its owners, missing guarantee, and supporting evidence.
-4. Inspect retained raw profiles, objects, classes, reports, and fixture command results.
-   Expected failure cases must retain their nonzero exit statuses.
+4. Inspect retained collector inputs and reports.
+   Run the language acceptance commands separately when fixture evidence is required.
    Missing required output remains a collection failure.
 5. Check the Codecov upload result, selected file, commit, and report identity in the workflow log.
    Check the final PR status separately.
@@ -232,7 +227,7 @@ Command acceptance covers these cases:
 Child collection requires a Bazel-instrumented Go executable and an inherited
 `COVERAGE_DIR`. The acceptance test uses a real `os/exec` child.
 Pass `--evidence <directory>` after `--` to retain commands, inputs, and reports.
-The existing hosted workflow runs this acceptance and retains its evidence.
+Run this acceptance command separately. The hosted workflow does not run it.
 
 The command retains configured Go baseline sources and executable lines in
 `coverage-go-baselines.json`. Build events identify a required baseline artifact
@@ -294,7 +289,7 @@ Local mode clears remote execution, cache, and Build Event Service (BES) endpoin
 Use `--execution configured` to inherit the caller's Bazel configuration.
 The evidence records actual execution and cache status.
 Configuration alone does not establish remote execution.
-The existing hosted workflow runs configured acceptance and retains its evidence.
+Run configured acceptance separately. The hosted workflow does not run it.
 
 ## Java and Kotlin sources
 
@@ -447,7 +442,7 @@ TypeScript attribution or its exact original-manifest limit, native Node childre
 Angular children, disconnected sources,
 and preservation of other language records. Local mode clears execution, cache,
 and BES endpoints. Configured mode retains execution and cache evidence.
-The existing hosted workflow runs the same command and retains its evidence.
+Run this command separately. The hosted workflow does not run it.
 
 ## Browser and Astro sources
 
