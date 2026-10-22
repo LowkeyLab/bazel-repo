@@ -38,8 +38,8 @@
     "https://bcr.bazel.build/modules/aspect_bazel_lib/2.22.5/MODULE.bazel": "004ba890363d05372a97248c37205ae64b6fa31047629cd2c0895a9d0c7779e8",
     "https://bcr.bazel.build/modules/aspect_bazel_lib/2.22.5/source.json": "ac2c3213df8f985785f1d0aeb7f0f73d5324e6e67d593d9b9470fb74a25d4a9b",
     "https://bcr.bazel.build/modules/aspect_bazel_lib/2.8.1/MODULE.bazel": "812d2dd42f65dca362152101fbec418029cc8fd34cbad1a2fde905383d705838",
-    "https://bcr.bazel.build/modules/aspect_rules_py/1.12.1/MODULE.bazel": "c4dfd569c3e34e0e3e845e01453d5c19bd0496c01f54e37b6a4375df02578aed",
-    "https://bcr.bazel.build/modules/aspect_rules_py/1.12.1/source.json": "3b80f00180755642ae39d0401738b5872a53130c1020eb743658cd72b716d526",
+    "https://bcr.bazel.build/modules/aspect_rules_py/1.13.0/MODULE.bazel": "59dcae198154d8fe8b525f9934ec016db506c535405d826ed661a897d303246d",
+    "https://bcr.bazel.build/modules/aspect_rules_py/1.13.0/source.json": "1e25906a710e298488ac3b85133d48157523597984c8b8bf786b470514e017f7",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.3.3/MODULE.bazel": "37c764292861c2f70314efa9846bb6dbb44fc0308903b3285da6528305450183",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.0/MODULE.bazel": "ba637a3c23e2713a14b946f1cf218f5575239fb0002bf97a8ec390dd35f6f98e",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.1/MODULE.bazel": "9d94e5c22c0019995c0a3216a6abb1717dc3f35acccf4e6267a55d6df38367aa",
@@ -427,7 +427,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "ihzLOoAnQP6Y5iSYOhEjvb6uxEbA6ZgH8Qikau2lGRU=",
-        "usagesDigest": "AwcP20bjeJF5RLKxl+qIVtkNUa15ajfq5pE3g91i6IA=",
+        "usagesDigest": "7AwJbpb8YyHIWcjU69fl1ncLhzsuvnYK7qRPHZLBLDo=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+",
@@ -438,7 +438,7 @@
             "repoRuleId": "@@aspect_tools_telemetry+//:extension.bzl%tel_repository",
             "attributes": {
               "deps": {
-                "aspect_rules_py": "1.12.1",
+                "aspect_rules_py": "1.13.0",
                 "aspect_rules_lint": "",
                 "aspect_rules_esbuild": "0.0.0",
                 "aspect_rules_js": "",
