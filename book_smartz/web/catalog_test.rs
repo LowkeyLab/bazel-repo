@@ -21,7 +21,7 @@ async fn explicit_search_normalizes_work_results_and_issues_selections() -> anyh
         .and(query_param("q", "Tolkien")).and(query_param("page", "2"))
         .and(query_param("limit", "20"))
         .and(header("user-agent", "Book Smartz (maintainer@example.test)"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"start":20,"numFound":42,"docs":[
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"start":20,"numFound":42,"num_found":42,"docs":[
             {"key":"/works/OL27448W","title":"The Lord of the Rings","author_name":["J. R. R. Tolkien"],"first_publish_year":1954,"cover_i":258_027},
             {"key":"OL27448W","title":"Duplicate"},
             {"key":"OL9W","title":"The Lord of the Rings"}
@@ -213,6 +213,15 @@ async fn provider_failures_are_actionable_and_never_hide_saved_state() -> anyhow
         ),
         (
             ResponseTemplate::new(200).set_body_string("not JSON"),
+            "malformed response",
+        ),
+        (
+            ResponseTemplate::new(200)
+                .set_body_json(json!({"start":0,"numFound":0,"num_found":1,"docs":[]})),
+            "malformed response",
+        ),
+        (
+            ResponseTemplate::new(200).set_body_json(json!({"start":0,"docs":[]})),
             "malformed response",
         ),
         (

@@ -298,6 +298,11 @@ impl Catalog {
         if raw.docs.len() > 20 {
             return Err(Failure::Malformed);
         }
+        let num_found = match (raw.num_found, raw.num_found_camel_case) {
+            (Some(count), None) | (None, Some(count)) => count,
+            (Some(count), Some(other)) if count == other => count,
+            _ => return Err(Failure::Malformed),
+        };
         let mut seen = HashSet::new();
         let mut works = Vec::new();
         for doc in raw.docs {
@@ -322,18 +327,16 @@ impl Catalog {
         }
         Ok(SearchPage {
             works,
-            more: raw
-                .start
-                .checked_add(20)
-                .is_some_and(|end| end < raw.num_found),
-            no_matches: raw.num_found == 0,
+            more: raw.start.checked_add(20).is_some_and(|end| end < num_found),
+            no_matches: num_found == 0,
         })
     }
 }
 #[derive(Deserialize)]
 struct ProviderPage {
-    #[serde(alias = "numFound")]
-    num_found: u64,
+    num_found: Option<u64>,
+    #[serde(rename = "numFound")]
+    num_found_camel_case: Option<u64>,
     start: u64,
     docs: Vec<serde_json::Value>,
 }
@@ -632,4 +635,81 @@ async fn result_card(work: CatalogWork, token: String, csrf: String) -> Result<i
             </form>
         </li>
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Context;
+    use googletest::{assert_that, matchers::eq};
+    use serde_json::json;
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
+
+    use super::{Catalog, Failure};
+
+    #[googletest::test]
+    #[tokio::test]
+    async fn provider_count_spellings_preserve_pagination_and_empty_results() -> anyhow::Result<()>
+    {
+        for (counts, page, more, empty) in [
+            (json!({"numFound": 42}), 2, true, false),
+            (json!({"num_found": 42}), 2, true, false),
+            (json!({"numFound": 42, "num_found": 42}), 2, true, false),
+            (json!({"numFound": 0, "num_found": 0}), 1, false, true),
+            (json!({"numFound": 20, "num_found": 20}), 1, false, false),
+        ] {
+            let provider = MockServer::start().await;
+            let mut response = counts;
+            response["start"] = json!((page - 1) * 20);
+            response["docs"] = json!([]);
+            Mock::given(method("GET"))
+                .and(path("/search.json"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(response))
+                .mount(&provider)
+                .await;
+            let catalog = Catalog {
+                client: reqwest::Client::builder().no_proxy().build()?,
+                endpoint: format!("{}/search.json", provider.uri()).parse()?,
+                signing_key: Vec::new(),
+            };
+            let found = catalog
+                .search("count compatibility", page)
+                .await
+                .ok()
+                .context("Valid provider counts must return a search page")?;
+            assert_that!(found.more, eq(more));
+            assert_that!(found.no_matches, eq(empty));
+        }
+        Ok(())
+    }
+
+    #[googletest::test]
+    #[tokio::test]
+    async fn missing_or_conflicting_provider_counts_reject_the_response() -> anyhow::Result<()> {
+        for mut response in [json!({}), json!({"numFound": 42, "num_found": 43})] {
+            let provider = MockServer::start().await;
+            response["start"] = json!(0);
+            response["docs"] = json!([]);
+            Mock::given(method("GET"))
+                .and(path("/search.json"))
+                .respond_with(ResponseTemplate::new(200).set_body_json(response))
+                .mount(&provider)
+                .await;
+            let catalog = Catalog {
+                client: reqwest::Client::builder().no_proxy().build()?,
+                endpoint: format!("{}/search.json", provider.uri()).parse()?,
+                signing_key: Vec::new(),
+            };
+            assert_that!(
+                matches!(
+                    catalog.search("count compatibility", 1).await,
+                    Err(Failure::Malformed)
+                ),
+                eq(true)
+            );
+        }
+        Ok(())
+    }
 }
