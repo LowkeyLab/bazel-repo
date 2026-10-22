@@ -1,5 +1,6 @@
 """Behavioral checks at the dependency preparation process boundary."""
 
+import ast
 import json
 import os
 import subprocess
@@ -379,3 +380,7 @@ def test_cleanup_preserves_a_process_with_another_restore_marker(
     finally:
         unrelated.terminate()
         unrelated.wait()
+
+
+def test_helper_supports_hosted_python_312_syntax() -> None:
+    ast.parse(SCRIPT.read_text(), feature_version=(3, 12))

@@ -44,9 +44,12 @@ def stop_restore_writers() -> int:
         for process in Path("/proc").iterdir():
             if not process.name.isdecimal():
                 continue
+            # Separate handlers keep Python 3.12 syntax after formatting.
             try:
                 descriptor = os.pidfd_open(int(process.name))
-            except ProcessLookupError, PermissionError:
+            except ProcessLookupError:
+                continue
+            except PermissionError:
                 continue
             try:
                 if expected not in (process / "environ").read_bytes().split(b"\x00"):
@@ -58,7 +61,11 @@ def stop_restore_writers() -> int:
                 poller = select.poll()
                 poller.register(descriptor, select.POLLIN)
                 poller.poll(1000)
-            except FileNotFoundError, ProcessLookupError, PermissionError:
+            except FileNotFoundError:
+                continue
+            except ProcessLookupError:
+                continue
+            except PermissionError:
                 continue
             finally:
                 os.close(descriptor)
