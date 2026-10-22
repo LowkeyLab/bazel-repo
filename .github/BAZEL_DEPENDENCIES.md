@@ -46,3 +46,26 @@ For a suspected incompatible or untrusted snapshot, disable consumption first, o
 change the shared schema prefix deliberately. Resume only after establishing a
 fresh trusted baseline. Native checksums do not establish trust in executable
 repository contents.
+
+## Remote repository contents
+
+The shared `.bazelrc` enables `--experimental_remote_repo_contents_cache` as a
+startup flag for local commands and CI. It uses the existing BuildBuddy remote
+cache. This feature caches eligible external repository contents, including
+extracted files. It does not guarantee reuse for every dependency.
+
+[Bazel documents the feature and repository-rule eligibility](https://github.com/bazelbuild/bazel/discussions/27509).
+Keep the existing upload controls and the GitHub dependency restore pilot.
+Changes to repository rules require a separate decision.
+
+Acceptance requires an observed upload and a later remote hit for at least one
+eligible repository. Use separate output bases and empty local archive and
+repository-content caches for the two invocations. Preserve existing caches.
+Record the Bazel version, revision, commands, exit status, and remote cache evidence.
+A successful build alone does not prove remote reuse. Also run
+`aspect format --scope=all`, `aspect build //...`, and `aspect lint`.
+
+If this feature causes a build failure, disable it and report the cause.
+Remove the startup entry to disable it for the repository. For one invocation,
+use `bazel --noexperimental_remote_repo_contents_cache <command>`.
+Do not change repository rules to address the failure within this change.

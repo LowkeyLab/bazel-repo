@@ -4,6 +4,10 @@ try-import %workspace%/tools/java25.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
 
+# Cache eligible external repository contents in the remote cache.
+# This startup flag applies to local commands and CI.
+startup --experimental_remote_repo_contents_cache
+
 # Remote cache config
 common --bes_results_url=https://app.buildbuddy.io/invocation/
 common --bes_backend=grpcs://remote.buildbuddy.io
