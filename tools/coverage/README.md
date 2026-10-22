@@ -25,7 +25,7 @@ and executable helpers. Test-only roots select metadata without changing test
 execution filters. The inventory also reports JavaScript/TypeScript and Astro sources.
 The integrations below retain collector evidence and source-specific limits.
 Measurement requires collector evidence.
-Ticket #2509 adds reconciliation across collector families.
+Final reconciliation checks every eligible source.
 
 The scope excludes WebAssembly execution, Clojure, SQL and procedural bodies,
 Askama templates, GraphQL documents, Nix, shell, Starlark, Caddy configuration,
@@ -91,6 +91,49 @@ Run the command tests through Bazel:
 ```bash
 nix develop --command aspect test //tools/coverage:reconcile_test
 ```
+
+## Local and configured acceptance
+
+[Ticket #2510](https://github.com/LowkeyLab/bazel-repo/issues/2510) records acceptance
+for source revision `c787ca9340a0c1d17280375de0c1ee293a593b99`.
+The local audit confirms matching source bytes.
+The [configured run](https://app.buildbuddy.io/invocation/22ba2710-a435-47f2-a9c9-7c034f1aeb73)
+passes 168 fresh remote test targets with the existing CI execution filter.
+
+Both inventories contain 558 eligible sources and 1,192 scope exclusions.
+All six input hashes match in each audit.
+The table gives reconciliation statuses for eligible sources.
+
+| Mode              | Measured | Zero-hit | Collector limit | Empty executable set |
+| ----------------- | -------: | -------: | --------------: | -------------------: |
+| Local selection   |       12 |      332 |             210 |                    4 |
+| Configured remote |      352 |       68 |             134 |                    4 |
+
+Local acceptance selects five test targets for Python, Go, Rust, JVM, and Angular.
+Local browser and website runs still fail assertions.
+These failures remain local restrictions.
+The configured remote run passes their existing tests.
+The 19 Astro originals retain attribution limits in both reports.
+Their coverage remains unknown.
+
+Both report aggregations execute locally under the existing configuration.
+The final merge records 678 declared inputs.
+The action audit separates baseline execution and cache reuse.
+The retained evidence includes 543 raw Bazel artifacts, combined reports,
+collector receipts, commands, build events, and execution logs.
+The JVM fixture command completes 28 operations with their expected exit statuses.
+Its evidence retains profiles, configured class jars, metadata, and reports for each case.
+
+Local acceptance exposed repeated copies of read-only Topcoat inputs.
+The bundle command now reuses identical staged bytes and rejects conflicting inputs.
+Its two command regressions fail before the fix and pass after it.
+Child coverage records hits in the staging helper.
+
+The completed [Python acceptance #2395](https://github.com/LowkeyLab/bazel-repo/issues/2395)
+remains in effect. Membership includes maintained tests and helpers under
+[#2501](https://github.com/LowkeyLab/bazel-repo/issues/2501).
+Hosted delivery and Codecov acceptance remain in
+[#2511](https://github.com/LowkeyLab/bazel-repo/issues/2511).
 
 ## Go sources
 
