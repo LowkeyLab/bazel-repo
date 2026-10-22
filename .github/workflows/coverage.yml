@@ -62,6 +62,7 @@ jobs:
             --jvm coverage-jvm-receipt.json --javascript coverage-javascript-receipt.json \
             --output coverage-reconciliation.json
       - name: Retain coverage evidence
+        if: ${{ !cancelled() && hashFiles('coverage-inventory.json') != '' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-evidence-${{ github.run_id }}-${{ github.run_attempt }}
