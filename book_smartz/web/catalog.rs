@@ -298,6 +298,11 @@ impl Catalog {
         if raw.docs.len() > 20 {
             return Err(Failure::Malformed);
         }
+        let num_found = match (raw.num_found, raw.num_found_camel_case) {
+            (Some(count), None) | (None, Some(count)) => count,
+            (Some(count), Some(other)) if count == other => count,
+            _ => return Err(Failure::Malformed),
+        };
         let mut seen = HashSet::new();
         let mut works = Vec::new();
         for doc in raw.docs {
@@ -322,18 +327,16 @@ impl Catalog {
         }
         Ok(SearchPage {
             works,
-            more: raw
-                .start
-                .checked_add(20)
-                .is_some_and(|end| end < raw.num_found),
-            no_matches: raw.num_found == 0,
+            more: raw.start.checked_add(20).is_some_and(|end| end < num_found),
+            no_matches: num_found == 0,
         })
     }
 }
 #[derive(Deserialize)]
 struct ProviderPage {
-    #[serde(alias = "numFound")]
-    num_found: u64,
+    num_found: Option<u64>,
+    #[serde(rename = "numFound")]
+    num_found_camel_case: Option<u64>,
     start: u64,
     docs: Vec<serde_json::Value>,
 }
