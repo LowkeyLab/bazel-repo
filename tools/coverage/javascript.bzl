@@ -19,8 +19,14 @@ _coverage_runfiles = rule(
     attrs = {"targets": attr.label_list(allow_files = True)},
 )
 
-def js_test(name, entry_point, data = [], **kwargs):
+def js_test(name, entry_point, data = [], browser = False, **kwargs):
     """Supply native manifest originals without changing the collector model."""
+    if browser:
+        environment = kwargs.pop("env", {})
+        kwargs["env"] = select({
+            "//tools/coverage:javascript_coverage": dict(environment, BROWSER_COVERAGE = "1"),
+            "//conditions:default": environment,
+        })
     _coverage_runfiles(name = name + ".javascript_sources", targets = data + [entry_point], testonly = True, tags = ["manual"])
     _js_test(
         name = name,
@@ -45,6 +51,7 @@ def _javascript_test_inputs_impl(target, ctx):
     ctx.actions.write(output, json.encode({
         "rule": "//{}:{}".format(ctx.label.package, ctx.label.name),
         "instrumented": ctx.coverage_instrumented(),
+        "browser": getattr(ctx.rule.attr, "env", {}).get("BROWSER_COVERAGE") == "1",
         "sources": [file.short_path for file in target[InstrumentedFilesInfo].instrumented_files.to_list() if not file.owner.workspace_name],
         "artifacts": [{"path": file.path, "source": file.short_path} for file in scripts],
     }))

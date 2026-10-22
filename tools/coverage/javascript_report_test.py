@@ -1,8 +1,10 @@
 """Check report validation through the command with the maintained native collector."""
 
+import hashlib
 import json
 import os
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -375,3 +377,123 @@ def test_selective_child_profile_loss_records_exact_limit(workspace: Path) -> No
         item["source"] == "module.js" and item["rule"] == "//:test" for item in limits
     )
     assert len(receipt["executions"][0]["retained_profiles"]) == 1
+
+
+def test_required_browser_output_cannot_disappear(workspace: Path) -> None:
+    metadata = workspace / "fixture.javascript-test-inputs.json"
+    data = json.loads(metadata.read_text())
+    data["browser"] = True
+    metadata.write_text(json.dumps(data))
+    original = (workspace / "report.lcov").read_bytes()
+    result = run(workspace)
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "Missing required browser coverage" in result.stderr
+    assert (workspace / "report.lcov").read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "missing-profile",
+        "corrupt-profile",
+        "missing-map",
+        "corrupt-map",
+        "missing-report",
+        "incomplete-report",
+        "invalid-range",
+    ],
+)
+def test_browser_output_validation_and_hit_preservation(
+    workspace: Path, fault: str | None
+) -> None:
+    metadata = workspace / "fixture.javascript-test-inputs.json"
+    data = json.loads(metadata.read_text())
+    data["browser"] = True
+    metadata.write_text(json.dumps(data))
+    source = (workspace / "module.js").read_text()
+    raw = [
+        {
+            "url": "http://127.0.0.1:1234/site.js",
+            "source": source,
+            "functions": [
+                {
+                    "functionName": "choose",
+                    "isBlockCoverage": True,
+                    "ranges": [
+                        {"startOffset": 0, "endOffset": len(source), "count": 7}
+                    ],
+                }
+            ],
+        }
+    ]
+    mapping = {
+        "version": 3,
+        "sources": ["/build/module.js"],
+        "sourcesContent": [source],
+        "mappings": "AAAA",
+    }
+    receipt = {
+        "schema_version": 1,
+        "scripts": [
+            {
+                "script": "/build/site.js",
+                "sources": mapping["sources"],
+                "sourcesContent": [source],
+            }
+        ],
+        "sources": ["/build/module.js"],
+    }
+    files = {
+        "receipt.json": json.dumps(receipt),
+        "profile.json": json.dumps(raw),
+        "0.js": source,
+        "0.map": json.dumps(mapping),
+        "report.lcov": "SF:/build/module.js\nDA:1,7\nLF:1\nLH:1\nend_of_record\n",
+    }
+    receipt["profile_sha256"] = hashlib.sha256(
+        files["profile.json"].encode()
+    ).hexdigest()
+    receipt["report_sha256"] = hashlib.sha256(files["report.lcov"].encode()).hexdigest()
+    receipt["scripts"][0]["map_sha256"] = hashlib.sha256(
+        files["0.map"].encode()
+    ).hexdigest()
+    files["receipt.json"] = json.dumps(receipt)
+    if fault and fault.startswith("missing-"):
+        del files[
+            {
+                "missing-profile": "profile.json",
+                "missing-map": "0.map",
+                "missing-report": "report.lcov",
+            }[fault]
+        ]
+    elif fault == "corrupt-profile":
+        files["profile.json"] = "!"
+    elif fault == "corrupt-map":
+        files["0.map"] = "!"
+    elif fault == "incomplete-report":
+        files["report.lcov"] = "SF:/build/module.js\nLF:1\nLH:1\nend_of_record\n"
+    elif fault == "invalid-range":
+        raw[0]["functions"][0]["ranges"][0]["count"] = -1
+        files["profile.json"] = json.dumps(raw)
+    archive_path = workspace / "browser.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("browser-coverage/pages.json", json.dumps(["page"]))
+        for name, content in files.items():
+            archive.writestr("browser-coverage/page/" + name, content)
+    events_path = workspace / "events.json"
+    events = [json.loads(line) for line in events_path.read_text().splitlines()]
+    events[-1]["testResult"]["testActionOutput"].append(
+        {"name": "test.outputs__outputs.zip", "uri": archive_path.as_uri()}
+    )
+    events_path.write_text("".join(json.dumps(event) + "\n" for event in events))
+    original = (workspace / "report.lcov").read_bytes()
+    result = run(workspace)
+    if fault:
+        assert result.returncode != 0, result.stdout + result.stderr
+        assert (workspace / "report.lcov").read_bytes() == original
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        report = (workspace / "report.lcov").read_text()
+        assert report.count("SF:module.js\n") == 1
+        assert "DA:1,11\n" in report

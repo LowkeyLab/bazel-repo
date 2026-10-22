@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { browserCoverage } from "./browser-coverage.js";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { resolve, extname, relative, sep, join } from "node:path";
@@ -178,6 +179,11 @@ export async function withPage(
       return route.fallback();
     });
     page = await context.newPage();
+    const finishCoverage = await browserCoverage(
+      page,
+      fixtures,
+      options.javaScriptEnabled ?? true,
+    );
     await context.tracing.start({ screenshots: true, snapshots: true });
     if (options.clock) {
       // install() still ticks in real time. Pause before navigation so slow CI
@@ -257,6 +263,7 @@ export async function withPage(
       waitUntil: options.holdAnimationModules ? "commit" : "domcontentloaded",
     });
     await run(page, { releaseFonts, releaseModules });
+    await finishCoverage();
     assert.deepEqual(
       errors.map((error) => String(error)),
       [],
