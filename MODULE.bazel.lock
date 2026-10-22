@@ -4449,8 +4449,8 @@
       "required_mod_files_v1": [
         {
           "importpath": "github.com/bazelbuild/rules_go",
-          "sha256": "67494ccfec4a188f1f9d3dbb624621e89222dcd1f19229232dd7b0523866a37b",
-          "version": "v0.64.2"
+          "sha256": "d364bbfdc94f18fb3c89ff88f68fdbce392aedbac2a266e74f0836635f37e944",
+          "version": "v0.65.0"
         },
         {
           "importpath": "github.com/gin-contrib/cors",
@@ -5781,6 +5781,11 @@
           "importpath": "google.golang.org/protobuf",
           "sha256": "3f7c7260a987dce2fdfb48ce2af8b4f364873507d21abcccebab0a2743761e27",
           "version": "v1.31.0"
+        },
+        {
+          "importpath": "github.com/bazelbuild/rules_go",
+          "sha256": "67494ccfec4a188f1f9d3dbb624621e89222dcd1f19229232dd7b0523866a37b",
+          "version": "v0.64.2"
         },
         {
           "importpath": "github.com/clipperhouse/displaywidth",
@@ -7176,6 +7181,21 @@
           "importpath": "github.com/coreos/go-systemd/v22",
           "sha256": "502642c96e9d9996d696fcb269ac99aa9f5ab9f3a4d98b21931230af69967140",
           "version": "v22.7.0"
+        },
+        {
+          "importpath": "github.com/charmbracelet/x/conpty",
+          "sha256": "2a1bbf5941bda49dd62b391b709974cd4c7e8757a4b8e50354433fdc172ee889",
+          "version": "v0.1.1"
+        },
+        {
+          "importpath": "github.com/charmbracelet/x/exp/golden",
+          "sha256": "1b93bb4e83fb71d5869a8dc7f65ef716291b28af5407d69309c6cf95ac978805",
+          "version": "v0.0.0-20250806222409-83e3a29d542f"
+        },
+        {
+          "importpath": "github.com/charmbracelet/x/xpty",
+          "sha256": "58367f9bfa72427877c256c0ea89fba9019f4053e581c13f467dd7b6bcbcb022",
+          "version": "v0.1.3"
         }
       ]
     },
