@@ -70,6 +70,7 @@ jobs:
           fetch-depth: 0
       - uses: ./.github/actions/setup-bazel-ci
         with:
+          repository-cache: 'false'
           cache-name: ${{ vars.CACHIX_CACHE_NAME }}
           public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
           aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}

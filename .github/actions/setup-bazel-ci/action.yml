@@ -1,6 +1,9 @@
 name: Setup Bazel CI
 description: Shared setup for Bazel CI jobs
 inputs:
+  repository-cache:
+    description: Enable the legacy setup-aspect repository cache
+    default: 'true'
   aspect-api-token:
     description: Aspect API token used to create a session for CI tasks
     required: true
@@ -44,6 +47,7 @@ runs:
       uses: aspect-build/setup-aspect@ebca96eb49ef58c00d4226de8bd3a0813507dd87 # v2026.38.3
       with:
         launcher-install: false
+        repository-cache: ${{ inputs.repository-cache }}
         bazelrc-generate: false
         aspect-api-token: ${{ inputs.aspect-api-token }}
     - name: Log in to Docker Hub
