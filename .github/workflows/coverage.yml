@@ -52,6 +52,9 @@ jobs:
           cp coverage-javascript/receipt.json coverage-javascript-receipt.json
           cp coverage-jvm/receipt.json coverage-jvm-receipt.json
           cp coverage-reconciliation.json coverage-all-targets-reconciliation.json
+          cp coverage-report.lcov coverage-all-targets.lcov
+          cp -R coverage-jvm "$RUNNER_TEMP/all-targets-jvm"
+          cp -R coverage-javascript "$RUNNER_TEMP/all-targets-javascript"
           jq -c 'select(has("testResult") or has("testSummary") or has("finished"))' "$RUNNER_TEMP/coverage.bep.json" > coverage-test-results.jsonl
       - name: Check Python membership
         id: python_membership
@@ -128,6 +131,7 @@ jobs:
           cp "$RUNNER_TEMP/all-targets-go-baselines-before-rust.json" coverage-go-baselines.json
           cp "$RUNNER_TEMP/all-targets-rust-baselines-before-rust.json" coverage-rust-baselines.json
       - name: Check JVM membership
+        id: jvm_membership
         env:
           BUILD_WORKSPACE_DIRECTORY: ${{ github.workspace }}
         run: |
@@ -202,7 +206,19 @@ jobs:
           name: javascript-coverage-membership-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             coverage-javascript
+            ${{ runner.temp }}/all-targets-javascript
             ${{ runner.temp }}/javascript-membership
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain JVM coverage evidence
+        if: ${{ always() && steps.jvm_membership.outcome != 'skipped' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: jvm-coverage-membership-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/all-targets-jvm
+            ${{ runner.temp }}/jvm-membership
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 30
@@ -234,6 +250,7 @@ jobs:
             coverage-test-results.jsonl
             coverage-revision.txt
             coverage-all-targets-reconciliation.json
+            coverage-all-targets.lcov
             coverage-reconciliation.json
             coverage-jvm-receipt.json
             coverage-membership.lcov
