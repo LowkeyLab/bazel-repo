@@ -144,7 +144,7 @@ def publication() -> None:
         os.environ.get(name) == "success"
         for name in ("PREPARATION_OUTCOME", "TEST_OUTCOME", "JOB_STATUS")
     )
-    trusted = (
+    eligible_event = (
         os.environ.get("GITHUB_EVENT_NAME") == "push"
         and os.environ.get("GITHUB_REF") == "refs/heads/main"
     )
@@ -152,10 +152,10 @@ def publication() -> None:
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
         head = (event.get("pull_request") or {}).get("head") or {}
         repository = os.environ.get("GITHUB_REPOSITORY", "")
-        trusted = bool(repository) and (
+        eligible_event = bool(repository) and (
             (head.get("repo") or {}).get("full_name") == repository
         )
-    eligible = successful and trusted
+    eligible = successful and eligible_event
     result = {
         "eligible": eligible,
         "reason": "eligible" if eligible else "unsuccessful-or-unauthorized",
