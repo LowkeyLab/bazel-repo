@@ -46,3 +46,30 @@ For a suspected incompatible or untrusted snapshot, disable consumption first, o
 change the shared schema prefix deliberately. Resume only after establishing a
 fresh trusted baseline. Native checksums do not establish trust in executable
 repository contents.
+
+## Remote repository contents
+
+Keep `--experimental_remote_repo_contents_cache` disabled with Bazel 9.3.1.
+A trial against the existing BuildBuddy cache recorded 45 repository uploads and
+45 matching remote hits with separate empty local caches. This proved remote
+reuse for that workload, but it did not establish local executable compatibility.
+
+Hosted formatting and coverage then failed because local launchers could not find
+`bazel_tools/tools/bash/runfiles/runfiles.bash`. A local reproduction used
+`bazel run //tools/coverage:inventory -- --help` with remote-cached repositories.
+It failed with the feature enabled and passed with only the startup flag disabled.
+[Failed coverage invocation](https://app.buildbuddy.io/invocation/1e137e84-a1ca-43ee-9e64-acfda2724533).
+[Successful comparison](https://app.buildbuddy.io/invocation/c1b87ae6-9ced-40c2-921a-3613b9ec0ead).
+
+The trial followed the agreed failure policy and removed the startup entry.
+Keep the existing remote cache, upload controls, and GitHub dependency restore
+pilot. Changes to repository rules require a separate decision.
+
+Before another rollout, require an observed upload and a later remote hit for at
+least one eligible repository. Use separate output bases and empty local archive
+and repository-content caches for the two invocations. Preserve existing caches.
+Also require local launcher checks against remote-cached repositories, full
+formatting, build, lint, and hosted coverage checks. A successful build alone does
+not prove that local executables can read their runfiles.
+
+[Bazel documents the experimental feature and repository-rule eligibility](https://github.com/bazelbuild/bazel/discussions/27509).
