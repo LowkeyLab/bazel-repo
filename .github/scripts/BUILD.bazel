@@ -1,6 +1,7 @@
 load("//tools/python:defs.bzl", "py_binary", "py_library", "py_test")
 
 # gazelle:python_root
+# gazelle:resolve py bazel_dependency_faults //.github/scripts:scripts
 # gazelle:resolve py _nix_provenance //.github/scripts:scripts
 # gazelle:resolve py nix_cache_failures //.github/scripts:scripts
 # gazelle:resolve py nix_tool //.github/scripts:scripts
@@ -69,4 +70,13 @@ py_binary(
     name = "bazel_dependency_faults",
     srcs = ["bazel_dependency_faults.py"],
     visibility = ["//.github/scripts:__subpackages__"],
+)
+
+py_test(
+    name = "bazel_dependency_faults_test",
+    srcs = ["bazel_dependency_faults_test.py"],
+    deps = [
+        "//.github/scripts",
+        "@pypi//pytest",
+    ],
 )

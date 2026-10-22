@@ -1,4 +1,4 @@
-"""Isolated hosted restore faults; no real cache entries or credentials are used."""
+"""Exercise hosted cache faults with isolated endpoints and public fixtures."""
 
 import hashlib
 import http.server
@@ -166,12 +166,58 @@ def verify(mode: str) -> None:
     )
 
 
+def verify_save(mode: str) -> None:
+    """Require a real save request and retain the observed deadline overhead."""
+    evidence = evidence_path()
+    started = float((evidence / "save-started").read_text())
+    elapsed = time.time() - started
+    requests = [
+        json.loads(line)
+        for line in (evidence / "requests.jsonl").read_text().splitlines()
+    ]
+    if not any(
+        request["method"] == "POST"
+        and request["path"].endswith("/CreateCacheEntry")
+        and request["time"] >= started
+        for request in requests
+    ):
+        raise RuntimeError("Save never contacted the isolated endpoint")
+    preparation = json.loads(
+        (evidence / "preparation.log").read_text().splitlines()[-1]
+    )
+    if preparation["preparation_exit_status"] != 0:
+        raise RuntimeError("Save fault did not follow successful preparation")
+    outcome = os.environ["SAVE_OUTCOME"]
+    if mode == "stall" and (elapsed < 120 or outcome != "failure"):
+        raise RuntimeError(f"Save did not reach its two-minute deadline: {elapsed}s")
+    if mode == "error" and outcome not in ("success", "failure"):
+        raise RuntimeError(f"Save did not execute: {outcome}")
+    (evidence / "save-result.json").write_text(
+        json.dumps(
+            {
+                "mode": mode,
+                "save_elapsed_seconds": elapsed,
+                "save_step_outcome": outcome,
+                "deadline_overhead_seconds": max(0, elapsed - 120)
+                if mode == "stall"
+                else None,
+                "scope": "isolated-fixture",
+            },
+            indent=2,
+        )
+    )
+
+
 def restored(_mode: str) -> None:
     (evidence_path() / "restored").write_text(str(time.time()))
 
 
 if __name__ == "__main__":
     command, mode = sys.argv[1:]
-    {"start": start, "serve": serve, "verify": verify, "restored": restored}[command](
-        mode
-    )
+    {
+        "start": start,
+        "serve": serve,
+        "verify": verify,
+        "restored": restored,
+        "verify-save": verify_save,
+    }[command](mode)

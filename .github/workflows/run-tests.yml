@@ -87,13 +87,15 @@ jobs:
           path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
           key: ${{ env.BAZEL_DEPENDENCY_PREFIX }}${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: ${{ env.BAZEL_DEPENDENCY_PREFIX }}
-      - name: Prepare dependencies (required; publication disabled)
+      - name: Prepare dependencies (required)
+        id: preparation
         env:
           RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
           CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
           CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
         run: python3 .github/scripts/bazel_dependencies.py prepare
       - name: Run Bazel tests
+        id: workload
         run: |
           aspect test //...
       - name: Verify fresh remote browser acceptance
@@ -112,3 +114,41 @@ jobs:
             --strategy=TestRunner=remote \
             --nocache_test_results --noremote_accept_cached \
             --noremote_local_fallback --test_output=all
+      - name: Evaluate dependency publication
+        id: publication
+        if: always()
+        env:
+          PREPARATION_OUTCOME: ${{ steps.preparation.outcome }}
+          TEST_OUTCOME: ${{ steps.workload.outcome }}
+          JOB_STATUS: ${{ job.status }}
+        run: python3 .github/scripts/bazel_dependencies.py publication
+      - name: Inspect dependency material before publication
+        if: success() && steps.publication.outputs.eligible == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ASPECT_API_TOKEN: ${{ secrets.ASPECT_API_TOKEN }}
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+        run: python3 .github/scripts/bazel_dependencies.py inspect
+      - name: Save refreshed Bazel dependencies (advisory)
+        id: dependency-save
+        if: success() && steps.publication.outputs.eligible == 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        timeout-minutes: 2
+        continue-on-error: true
+        with:
+          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
+          key: ${{ env.BAZEL_DEPENDENCY_PREFIX }}${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Record dependency save step outcome
+        if: always()
+        env:
+          SAVE_OUTCOME: ${{ steps.dependency-save.outcome }}
+        run: |
+          printf '\nDependency save step outcome: %s. Inspect the pinned action log for the saved entry or transport warning.\n' "$SAVE_OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain dependency snapshot inventory
+        if: always() && steps.publication.outputs.eligible == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: bazel-dependency-inventory-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/bazel-dependency-inventory.json
+          if-no-files-found: warn

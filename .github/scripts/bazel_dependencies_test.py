@@ -73,7 +73,7 @@ def test_unconfirmed_restore_is_discarded_before_preparation(
     assert result.returncode == 0, result.stderr
     assert not (cache / "material").exists()
     assert (cache.parent / "unrelated" / "keep").read_text() == "preserved"
-    assert "publication: disabled" in (root / "summary").read_text()
+    assert "publication: not-attempted" in (root / "summary").read_text()
 
 
 @pytest.mark.parametrize(
@@ -118,3 +118,162 @@ def test_configuration_preserves_existing_flags_and_uses_shared_identity(
     assert (root / "environment").read_text() == (
         f"BAZEL_DEPENDENCY_CACHE={cache}\nBAZEL_DEPENDENCY_PREFIX=bazel-deps-v1-Linux-X64-\n"
     )
+
+
+def test_successful_main_tests_allow_publication(runner: Runner) -> None:
+    run, _, root = runner
+    event = root / "event.json"
+    event.write_text("{}")
+    result = run(
+        command="publication",
+        GITHUB_EVENT_PATH=str(event),
+        GITHUB_EVENT_NAME="push",
+        GITHUB_REF="refs/heads/main",
+        GITHUB_REPOSITORY="LowkeyLab/bazel-repo",
+        PREPARATION_OUTCOME="success",
+        TEST_OUTCOME="success",
+        JOB_STATUS="success",
+        GITHUB_OUTPUT=str(root / "outputs"),
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["eligible"] is True
+    assert (root / "outputs").read_text() == "eligible=true\n"
+
+
+@pytest.mark.parametrize("author", ["contributor", "lowkey-lab-renovate[bot]"])
+def test_successful_same_repository_pr_tests_allow_publication(
+    runner: Runner, author: str
+) -> None:
+    run, _, root = runner
+    event = root / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "pull_request": {
+                    "head": {"repo": {"full_name": "LowkeyLab/bazel-repo"}},
+                    "user": {"login": author},
+                }
+            }
+        )
+    )
+    result = run(
+        command="publication",
+        GITHUB_EVENT_PATH=str(event),
+        GITHUB_EVENT_NAME="pull_request",
+        GITHUB_REF="refs/pull/42/merge",
+        GITHUB_REPOSITORY="LowkeyLab/bazel-repo",
+        PREPARATION_OUTCOME="success",
+        TEST_OUTCOME="success",
+        JOB_STATUS="success",
+        GITHUB_OUTPUT=str(root / "outputs"),
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["eligible"] is True
+
+
+@pytest.mark.parametrize(
+    "environment",
+    [
+        {"PREPARATION_OUTCOME": "failure"},
+        {"PREPARATION_OUTCOME": "skipped"},
+        {"TEST_OUTCOME": "failure"},
+        {"TEST_OUTCOME": "cancelled"},
+        {"TEST_OUTCOME": "skipped"},
+        {"JOB_STATUS": "failure"},
+        {"JOB_STATUS": "cancelled"},
+        {"GITHUB_EVENT_NAME": "workflow_dispatch"},
+        {"GITHUB_EVENT_NAME": "pull_request_target"},
+        {"GITHUB_EVENT_NAME": "schedule"},
+        {"GITHUB_REF": "refs/heads/topic"},
+        {"GITHUB_EVENT_NAME": "pull_request", "GITHUB_REF": "refs/pull/42/merge"},
+    ],
+)
+def test_failed_cancelled_or_unauthorized_jobs_cannot_publish(
+    runner: Runner, environment: dict[str, str]
+) -> None:
+    run, _, root = runner
+    event = root / "event.json"
+    event.write_text(
+        json.dumps(
+            {
+                "pull_request": {
+                    "head": {"repo": {"full_name": "contributor/bazel-repo"}}
+                }
+            }
+        )
+    )
+    result = run(
+        command="publication",
+        **{
+            "GITHUB_EVENT_PATH": str(event),
+            "GITHUB_EVENT_NAME": "push",
+            "GITHUB_REF": "refs/heads/main",
+            "GITHUB_REPOSITORY": "LowkeyLab/bazel-repo",
+            "PREPARATION_OUTCOME": "success",
+            "TEST_OUTCOME": "success",
+            "JOB_STATUS": "success",
+            "GITHUB_OUTPUT": str(root / "outputs"),
+            **environment,
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["eligible"] is False
+    assert (root / "outputs").read_text() == "eligible=false\n"
+
+
+def test_snapshot_inspection_rejects_credentials_before_publication(
+    runner: Runner,
+) -> None:
+    run, cache, root = runner
+    (cache / "material").write_text("generated file contains ephemeral-test-credential")
+    result = run(
+        command="inspect",
+        RUNNER_TEMP=str(root),
+        BUILDBUDDY_API_KEY="ephemeral-test-credential",
+    )
+    assert result.returncode != 0
+    assert "credential" in result.stderr.lower()
+    assert "ephemeral-test-credential" not in result.stderr + result.stdout
+    assert not (root / "bazel-dependency-inventory.json").exists()
+
+
+def test_snapshot_inspection_records_contents_separately(runner: Runner) -> None:
+    run, cache, root = runner
+    (cache / "contents").mkdir()
+    (cache / "contents" / "generated").write_bytes(b"public")
+    result = run(command="inspect", RUNNER_TEMP=str(root))
+    assert result.returncode == 0, result.stderr
+    inventory = json.loads((root / "bazel-dependency-inventory.json").read_text())
+    assert inventory["archive_bytes"] == len(b"dependency")
+    assert inventory["contents_bytes"] == len(b"public")
+    assert {entry["path"] for entry in inventory["files"]} == {
+        "material",
+        "contents/generated",
+    }
+
+
+def test_snapshot_inspection_rejects_links_to_external_material(runner: Runner) -> None:
+    run, cache, root = runner
+    (root / "private").write_text("outside cache")
+    (cache / "external").symlink_to(root / "private")
+    result = run(command="inspect", RUNNER_TEMP=str(root))
+    assert result.returncode != 0
+    assert "external link" in result.stderr
+    assert not (root / "bazel-dependency-inventory.json").exists()
+
+
+def test_snapshot_inspection_finds_credentials_across_read_boundaries(
+    runner: Runner,
+) -> None:
+    run, cache, root = runner
+    (cache / "material").write_bytes(
+        b"x" * (1024 * 1024 - 4) + b"ephemeral-test-credential"
+    )
+    result = run(
+        command="inspect",
+        RUNNER_TEMP=str(root),
+        GITHUB_TOKEN="ephemeral-test-credential",
+    )
+    assert result.returncode != 0
+    assert "credential" in result.stderr.lower()
+    assert "ephemeral-test-credential" not in result.stderr + result.stdout

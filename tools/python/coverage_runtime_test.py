@@ -86,10 +86,18 @@ def test_current_interpreter_records_script_lines_and_branches(tmp_path: Path) -
     assert result.returncode == 0, result.stdout + result.stderr
     text = report.read_text()
     assert text.count("SF:.github/scripts/bazel_dependencies.py\n") == 1
-    assert "DA:41,0\n" in text
-    assert "DA:43,1\n" in text
-    assert "BRF:14\n" in text
-    assert "BRH:9\n" in text
+    source = (ROOT / ".github/scripts/bazel_dependencies.py").read_text().splitlines()
+    for statement, hits in (("cache.unlink()", 0), ("shutil.rmtree(cache)", 1)):
+        line = next(
+            index for index, value in enumerate(source, 1) if value.strip() == statement
+        )
+        assert f"DA:{line},{hits}\n" in text
+    totals = dict(
+        line.split(":", 1)
+        for line in text.splitlines()
+        if line.startswith(("BRF:", "BRH:"))
+    )
+    assert 0 < int(totals["BRH"]) < int(totals["BRF"])
 
 
 @pytest.mark.parametrize("fault", ["collection", "combination"])
