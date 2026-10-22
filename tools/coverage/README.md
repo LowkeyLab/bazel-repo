@@ -23,9 +23,8 @@ or `no-coverage` tags.
 The Python integration selects baselines for maintained production sources, tests,
 and executable helpers. Test-only roots select metadata without changing test
 execution filters. The inventory also reports JavaScript/TypeScript and Astro sources.
-The browser and Astro integration remains under ticket #2508.
+The integrations below retain collector evidence and source-specific limits.
 Measurement requires collector evidence.
-Pending integrations supply no accepted collector limits.
 Ticket #2509 adds reconciliation across collector families.
 
 The scope excludes WebAssembly execution, Clojure, SQL and procedural bodies,
