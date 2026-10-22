@@ -382,3 +382,46 @@ def test_corrupt_collector_line_sets_fail(
         javascript={"sources": {"module.js": lines}, "limits": []},
     )
     assert result.returncode != 0
+
+
+@pytest.mark.parametrize(
+    "found,hit,count,valid",
+    [
+        (2, 0, 7, False),
+        (2, 2, 0, False),
+        (1, 0, 7, False),
+        (2, 2, 7, True),
+        (2, 1, 0, True),
+    ],
+)
+def test_rust_summary_limits_preserve_known_hit_constraints(
+    tmp_path: Path, found: int, hit: int, count: int, valid: bool
+) -> None:
+    inventory = {
+        "eligible": [
+            {"path": "module.rs", "language": "rust", "owners": [{"label": "//:lib"}]}
+        ],
+        "excluded": [],
+        "missing_owners": [],
+    }
+    limit = {
+        "source": "module.rs",
+        "rule": "//:lib",
+        "evidence": "baseline.lcov",
+        "missing_guarantee": "LLVM does not identify all summarized executable lines.",
+        "line_summary": True,
+    }
+    report = f"SF:module.rs\nDA:1,{count}\nLF:{found}\nLH:{hit}\nend_of_record\n"
+    result = run_command(
+        tmp_path,
+        inventory,
+        report,
+        rust={"sources": {"module.rs": [1]}, "limits": [limit]},
+    )
+    assert result.returncode == (0 if valid else 1), result.stderr
+    if valid:
+        output = json.loads((tmp_path / "receipt.json").read_text())
+        assert output["sources"][0]["status"] == (
+            "measured" if count else "collector_limit"
+        )
+        assert (tmp_path / "report.lcov").read_text() == report

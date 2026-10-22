@@ -200,10 +200,11 @@ def reconcile(
             )
             continue
         record = observed[name]
-        if (
-            record.found != len(record.lines)
-            or record.hit != sum(count > 0 for count in record.lines.values())
-        ) and not (
+        known_hits = sum(count > 0 for count in record.lines.values())
+        unidentified_lines = record.found - len(record.lines)
+        if not known_hits <= record.hit <= known_hits + unidentified_lines:
+            raise ValueError(f"The executable summary contradicts known hits: {name}")
+        if (record.found != len(record.lines) or record.hit != known_hits) and not (
             family == "rust"
             and any(limit.get("line_summary") is True for limit in limits)
         ):
@@ -213,11 +214,15 @@ def reconcile(
         results.append(
             {
                 "source": name,
-                "status": ("measured" if record.hit else "zero_hit")
+                "status": (
+                    "measured"
+                    if known_hits
+                    else ("collector_limit" if record.hit else "zero_hit")
+                )
                 if record.lines
                 else ("collector_limit" if limits else "no_executable_lines"),
                 "executable_lines": len(record.lines),
-                "hit_lines": sum(count > 0 for count in record.lines.values()),
+                "hit_lines": known_hits,
                 "limits": limits,
             }
         )
