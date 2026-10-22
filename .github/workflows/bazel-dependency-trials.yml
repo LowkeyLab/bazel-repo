@@ -1,0 +1,550 @@
+name: Temporary paired dependency-cache trials
+on:
+  pull_request:
+    paths: [.github/workflows/bazel-dependency-trials.yml]
+permissions:
+  contents: read
+jobs:
+  pair1_cold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TRIAL_MODE: cold
+      PAIR_ID: 1
+      SNAPSHOT_KEY: bazel-deps-v1-Linux-X64-39848429121-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: ./.github/actions/setup-bazel-ci
+        with:
+          repository-cache: 'false'
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
+          docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Require new dependency state and output base
+        run: |
+          test ! -e "$HOME/.cache/bazel-repo"
+          test ! -e "$RUNNER_TEMP/trial-output"
+          printf '\nstartup --output_base=%s/trial-output\n' "$RUNNER_TEMP" >> "$HOME/.bazelrc"
+          python3 .github/scripts/bazel_dependencies.py configure
+          mkdir "$RUNNER_TEMP/trial-evidence"
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/started"
+      - name: Restore only the measured snapshot
+        id: dependencies
+        if: env.TRIAL_MODE == 'warm'
+        timeout-minutes: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
+          key: ${{ env.SNAPSHOT_KEY }}
+          fail-on-cache-miss: true
+      - name: Prepare dependencies and record phase boundaries
+        env:
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+        run: |
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/restored"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-before.json').write_text(json.dumps(counters))
+          PY
+          python3 .github/scripts/bazel_dependencies.py prepare > "$RUNNER_TEMP/trial-preparation.stdout"
+          python3 - <<'PYTHON'
+          import pathlib,json,os
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          d=json.loads((root/'trial-preparation.stdout').read_text())
+          allowed=('restore_outcome','snapshot','restore','discarded_unconfirmed_state','publication','preparation_seconds','preparation_exit_status')
+          (root/'trial-evidence/preparation.json').write_text(json.dumps({k:d[k] for k in allowed})+'\n')
+          PYTHON
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/prepared"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-after.json').write_text(json.dumps(counters))
+          PY
+      - name: Run the normal test workload
+        run: |
+          aspect test //...
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/completed"
+      - name: Record credential-free measurements
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,os,subprocess
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          times={k:float((p/k).read_text()) for k in ('started','restored','prepared','completed') if (p/k).exists()}
+          d={'mode':os.environ['TRIAL_MODE'],'pair':os.environ['PAIR_ID'],'snapshot_key':os.environ['SNAPSHOT_KEY'],'source_ref':os.environ['GITHUB_REF'],'runner':os.environ['RUNNER_NAME'],'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'times':times,'network_scope':'Interface receive counters include TLS overhead and background traffic. They do not identify exact upstream request counts or subprocess destinations. GitHub job logs retain visible downloader messages.'}
+          if 'prepared' in times: d['restore_plus_preparation_seconds']=times['prepared']-times['started']
+          if 'restored' in times: d['restore_seconds']=times['restored']-times['started'] if d['mode']=='warm' else 0
+          if 'completed' in times: d['end_to_end_workload_seconds']=times['completed']-times['started']
+          (p/'trial.json').write_text(json.dumps(d,indent=2)+'\n')
+          print(json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: paired-dependency-trial-1-cold
+          path: ${{ runner.temp }}/trial-evidence/
+          if-no-files-found: error
+  pair1_warm:
+    needs: pair1_cold
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TRIAL_MODE: warm
+      PAIR_ID: 1
+      SNAPSHOT_KEY: bazel-deps-v1-Linux-X64-39848429121-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: ./.github/actions/setup-bazel-ci
+        with:
+          repository-cache: 'false'
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
+          docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Require new dependency state and output base
+        run: |
+          test ! -e "$HOME/.cache/bazel-repo"
+          test ! -e "$RUNNER_TEMP/trial-output"
+          printf '\nstartup --output_base=%s/trial-output\n' "$RUNNER_TEMP" >> "$HOME/.bazelrc"
+          python3 .github/scripts/bazel_dependencies.py configure
+          mkdir "$RUNNER_TEMP/trial-evidence"
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/started"
+      - name: Restore only the measured snapshot
+        id: dependencies
+        if: env.TRIAL_MODE == 'warm'
+        timeout-minutes: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
+          key: ${{ env.SNAPSHOT_KEY }}
+          fail-on-cache-miss: true
+      - name: Prepare dependencies and record phase boundaries
+        env:
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+        run: |
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/restored"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-before.json').write_text(json.dumps(counters))
+          PY
+          python3 .github/scripts/bazel_dependencies.py prepare > "$RUNNER_TEMP/trial-preparation.stdout"
+          python3 - <<'PYTHON'
+          import pathlib,json,os
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          d=json.loads((root/'trial-preparation.stdout').read_text())
+          allowed=('restore_outcome','snapshot','restore','discarded_unconfirmed_state','publication','preparation_seconds','preparation_exit_status')
+          (root/'trial-evidence/preparation.json').write_text(json.dumps({k:d[k] for k in allowed})+'\n')
+          PYTHON
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/prepared"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-after.json').write_text(json.dumps(counters))
+          PY
+      - name: Run the normal test workload
+        run: |
+          aspect test //...
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/completed"
+      - name: Record credential-free measurements
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,os,subprocess
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          times={k:float((p/k).read_text()) for k in ('started','restored','prepared','completed') if (p/k).exists()}
+          d={'mode':os.environ['TRIAL_MODE'],'pair':os.environ['PAIR_ID'],'snapshot_key':os.environ['SNAPSHOT_KEY'],'source_ref':os.environ['GITHUB_REF'],'runner':os.environ['RUNNER_NAME'],'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'times':times,'network_scope':'Interface receive counters include TLS overhead and background traffic. They do not identify exact upstream request counts or subprocess destinations. GitHub job logs retain visible downloader messages.'}
+          if 'prepared' in times: d['restore_plus_preparation_seconds']=times['prepared']-times['started']
+          if 'restored' in times: d['restore_seconds']=times['restored']-times['started'] if d['mode']=='warm' else 0
+          if 'completed' in times: d['end_to_end_workload_seconds']=times['completed']-times['started']
+          (p/'trial.json').write_text(json.dumps(d,indent=2)+'\n')
+          print(json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: paired-dependency-trial-1-warm
+          path: ${{ runner.temp }}/trial-evidence/
+          if-no-files-found: error
+  pair2_warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TRIAL_MODE: warm
+      PAIR_ID: 2
+      SNAPSHOT_KEY: bazel-deps-v1-Linux-X64-39848429121-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: ./.github/actions/setup-bazel-ci
+        with:
+          repository-cache: 'false'
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
+          docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Require new dependency state and output base
+        run: |
+          test ! -e "$HOME/.cache/bazel-repo"
+          test ! -e "$RUNNER_TEMP/trial-output"
+          printf '\nstartup --output_base=%s/trial-output\n' "$RUNNER_TEMP" >> "$HOME/.bazelrc"
+          python3 .github/scripts/bazel_dependencies.py configure
+          mkdir "$RUNNER_TEMP/trial-evidence"
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/started"
+      - name: Restore only the measured snapshot
+        id: dependencies
+        if: env.TRIAL_MODE == 'warm'
+        timeout-minutes: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
+          key: ${{ env.SNAPSHOT_KEY }}
+          fail-on-cache-miss: true
+      - name: Prepare dependencies and record phase boundaries
+        env:
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+        run: |
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/restored"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-before.json').write_text(json.dumps(counters))
+          PY
+          python3 .github/scripts/bazel_dependencies.py prepare > "$RUNNER_TEMP/trial-preparation.stdout"
+          python3 - <<'PYTHON'
+          import pathlib,json,os
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          d=json.loads((root/'trial-preparation.stdout').read_text())
+          allowed=('restore_outcome','snapshot','restore','discarded_unconfirmed_state','publication','preparation_seconds','preparation_exit_status')
+          (root/'trial-evidence/preparation.json').write_text(json.dumps({k:d[k] for k in allowed})+'\n')
+          PYTHON
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/prepared"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-after.json').write_text(json.dumps(counters))
+          PY
+      - name: Run the normal test workload
+        run: |
+          aspect test //...
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/completed"
+      - name: Record credential-free measurements
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,os,subprocess
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          times={k:float((p/k).read_text()) for k in ('started','restored','prepared','completed') if (p/k).exists()}
+          d={'mode':os.environ['TRIAL_MODE'],'pair':os.environ['PAIR_ID'],'snapshot_key':os.environ['SNAPSHOT_KEY'],'source_ref':os.environ['GITHUB_REF'],'runner':os.environ['RUNNER_NAME'],'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'times':times,'network_scope':'Interface receive counters include TLS overhead and background traffic. They do not identify exact upstream request counts or subprocess destinations. GitHub job logs retain visible downloader messages.'}
+          if 'prepared' in times: d['restore_plus_preparation_seconds']=times['prepared']-times['started']
+          if 'restored' in times: d['restore_seconds']=times['restored']-times['started'] if d['mode']=='warm' else 0
+          if 'completed' in times: d['end_to_end_workload_seconds']=times['completed']-times['started']
+          (p/'trial.json').write_text(json.dumps(d,indent=2)+'\n')
+          print(json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: paired-dependency-trial-2-warm
+          path: ${{ runner.temp }}/trial-evidence/
+          if-no-files-found: error
+  pair2_cold:
+    needs: pair2_warm
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TRIAL_MODE: cold
+      PAIR_ID: 2
+      SNAPSHOT_KEY: bazel-deps-v1-Linux-X64-39848429121-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: ./.github/actions/setup-bazel-ci
+        with:
+          repository-cache: 'false'
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
+          docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Require new dependency state and output base
+        run: |
+          test ! -e "$HOME/.cache/bazel-repo"
+          test ! -e "$RUNNER_TEMP/trial-output"
+          printf '\nstartup --output_base=%s/trial-output\n' "$RUNNER_TEMP" >> "$HOME/.bazelrc"
+          python3 .github/scripts/bazel_dependencies.py configure
+          mkdir "$RUNNER_TEMP/trial-evidence"
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/started"
+      - name: Restore only the measured snapshot
+        id: dependencies
+        if: env.TRIAL_MODE == 'warm'
+        timeout-minutes: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
+          key: ${{ env.SNAPSHOT_KEY }}
+          fail-on-cache-miss: true
+      - name: Prepare dependencies and record phase boundaries
+        env:
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+        run: |
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/restored"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-before.json').write_text(json.dumps(counters))
+          PY
+          python3 .github/scripts/bazel_dependencies.py prepare > "$RUNNER_TEMP/trial-preparation.stdout"
+          python3 - <<'PYTHON'
+          import pathlib,json,os
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          d=json.loads((root/'trial-preparation.stdout').read_text())
+          allowed=('restore_outcome','snapshot','restore','discarded_unconfirmed_state','publication','preparation_seconds','preparation_exit_status')
+          (root/'trial-evidence/preparation.json').write_text(json.dumps({k:d[k] for k in allowed})+'\n')
+          PYTHON
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/prepared"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-after.json').write_text(json.dumps(counters))
+          PY
+      - name: Run the normal test workload
+        run: |
+          aspect test //...
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/completed"
+      - name: Record credential-free measurements
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,os,subprocess
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          times={k:float((p/k).read_text()) for k in ('started','restored','prepared','completed') if (p/k).exists()}
+          d={'mode':os.environ['TRIAL_MODE'],'pair':os.environ['PAIR_ID'],'snapshot_key':os.environ['SNAPSHOT_KEY'],'source_ref':os.environ['GITHUB_REF'],'runner':os.environ['RUNNER_NAME'],'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'times':times,'network_scope':'Interface receive counters include TLS overhead and background traffic. They do not identify exact upstream request counts or subprocess destinations. GitHub job logs retain visible downloader messages.'}
+          if 'prepared' in times: d['restore_plus_preparation_seconds']=times['prepared']-times['started']
+          if 'restored' in times: d['restore_seconds']=times['restored']-times['started'] if d['mode']=='warm' else 0
+          if 'completed' in times: d['end_to_end_workload_seconds']=times['completed']-times['started']
+          (p/'trial.json').write_text(json.dumps(d,indent=2)+'\n')
+          print(json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: paired-dependency-trial-2-cold
+          path: ${{ runner.temp }}/trial-evidence/
+          if-no-files-found: error
+  pair3_cold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TRIAL_MODE: cold
+      PAIR_ID: 3
+      SNAPSHOT_KEY: bazel-deps-v1-Linux-X64-39848429121-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: ./.github/actions/setup-bazel-ci
+        with:
+          repository-cache: 'false'
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
+          docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Require new dependency state and output base
+        run: |
+          test ! -e "$HOME/.cache/bazel-repo"
+          test ! -e "$RUNNER_TEMP/trial-output"
+          printf '\nstartup --output_base=%s/trial-output\n' "$RUNNER_TEMP" >> "$HOME/.bazelrc"
+          python3 .github/scripts/bazel_dependencies.py configure
+          mkdir "$RUNNER_TEMP/trial-evidence"
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/started"
+      - name: Restore only the measured snapshot
+        id: dependencies
+        if: env.TRIAL_MODE == 'warm'
+        timeout-minutes: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
+          key: ${{ env.SNAPSHOT_KEY }}
+          fail-on-cache-miss: true
+      - name: Prepare dependencies and record phase boundaries
+        env:
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+        run: |
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/restored"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-before.json').write_text(json.dumps(counters))
+          PY
+          python3 .github/scripts/bazel_dependencies.py prepare > "$RUNNER_TEMP/trial-preparation.stdout"
+          python3 - <<'PYTHON'
+          import pathlib,json,os
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          d=json.loads((root/'trial-preparation.stdout').read_text())
+          allowed=('restore_outcome','snapshot','restore','discarded_unconfirmed_state','publication','preparation_seconds','preparation_exit_status')
+          (root/'trial-evidence/preparation.json').write_text(json.dumps({k:d[k] for k in allowed})+'\n')
+          PYTHON
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/prepared"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-after.json').write_text(json.dumps(counters))
+          PY
+      - name: Run the normal test workload
+        run: |
+          aspect test //...
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/completed"
+      - name: Record credential-free measurements
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,os,subprocess
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          times={k:float((p/k).read_text()) for k in ('started','restored','prepared','completed') if (p/k).exists()}
+          d={'mode':os.environ['TRIAL_MODE'],'pair':os.environ['PAIR_ID'],'snapshot_key':os.environ['SNAPSHOT_KEY'],'source_ref':os.environ['GITHUB_REF'],'runner':os.environ['RUNNER_NAME'],'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'times':times,'network_scope':'Interface receive counters include TLS overhead and background traffic. They do not identify exact upstream request counts or subprocess destinations. GitHub job logs retain visible downloader messages.'}
+          if 'prepared' in times: d['restore_plus_preparation_seconds']=times['prepared']-times['started']
+          if 'restored' in times: d['restore_seconds']=times['restored']-times['started'] if d['mode']=='warm' else 0
+          if 'completed' in times: d['end_to_end_workload_seconds']=times['completed']-times['started']
+          (p/'trial.json').write_text(json.dumps(d,indent=2)+'\n')
+          print(json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: paired-dependency-trial-3-cold
+          path: ${{ runner.temp }}/trial-evidence/
+          if-no-files-found: error
+  pair3_warm:
+    needs: pair3_cold
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      TRIAL_MODE: warm
+      PAIR_ID: 3
+      SNAPSHOT_KEY: bazel-deps-v1-Linux-X64-39848429121-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: ./.github/actions/setup-bazel-ci
+        with:
+          repository-cache: 'false'
+          cache-name: ${{ vars.CACHIX_CACHE_NAME }}
+          public-key: ${{ vars.CACHIX_PUBLIC_KEY }}
+          aspect-api-token: ${{ secrets.ASPECT_API_TOKEN }}
+          buildbuddy-api-key: ${{ secrets.BUILDBUDDY_API_KEY }}
+          docker-hub-username: ${{ vars.DOCKER_HUB_USERNAME }}
+          docker-hub-token: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Require new dependency state and output base
+        run: |
+          test ! -e "$HOME/.cache/bazel-repo"
+          test ! -e "$RUNNER_TEMP/trial-output"
+          printf '\nstartup --output_base=%s/trial-output\n' "$RUNNER_TEMP" >> "$HOME/.bazelrc"
+          python3 .github/scripts/bazel_dependencies.py configure
+          mkdir "$RUNNER_TEMP/trial-evidence"
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/started"
+      - name: Restore only the measured snapshot
+        id: dependencies
+        if: env.TRIAL_MODE == 'warm'
+        timeout-minutes: 2
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
+          key: ${{ env.SNAPSHOT_KEY }}
+          fail-on-cache-miss: true
+      - name: Prepare dependencies and record phase boundaries
+        env:
+          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
+          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
+          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+        run: |
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/restored"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-before.json').write_text(json.dumps(counters))
+          PY
+          python3 .github/scripts/bazel_dependencies.py prepare > "$RUNNER_TEMP/trial-preparation.stdout"
+          python3 - <<'PYTHON'
+          import pathlib,json,os
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          d=json.loads((root/'trial-preparation.stdout').read_text())
+          allowed=('restore_outcome','snapshot','restore','discarded_unconfirmed_state','publication','preparation_seconds','preparation_exit_status')
+          (root/'trial-evidence/preparation.json').write_text(json.dumps({k:d[k] for k in allowed})+'\n')
+          PYTHON
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/prepared"
+          python3 - <<'PY'
+          import pathlib,json,os
+          target=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          counters={p.parent.parent.name:int(p.read_text()) for p in pathlib.Path('/sys/class/net').glob('*/statistics/rx_bytes') if p.parent.parent.name!='lo'}
+          (target/'network-after.json').write_text(json.dumps(counters))
+          PY
+      - name: Run the normal test workload
+        run: |
+          aspect test //...
+          date +%s.%N > "$RUNNER_TEMP/trial-evidence/completed"
+      - name: Record credential-free measurements
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import pathlib,json,os,subprocess
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'trial-evidence'
+          times={k:float((p/k).read_text()) for k in ('started','restored','prepared','completed') if (p/k).exists()}
+          d={'mode':os.environ['TRIAL_MODE'],'pair':os.environ['PAIR_ID'],'snapshot_key':os.environ['SNAPSHOT_KEY'],'source_ref':os.environ['GITHUB_REF'],'runner':os.environ['RUNNER_NAME'],'revision':subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip(),'times':times,'network_scope':'Interface receive counters include TLS overhead and background traffic. They do not identify exact upstream request counts or subprocess destinations. GitHub job logs retain visible downloader messages.'}
+          if 'prepared' in times: d['restore_plus_preparation_seconds']=times['prepared']-times['started']
+          if 'restored' in times: d['restore_seconds']=times['restored']-times['started'] if d['mode']=='warm' else 0
+          if 'completed' in times: d['end_to_end_workload_seconds']=times['completed']-times['started']
+          (p/'trial.json').write_text(json.dumps(d,indent=2)+'\n')
+          print(json.dumps(d))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: paired-dependency-trial-3-warm
+          path: ${{ runner.temp }}/trial-evidence/
+          if-no-files-found: error
