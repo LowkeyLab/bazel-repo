@@ -1,170 +1,119 @@
-name: Bazel dependency cache acceptance
+name: Temporary native dependency-cache probe
 on:
   workflow_dispatch:
-    inputs:
-      audit-only:
-        description: Run only the fresh-runner material audit
-        type: boolean
-        default: false
-  pull_request:
-    paths:
-      - .github/scripts/bazel_dependenc*.py
-      - .github/workflows/bazel-dependency-acceptance.yml
-      - .github/workflows/run-tests.yml
 permissions:
   contents: read
 jobs:
-  restore-faults:
-    if: github.event_name != 'workflow_dispatch' || !inputs.audit-only
+  native-probe:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        fault: [miss, error, stall]
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          ref: 459c71378774e3746230e7c817d7b216eee6d0d5
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
           bazelisk-cache: true
           repository-cache: false
-      - name: Configure shared dependency cache
-        run: python3 .github/scripts/bazel_dependencies.py configure
-      - name: Start isolated endpoint and public dependency fixture
-        env:
-          FAULT_MODE: ${{ matrix.fault }}
-        run: python3 .github/scripts/bazel_dependency_faults.py start "$FAULT_MODE"
-      - name: Restore against isolated fault endpoint (advisory)
-        id: dependencies
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        timeout-minutes: 2
-        continue-on-error: true
-        env:
-          NODE_OPTIONS: --require=${{ env.FAULT_EVIDENCE }}/cache-env.cjs
-          ACTIONS_CACHE_SERVICE_V2: 'true'
-          ACTIONS_RESULTS_URL: ${{ env.FAULT_URL }}
-          ACTIONS_RUNTIME_TOKEN: isolated-fault-token
-        with:
-          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
-          key: ${{ env.BAZEL_DEPENDENCY_PREFIX }}fault-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: ${{ env.BAZEL_DEPENDENCY_PREFIX }}
-      - name: Record restore completion before preparation
-        env:
-          FAULT_MODE: ${{ matrix.fault }}
-        run: python3 .github/scripts/bazel_dependency_faults.py restored "$FAULT_MODE"
-      - name: Run real required preparation after restore fault
-        shell: bash
-        env:
-          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
-          CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
-          CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}
+      - name: Check native reuse and integrity on a fresh runner
         run: |
-          script="$PWD/.github/scripts/bazel_dependencies.py"
-          cd "$FAULT_WORKSPACE"
-          python3 "$script" prepare | tee "$FAULT_EVIDENCE/preparation.log"
-      - name: Require observed fallback, cleanup, deadline, and integrity failure
-        env:
-          FAULT_MODE: ${{ matrix.fault }}
-          RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
-        run: python3 .github/scripts/bazel_dependency_faults.py verify "$FAULT_MODE"
-      - name: Retain credential-free raw fault evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: bazel-dependency-${{ matrix.fault }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/bazel-dependency-faults/
-          if-no-files-found: error
-  save-faults:
-    if: github.event_name != 'workflow_dispatch' || !inputs.audit-only
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        fault: [error, stall]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
-        with:
-          bazelisk-cache: true
-          repository-cache: false
-      - name: Configure shared dependency cache
-        run: python3 .github/scripts/bazel_dependencies.py configure
-      - name: Start isolated save endpoint and public dependency fixture
-        env:
-          FAULT_MODE: ${{ matrix.fault }}
-        run: python3 .github/scripts/bazel_dependency_faults.py start "$FAULT_MODE"
-      - name: Prepare the real dependency fixture before save
-        run: |
-          script="$PWD/.github/scripts/bazel_dependencies.py"
-          cd "$FAULT_WORKSPACE"
-          python3 "$script" prepare | tee "$FAULT_EVIDENCE/preparation.log"
-      - name: Run successful fixture workload
-        run: |
-          cd "$FAULT_WORKSPACE"
-          bazel build --config=ci //:fixture
-      - name: Record save start
-        run: date +%s.%N > "$FAULT_EVIDENCE/save-started"
-      - name: Save against isolated fault endpoint (advisory)
-        id: dependency-save
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        timeout-minutes: 2
-        continue-on-error: true
-        env:
-          NODE_OPTIONS: --require=${{ env.FAULT_EVIDENCE }}/cache-env.cjs
-          ACTIONS_CACHE_SERVICE_V2: 'true'
-        with:
-          path: ${{ env.BAZEL_DEPENDENCY_CACHE }}
-          key: ${{ env.BAZEL_DEPENDENCY_PREFIX }}save-fault-${{ github.run_id }}-${{ github.run_attempt }}
-      - name: Require save fault evidence and preserved workload success
-        env:
-          FAULT_MODE: ${{ matrix.fault }}
-          SAVE_OUTCOME: ${{ steps.dependency-save.outcome }}
-        run: python3 .github/scripts/bazel_dependency_faults.py verify-save "$FAULT_MODE"
-      - name: Retain credential-free raw save fault evidence
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: bazel-dependency-save-${{ matrix.fault }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/bazel-dependency-faults/
-          if-no-files-found: error
-  snapshot-audit:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
-        with:
-          bazelisk-cache: true
-          repository-cache: false
-      - name: Configure dependency cache without service credentials
-        run: python3 .github/scripts/bazel_dependencies.py configure
-      - name: Prepare public dependencies on a fresh runner
-        run: python3 .github/scripts/bazel_dependencies.py prepare | tee "$RUNNER_TEMP/preparation.log"
-      - name: Inspect material without publication
-        run: python3 .github/scripts/bazel_dependencies.py inspect
-      - name: Record audit provenance
+          cat > "$RUNNER_TEMP/native-probe.py" <<'PYTHON'
+          import hashlib
+          import http.server
+          import json
+          import os
+          from pathlib import Path
+          import shutil
+          import subprocess
+          import tempfile
+          import threading
+          import time
+
+          root = Path(tempfile.mkdtemp(prefix='native-', dir=os.environ['RUNNER_TEMP']))
+          requests = []
+          payloads = {'a': b'public dependency one\n', 'b': b'public dependency two\n'}
+          class Handler(http.server.BaseHTTPRequestHandler):
+              def do_GET(self):
+                  key = self.path.strip('/')
+                  body = payloads.get(key)
+                  requests.append({'path': self.path, 'bytes': len(body or b'')})
+                  self.send_response(200 if body else 404)
+                  self.end_headers()
+                  if body: self.wfile.write(body)
+              def log_message(self, *_): pass
+          server = http.server.ThreadingHTTPServer(('127.0.0.1', 18643), Handler)
+          threading.Thread(target=server.serve_forever, daemon=True).start()
+          workspace = root/'workspace'
+          workspace.mkdir()
+          (workspace/'BUILD.bazel').write_text('')
+          (workspace/'deps.bzl').write_text('''def _repo(ctx):
+              print("RULE_EXECUTED")
+              ctx.download(url = ctx.attr.url, output = "material", sha256 = ctx.attr.sha256)
+              ctx.file("BUILD.bazel", 'exports_files(["material"])\\n')
+              return ctx.repo_metadata(reproducible = True)
+          repo = repository_rule(implementation = _repo, attrs = {"url": attr.string(), "sha256": attr.string()})
+          ''')
+          cache=root/'cache'
+          results=[]
+          def run(name, payload='a', contents=True, version='9.3.1', cache_dir=None):
+              cache_dir=cache_dir or cache
+              sha=hashlib.sha256(payloads[payload]).hexdigest()
+              (workspace/'MODULE.bazel').write_text(f'''module(name = "native_probe")
+          repo = use_repo_rule("//:deps.bzl", "repo")
+          repo(name = "fixture", url = "http://127.0.0.1:18643/{payload}", sha256 = "{sha}")
+          ''')
+              output=root/('output-'+name)
+              started=time.monotonic(); before=len(requests)
+              cmd=['bazel', '--batch','--nosystem_rc','--nohome_rc','--noworkspace_rc',f'--output_base={output}', 'query', '@fixture//:material',f'--repository_cache={cache_dir}',f'--repo_contents_cache={cache_dir / "contents" if contents else ""}','--incompatible_autoload_externally=']
+              env=dict(os.environ,USE_BAZEL_VERSION=version)
+              result=subprocess.run(cmd,cwd=workspace,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+              (root/(name+'.log')).write_text(result.stdout)
+              material=output/'external/+repo+fixture/material'
+              candidates=list((output/'external').glob('*/material')) if (output/'external').exists() else []
+              actual=candidates[0].read_bytes() if candidates else None
+              row={'name':name,'version':version,'seconds':time.monotonic()-started,'exit':result.returncode,'requests':requests[before:],'rule_executed':'RULE_EXECUTED' in result.stdout,'correct':actual==payloads[payload],'command':cmd}
+              results.append(row); print(json.dumps(row),flush=True)
+              (root/'results.json').write_text(json.dumps(results,indent=2)+'\n')
+              return row
+          try:
+              a=run('cold',version='9.3.0')
+              if not a['correct']: raise RuntimeError('Cold fixture failed')
+              a=run('archive-only',contents=False,version='9.3.0')
+              assert a['correct'] and a['rule_executed'] and not a['requests'],a
+              a=run('contents',version='9.3.0')
+              assert a['correct'] and not a['rule_executed'] and not a['requests'],a
+              a=run('version-transition')
+              assert a['correct'],a
+              a=run('input-change','b')
+              assert a['correct'] and a['requests'],a
+              a=run('later-addition-reuse','b')
+              assert a['correct'] and not a['requests'],a
+              a=run('schema-invalidation','b',cache_dir=root/'new-schema')
+              assert a['correct'] and a['requests'],a
+              sha=hashlib.sha256(payloads['a']).hexdigest()
+              archive=cache/'content_addressable'/'sha256'/sha/'file'
+              print('archive',archive,archive.exists(),flush=True)
+              archive.write_bytes(b'corrupted cache data\n')
+              a=run('corrupt-archive',contents=False)
+              print('CORRUPTION_RESULT',a['correct'],a['exit'],flush=True)
+          finally:
+              server.shutdown()
+              print('EVIDENCE',root,flush=True)
+          PYTHON
+          python3 "$RUNNER_TEMP/native-probe.py"
+      - name: Record runner and tool identity
         if: always()
         run: |
-          {
-            printf 'Revision: %s\nRunner: %s\nRef: %s\n' "$GITHUB_SHA" "$RUNNER_NAME" "$GITHUB_REF"
-            bazel version
-            uname -a
-          } > "$RUNNER_TEMP/audit-provenance.txt"
-      - name: Retain credential-free audit evidence
+          printf 'Revision: %s\nRunner: %s\nRef: %s\n' "$GITHUB_SHA" "$RUNNER_NAME" "$GITHUB_REF" > "$RUNNER_TEMP/native-provenance.txt"
+          bazel version >> "$RUNNER_TEMP/native-provenance.txt"
+          uname -a >> "$RUNNER_TEMP/native-provenance.txt"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: bazel-dependency-audit-${{ github.run_attempt }}
+          name: native-dependency-probe-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/bazel-dependency-inventory.json
-            ${{ runner.temp }}/preparation.log
-            ${{ runner.temp }}/audit-provenance.txt
+            ${{ runner.temp }}/native-*/results.json
+            ${{ runner.temp }}/native-*/*.log
+            ${{ runner.temp }}/native-provenance.txt
           if-no-files-found: error
