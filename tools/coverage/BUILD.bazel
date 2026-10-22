@@ -240,3 +240,21 @@ config_setting(
     values = {"collect_code_coverage": "true"},
     visibility = ["//visibility:public"],
 )
+
+py_binary(
+    name = "reconcile",
+    srcs = ["reconcile.py"],
+    deps = ["@pypi//coverage"],
+)
+
+py_test(
+    name = "reconcile_test",
+    size = "small",
+    srcs = ["reconcile_test.py"],
+    args = [
+        "-o",
+        "python_files=reconcile_test.py",
+    ],
+    data = [":reconcile"],
+    env = {"COVERAGE_CORE": "ctrace"},
+)

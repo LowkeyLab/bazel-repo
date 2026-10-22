@@ -528,6 +528,7 @@ def main() -> None:
                         {
                             "source": name,
                             "rule": label,
+                            "record_absence": True,
                             "missing_guarantee": "The authoritative Vitest report omits runner configuration and global setup code outside its test instrumentation context.",
                             "evidence": str(report),
                         }
@@ -621,6 +622,7 @@ def main() -> None:
                         {
                             "source": name,
                             "rule": label,
+                            "record_absence": True,
                             "missing_guarantee": "The native original-manifest path produced an empty-script fallback. It does not establish original executable records or measured zero coverage.",
                             "evidence": str(saved_test / "report.lcov"),
                         }
@@ -649,6 +651,7 @@ def main() -> None:
                         {
                             "source": name,
                             "rule": label,
+                            "record_absence": True,
                             "missing_guarantee": "The Angular builder excludes test sources and declarations from its coverage input.",
                             "evidence": str(report),
                         }
@@ -663,6 +666,7 @@ def main() -> None:
                 {
                     "source": name,
                     "owners": sources[name]["owners"],
+                    "record_absence": True,
                     "missing_guarantee": "The selected targets or execution filters did not run this Angular builder. Its documented coverage inclusion requires a test run.",
                     "evidence": str(args.events.resolve()),
                 }
@@ -672,6 +676,7 @@ def main() -> None:
             {
                 "source": name,
                 "owners": sources[name]["owners"],
+                "record_absence": True,
                 "missing_guarantee": "The native original-manifest baseline does not establish original TypeScript or JSX executable records. No supported mapped record is available in this run.",
                 "evidence": str(baseline_path),
             }
@@ -682,6 +687,7 @@ def main() -> None:
                 {
                     "source": name,
                     "owners": source["owners"],
+                    "record_absence": True,
                     "missing_guarantee": "The selected browser reports supply no map with the exact original Astro source content. Static build-time template execution and disconnected originals have no measured browser baseline. No processed-script bridge or original mapping is reconstructed.",
                     "evidence": [
                         str(run_directory),
@@ -726,6 +732,20 @@ def main() -> None:
     filtered.write_text(
         "".join("\n".join(lines) + "\nend_of_record\n" for lines in retained.values())
     )
+    # Establish required lines and hits from collector inputs before merging.
+    expected: dict[str, dict[int, int]] = {}
+    inputs = [filtered, supported_baseline_path, *test_reports]
+    for path in inputs:
+        if not path.read_text().strip():
+            continue
+        for name, lines in records(path).items():
+            if name not in sources:
+                continue
+            counts = expected.setdefault(name, {})
+            for line in lines:
+                if line.startswith("DA:"):
+                    number, count = (int(value) for value in line[3:].split(",")[:2])
+                    counts[number] = max(counts.get(number, 0), count)
     reports = evidence / "reports.txt"
     reports.write_text(
         "".join(
@@ -743,9 +763,21 @@ def main() -> None:
     for name in set(supported_baseline) | set(observed):
         if name not in final:
             raise ValueError(f"Missing merged JavaScript source: {name}")
+    for name, required in expected.items():
+        actual = {
+            int(line[3:].split(",")[0]): int(line[3:].split(",")[1])
+            for line in final.get(name, [])
+            if line.startswith("DA:")
+        }
+        if name not in final or any(
+            number not in actual or actual[number] < count
+            for number, count in required.items()
+        ):
+            raise ValueError(f"Missing merged JavaScript lines or hits: {name}")
     receipt = {
         "schema_version": 1,
         "native_sources": sorted(supported_baseline),
+        "sources": {name: sorted(lines) for name, lines in sorted(expected.items())},
         "native_manifest_sources": native_sources,
         "observed_sources": observed,
         "executions": executions,

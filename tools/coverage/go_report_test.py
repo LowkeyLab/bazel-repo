@@ -1,5 +1,6 @@
 """Check Go report scope and required-output validation through the command."""
 
+import hashlib
 import json
 import os
 import subprocess
@@ -28,17 +29,28 @@ def invoke(
         )
     )
     (tmp_path / "baseline.lcov").write_text(MEASURED)
+    artifact = {
+        "name": str(tmp_path / "baseline.lcov"),
+        "digest": hashlib.sha256(
+            b"" if fault == "empty" else MEASURED.encode()
+        ).hexdigest(),
+        "length": "0" if fault == "empty" else str(len(MEASURED.encode())),
+    }
     events = [
         {
             "id": {"namedSet": {"id": "baseline"}},
-            "namedSetOfFiles": {"files": [{"name": str(tmp_path / "baseline.lcov")}]},
+            "namedSetOfFiles": {"files": [artifact]},
         },
         {
             "id": {"targetCompleted": {"label": "//fixture:fixture.go_coverage"}},
             "completed": {
                 "success": True,
                 "outputGroup": [
-                    {"name": "go_coverage_baselines", "fileSets": [{"id": "baseline"}]}
+                    {
+                        "name": "go_coverage_baselines",
+                        "fileSets": [{"id": "baseline"}],
+                        "incomplete": fault == "incomplete",
+                    }
                 ],
             },
         },
@@ -62,6 +74,12 @@ def invoke(
         (tmp_path / "baseline.lcov").unlink()
     elif fault == "empty":
         (tmp_path / "baseline.lcov").write_text("")
+    if fault == "truncated":
+        (tmp_path / "baseline.lcov").write_text("")
+    elif fault == "changed":
+        (tmp_path / "baseline.lcov").write_text(MEASURED.replace("kept.go", "lost.go"))
+    elif fault == "digest":
+        artifact.pop("digest")
     (tmp_path / "events.jsonl").write_text(
         "".join(json.dumps(event) + "\n" for event in events)
     )
@@ -169,8 +187,24 @@ def test_rust_baseline_validation_preserves_hits_and_records_mapping_limits(
                     "id": {"namedSet": {"id": "baseline"}},
                     "namedSetOfFiles": {
                         "files": [
-                            {"name": str(tmp_path / "baseline.lcov")},
-                            {"name": str(tmp_path / "baseline.json")},
+                            {
+                                "name": str(tmp_path / "baseline.lcov"),
+                                "digest": hashlib.sha256(
+                                    (tmp_path / "baseline.lcov").read_bytes()
+                                ).hexdigest(),
+                                "length": str(
+                                    (tmp_path / "baseline.lcov").stat().st_size
+                                ),
+                            },
+                            {
+                                "name": str(tmp_path / "baseline.json"),
+                                "digest": hashlib.sha256(
+                                    (tmp_path / "baseline.json").read_bytes()
+                                ).hexdigest(),
+                                "length": str(
+                                    (tmp_path / "baseline.json").stat().st_size
+                                ),
+                            },
                         ]
                     },
                 },
@@ -239,4 +273,14 @@ def test_rust_baseline_validation_preserves_hits_and_records_mapping_limits(
 def test_baseline_ignores_independent_aspect_events(tmp_path: Path) -> None:
     result = invoke(tmp_path, MEASURED + OTHER, "aspect")
     assert result.returncode == 0, result.stdout + result.stderr
+    assert (tmp_path / "report.lcov").read_text() == MEASURED + OTHER
+
+
+@pytest.mark.parametrize("fault", ["truncated", "changed", "digest", "incomplete"])
+def test_invalid_baseline_evidence_cannot_become_a_source_limit(
+    tmp_path: Path, fault: str
+) -> None:
+    result = invoke(tmp_path, MEASURED + OTHER, fault)
+    assert result.returncode != 0
+    assert "Go coverage report failed:" in result.stderr
     assert (tmp_path / "report.lcov").read_text() == MEASURED + OTHER

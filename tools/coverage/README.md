@@ -59,6 +59,39 @@ These tests supply controlled Git and Bazel protocol responses. They verify
 ownership, scope, and failure handling through the executable. Discovery
 acceptance retains real Git, Bazel, and collector execution.
 
+## Final source reconciliation
+
+The coverage command checks every eligible source after the collectors finish.
+It writes `coverage-reconciliation.json` only after reconciliation passes.
+The receipt identifies measured sources, zero-hit sources, empty executable sets,
+and exact collector limits. Scope exclusions remain separate.
+Secure Hash Algorithm (SHA) hashes bind the receipt to its inventory, report, and collector receipts.
+Each hash uses SHA-256.
+Native baseline validation compares artifact bytes with the digest and length in
+[Bazel build events](https://github.com/bazelbuild/bazel/blob/9.3.1/src/main/java/com/google/devtools/build/lib/buildeventstream/proto/build_event_stream.proto).
+The coverage command requires SHA256 for its nested Bazel invocations.
+This startup option overrides a different digest algorithm in a user configuration.
+An incomplete output group or changed artifact causes failure.
+These checks preserve valid empty baselines from configured source selection.
+
+An omission requires a source-specific limit that explicitly permits a missing record.
+Branch and child-process limits cannot permit missing required records.
+Configured collector records must retain their executable lines.
+Python checks use the public
+[`Coverage.analysis2` API](https://coverage.readthedocs.io/en/latest/api_coverage.html#coverage.Coverage.analysis2).
+This API distinguishes an empty executable set from missing executable lines.
+Reconciliation removes excluded records. It preserves eligible records and measured counts.
+It adds no coverage threshold.
+
+The hosted workflow checks both the initial report and the final merged report.
+It retains both reconciliation receipts and the original collector receipts.
+
+Run the command tests through Bazel:
+
+```bash
+nix develop --command aspect test //tools/coverage:reconcile_test
+```
+
 ## Go sources
 
 Gazelle uses shared declarations for Go libraries, executables, and tests.
@@ -170,7 +203,7 @@ required-output failures.
 It retains command results, raw profiles, reports, and object evidence.
 
 Evidence directories must be new and outside the checkout.
-Local mode clears remote execution, cache, and BES endpoints.
+Local mode clears remote execution, cache, and Build Event Service (BES) endpoints.
 Use `--execution configured` to inherit the caller's Bazel configuration.
 The evidence records actual execution and cache status.
 Configuration alone does not establish remote execution.
@@ -243,7 +276,7 @@ nix develop --command bazel run //tools/coverage:jvm_membership_test -- --execut
 ```
 
 The acceptance checks retain commands, fixture inputs, build events, raw reports,
-and configured class evidence. Local mode clears execution, cache, and BES endpoints.
+and configured class evidence. Local mode clears execution, cache, and Build Event Service (BES) endpoints.
 Configured mode uses the repository's remote Linux configuration.
 Read the execution evidence before claiming fresh remote execution.
 

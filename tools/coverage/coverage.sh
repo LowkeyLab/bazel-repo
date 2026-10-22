@@ -18,6 +18,9 @@
 
 set -euo pipefail
 
+# Require SHA256 for the artifact digests recorded by the producer.
+COVERAGE_BAZEL=(bazel --digest_function=SHA256)
+
 # When invoked via `bazel run`, change to the workspace root
 if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
 	cd "${BUILD_WORKSPACE_DIRECTORY}"
@@ -30,6 +33,7 @@ else
 fi
 REPORT_DIR="coverage-report"
 COMBINED_LCOV="coverage-report.lcov"
+rm -f coverage-reconciliation.json
 # Preserve endpoint overrides when querying the report location.
 INFO_ARGS=()
 for arg in "${ARGS[@]}"; do
@@ -59,13 +63,13 @@ for arg in "${ARGS[@]}"; do
 	esac
 done
 trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE" "$ANALYZER_SCRIPT" "$JAVASCRIPT_COLLECTOR" "$JAVASCRIPT_MERGER"' EXIT
-bazel run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
 	--output coverage-inventory.json --roots-output "$ROOTS_FILE" "${INVENTORY_ARGS[@]}"
 mapfile -t COVERAGE_ROOTS <"$ROOTS_FILE"
-COVERAGE_DAT="$(bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_report.dat"
+COVERAGE_DAT="$("${COVERAGE_BAZEL[@]}" info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_report.dat"
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
-bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" --nozip_undeclared_test_outputs \
+"${COVERAGE_BAZEL[@]}" coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" --nozip_undeclared_test_outputs \
 	--aspects=//tools/coverage:jvm.bzl%jvm_test_inputs,//tools/coverage:javascript.bzl%javascript_test_inputs \
 	--output_groups=+go_coverage_baselines,rust_coverage_baselines,jvm_coverage_baselines,jvm_test_inputs,javascript_test_inputs \
 	--nobuild_event_json_file_path_conversion 2>&1
@@ -83,23 +87,28 @@ fi
 # preserve those mode bits.
 cp "${COVERAGE_DAT}" "${COMBINED_LCOV}"
 chmod u+w "${COMBINED_LCOV}"
-bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --expected-output coverage-go-baselines.json
-bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 	--language rust --inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --expected-output coverage-rust-baselines.json
-bazel run "${INFO_ARGS[@]}" --script_path="$ANALYZER_SCRIPT" //tools/coverage:jvm_analyzer
-bazel run "${INFO_ARGS[@]}" //tools/coverage:jvm_report -- \
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" --script_path="$ANALYZER_SCRIPT" //tools/coverage:jvm_analyzer
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:jvm_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --evidence coverage-jvm \
 	--analyzer "$ANALYZER_SCRIPT"
-bazel run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_COLLECTOR" //tools/coverage:javascript_baseline
-bazel run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_MERGER" @bazel_tools//tools/test:lcov_merger
-bazel run "${INFO_ARGS[@]}" //tools/coverage:javascript_report -- \
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_COLLECTOR" //tools/coverage:javascript_baseline
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_MERGER" @bazel_tools//tools/test:lcov_merger
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:javascript_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --evidence coverage-javascript \
 	--collector "$JAVASCRIPT_COLLECTOR" --merger "$JAVASCRIPT_MERGER"
+"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:reconcile -- \
+	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
+	--go coverage-go-baselines.json --rust coverage-rust-baselines.json \
+	--jvm coverage-jvm/receipt.json --javascript coverage-javascript/receipt.json \
+	--output coverage-reconciliation.json
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available
