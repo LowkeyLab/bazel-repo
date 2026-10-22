@@ -132,8 +132,52 @@ Child coverage records hits in the staging helper.
 The completed [Python acceptance #2395](https://github.com/LowkeyLab/bazel-repo/issues/2395)
 remains in effect. Membership includes maintained tests and helpers under
 [#2501](https://github.com/LowkeyLab/bazel-repo/issues/2501).
-Hosted delivery and Codecov acceptance remain in
-[#2511](https://github.com/LowkeyLab/bazel-repo/issues/2511).
+
+## Hosted acceptance
+
+[Ticket #2511](https://github.com/LowkeyLab/bazel-repo/issues/2511) records hosted
+acceptance through the existing [Coverage workflow](../../.github/workflows/coverage.yml).
+Source membership requires evidence beyond a successful upload.
+
+Record the PR head, tested checkout, workflow run, attempt, and upload commit.
+For a PR merge checkout, inspect both parents and compare its tree with the PR head.
+Report any source differences before attributing results to the head.
+Keep local, configured remote, and hosted evidence separate.
+Read build events to distinguish fresh execution from cache reuse.
+The report merge itself can execute locally while tests execute remotely.
+
+The workflow retains these artifacts for 30 days.
+Each artifact name ends with the run ID and attempt.
+
+| Artifact prefix                  | Contents                                                                                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `coverage-evidence`              | Inventory, initial and final combined `LCOV`, reconciliation receipts, collector receipts, membership `LCOV`, revision, and test results |
+| `python-coverage-membership`     | Commands, exit status, fixture `LCOV`, revision, and test results                                                                        |
+| `go-coverage-membership`         | Fixture commands, reports, and collector evidence                                                                                        |
+| `rust-coverage-membership`       | Fixture commands, raw profiles, matching objects, and reports                                                                            |
+| `jvm-coverage-membership`        | Initial collector directory and fixture commands, raw profiles, configured classes, XML, and `LCOV`                                      |
+| `javascript-coverage-membership` | Initial collector directory, browser evidence, and fixture commands, inputs, and reports                                                 |
+
+Download the artifacts before their retention period ends.
+Check the following evidence independently of Codecov status:
+
+1. Compare the inventory with unique repository-relative `LCOV` `SF` identities.
+   Check executable `DA` records and supported `BRDA` records for each collector family.
+2. Check all six input hashes in each reconciliation receipt.
+   Use `coverage-all-targets.lcov` for the initial report hash.
+   Use `coverage-report.lcov` for the final report hash.
+3. Check measured hits, supported zero-hit sources, and empty executable sets.
+   Check scope exclusions separately from source-specific collector limits.
+   Each limit must identify its owners, missing guarantee, and supporting evidence.
+4. Inspect retained raw profiles, objects, classes, reports, and fixture command results.
+   Expected failure cases must retain their nonzero exit statuses.
+   Missing required output remains a collection failure.
+5. Check the Codecov upload result, selected file, commit, and report identity in the workflow log.
+   Check the final PR status separately.
+   Record unresolved attribution limits and execution restrictions with the evidence.
+
+Publish the exact run and artifact links in the PR acceptance record.
+Retain the existing thresholds, execution filters, and Codecov policy.
 
 ## Go sources
 
