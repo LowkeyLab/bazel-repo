@@ -221,15 +221,17 @@ def test_failed_cancelled_or_unauthorized_jobs_cannot_publish(
     assert (root / "outputs").read_text() == "eligible=false\n"
 
 
+@pytest.mark.parametrize("credential", ["BUILDBUDDY_API_KEY", "BAZELISK_GITHUB_TOKEN"])
 def test_snapshot_inspection_rejects_credentials_before_publication(
     runner: Runner,
+    credential: str,
 ) -> None:
     run, cache, root = runner
     (cache / "material").write_text("generated file contains ephemeral-test-credential")
     result = run(
         command="inspect",
         RUNNER_TEMP=str(root),
-        BUILDBUDDY_API_KEY="ephemeral-test-credential",
+        **{credential: "ephemeral-test-credential"},
     )
     assert result.returncode != 0
     assert "credential" in result.stderr.lower()

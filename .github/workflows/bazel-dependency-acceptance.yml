@@ -1,6 +1,11 @@
 name: Bazel dependency cache acceptance
 on:
   workflow_dispatch:
+    inputs:
+      audit-only:
+        description: Run only the fresh-runner material audit
+        type: boolean
+        default: false
   pull_request:
     paths:
       - .github/scripts/bazel_dependenc*.py
@@ -10,6 +15,7 @@ permissions:
   contents: read
 jobs:
   restore-faults:
+    if: github.event_name != 'workflow_dispatch' || !inputs.audit-only
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -71,6 +77,7 @@ jobs:
           path: ${{ runner.temp }}/bazel-dependency-faults/
           if-no-files-found: error
   save-faults:
+    if: github.event_name != 'workflow_dispatch' || !inputs.audit-only
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -144,6 +151,7 @@ jobs:
       - name: Inspect material without publication
         run: python3 .github/scripts/bazel_dependencies.py inspect
       - name: Record audit provenance
+        if: always()
         run: |
           {
             printf 'Revision: %s\nRunner: %s\nRef: %s\n' "$GITHUB_SHA" "$RUNNER_NAME" "$GITHUB_REF"

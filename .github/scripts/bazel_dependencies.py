@@ -79,6 +79,7 @@ def inspect() -> None:
         value.encode()
         for name in (
             "GITHUB_TOKEN",
+            "BAZELISK_GITHUB_TOKEN",
             "ASPECT_API_TOKEN",
             "BUILDBUDDY_API_KEY",
             "DOCKER_HUB_TOKEN",
@@ -90,14 +91,18 @@ def inspect() -> None:
     sizes = {"archive_bytes": 0, "contents_bytes": 0}
     for path in sorted(cache.rglob("*")):
         relative = path.relative_to(cache).as_posix()
-        if not path.resolve().is_relative_to(root):
-            raise RuntimeError("Snapshot inspection found an external link")
         if any(value in relative.encode() for value in credentials):
             raise RuntimeError("Snapshot inspection found a credential in a path")
+        if not path.resolve().is_relative_to(root):
+            raise RuntimeError(
+                f"Snapshot inspection found an external link: {relative}"
+            )
         if path.is_dir():
             continue
         if not path.is_file():
-            raise RuntimeError("Snapshot inspection found a special or missing file")
+            raise RuntimeError(
+                f"Snapshot inspection found a special or missing file: {relative} (symlink={path.is_symlink()})"
+            )
         digest = hashlib.sha256()
         size = 0
         tail = b""
