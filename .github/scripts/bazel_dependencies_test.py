@@ -279,3 +279,34 @@ def test_snapshot_inspection_finds_credentials_across_read_boundaries(
     assert result.returncode != 0
     assert "credential" in result.stderr.lower()
     assert "ephemeral-test-credential" not in result.stderr + result.stdout
+
+
+def test_snapshot_inspection_preserves_internal_dangling_links(runner: Runner) -> None:
+    run, cache, root = runner
+    link = cache / "contents" / "repo" / "e2e" / "smoke" / "tools" / "downloader.cfg"
+    link.parent.mkdir(parents=True)
+    link.symlink_to("../../../tools/downloader.cfg")
+    result = run(command="inspect", RUNNER_TEMP=str(root))
+    assert result.returncode == 0, result.stderr
+    inventory = json.loads((root / "bazel-dependency-inventory.json").read_text())
+    assert {
+        "path": "contents/repo/e2e/smoke/tools/downloader.cfg",
+        "symlink": "../../../tools/downloader.cfg",
+    } in inventory["files"]
+    assert inventory["contents_bytes"] == 0
+    assert link.is_symlink() and not link.exists()
+
+
+def test_snapshot_inspection_rejects_credentials_in_link_targets(
+    runner: Runner,
+) -> None:
+    run, cache, root = runner
+    (cache / "link").symlink_to("ephemeral-test-credential")
+    result = run(
+        command="inspect",
+        RUNNER_TEMP=str(root),
+        BAZELISK_GITHUB_TOKEN="ephemeral-test-credential",
+    )
+    assert result.returncode != 0
+    assert "credential" in result.stderr
+    assert "ephemeral-test-credential" not in result.stderr + result.stdout

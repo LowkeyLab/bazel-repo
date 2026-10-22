@@ -91,12 +91,21 @@ def inspect() -> None:
     sizes = {"archive_bytes": 0, "contents_bytes": 0}
     for path in sorted(cache.rglob("*")):
         relative = path.relative_to(cache).as_posix()
-        if any(value in relative.encode() for value in credentials):
-            raise RuntimeError("Snapshot inspection found a credential in a path")
+        link = str(path.readlink()) if path.is_symlink() else None
+        if any(
+            value in relative.encode() or (link is not None and value in link.encode())
+            for value in credentials
+        ):
+            raise RuntimeError(
+                "Snapshot inspection found a credential in a path or link"
+            )
         if not path.resolve().is_relative_to(root):
             raise RuntimeError(
                 f"Snapshot inspection found an external link: {relative}"
             )
+        if link is not None:
+            files.append({"path": relative, "symlink": link})
+            continue
         if path.is_dir():
             continue
         if not path.is_file():
