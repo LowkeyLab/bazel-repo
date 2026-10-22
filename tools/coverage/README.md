@@ -69,6 +69,8 @@ Secure Hash Algorithm (SHA) hashes bind the receipt to its inventory, report, an
 Each hash uses SHA-256.
 Native baseline validation compares artifact bytes with the digest and length in
 [Bazel build events](https://github.com/bazelbuild/bazel/blob/9.3.1/src/main/java/com/google/devtools/build/lib/buildeventstream/proto/build_event_stream.proto).
+The coverage command requires SHA256 for its nested Bazel invocations.
+This startup option overrides a different digest algorithm in a user configuration.
 An incomplete output group or changed artifact causes failure.
 These checks preserve valid empty baselines from configured source selection.
 

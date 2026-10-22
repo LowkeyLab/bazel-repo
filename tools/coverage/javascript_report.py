@@ -732,6 +732,20 @@ def main() -> None:
     filtered.write_text(
         "".join("\n".join(lines) + "\nend_of_record\n" for lines in retained.values())
     )
+    # Establish required lines and hits from collector inputs before merging.
+    expected: dict[str, dict[int, int]] = {}
+    inputs = [filtered, supported_baseline_path, *test_reports]
+    for path in inputs:
+        if not path.read_text().strip():
+            continue
+        for name, lines in records(path).items():
+            if name not in sources:
+                continue
+            counts = expected.setdefault(name, {})
+            for line in lines:
+                if line.startswith("DA:"):
+                    number, count = (int(value) for value in line[3:].split(",")[:2])
+                    counts[number] = max(counts.get(number, 0), count)
     reports = evidence / "reports.txt"
     reports.write_text(
         "".join(
@@ -749,17 +763,21 @@ def main() -> None:
     for name in set(supported_baseline) | set(observed):
         if name not in final:
             raise ValueError(f"Missing merged JavaScript source: {name}")
+    for name, required in expected.items():
+        actual = {
+            int(line[3:].split(",")[0]): int(line[3:].split(",")[1])
+            for line in final.get(name, [])
+            if line.startswith("DA:")
+        }
+        if name not in final or any(
+            number not in actual or actual[number] < count
+            for number, count in required.items()
+        ):
+            raise ValueError(f"Missing merged JavaScript lines or hits: {name}")
     receipt = {
         "schema_version": 1,
         "native_sources": sorted(supported_baseline),
-        "sources": {
-            name: sorted(
-                int(line[3:].split(",")[0])
-                for line in final[name]
-                if line.startswith("DA:")
-            )
-            for name in sorted(set(supported_baseline) | set(observed))
-        },
+        "sources": {name: sorted(lines) for name, lines in sorted(expected.items())},
         "native_manifest_sources": native_sources,
         "observed_sources": observed,
         "executions": executions,

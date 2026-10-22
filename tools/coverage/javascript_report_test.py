@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -88,7 +89,7 @@ def workspace(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def run(root: Path) -> subprocess.CompletedProcess[str]:
+def run(root: Path, merger: Path = MERGER) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             str(REPORTER),
@@ -103,7 +104,7 @@ def run(root: Path) -> subprocess.CompletedProcess[str]:
             "--collector",
             str(COLLECTOR),
             "--merger",
-            str(MERGER),
+            str(merger),
         ],
         cwd=root,
         env={**os.environ, "BUILD_WORKSPACE_DIRECTORY": str(root)},
@@ -619,3 +620,33 @@ def test_browser_output_validation_and_hit_preservation(
             and "Astro" in limit["missing_guarantee"]
             for limit in result_receipt["limits"]
         )
+
+
+@pytest.mark.parametrize("fault", ["line", "hit"])
+def test_merger_cannot_discard_required_input_lines_or_hits(
+    workspace: Path, fault: str
+) -> None:
+    merger = workspace / "fault-merger"
+    merger.write_text(
+        f"#!{sys.executable}\n"
+        "import subprocess, sys\nfrom pathlib import Path\n"
+        f"subprocess.run([{str(MERGER)!r}, *sys.argv[1:]], check=True)\n"
+        "path = Path(next(arg.split('=', 1)[1] for arg in sys.argv if arg.startswith('--output_file=')))\n"
+        "parts = path.read_text().split('end_of_record')\n"
+        "for index, part in enumerate(parts[:-1]):\n"
+        "    if 'SF:module.js' not in part.splitlines(): continue\n"
+        "    lines = part.splitlines()\n"
+        f"    if {fault!r} == 'line': lines = [line for line in lines if not line.startswith('DA:2,')]\n"
+        "    else: lines = ['DA:1,0' if line.startswith('DA:1,') else line for line in lines]\n"
+        "    counts = [int(line[3:].split(',')[1]) for line in lines if line.startswith('DA:')]\n"
+        "    lines = [f'LF:{len(counts)}' if line.startswith('LF:') else f'LH:{sum(value > 0 for value in counts)}' if line.startswith('LH:') else line for line in lines]\n"
+        "    parts[index] = chr(10).join(lines) + chr(10)\n"
+        "path.write_text('end_of_record'.join(parts))\n"
+    )
+    merger.chmod(0o700)
+    original = (workspace / "report.lcov").read_bytes()
+    result = run(workspace, merger)
+    assert result.returncode != 0
+    assert "Missing merged JavaScript lines or hits" in result.stderr
+    assert (workspace / "report.lcov").read_bytes() == original
+    assert not (workspace / "evidence/receipt.json").exists()
