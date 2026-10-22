@@ -81,6 +81,8 @@ jobs:
         run: python3 .github/scripts/bazel_dependencies.py configure
       - name: Restore Bazel dependencies (advisory)
         id: dependencies
+        env:
+          BAZEL_DEPENDENCY_RESTORE_WRITER: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         timeout-minutes: 2
         continue-on-error: true
@@ -91,6 +93,7 @@ jobs:
       - name: Prepare dependencies (required)
         id: preparation
         env:
+          BAZEL_DEPENDENCY_RESTORE_MARKER: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
           CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
           CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}

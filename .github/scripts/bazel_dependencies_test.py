@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Protocol
 
@@ -310,3 +311,71 @@ def test_snapshot_inspection_rejects_credentials_in_link_targets(
     assert result.returncode != 0
     assert "credential" in result.stderr
     assert "ephemeral-test-credential" not in result.stderr + result.stdout
+
+
+@pytest.mark.parametrize("outcome", ["failure", "success"])
+def test_unconfirmed_restore_stops_its_writer_before_cleanup(
+    runner: Runner, outcome: str
+) -> None:
+    run, cache, root = runner
+    ready = root / "writer-ready"
+    # The transport fixture uses only the standard library and skips site hooks.
+    writer = subprocess.Popen(
+        [
+            sys.executable,
+            "-S",
+            "-c",
+            (
+                "import itertools,pathlib,sys\n"
+                "cache=pathlib.Path(sys.argv[1]);ready=pathlib.Path(sys.argv[2])\n"
+                "for index in itertools.count():\n"
+                " try:\n"
+                "  path=cache/'contents'/str(index);path.mkdir(parents=True,exist_ok=True)\n"
+                "  (path/'material').write_bytes(b'x'*512)\n"
+                "  if index==50:ready.touch()\n"
+                " except FileNotFoundError:pass\n"
+            ),
+            str(cache),
+            str(ready),
+        ],
+        env={**os.environ, "BAZEL_DEPENDENCY_RESTORE_WRITER": str(root)},
+    )
+    try:
+        deadline = time.monotonic() + 5
+        while not ready.exists():
+            assert writer.poll() is None
+            assert time.monotonic() < deadline
+            time.sleep(0.001)
+        result = run(
+            RESTORE_OUTCOME=outcome,
+            BAZEL_DEPENDENCY_RESTORE_MARKER=str(root),
+        )
+        assert result.returncode == 0, result.stderr
+        writer.wait(timeout=5)
+        assert list(cache.iterdir()) == []
+        assert json.loads(result.stdout)["stopped_restore_writers"] >= 1
+        assert (cache.parent / "unrelated" / "keep").read_text() == "preserved"
+    finally:
+        if writer.poll() is None:
+            writer.terminate()
+        writer.wait()
+
+
+def test_cleanup_preserves_a_process_with_another_restore_marker(
+    runner: Runner,
+) -> None:
+    run, _, root = runner
+    unrelated = subprocess.Popen(
+        [sys.executable, "-S", "-c", "import time;time.sleep(60)"],
+        env={**os.environ, "BAZEL_DEPENDENCY_RESTORE_WRITER": f"other-{root}"},
+    )
+    try:
+        result = run(
+            RESTORE_OUTCOME="failure",
+            BAZEL_DEPENDENCY_RESTORE_MARKER=str(root),
+        )
+        assert result.returncode == 0, result.stderr
+        assert unrelated.poll() is None
+    finally:
+        unrelated.terminate()
+        unrelated.wait()

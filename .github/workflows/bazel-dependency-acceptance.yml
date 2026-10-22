@@ -42,6 +42,7 @@ jobs:
         timeout-minutes: 2
         continue-on-error: true
         env:
+          BAZEL_DEPENDENCY_RESTORE_WRITER: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           NODE_OPTIONS: --require=${{ env.FAULT_EVIDENCE }}/cache-env.cjs
           ACTIONS_CACHE_SERVICE_V2: 'true'
           ACTIONS_RESULTS_URL: ${{ env.FAULT_URL }}
@@ -57,6 +58,7 @@ jobs:
       - name: Run real required preparation after restore fault
         shell: bash
         env:
+          BAZEL_DEPENDENCY_RESTORE_MARKER: ${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
           RESTORE_OUTCOME: ${{ steps.dependencies.outcome }}
           CACHE_HIT: ${{ steps.dependencies.outputs.cache-hit }}
           CACHE_MATCHED_KEY: ${{ steps.dependencies.outputs.cache-matched-key }}

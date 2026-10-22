@@ -3,7 +3,9 @@
 import hashlib
 import json
 import os
+import select
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -29,13 +31,54 @@ def configure() -> None:
         )
 
 
+def stop_restore_writers() -> int:
+    """Stop only processes marked by this job's restore step."""
+    marker = os.environ.get("BAZEL_DEPENDENCY_RESTORE_MARKER")
+    if not marker:
+        return 0
+    expected = f"BAZEL_DEPENDENCY_RESTORE_WRITER={marker}".encode()
+    stopped = set()
+    deadline = time.monotonic() + 10
+    while True:
+        found = False
+        for process in Path("/proc").iterdir():
+            if not process.name.isdecimal():
+                continue
+            try:
+                descriptor = os.pidfd_open(int(process.name))
+            except ProcessLookupError, PermissionError:
+                continue
+            try:
+                if expected not in (process / "environ").read_bytes().split(b"\x00"):
+                    continue
+                found = True
+                # A process handle prevents a reused PID from naming another process.
+                signal.pidfd_send_signal(descriptor, signal.SIGKILL)
+                stopped.add(process.name)
+                poller = select.poll()
+                poller.register(descriptor, select.POLLIN)
+                poller.poll(1000)
+            except FileNotFoundError, ProcessLookupError, PermissionError:
+                continue
+            finally:
+                os.close(descriptor)
+            if time.monotonic() > deadline:
+                raise RuntimeError("Timed-out restore processes did not stop")
+        if not found:
+            return len(stopped)
+        if time.monotonic() > deadline:
+            raise RuntimeError("Timed-out restore processes did not stop")
+
+
 def prepare() -> int:
     """Discard unconfirmed restores, then propagate the real preload exit status."""
     outcome = os.environ.get("RESTORE_OUTCOME", "")
     matched = os.environ.get("CACHE_MATCHED_KEY", "")
     confirmed = outcome == "success" and bool(matched)
     cache = cache_path()
+    stopped = 0
     if not confirmed:
+        stopped = stop_restore_writers()
         # A transport error may be caught inside the restore action. No matched
         # output also requires cleanup, even when the action reports success.
         if cache.is_symlink():
@@ -50,6 +93,7 @@ def prepare() -> int:
         if confirmed
         else "miss-or-transport-error",
         "discarded_unconfirmed_state": not confirmed,
+        "stopped_restore_writers": stopped,
         "publication": "not-attempted",
     }
     started = time.monotonic()
