@@ -121,10 +121,10 @@ Hosted workflow and Codecov acceptance remain separate work under
 
 ## Hosted evidence
 
-The existing Coverage workflow also runs the Python membership acceptance command.
-It uses the Bazel-managed collector to measure that command and merges its real
-hits with the full combined report. The original inventory and test results remain
-with that report. Existing thresholds and Codecov policy remain in use.
+The Coverage workflow collects repository coverage and checks source reconciliation.
+Run Python membership acceptance separately with the documented command.
+The workflow does not run that command or merge its fixture coverage.
+Existing thresholds and Codecov policy remain in use.
 
 The workflow retains a `coverage-evidence-<run>-<attempt>` artifact for 30 days.
 It contains the combined report, `coverage-report.lcov`, and the Bazel test results, `coverage-test-results.jsonl`.
@@ -154,4 +154,4 @@ Python acceptance compares the native Go test report with both combined reports.
 It requires known function-body hits and preserves every native executable record.
 The selected Go SDK defines the executable-line set. Go 1.27 omits function-declaration
 lines that Go 1.26 reports. Acceptance checks native counts instead of fixed totals.
-Failed acceptance retains the native, combined, and processed reports in CI.
+The acceptance command retains the native, combined, and processed reports in its evidence directory.
