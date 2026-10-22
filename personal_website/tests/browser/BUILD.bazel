@@ -14,6 +14,7 @@ test_suite(
 js_test(
     name = "homepage_test",
     size = "large",
+    browser = True,
     data = [
         ":browser_test",
         "//personal_website:build",
@@ -30,6 +31,7 @@ js_test(
 js_test(
     name = "hero_test",
     size = "small",
+    browser = True,
     data = [
         ":browser_test",
         "//personal_website/tests:fixtures_build",
@@ -46,6 +48,7 @@ js_test(
 js_test(
     name = "featured_work_test",
     size = "small",
+    browser = True,
     data = [
         ":browser_test",
         "//personal_website/tests:fixtures_build",
@@ -62,6 +65,7 @@ js_test(
 js_test(
     name = "recent_writing_test",
     size = "small",
+    browser = True,
     data = [
         ":browser_test",
         "//personal_website/tests:fixtures_build",
@@ -78,12 +82,22 @@ js_test(
 personal_website_ts_library(
     name = "browser",
     testonly = True,
-    srcs = ["harness.ts"],
+    srcs = [
+        "browser-coverage.ts",
+        "harness.ts",
+    ],
     tsconfig_types = ["node"],
     visibility = ["//visibility:public"],
     deps = [
+        "//:node_modules/@types/istanbul-lib-coverage",
+        "//:node_modules/@types/istanbul-lib-report",
+        "//:node_modules/@types/istanbul-reports",
         "//:node_modules/@types/node",
+        "//:node_modules/istanbul-lib-coverage",
+        "//:node_modules/istanbul-lib-report",
+        "//:node_modules/istanbul-reports",
         "//:node_modules/playwright",
+        "//:node_modules/v8-to-istanbul",
         "//personal_website/src/utils",
     ],
 )

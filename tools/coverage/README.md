@@ -23,9 +23,8 @@ or `no-coverage` tags.
 The Python integration selects baselines for maintained production sources, tests,
 and executable helpers. Test-only roots select metadata without changing test
 execution filters. The inventory also reports JavaScript/TypeScript and Astro sources.
-The browser and Astro integration remains under ticket #2508.
+The integrations below retain collector evidence and source-specific limits.
 Measurement requires collector evidence.
-Pending integrations supply no accepted collector limits.
 Ticket #2509 adds reconciliation across collector families.
 
 The scope excludes WebAssembly execution, Clojure, SQL and procedural bodies,
@@ -329,3 +328,36 @@ Angular children, disconnected sources,
 and preservation of other language records. Local mode clears execution, cache,
 and BES endpoints. Configured mode retains execution and cache evidence.
 The existing hosted workflow runs the same command and retains its evidence.
+
+## Browser and Astro sources
+
+Browser targets use the shared JavaScript test declaration with `browser = True`.
+The configured metadata identifies these targets without a project list.
+The Astro builds request Vite source maps only in the coverage configuration.
+The documented [extension resolution option](https://vite.dev/config/shared-options.html#resolve-extensions)
+selects maintained TypeScript before adjacent Bazel-emitted JavaScript.
+This lets Vite map original inputs without a custom source-map transformation.
+Ordinary builds retain their existing output configuration.
+
+The browser harness uses the documented
+[Playwright Chromium coverage API](https://playwright.dev/docs/api/class-coverage).
+The maintained [v8-to-istanbul converter](https://github.com/istanbuljs/v8-to-istanbul)
+and Istanbul reporter supply source mapping, executable records, and branch semantics.
+The adapter adds no compiler transformation or original branch identities.
+
+Each page retains its raw profile, built scripts, source maps, converted report,
+and source receipt in Bazel's undeclared test outputs.
+The command reads individual Bazel outputs. It also accepts archived outputs.
+The report command checks required files, profile ranges, map contents, and
+report membership before it changes the combined report.
+Missing or invalid required output causes failure.
+
+Original attribution requires one unambiguous inventory path and exact original
+source content in the supplied map. Supported original records merge with
+existing language records. Generated and external records remain outside the
+combined report. The raw archive retains their mapping evidence.
+
+Each absent Astro source receives its own inventory owners and evidence location
+in `coverage-javascript/receipt.json`. Browser reports omit Astro's build-time template execution. An unavailable original map or disconnected
+original remains a collector limit. That limit leaves coverage unknown.
+The adapter supplies no processed-script bridge or replacement source map.

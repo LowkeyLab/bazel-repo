@@ -1,8 +1,10 @@
 """Check report validation through the command with the maintained native collector."""
 
+import hashlib
 import json
 import os
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -375,3 +377,245 @@ def test_selective_child_profile_loss_records_exact_limit(workspace: Path) -> No
         item["source"] == "module.js" and item["rule"] == "//:test" for item in limits
     )
     assert len(receipt["executions"][0]["retained_profiles"]) == 1
+
+
+def test_required_browser_output_cannot_disappear(workspace: Path) -> None:
+    metadata = workspace / "fixture.javascript-test-inputs.json"
+    data = json.loads(metadata.read_text())
+    data["browser"] = True
+    metadata.write_text(json.dumps(data))
+    original = (workspace / "report.lcov").read_bytes()
+    result = run(workspace)
+    assert result.returncode != 0, result.stdout + result.stderr
+    assert "Missing required browser coverage" in result.stderr
+    assert (workspace / "report.lcov").read_bytes() == original
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "missing-profile",
+        "corrupt-profile",
+        "missing-map",
+        "corrupt-map",
+        "missing-report",
+        "incomplete-report",
+        "invalid-range",
+        "invalid-function",
+        "invalid-receipt",
+        "incomplete-scripts",
+        "invalid-map-fields",
+        "missing-receipts",
+        "missing-page",
+        "duplicate-page",
+        "invalid-page",
+        "unsafe-path",
+        "unmapped-source",
+        "ambiguous-source",
+        "duplicate-source",
+        "empty-page",
+        "archived-page",
+    ],
+)
+def test_browser_output_validation_and_hit_preservation(
+    workspace: Path, fault: str | None
+) -> None:
+    metadata = workspace / "fixture.javascript-test-inputs.json"
+    data = json.loads(metadata.read_text())
+    data["browser"] = True
+    metadata.write_text(json.dumps(data))
+    inventory_path = workspace / "inventory.json"
+    inventory = json.loads(inventory_path.read_text())
+    inventory["eligible"].append(
+        {**inventory["eligible"][0], "path": "page.astro", "language": "browser"}
+    )
+    inventory_path.write_text(json.dumps(inventory))
+    source = (workspace / "module.js").read_text()
+    raw = [
+        {
+            "url": "http://127.0.0.1:1234/site.js",
+            "source": source,
+            "functions": [
+                {
+                    "functionName": "choose",
+                    "isBlockCoverage": True,
+                    "ranges": [
+                        {"startOffset": 0, "endOffset": len(source), "count": 7}
+                    ],
+                }
+            ],
+        }
+    ]
+    mapping = {
+        "version": 3,
+        "sources": ["/build/module.js"],
+        "sourcesContent": [source],
+        "mappings": "AAAA",
+    }
+    receipt = {
+        "schema_version": 1,
+        "scripts": [
+            {
+                "script": "/build/site.js",
+                "sources": mapping["sources"],
+                "sourcesContent": [source],
+            }
+        ],
+        "sources": ["/build/module.js"],
+    }
+    files = {
+        "receipt.json": json.dumps(receipt),
+        "profile.json": json.dumps(raw),
+        "0.js": source,
+        "0.map": json.dumps(mapping),
+        "report.lcov": "SF:/build/module.js\nDA:1,7\nLF:1\nLH:1\nend_of_record\n",
+    }
+    receipt["profile_sha256"] = hashlib.sha256(
+        files["profile.json"].encode()
+    ).hexdigest()
+    receipt["report_sha256"] = hashlib.sha256(files["report.lcov"].encode()).hexdigest()
+    receipt["scripts"][0]["map_sha256"] = hashlib.sha256(
+        files["0.map"].encode()
+    ).hexdigest()
+    files["receipt.json"] = json.dumps(receipt)
+    if fault in {"missing-profile", "missing-map", "missing-report"}:
+        del files[
+            {
+                "missing-profile": "profile.json",
+                "missing-map": "0.map",
+                "missing-report": "report.lcov",
+            }[fault]
+        ]
+    elif fault == "corrupt-profile":
+        files["profile.json"] = "!"
+    elif fault == "corrupt-map":
+        files["0.map"] = "!"
+    elif fault == "incomplete-report":
+        files["report.lcov"] = "SF:/build/module.js\nLF:1\nLH:1\nend_of_record\n"
+    elif fault in {"invalid-range", "invalid-function"}:
+        if fault == "invalid-range":
+            raw[0]["functions"][0]["ranges"][0]["count"] = -1
+        else:
+            raw[0]["functions"][0]["ranges"] = []
+        files["profile.json"] = json.dumps(raw)
+    elif fault == "invalid-receipt":
+        receipt["schema_version"] = 2
+    elif fault == "incomplete-scripts":
+        receipt["scripts"] = []
+    elif fault == "invalid-map-fields":
+        mapping["version"] = 2
+        files["0.map"] = json.dumps(mapping)
+    elif fault == "unmapped-source":
+        mapping["sourcesContent"] = ["different original source"]
+        receipt["scripts"][0]["sourcesContent"] = mapping["sourcesContent"]
+        files["0.map"] = json.dumps(mapping)
+    elif fault == "ambiguous-source":
+        path = workspace / "inventory.json"
+        inventory = json.loads(path.read_text())
+        extra = {**inventory["eligible"][0], "path": "build/module.js"}
+        inventory["eligible"].append(extra)
+        path.write_text(json.dumps(inventory))
+        (workspace / "build").mkdir()
+        (workspace / "build/module.js").write_text(source)
+    elif fault == "duplicate-source":
+        files["report.lcov"] += files["report.lcov"].replace(
+            "/build/module.js", "/other/module.js"
+        )
+        receipt["sources"].append("/other/module.js")
+    elif fault == "empty-page":
+        files["profile.json"] = "[]"
+        files["report.lcov"] = ""
+        receipt["scripts"] = []
+        receipt["sources"] = []
+    # Structural faults use valid hashes, so the command must reach their validation.
+    if fault not in {"corrupt-profile", "corrupt-map"}:
+        for filename, key in (
+            ("profile.json", "profile_sha256"),
+            ("report.lcov", "report_sha256"),
+        ):
+            if filename in files:
+                receipt[key] = hashlib.sha256(files[filename].encode()).hexdigest()
+        if receipt["scripts"] and "0.map" in files:
+            receipt["scripts"][0]["map_sha256"] = hashlib.sha256(
+                files["0.map"].encode()
+            ).hexdigest()
+        files["receipt.json"] = json.dumps(receipt)
+    if fault == "missing-receipts":
+        del files["receipt.json"]
+    pages = {
+        "missing-page": ["page", "lost"],
+        "duplicate-page": ["page", "page"],
+        "invalid-page": ["../page"],
+    }.get(fault, ["page"])
+    directory = workspace / "browser-outputs/browser-coverage"
+    directory.mkdir(parents=True)
+    (directory / "pages.json").write_text(json.dumps(pages))
+    for name, content in files.items():
+        path = directory / "page" / name
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(content)
+    events_path = workspace / "events.json"
+    events = [json.loads(line) for line in events_path.read_text().splitlines()]
+    if fault == "archived-page":
+        archive_path = workspace / "browser.zip"
+        with zipfile.ZipFile(archive_path, "w") as archive:
+            for path in directory.rglob("*"):
+                if path.is_file():
+                    archive.write(path, path.relative_to(directory.parent).as_posix())
+        events[-1]["testResult"]["testActionOutput"].append(
+            {"name": "test.outputs__outputs.zip", "uri": archive_path.as_uri()}
+        )
+    else:
+        events[-1]["testResult"]["testActionOutput"].extend(
+            {
+                "name": "test.outputs/" + path.relative_to(directory.parent).as_posix(),
+                "uri": path.as_uri(),
+            }
+            for path in directory.rglob("*")
+            if path.is_file()
+        )
+    if fault == "unsafe-path":
+        events[-1]["testResult"]["testActionOutput"].append(
+            {
+                "name": "browser-coverage/../escape",
+                "uri": (directory / "pages.json").as_uri(),
+            }
+        )
+    events_path.write_text("".join(json.dumps(event) + "\n" for event in events))
+    original = (workspace / "report.lcov").read_bytes()
+    result = run(workspace)
+    if fault not in {None, "unmapped-source", "empty-page", "archived-page"}:
+        assert result.returncode != 0, result.stdout + result.stderr
+        assert (workspace / "report.lcov").read_bytes() == original
+        expected = {
+            "invalid-range": "Invalid browser coverage range",
+            "invalid-function": "Invalid browser function ranges",
+            "invalid-receipt": "Invalid browser coverage receipt",
+            "incomplete-scripts": "Incomplete browser coverage inputs",
+            "invalid-map-fields": "Invalid required browser source map",
+            "missing-receipts": "Missing required browser coverage receipts",
+            "missing-page": "Incomplete required browser page outputs",
+            "duplicate-page": "Incomplete required browser page outputs",
+            "invalid-page": "Incomplete required browser page outputs",
+            "unsafe-path": "Invalid browser artifact path",
+            "ambiguous-source": "Ambiguous browser source",
+            "duplicate-source": "Duplicate canonical browser source",
+            "incomplete-report": "Incomplete JavaScript executable records",
+        }
+        if fault in expected:
+            assert expected[fault] in result.stderr, result.stderr
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        report = (workspace / "report.lcov").read_text()
+        assert report.count("SF:module.js\n") == 1
+        assert (
+            "DA:1,11\n" if fault in {None, "archived-page"} else "DA:1,4\n"
+        ) in report
+        result_receipt = json.loads((workspace / "evidence/receipt.json").read_text())
+        assert any(
+            limit["source"] == "page.astro"
+            and limit.get("owners")
+            and "Astro" in limit["missing_guarantee"]
+            for limit in result_receipt["limits"]
+        )

@@ -31,6 +31,15 @@ export default defineConfig({
     },
   ],
   vite: {
+    // Bazel also supplies emitted JavaScript. Coverage builds select maintained
+    // TypeScript inputs so Vite can produce their original source maps.
+    resolve:
+      process.env.BROWSER_COVERAGE === "1"
+        ? {
+            extensions: [".mts", ".ts", ".mjs", ".js", ".jsx", ".tsx", ".json"],
+          }
+        : undefined,
+    build: { sourcemap: process.env.BROWSER_COVERAGE === "1" },
     plugins: [tailwindcss()],
     server: {
       fs: {

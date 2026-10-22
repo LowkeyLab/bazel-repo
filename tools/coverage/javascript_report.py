@@ -1,12 +1,14 @@
 """Validate JavaScript collection and merge native manifest baselines."""
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import tempfile
+import zipfile
 from pathlib import Path
 from typing import TypedDict
 from urllib.parse import unquote, urlparse
@@ -17,10 +19,10 @@ class AngularProject(TypedDict):
     runner_sources: set[str]
 
 
-EXTENSIONS = {".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx"}
+EXTENSIONS = {".js", ".mjs", ".cjs", ".jsx", ".ts", ".mts", ".cts", ".tsx", ".astro"}
 
 
-def records(path: Path) -> dict[str, list[str]]:
+def records(path: Path, validate_all: bool = False) -> dict[str, list[str]]:
     text = path.read_text()
     parts = text.split("end_of_record")
     if len(parts) == 1 or parts.pop().strip():
@@ -32,7 +34,7 @@ def records(path: Path) -> dict[str, list[str]]:
         if len(names) != 1 or names[0] in result:
             raise ValueError(f"Invalid JavaScript source record: {path}")
         name = names[0]
-        if Path(name).suffix in EXTENSIONS:
+        if validate_all or Path(name).suffix in EXTENSIONS:
             counts = {}
             branches = {}
             for line in lines:
@@ -130,6 +132,170 @@ def local_path(file: dict[str, str]) -> Path:
     return Path(unquote(uri.path))
 
 
+def browser_reports(
+    outputs: dict[str, dict[str, str]],
+    browser_directory: Path,
+    sources: set[str],
+    root: Path,
+    label: str,
+) -> tuple[list[Path], dict[str, str]]:
+    """Validate browser artifacts before accepting their original-source records."""
+    observed: dict[str, str] = {}
+    browser_reports: list[Path] = []
+    browser_directory.mkdir()
+    files = {}
+    if "test.outputs__outputs.zip" in outputs:
+        archive_path = local_path(outputs["test.outputs__outputs.zip"])
+        shutil.copyfile(archive_path, browser_directory / "outputs.zip")
+        with zipfile.ZipFile(archive_path) as archive:
+            files = {
+                name: archive.read(name)
+                for name in archive.namelist()
+                if name.startswith("browser-coverage/") and not name.endswith("/")
+            }
+    else:
+        files = {
+            name[name.index("browser-coverage/") :]: local_path(file).read_bytes()
+            for name, file in outputs.items()
+            if "browser-coverage/" in name
+        }
+        for name, content in files.items():
+            if ".." in Path(name).parts:
+                raise ValueError(f"Invalid browser artifact path: {name}")
+            destination = browser_directory / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(content)
+    if not files:
+        raise ValueError(f"Missing required browser coverage: {label}")
+    receipts = sorted(name for name in files if name.endswith("/receipt.json"))
+    if not receipts:
+        raise ValueError(f"Missing required browser coverage receipts: {label}")
+    pages = json.loads(files["browser-coverage/pages.json"])
+    if (
+        not isinstance(pages, list)
+        or not pages
+        or any(
+            not isinstance(page, str) or not re.fullmatch(r"[A-Za-z0-9-]+", page)
+            for page in pages
+        )
+        or len(set(pages)) != len(pages)
+        or sorted(f"browser-coverage/{page}/receipt.json" for page in pages) != receipts
+    ):
+        raise ValueError(f"Incomplete required browser page outputs: {label}")
+    for index, receipt_name in enumerate(receipts):
+        prefix = receipt_name.removesuffix("receipt.json")
+        data = json.loads(files[receipt_name])
+        if any(
+            hashlib.sha256(files[prefix + filename]).hexdigest() != data.get(key)
+            for filename, key in [
+                ("profile.json", "profile_sha256"),
+                ("report.lcov", "report_sha256"),
+            ]
+        ):
+            raise ValueError(f"Corrupt required browser output: {label}")
+        raw = json.loads(files[prefix + "profile.json"])
+        if (
+            data.get("schema_version") != 1
+            or not isinstance(raw, list)
+            or not isinstance(data.get("scripts"), list)
+            or not isinstance(data.get("sources"), list)
+        ):
+            raise ValueError(f"Invalid browser coverage receipt: {label}")
+        profiles = [
+            entry
+            for entry in raw
+            if urlparse(entry["url"]).hostname == "127.0.0.1"
+            and urlparse(entry["url"]).path.endswith(".js")
+        ]
+        if len(profiles) != len(data["scripts"]):
+            raise ValueError(f"Incomplete browser coverage inputs: {label}")
+        verified = set()
+        for script_index, (profile, script) in enumerate(
+            zip(profiles, data["scripts"], strict=True)
+        ):
+            source = files[prefix + f"{script_index}.js"].decode()
+            map_bytes = files[prefix + f"{script_index}.map"]
+            if hashlib.sha256(map_bytes).hexdigest() != script.get("map_sha256"):
+                raise ValueError(f"Corrupt required browser source map: {label}")
+            source_map = json.loads(map_bytes)
+            if (
+                profile.get("source") != source
+                or source_map.get("version") != 3
+                or not isinstance(source_map.get("mappings"), str)
+                or source_map.get("sources") != script["sources"]
+                or source_map.get("sourcesContent") != script["sourcesContent"]
+            ):
+                raise ValueError(f"Invalid required browser source map: {label}")
+            for function in profile["functions"]:
+                if not function.get("ranges"):
+                    raise ValueError(f"Invalid browser function ranges: {label}")
+                for interval in function["ranges"]:
+                    if (
+                        any(
+                            type(interval.get(key)) is not int
+                            for key in ("startOffset", "endOffset", "count")
+                        )
+                        or not 0
+                        <= interval["startOffset"]
+                        <= interval["endOffset"]
+                        <= len(source.encode("utf-16-le")) // 2
+                        or interval["count"] < 0
+                    ):
+                        raise ValueError(f"Invalid browser coverage range: {label}")
+            for original, content in zip(
+                script["sources"], script["sourcesContent"], strict=True
+            ):
+                mapped = os.path.normpath(
+                    os.path.join(
+                        os.path.dirname(script["script"]),
+                        source_map.get("sourceRoot", ""),
+                        original,
+                    )
+                )
+                candidates = [
+                    name
+                    for name in sources
+                    if mapped == name or mapped.endswith("/" + name)
+                ]
+                if len(candidates) > 1:
+                    raise ValueError(f"Ambiguous browser source: {mapped}")
+                if candidates and (root / candidates[0]).read_text() == content:
+                    verified.add(candidates[0])
+        saved = browser_directory / f"{index}.lcov"
+        saved.write_bytes(files[prefix + "report.lcov"])
+        measured_browser = records(saved, validate_all=True) if data["sources"] else {}
+        if set(measured_browser) != set(data["sources"]) or (
+            not data["sources"] and saved.read_text().strip()
+        ):
+            raise ValueError(f"Incomplete browser report: {label}")
+        canonical = {}
+        for original, lines in measured_browser.items():
+            candidates = [
+                name
+                for name in verified
+                if original == name or original.endswith("/" + name)
+            ]
+            if len(candidates) > 1:
+                raise ValueError(f"Ambiguous browser report source: {original}")
+            if not candidates:
+                continue
+            name = candidates[0]
+            if name in canonical:
+                raise ValueError(f"Duplicate canonical browser source: {name}")
+            canonical[name] = [
+                "SF:" + name if line.startswith("SF:") else line for line in lines
+            ]
+            observed[name] = str(saved)
+        supported_browser = browser_directory / f"{index}-supported.lcov"
+        supported_browser.write_text(
+            "".join(
+                "\n".join(lines) + "\nend_of_record\n" for lines in canonical.values()
+            )
+        )
+        browser_reports.append(supported_browser)
+    return browser_reports, observed
+
+
 def main() -> None:
     os.umask(0o077)
     parser = argparse.ArgumentParser()
@@ -146,7 +312,7 @@ def main() -> None:
     sources = {
         item["path"]: item
         for item in inventory["eligible"]
-        if item["language"] == "javascript"
+        if item["language"] in {"javascript", "browser"}
     }
     excluded = {item["path"] for item in inventory["excluded"]}
     evidence = args.evidence.resolve()
@@ -187,7 +353,11 @@ def main() -> None:
     angular_sources = {
         name for name in sources if any(name.startswith(prefix) for prefix in projects)
     }
-    native_sources = sorted(set(sources) - angular_sources)
+    native_sources = sorted(
+        name
+        for name in set(sources) - angular_sources
+        if sources[name]["language"] == "javascript"
+    )
     manifest = evidence / "native-manifest.txt"
     manifest.write_text("".join(name + "\n" for name in native_sources))
     native_directory = Path(tempfile.mkdtemp(prefix="native-", dir=run_directory))
@@ -309,6 +479,28 @@ def main() -> None:
                 f"Missing required configured JavaScript instrumentation: {label}"
             )
         outputs = {item["name"]: item for item in result.get("testActionOutput", [])}
+        if configured[configured_key].get("browser"):
+            reports, browser_observed = browser_reports(
+                outputs,
+                run_directory / f"browser-{len(executions)}",
+                set(sources),
+                root,
+                label,
+            )
+            test_reports.extend(reports)
+            observed.update(browser_observed)
+            for source in sorted(browser_observed):
+                limits.append(
+                    {
+                        "source": source,
+                        "rule": label,
+                        "missing_guarantee": "Chromium coverage resets across page navigation. The retained final page profile does not establish complete measurement of earlier navigations.",
+                        "evidence": [
+                            str(run_directory / f"browser-{len(executions)}"),
+                            "https://playwright.dev/docs/api/class-coverage#coverage-start-js-coverage",
+                        ],
+                    }
+                )
         if "test.lcov" not in outputs:
             raise ValueError(f"Missing required JavaScript test report: {label}")
         report = local_path(outputs["test.lcov"])
@@ -406,6 +598,9 @@ def main() -> None:
                 "original_report": str(report),
                 "retained_profiles": [str(saved_test / path.name) for path in profiles],
                 "profiles": [str(path) for path in profiles],
+                "browser_outputs": str(run_directory / f"browser-{len(executions)}")
+                if configured[configured_key].get("browser")
+                else None,
                 "cached_locally": result.get("cachedLocally", False),
                 "execution": result.get("executionInfo", {}),
             }
@@ -481,6 +676,20 @@ def main() -> None:
                 "evidence": str(baseline_path),
             }
         )
+    for name, source in sorted(sources.items()):
+        if source["language"] == "browser" and name not in observed:
+            limits.append(
+                {
+                    "source": name,
+                    "owners": source["owners"],
+                    "missing_guarantee": "The selected browser reports supply no map with the exact original Astro source content. Static build-time template execution and disconnected originals have no measured browser baseline. No processed-script bridge or original mapping is reconstructed.",
+                    "evidence": [
+                        str(run_directory),
+                        "https://docs.astro.build/en/reference/configuration-reference/#vite",
+                        "https://playwright.dev/docs/api/class-coverage",
+                    ],
+                }
+            )
     for name in sorted(sources):
         limits.append(
             {

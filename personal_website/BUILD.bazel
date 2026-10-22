@@ -81,6 +81,10 @@ js_run_binary(
     name = "build",
     srcs = SRCS + BUILD_DEPS,
     args = ["build"],
+    env = select({
+        "//tools/coverage:javascript_coverage": {"BROWSER_COVERAGE": "1"},
+        "//conditions:default": {},
+    }),
     mnemonic = "AstroBuild",
     out_dirs = ["dist"],
     tool = ":astro",
@@ -95,6 +99,10 @@ js_run_binary(
         "--config",
         "tests/fixtures.config.ts",
     ],
+    env = select({
+        "//tools/coverage:javascript_coverage": {"BROWSER_COVERAGE": "1"},
+        "//conditions:default": {},
+    }),
     mnemonic = "AstroFixturesBuild",
     out_dirs = ["tests/dist"],
     tool = ":astro",
