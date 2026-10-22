@@ -381,10 +381,13 @@ oci_load(
     repo_tags = ["local/book-smartz:latest"],
 )
 
-# Exercise the private interpreter in the same application crate and composition.
+# Exercise private behavior in the same application crate.
 rust_test(
     name = "evidence_test",
     size = "small",
     crate = ":bin",
-    deps = ["@crates//:googletest"],
+    deps = [
+        "@crates//:googletest",
+        "@crates//:wiremock",
+    ],
 )
