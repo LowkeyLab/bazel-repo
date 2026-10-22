@@ -1,5 +1,5 @@
 //! The bundle command accepts repeated read-only inputs and rejects path conflicts.
-use std::{fs, process::Command};
+use std::{ffi::OsStr, fs, path::Path, process::Command};
 
 use anyhow::Context;
 use googletest::{
@@ -56,7 +56,7 @@ fn repeated_read_only_inputs_produce_the_declared_asset() -> anyhow::Result<()> 
         .as_object()
         .context("asset inventory")?
         .keys()
-        .find(|name| name.ends_with(".txt"))
+        .find(|name| Path::new(name).extension() == Some(OsStr::new("txt")))
         .context("bundled text asset")?;
     assert_that!(
         fs::read_to_string(root.join("output/assets").join(asset))?,
