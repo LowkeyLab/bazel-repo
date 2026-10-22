@@ -147,3 +147,11 @@ It excludes evidence metadata from coverage-file discovery.
 Check its log for the commit, upload result, and Codecov report link.
 Record the workflow run, final pull request head, artifact, and upload evidence together.
 Keep this hosted evidence separate from local and configured remote acceptance.
+
+## Go report preservation
+
+Python acceptance compares the native Go test report with both combined reports.
+It requires known function-body hits and preserves every native executable record.
+The selected Go SDK defines the executable-line set. Go 1.27 omits function-declaration
+lines that Go 1.26 reports. Acceptance checks native counts instead of fixed totals.
+Failed acceptance retains the native, combined, and processed reports in CI.

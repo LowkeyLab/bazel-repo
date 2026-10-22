@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 SOURCE = """def choose(value):
     if value:
@@ -15,6 +16,8 @@ SOURCE = """def choose(value):
     return 0
 """
 
+
+GO_SOURCE = "predix/internal/domain/user/user.go"
 
 BAZEL_ENDPOINT_OPTIONS: list[str] = []
 BAZEL_OPTIONS: list[str] = []
@@ -61,7 +64,34 @@ def generate(root: Path, path: Path, text: str) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def check_report(report: str, ordinary: str, hidden: str) -> None:
+def _go_line_counts(record: list[str]) -> dict[int, int]:
+    entries = [line[3:].split(",") for line in record if line.startswith("DA:")]
+    counts = {int(fields[0]): int(fields[1]) for fields in entries}
+    assert counts and len(entries) == len(counts), (
+        "Go executable records are absent or repeated."
+    )
+    assert all(line > 0 and count >= 0 for line, count in counts.items())
+    assert [line for line in record if line.startswith("LF:")] == [f"LF:{len(counts)}"]
+    assert [line for line in record if line.startswith("LH:")] == [
+        f"LH:{sum(count > 0 for count in counts.values())}"
+    ]
+    return counts
+
+
+def assert_go_coverage(actual: list[str], measured: list[str]) -> None:
+    actual_counts = _go_line_counts(actual)
+    measured_counts = _go_line_counts(measured)
+    for line in (29, 38):
+        assert measured_counts.get(line, 0) > 0, (
+            f"Native Go body line {line} has no hits."
+        )
+    for line, count in measured_counts.items():
+        assert actual_counts.get(line, -1) >= count, (
+            f"Measured Go line {line} lost records or hits: {actual}"
+        )
+
+
+def source_records(report: str) -> dict[str, list[str]]:
     records = {}
     for record in report.split("end_of_record"):
         lines = record.strip().splitlines()
@@ -70,6 +100,11 @@ def check_report(report: str, ordinary: str, hidden: str) -> None:
         source = next(line[3:] for line in lines if line.startswith("SF:"))
         assert source not in records, f"Repeated source: {source}"
         records[source] = lines
+    return records
+
+
+def check_report(report: str, ordinary: str, hidden: str, native_go: str) -> None:
+    records = source_records(report)
     for package in (ordinary, hidden):
         lines = records[f"{package}/untested.py"]
         assert "DA:1,0" in lines
@@ -107,10 +142,11 @@ def check_report(report: str, ordinary: str, hidden: str) -> None:
     assert "DA:3,2" in records["python_sample/versions.py"]
     assert "DA:6,2" in records["python_sample/__main__.py"]
     assert "DA:43,1" in records[".github/scripts/bazel_dependencies.py"]
-    go = records["predix/internal/domain/user/user.go"]
+    go = records[GO_SOURCE]
     # Go versions can exclude brace-only lines from coverage spans.
     for line in ("DA:29,1", "DA:34,1", "DA:35,0", "DA:38,1"):
         assert line in go, line
+    assert_go_coverage(go, source_records(native_go)[GO_SOURCE])
 
 
 def check_failures(root: Path, evidence: Path, package: Path) -> None:
@@ -183,7 +219,7 @@ def main() -> None:
     parser.add_argument("evidence", type=Path)
     parser.add_argument("--execution", choices=("local", "remote"), default="local")
     arguments = parser.parse_args()
-    evidence = arguments.evidence.absolute()
+    evidence = Path(arguments.evidence).absolute()
     if arguments.execution == "local":
         BAZEL_ENDPOINT_OPTIONS.extend(
             ["--remote_cache=", "--bes_backend=", "--remote_executor="]
@@ -369,10 +405,29 @@ py_library(name = "generated", srcs = [":generated.py"])
         assert output.returncode == 0, output.stdout + output.stderr
         report = Path(output.stdout.strip()) / "_coverage/_coverage_report.dat"
         shutil.copyfile(report, evidence / "combined.lcov")
+        shutil.copyfile(root / "coverage-report.lcov", evidence / "processed.lcov")
+        go_output = next(
+            output
+            for item in executions
+            if item["id"]["testResult"]["label"]
+            == "//predix/internal/domain/user:user_test"
+            for output in item["testActionOutput"]
+            if output["name"] == "test.lcov"
+        )
+        go_uri = urlparse(go_output["uri"])
+        assert go_uri.scheme == "file" and not go_uri.netloc, go_output["uri"]
+        go_report = evidence / "go-user-test.lcov"
+        shutil.copyfile(Path(unquote(go_uri.path)), go_report)
+        native_go = go_report.read_text()
         check_report(
             report.read_text(),
             str(ordinary.relative_to(root)),
             str(hidden.relative_to(root)),
+            native_go,
+        )
+        assert_go_coverage(
+            source_records((root / "coverage-report.lcov").read_text())[GO_SOURCE],
+            source_records(native_go)[GO_SOURCE],
         )
         for package in (ordinary, hidden):
             query = command(

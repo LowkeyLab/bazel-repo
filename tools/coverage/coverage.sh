@@ -46,6 +46,8 @@ done
 ROOTS_FILE="$(mktemp)"
 TEMP_EVENTS_FILE="$(mktemp)"
 ANALYZER_SCRIPT="$(mktemp)"
+JAVASCRIPT_COLLECTOR="$(mktemp)"
+JAVASCRIPT_MERGER="$(mktemp)"
 EVENTS_FILE="$TEMP_EVENTS_FILE"
 EVENTS_ARGS=("--build_event_json_file=$EVENTS_FILE")
 for arg in "${ARGS[@]}"; do
@@ -56,7 +58,7 @@ for arg in "${ARGS[@]}"; do
 		;;
 	esac
 done
-trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE" "$ANALYZER_SCRIPT"' EXIT
+trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE" "$ANALYZER_SCRIPT" "$JAVASCRIPT_COLLECTOR" "$JAVASCRIPT_MERGER"' EXIT
 bazel run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
 	--output coverage-inventory.json --roots-output "$ROOTS_FILE" "${INVENTORY_ARGS[@]}"
 mapfile -t COVERAGE_ROOTS <"$ROOTS_FILE"
@@ -64,8 +66,8 @@ COVERAGE_DAT="$(bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_re
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
 bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" \
-	--aspects=//tools/coverage:jvm.bzl%jvm_test_inputs \
-	--output_groups=+go_coverage_baselines,rust_coverage_baselines,jvm_coverage_baselines,jvm_test_inputs \
+	--aspects=//tools/coverage:jvm.bzl%jvm_test_inputs,//tools/coverage:javascript.bzl%javascript_test_inputs \
+	--output_groups=+go_coverage_baselines,rust_coverage_baselines,jvm_coverage_baselines,jvm_test_inputs,javascript_test_inputs \
 	--nobuild_event_json_file_path_conversion 2>&1
 
 if [[ ! -f "${COVERAGE_DAT}" ]]; then
@@ -92,6 +94,12 @@ bazel run "${INFO_ARGS[@]}" //tools/coverage:jvm_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --evidence coverage-jvm \
 	--analyzer "$ANALYZER_SCRIPT"
+bazel run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_COLLECTOR" //tools/coverage:javascript_baseline
+bazel run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_MERGER" @bazel_tools//tools/test:lcov_merger
+bazel run "${INFO_ARGS[@]}" //tools/coverage:javascript_report -- \
+	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
+	--events "$EVENTS_FILE" --evidence coverage-javascript \
+	--collector "$JAVASCRIPT_COLLECTOR" --merger "$JAVASCRIPT_MERGER"
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
 
 # Generate HTML report if genhtml is available

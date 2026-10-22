@@ -75,3 +75,5 @@ coverage-go-baselines.json
 /coverage-rust-baselines.json
 
 /coverage-jvm/
+
+/coverage-javascript/

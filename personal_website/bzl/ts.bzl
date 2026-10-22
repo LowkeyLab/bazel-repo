@@ -4,6 +4,7 @@ load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 
 def personal_website_ts_library(name, srcs, tsconfig_types = None, **kwargs):
     """Builds a reusable Personal Website TypeScript library."""
+    kwargs.setdefault("source_map", True)
     ts_project(
         name = name,
         srcs = srcs,
@@ -15,6 +16,7 @@ def personal_website_ts_library(name, srcs, tsconfig_types = None, **kwargs):
         tsconfig = {
             "include": [],
             "compilerOptions": {
+                "inlineSources": kwargs["source_map"],
                 "allowImportingTsExtensions": False,
                 "noEmit": False,
                 "types": ["astro/client"] + (tsconfig_types or []),
