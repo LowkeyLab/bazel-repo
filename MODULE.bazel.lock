@@ -607,7 +607,7 @@
     },
     "@@rules_distroless+//apt:extensions.bzl%apt": {
       "general": {
-        "bzlTransitiveDigest": "jOTcXIz/yqB8SzRwJJAZr0JBhpOt4qOgFKFpDrgyOYE=",
+        "bzlTransitiveDigest": "wfN3Xi38rLrzixjBC6VIN2zLK8hVDlG+cxWMvSTgYZk=",
         "usagesDigest": "vcJ9svut/UHnuJgFqm6o6W6JEbhSirUzAh78XOfiMO4=",
         "recordedInputs": [
           "REPO_MAPPING:,ubuntu_archive_keyring +http_file+ubuntu_archive_keyring",
@@ -627,7 +627,10 @@
           "noble_iptables-amd64_1.8.10-3ubuntu2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/i/iptables/iptables_1.8.10-3ubuntu2_amd64.deb"
+              ],
+              "sha256": "d341e8ffc42ca035f5aa0fd9a798c8d2b2edb019225dc11f4dac16edf9c57840"
             }
           },
           "noble_iptables-amd64_1.8.10-3ubuntu2": {
@@ -709,7 +712,10 @@
           "noble_libnftnl11-amd64_1.2.6-2build1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libn/libnftnl/libnftnl11_1.2.6-2build1_amd64.deb"
+              ],
+              "sha256": "e5bde5c9cbb95082700011f0b7ef2c0a41900b0a9fd7434f6e90448e2a7b4e50"
             }
           },
           "noble_libnftnl11-amd64_1.2.6-2build1": {
@@ -763,7 +769,10 @@
           "noble_libmnl0-amd64_1.0.5-2build1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libm/libmnl/libmnl0_1.0.5-2build1_amd64.deb"
+              ],
+              "sha256": "5170658bf0eaf54a8c7d53061ca6b47a6cf33a83543a75fa521de7046cb7197a"
             }
           },
           "noble_libmnl0-amd64_1.0.5-2build1": {
@@ -813,7 +822,10 @@
           "noble-security_libc6-amd64_2.39-0ubuntu8.9_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/g/glibc/libc6_2.39-0ubuntu8.9_amd64.deb"
+              ],
+              "sha256": "ff5557d99b51f761c4b7c92368b9cc45565eda17df9bf9eb4b134d09825008be"
             }
           },
           "noble-security_libc6-amd64_2.39-0ubuntu8.9": {
@@ -859,7 +871,10 @@
           "noble-security_libgcc-s1-amd64_14.2.0-4ubuntu2_24.04.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/g/gcc-14/libgcc-s1_14.2.0-4ubuntu2~24.04.1_amd64.deb"
+              ],
+              "sha256": "aa7fadbe33b78bcf99885318040601c550c208929565b179891d9a3cc2aa68cd"
             }
           },
           "noble-security_libgcc-s1-amd64_14.2.0-4ubuntu2_24.04.1": {
@@ -905,7 +920,10 @@
           "noble-security_gcc-14-base-amd64_14.2.0-4ubuntu2_24.04.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/g/gcc-14/gcc-14-base_14.2.0-4ubuntu2~24.04.1_amd64.deb"
+              ],
+              "sha256": "b95c172411a7fdae70307cf33a9f5320ba5e056b556454543dd5b679d5ce1c4f"
             }
           },
           "noble-security_gcc-14-base-amd64_14.2.0-4ubuntu2_24.04.1": {
@@ -939,7 +957,10 @@
           "noble_libnfnetlink0-amd64_1.0.2-2build1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libn/libnfnetlink/libnfnetlink0_1.0.2-2build1_amd64.deb"
+              ],
+              "sha256": "f557a287af2ca00df5dbf632c6b77d77479139ffb51c83e3de9766eb609b5d63"
             }
           },
           "noble_libnfnetlink0-amd64_1.0.2-2build1": {
@@ -989,7 +1010,10 @@
           "noble_libnetfilter-conntrack3-amd64_1.0.9-6build1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libn/libnetfilter-conntrack/libnetfilter-conntrack3_1.0.9-6build1_amd64.deb"
+              ],
+              "sha256": "6d32a4c4618eb7d6c0d989591d28637a9acdfa86dfe22e42e9ac9cc25d882a97"
             }
           },
           "noble_libnetfilter-conntrack3-amd64_1.0.9-6build1": {
@@ -1047,7 +1071,10 @@
           "noble_netbase-amd64_6.4_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/n/netbase/netbase_6.4_all.deb"
+              ],
+              "sha256": "8cdbc9c3dca01e660759bf9d840f72e45ac72faf5d19ca1faecacaf6a60c1a87"
             }
           },
           "noble_netbase-amd64_6.4": {
@@ -1081,7 +1108,10 @@
           "noble_libxtables12-amd64_1.8.10-3ubuntu2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/i/iptables/libxtables12_1.8.10-3ubuntu2_amd64.deb"
+              ],
+              "sha256": "c94063499d1b0b336f39607107efb7de95d52a5d4e7e6a9368a5f7308f05b714"
             }
           },
           "noble_libxtables12-amd64_1.8.10-3ubuntu2": {
@@ -1131,7 +1161,10 @@
           "noble_libip6tc2-amd64_1.8.10-3ubuntu2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/i/iptables/libip6tc2_1.8.10-3ubuntu2_amd64.deb"
+              ],
+              "sha256": "b98b88eb6aa14a902ea1aebc3b12ddd140572545ae1fc6428cb0868c31671d05"
             }
           },
           "noble_libip6tc2-amd64_1.8.10-3ubuntu2": {
@@ -1181,7 +1214,10 @@
           "noble_libip4tc2-amd64_1.8.10-3ubuntu2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/i/iptables/libip4tc2_1.8.10-3ubuntu2_amd64.deb"
+              ],
+              "sha256": "eb381f8ff0469534df3f1b146c3eb8baa6e36f8cfcdf2e3e039398322930d0a4"
             }
           },
           "noble_libip4tc2-amd64_1.8.10-3ubuntu2": {
@@ -1231,7 +1267,10 @@
           "noble-security_docker.io-amd64_29.1.3-0ubuntu3_24.04.2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/universe/d/docker.io-app/docker.io_29.1.3-0ubuntu3~24.04.2_amd64.deb"
+              ],
+              "sha256": "bd5c22d42d4ce3021958b7a8d627701597f61a1a9867ba83fe3c841f04991e3a"
             }
           },
           "noble-security_docker.io-amd64_29.1.3-0ubuntu3_24.04.2": {
@@ -1437,7 +1476,10 @@
           "noble-security_libsystemd0-amd64_255.4-1ubuntu8.18_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/s/systemd/libsystemd0_255.4-1ubuntu8.18_amd64.deb"
+              ],
+              "sha256": "2da3fa28302cf007075e89cdc3aabe6973916afcd62c3884b86f67b77c73a5b4"
             }
           },
           "noble-security_libsystemd0-amd64_255.4-1ubuntu8.18": {
@@ -1511,7 +1553,10 @@
           "noble-updates_libzstd1-amd64_1.5.5-dfsg2-2build1.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libz/libzstd/libzstd1_1.5.5+dfsg2-2build1.1_amd64.deb"
+              ],
+              "sha256": "dfcf25061e07aad7efd3f4f880ba5ad4d4d09ebe7fc8cc77ab6b8a161d6d4727"
             }
           },
           "noble-updates_libzstd1-amd64_1.5.5-dfsg2-2build1.1": {
@@ -1561,7 +1606,10 @@
           "noble-security_liblzma5-amd64_5.6.1-really5.4.5-1ubuntu0.3_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/x/xz-utils/liblzma5_5.6.1+really5.4.5-1ubuntu0.3_amd64.deb"
+              ],
+              "sha256": "d2eabd41ca77d2c2dd9d5d4ef478cccb64ffde6279c47cf4699a857d46785a52"
             }
           },
           "noble-security_liblzma5-amd64_5.6.1-really5.4.5-1ubuntu0.3": {
@@ -1611,7 +1659,10 @@
           "noble-updates_liblz4-1-amd64_1.9.4-1build1.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/l/lz4/liblz4-1_1.9.4-1build1.1_amd64.deb"
+              ],
+              "sha256": "319331270d5cc52d5ebffe51c941d7b01b432bc402c2924b557209a64d4ecbad"
             }
           },
           "noble-updates_liblz4-1-amd64_1.9.4-1build1.1": {
@@ -1661,7 +1712,10 @@
           "noble-security_libgcrypt20-amd64_1.10.3-2ubuntu0.2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libg/libgcrypt20/libgcrypt20_1.10.3-2ubuntu0.2_amd64.deb"
+              ],
+              "sha256": "957b9eeaa83cf6f2d5d5d76dbb8aa31d3297e6781d8a02fa08dcc897ae650a0b"
             }
           },
           "noble-security_libgcrypt20-amd64_1.10.3-2ubuntu0.2": {
@@ -1715,7 +1769,10 @@
           "noble-updates_libgpg-error0-amd64_1.47-3build2.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libg/libgpg-error/libgpg-error0_1.47-3build2.1_amd64.deb"
+              ],
+              "sha256": "93654ee8180a73a0363f25c51dc673d67cbabcbecd164187b8a2deb54d007aef"
             }
           },
           "noble-updates_libgpg-error0-amd64_1.47-3build2.1": {
@@ -1765,7 +1822,10 @@
           "noble-security_libcap2-amd64_1-2.66-5ubuntu2.4_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libc/libcap2/libcap2_2.66-5ubuntu2.4_amd64.deb"
+              ],
+              "sha256": "23c627c77c66552a658e62852f244f4946dc543898e0ec5428d5dc6bffde2d6a"
             }
           },
           "noble-security_libcap2-amd64_1-2.66-5ubuntu2.4": {
@@ -1815,7 +1875,10 @@
           "noble-updates_libnftables1-amd64_1.0.9-1ubuntu0.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/n/nftables/libnftables1_1.0.9-1ubuntu0.1_amd64.deb"
+              ],
+              "sha256": "fcaee001747a6adaa0cd9337fef437b3aa7a7a6d5246b62fbd4784d3d6a5009e"
             }
           },
           "noble-updates_libnftables1-amd64_1.0.9-1ubuntu0.1": {
@@ -1885,7 +1948,10 @@
           "noble_libjansson4-amd64_2.14-2build2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/j/jansson/libjansson4_2.14-2build2_amd64.deb"
+              ],
+              "sha256": "0cf79113f5d193ce9af2be2ff4b2c3b30dd4e55a0b6c47f7d28f6c849ff3aa60"
             }
           },
           "noble_libjansson4-amd64_2.14-2build2": {
@@ -1935,7 +2001,10 @@
           "noble-updates_libgmp10-amd64_2-6.3.0-dfsg-2ubuntu6.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/g/gmp/libgmp10_6.3.0+dfsg-2ubuntu6.1_amd64.deb"
+              ],
+              "sha256": "285f8a505dfa8e1b33f357a9d8d3477ad35bf18c0b34771a6df4c25923f3ae0d"
             }
           },
           "noble-updates_libgmp10-amd64_2-6.3.0-dfsg-2ubuntu6.1": {
@@ -1985,7 +2054,10 @@
           "noble_debconf-amd64_1.5.86ubuntu1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/d/debconf/debconf_1.5.86ubuntu1_all.deb"
+              ],
+              "sha256": "bb390da466a7461bfc87aa3e6b7cd145dae84af3e26bf437f2c0c218ba226294"
             }
           },
           "noble_debconf-amd64_1.5.86ubuntu1": {
@@ -2019,7 +2091,10 @@
           "noble-security_containerd-amd64_2.2.1-0ubuntu1_24.04.3_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/c/containerd-app/containerd_2.2.1-0ubuntu1~24.04.3_amd64.deb"
+              ],
+              "sha256": "459a0184cc631c17eb4a625392f749fa753627b4ddba196919e0666a6206d92a"
             }
           },
           "noble-security_containerd-amd64_2.2.1-0ubuntu1_24.04.3": {
@@ -2077,7 +2152,10 @@
           "noble-updates_runc-amd64_1.3.4-0ubuntu1_24.04.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/r/runc-app/runc_1.3.4-0ubuntu1~24.04.1_amd64.deb"
+              ],
+              "sha256": "6ddd64ed7ef1693dd95620a2b1148a4187ef4fe0819c3c3049fad9385ecfd5dc"
             }
           },
           "noble-updates_runc-amd64_1.3.4-0ubuntu1_24.04.1": {
@@ -2131,7 +2209,10 @@
           "noble-updates_libseccomp2-amd64_2.5.5-1ubuntu3.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libs/libseccomp/libseccomp2_2.5.5-1ubuntu3.1_amd64.deb"
+              ],
+              "sha256": "33fc96f1e008d27c042a3db9bcd16f7f4d49e866f7a3141b758a799328dbdc3f"
             }
           },
           "noble-updates_libseccomp2-amd64_2.5.5-1ubuntu3.1": {
@@ -2181,7 +2262,10 @@
           "noble_adduser-amd64_3.137ubuntu1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/a/adduser/adduser_3.137ubuntu1_all.deb"
+              ],
+              "sha256": "542aff2395eb912a56833e11a78076342779689d8fede7adcf08d1d6b0d0cd8b"
             }
           },
           "noble_adduser-amd64_3.137ubuntu1": {
@@ -2323,7 +2407,10 @@
           "noble-updates_passwd-amd64_1-4.13-dfsg1-4ubuntu3.2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/s/shadow/passwd_4.13+dfsg1-4ubuntu3.2_amd64.deb"
+              ],
+              "sha256": "139b51228c8065eefa3051f649d8480eb986f1cf629448e49d2eaf9813318412"
             }
           },
           "noble-updates_passwd-amd64_1-4.13-dfsg1-4ubuntu3.2": {
@@ -2461,7 +2548,10 @@
           "noble-security_libpam-modules-amd64_1.5.3-5ubuntu5.7_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/p/pam/libpam-modules_1.5.3-5ubuntu5.7_amd64.deb"
+              ],
+              "sha256": "c8e86ef52e3a743dc67d90f4c6654f7f529deafa6a523fe9076e809785aeea18"
             }
           },
           "noble-security_libpam-modules-amd64_1.5.3-5ubuntu5.7": {
@@ -2579,7 +2669,10 @@
           "noble-security_libpam-modules-bin-amd64_1.5.3-5ubuntu5.7_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/p/pam/libpam-modules-bin_1.5.3-5ubuntu5.7_amd64.deb"
+              ],
+              "sha256": "e6753b038042cd007843cbc79a81e732d82d0d2415bcf78ff2120c50b5e54f82"
             }
           },
           "noble-security_libpam-modules-bin-amd64_1.5.3-5ubuntu5.7": {
@@ -2689,7 +2782,10 @@
           "noble-updates_libselinux1-amd64_3.5-2ubuntu2.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libs/libselinux/libselinux1_3.5-2ubuntu2.1_amd64.deb"
+              ],
+              "sha256": "6abaa6c26f46ef17764c4a753e0e84de1cdadde5634fd2987621fdc617988d19"
             }
           },
           "noble-updates_libselinux1-amd64_3.5-2ubuntu2.1": {
@@ -2743,7 +2839,10 @@
           "noble-updates_libpcre2-8-0-amd64_10.42-4ubuntu2.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/p/pcre2/libpcre2-8-0_10.42-4ubuntu2.1_amd64.deb"
+              ],
+              "sha256": "110a797a57673d3ee497a141cf988199258058c57525799c63194d81822529a0"
             }
           },
           "noble-updates_libpcre2-8-0-amd64_10.42-4ubuntu2.1": {
@@ -2793,7 +2892,10 @@
           "noble-security_libpam0g-amd64_1.5.3-5ubuntu5.7_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/p/pam/libpam0g_1.5.3-5ubuntu5.7_amd64.deb"
+              ],
+              "sha256": "1d7f54e77f0455ab5e607cd5e78b576801d8efdc66115e02cf3c6e708d093667"
             }
           },
           "noble-security_libpam0g-amd64_1.5.3-5ubuntu5.7": {
@@ -2859,7 +2961,10 @@
           "noble-updates_libaudit1-amd64_1-3.1.2-2.1ubuntu0.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/a/audit/libaudit1_3.1.2-2.1ubuntu0.1_amd64.deb"
+              ],
+              "sha256": "326a55fce45a620f12b98baf581fb037eb0fcea1ab3969c54cf177f51be8abfe"
             }
           },
           "noble-updates_libaudit1-amd64_1-3.1.2-2.1ubuntu0.1": {
@@ -2917,7 +3022,10 @@
           "noble_libcap-ng0-amd64_0.8.4-2build2_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libc/libcap-ng/libcap-ng0_0.8.4-2build2_amd64.deb"
+              ],
+              "sha256": "cf1e9437ac7ddf6539dbe87b68858cbdef84d78c6aac243ab3b6e564a52ed930"
             }
           },
           "noble_libcap-ng0-amd64_0.8.4-2build2": {
@@ -2967,7 +3075,10 @@
           "noble-updates_libaudit-common-amd64_1-3.1.2-2.1ubuntu0.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/a/audit/libaudit-common_3.1.2-2.1ubuntu0.1_all.deb"
+              ],
+              "sha256": "b1b6fca3f7ed86db971c073352a6741f1f60f4a94eeb2c1eb0aca8a7e4b11660"
             }
           },
           "noble-updates_libaudit-common-amd64_1-3.1.2-2.1ubuntu0.1": {
@@ -3001,7 +3112,10 @@
           "noble_libcrypt1-amd64_1-4.4.36-4build1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libx/libxcrypt/libcrypt1_4.4.36-4build1_amd64.deb"
+              ],
+              "sha256": "9474785cd6f398512bf8c305c3901dbb111569dccb6f5832002373c0a8ac5832"
             }
           },
           "noble_libcrypt1-amd64_1-4.4.36-4build1": {
@@ -3051,7 +3165,10 @@
           "noble_libdb5.3t64-amd64_5.3.28-dfsg2-7_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/d/db5.3/libdb5.3t64_5.3.28+dfsg2-7_amd64.deb"
+              ],
+              "sha256": "a78a25c8fad8fdd0b7bc6b297da5d5685579be1e57732aa47870830e4a13161e"
             }
           },
           "noble_libdb5.3t64-amd64_5.3.28-dfsg2-7": {
@@ -3101,7 +3218,10 @@
           "noble_libsemanage2-amd64_3.5-1build5_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libs/libsemanage/libsemanage2_3.5-1build5_amd64.deb"
+              ],
+              "sha256": "56102dcbd410416d03c5ffb80958f54ac63936f4d9eb3f6a98964e680a82ce37"
             }
           },
           "noble_libsemanage2-amd64_3.5-1build5": {
@@ -3183,7 +3303,10 @@
           "noble_libsepol2-amd64_3.5-2build1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libs/libsepol/libsepol2_3.5-2build1_amd64.deb"
+              ],
+              "sha256": "47272bab0c2fcc350431f9a8ae63afc49ce6d7e71e63c914639fbda6b1ca9f6a"
             }
           },
           "noble_libsepol2-amd64_3.5-2build1": {
@@ -3233,7 +3356,10 @@
           "noble-security_libbz2-1.0-amd64_1.0.8-5.1ubuntu0.1_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/b/bzip2/libbz2-1.0_1.0.8-5.1ubuntu0.1_amd64.deb"
+              ],
+              "sha256": "36ee08b00b1ee5018b2fce02881b7d2d73c9b4e32990bde3388400d86c48126a"
             }
           },
           "noble-security_libbz2-1.0-amd64_1.0.8-5.1ubuntu0.1": {
@@ -3283,7 +3409,10 @@
           "noble_libsemanage-common-amd64_3.5-1build5_filemap": {
             "repoRuleId": "@@rules_distroless+//apt/private:deb_filemap.bzl%deb_filemap",
             "attributes": {
-              "files": "[]"
+              "urls": [
+                "https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/pool/main/libs/libsemanage/libsemanage-common_3.5-1build5_all.deb"
+              ],
+              "sha256": "e10cd93f0b6941566de04b860b723df57ca3fe4a9255a73b2be0d1dc7df2850e"
             }
           },
           "noble_libsemanage-common-amd64_3.5-1build5": {
@@ -7350,17 +7479,11 @@
     },
     "@@rules_distroless+//apt:extensions.bzl%apt": {
       "formats": {
-        "noble-security/main/amd64/Contents/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": "unavailable",
         "noble-security/main/amd64/Packages/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": ".xz",
-        "noble-security/universe/amd64/Contents/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": "unavailable",
         "noble-security/universe/amd64/Packages/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": ".xz",
-        "noble-updates/main/amd64/Contents/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": "unavailable",
         "noble-updates/main/amd64/Packages/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": ".xz",
-        "noble-updates/universe/amd64/Contents/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": "unavailable",
         "noble-updates/universe/amd64/Packages/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": ".xz",
-        "noble/main/amd64/Contents/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": "unavailable",
         "noble/main/amd64/Packages/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": ".xz",
-        "noble/universe/amd64/Contents/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": "unavailable",
         "noble/universe/amd64/Packages/https://snapshot.ubuntu.com/ubuntu/20261017T000000Z": ".xz"
       },
       "indices": {
