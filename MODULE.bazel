@@ -307,7 +307,7 @@ git_override(
     remote = "https://github.com/bazel-contrib/bazel-gazelle.git",
 )
 
-bazel_dep(name = "rules_python_gazelle_plugin", version = "2.4.4", dev_dependency = True)
+bazel_dep(name = "rules_python_gazelle_plugin", version = "2.4.5", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", dev_dependency = True)
 git_override(
     module_name = "bazel_skylib_gazelle_plugin",
