@@ -4,7 +4,7 @@
   inputs = {
     nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=5adc50831c259f87faeb09ddf930d43597197473";
     aspect-cli-src = {
-      url = "github:aspect-build/aspect-cli?rev=5e8e59a898096f3f2ff88bdf689f52343a1d6d3a";
+      url = "github:aspect-build/aspect-cli?rev=9b29bf823e4177755a7667720c200ab56277b213";
       flake = false;
     };
     llm-agents = {
