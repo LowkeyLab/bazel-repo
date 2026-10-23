@@ -49,7 +49,7 @@ use_repo(
 bazel_dep(name = "aspect_rules_lint_rust")
 git_override(
     module_name = "aspect_rules_lint_rust",
-    commit = "f57fca498ee5831f25cff5cc1bf41f118b6fc943",
+    commit = "ae6fb9ad1a58f8332f6bc87deda55eea2469ef87",
     remote = "https://github.com/aspect-build/rules_lint.git",
     strip_prefix = "lint/rust",
 )
