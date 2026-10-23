@@ -5,6 +5,7 @@ load("@rules_java//java:defs.bzl", "java_import")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//tools/coverage:javascript.bzl", "js_test")
 load("//tools/coverage:jvm.bzl", "java_binary")
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/python:defs.bzl", "py_binary", "py_test")
 
 sh_binary(
@@ -52,9 +53,14 @@ py_binary(
     tags = ["manual"],
 )
 
-py_binary(
+rust_binary(
     name = "go_report",
-    srcs = ["go_report.py"],
+    srcs = ["go_report.rs"],
+    crate_root = "go_report.rs",
+    deps = [
+        ":coverage_reports",
+        "@crates//:clap",
+    ],
 )
 
 py_test(
@@ -257,4 +263,34 @@ py_test(
     ],
     data = [":reconcile"],
     env = {"COVERAGE_CORE": "ctrace"},
+)
+
+rust_test(
+    name = "report_test",
+    size = "small",
+    srcs = ["report_test.rs"],
+    crate_root = "report_test.rs",
+    deps = [
+        ":coverage_reports",
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+    ],
+)
+
+rust_library(
+    name = "coverage_reports",
+    srcs = [
+        "build_event.rs",
+        "native_report.rs",
+        "report_lib.rs",
+    ],
+    crate_root = "report_lib.rs",
+    deps = [
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:thiserror",
+    ],
 )

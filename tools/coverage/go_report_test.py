@@ -284,3 +284,257 @@ def test_invalid_baseline_evidence_cannot_become_a_source_limit(
     assert result.returncode != 0
     assert "Go coverage report failed:" in result.stderr
     assert (tmp_path / "report.lcov").read_text() == MEASURED + OTHER
+
+
+@pytest.mark.parametrize(
+    "fault",
+    [
+        None,
+        "no-mapping",
+        "summary-gap",
+        "bad-metadata",
+        "missing-metadata",
+        "empty-mapping",
+        "conflict",
+        "bad-diagnostic",
+        "generated",
+        "large-integer",
+        "missing-line",
+    ],
+)
+def test_rust_mapping_evidence_and_summary_limits(
+    tmp_path: Path, fault: str | None
+) -> None:
+    label = "//fixture:fixture.rust_coverage"
+    measured = "SF:kept.rs\nDA:4,7\nDA:8,0\nLF:2\nLH:1\nend_of_record\n"
+    baseline = "SF:kept.rs\nDA:4,0\nLF:1\nLH:0\nend_of_record\n"
+    metadata = {
+        "object": "fixture.rlib",
+        "llvm_cov": "llvm-cov",
+        "llvm_profdata": "llvm-profdata",
+        "generated_sources": [],
+        "children": [],
+        "no_mapping": False,
+        "diagnostic": "",
+    }
+    if fault in {"no-mapping", "bad-diagnostic"}:
+        metadata.update(
+            no_mapping=True,
+            diagnostic="no coverage data found"
+            if fault == "no-mapping"
+            else "unexpected",
+        )
+        baseline = ""
+    elif fault == "summary-gap":
+        baseline = baseline.replace("LF:1", "LF:2")
+    elif fault == "bad-metadata":
+        metadata["no_mapping"] = "false"
+    elif fault == "empty-mapping":
+        baseline = ""
+    elif fault == "conflict":
+        metadata.update(no_mapping=True, diagnostic="no coverage data found")
+    elif fault == "generated":
+        metadata["generated_sources"] = ["generated.rs"]
+        measured += "SF:generated.rs\nDA:1,1\nLF:1\nLH:1\nend_of_record\n"
+    elif fault == "large-integer":
+        baseline = baseline.replace("DA:4,0", "DA:184467440737095516160,0")
+        measured = measured.replace(
+            "DA:4,7", "DA:184467440737095516160,7000000000000000000000000"
+        )
+    elif fault == "missing-line":
+        measured = (
+            measured.replace("DA:4,7\n", "")
+            .replace("LF:2", "LF:1")
+            .replace("LH:1", "LH:0")
+        )
+    (tmp_path / "baseline.lcov").write_text(baseline)
+    (tmp_path / "baseline.json").write_text(json.dumps(metadata))
+    names = ["baseline.lcov"] + (
+        [] if fault == "missing-metadata" else ["baseline.json"]
+    )
+    artifacts = [
+        {
+            "name": name,
+            "digest": hashlib.sha256((tmp_path / name).read_bytes()).hexdigest(),
+            "length": str((tmp_path / name).stat().st_size),
+        }
+        for name in names
+    ]
+    events = [
+        {
+            "id": {"namedSet": {"id": "baseline"}},
+            "namedSetOfFiles": {"files": artifacts},
+        },
+        {
+            "id": {"targetCompleted": {"label": label}},
+            "completed": {
+                "success": True,
+                "outputGroup": [
+                    {
+                        "name": "rust_coverage_baselines",
+                        "fileSets": [{"id": "baseline"}],
+                    }
+                ],
+            },
+        },
+    ]
+    (tmp_path / "events.jsonl").write_text(
+        "\n".join(json.dumps(event) for event in events)
+    )
+    (tmp_path / "inventory.json").write_text(
+        json.dumps(
+            {
+                "coverage_roots": [label],
+                "excluded": [],
+                "eligible": [
+                    {
+                        "path": "kept.rs",
+                        "language": "rust",
+                        "owners": [{"label": label}],
+                    }
+                ],
+            }
+        )
+    )
+    (tmp_path / "report.lcov").write_text(measured)
+    arguments = [
+        str(ROOT / "tools/coverage/go_report"),
+        "--language",
+        "rust",
+        "--events",
+        "events.jsonl",
+        "--inventory",
+        "inventory.json",
+        "--report",
+        "report.lcov",
+        "--expected-output",
+        "receipt.json",
+    ]
+    result = subprocess.run(
+        arguments,
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+        env={
+            key: value
+            for key, value in os.environ.items()
+            if key != "BUILD_WORKSPACE_DIRECTORY"
+        },
+    )
+    accepted = fault in {
+        None,
+        "no-mapping",
+        "summary-gap",
+        "generated",
+        "large-integer",
+    }
+    assert (result.returncode == 0) == accepted, result.stdout + result.stderr
+    if not accepted:
+        assert (tmp_path / "report.lcov").read_text() == measured
+        assert not (tmp_path / "receipt.json").exists()
+    else:
+        receipt = json.loads((tmp_path / "receipt.json").read_text())
+        assert (tmp_path / "report.lcov").read_text() == measured.split(
+            "SF:generated.rs"
+        )[0]
+        if fault == "no-mapping":
+            assert receipt["sources"] == {}
+            assert receipt["limits"][0]["record_absence"]
+        elif fault == "summary-gap":
+            assert receipt["limits"][0]["line_summary"]
+        elif fault == "large-integer":
+            assert receipt["sources"] == {"kept.rs": [184467440737095516160]}
+        else:
+            assert receipt["sources"] == {"kept.rs": [4]}
+
+
+def test_command_preserves_abbreviated_and_repeated_options(tmp_path: Path) -> None:
+    result = invoke(tmp_path, MEASURED)
+    assert result.returncode == 0, result.stderr
+    result = subprocess.run(
+        [
+            str(ROOT / "tools/coverage/go_report"),
+            "--events",
+            str(tmp_path / "unused.jsonl"),
+            "--events",
+            str(tmp_path / "events.jsonl"),
+            "--inv",
+            str(tmp_path / "inventory.json"),
+            "--report",
+            str(tmp_path / "report.lcov"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "report.lcov").read_text() == MEASURED
+
+
+@pytest.mark.parametrize(
+    "form",
+    [
+        "number",
+        "fraction",
+        "underscores",
+        "null",
+        "object",
+        "array",
+        "boolean",
+        "empty-false",
+        "empty-negative-zero",
+        "empty-fraction",
+        "empty-missing",
+    ],
+)
+def test_baseline_length_retains_legacy_integer_conversion(
+    tmp_path: Path, form: str
+) -> None:
+    empty = form.startswith("empty-")
+    report = OTHER if empty else MEASURED
+    setup = invoke(tmp_path, report, "empty" if empty else None)
+    assert setup.returncode == 0, setup.stderr
+    events = [
+        json.loads(line)
+        for line in (tmp_path / "events.jsonl").read_text().splitlines()
+    ]
+    artifact = events[0]["namedSetOfFiles"]["files"][0]
+    length = len(MEASURED.encode())
+    values = {
+        "number": length,
+        "fraction": length + 0.75,
+        "underscores": "_".join(str(length)),
+        "null": None,
+        "object": {},
+        "array": [],
+        "boolean": True,
+        "empty-false": False,
+        "empty-negative-zero": "-0",
+        "empty-fraction": 0.75,
+    }
+    if form == "empty-missing":
+        artifact.pop("length")
+    else:
+        artifact["length"] = values[form]
+    (tmp_path / "events.jsonl").write_text(
+        "\n".join(json.dumps(event) for event in events)
+    )
+    result = subprocess.run(
+        [
+            str(ROOT / "tools/coverage/go_report"),
+            "--events",
+            str(tmp_path / "events.jsonl"),
+            "--inventory",
+            str(tmp_path / "inventory.json"),
+            "--report",
+            str(tmp_path / "report.lcov"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert (result.returncode == 0) == (
+        form in {"number", "fraction", "underscores"} or empty
+    ), result.stderr
+    assert (tmp_path / "report.lcov").read_text() == report
