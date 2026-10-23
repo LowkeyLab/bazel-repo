@@ -391,3 +391,32 @@ rust_test(
         "@crates//:wiremock",
     ],
 )
+
+# Throwaway design fixture. No production package depends on these targets.
+topcoat_tailwind(
+    name = "prototype_styles",
+    srcs = ["prototype.html"],
+    cli = "//tools:tailwindcss",
+    css = "prototype.css",
+    deps = ["//:node_modules/tailwindcss"],
+)
+
+js_binary(
+    name = "prototype",
+    testonly = True,
+    data = [
+        "prototype.html",
+        ":prototype_scripts",
+        ":prototype_styles",
+    ] + glob(["prototype-assets/*"]),
+    entry_point = "prototype.server.mjs",
+    tags = ["manual"],
+)
+
+js_library(
+    name = "prototype_scripts",
+    testonly = True,
+    srcs = ["prototype.server.mjs"],
+    tags = ["manual"],
+    deps = ["//:node_modules/playwright"],
+)

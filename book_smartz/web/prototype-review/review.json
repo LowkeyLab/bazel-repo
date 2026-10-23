@@ -1,0 +1,635 @@
+{
+  "findings": [
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "comparison",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "signin",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "search",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "selection",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "submitting",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "confirmed",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "paused",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "ranking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "empty",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "noresults",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "error",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "checking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "rejected",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "stale",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "A",
+      "scene": "expired",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "comparison",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "signin",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "search",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "selection",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "submitting",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "confirmed",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "paused",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "ranking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "empty",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "noresults",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "error",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "checking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "rejected",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "stale",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "B",
+      "scene": "expired",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "comparison",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "signin",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "search",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "selection",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "submitting",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "confirmed",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "paused",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "ranking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "empty",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "noresults",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "error",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "checking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "rejected",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "stale",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 390,
+      "variant": "C",
+      "scene": "expired",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "comparison",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "signin",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "search",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "selection",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "submitting",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "confirmed",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "paused",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "ranking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "empty",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "noresults",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "error",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "checking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "rejected",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "stale",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "A",
+      "scene": "expired",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "comparison",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "signin",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "search",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "selection",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "submitting",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "confirmed",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "paused",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "ranking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "empty",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "noresults",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "error",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "checking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "rejected",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "stale",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "B",
+      "scene": "expired",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "comparison",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "signin",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "search",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "selection",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "submitting",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "confirmed",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "paused",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "ranking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "empty",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "noresults",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "error",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "checking",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "rejected",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "stale",
+      "overflow": false,
+      "missingImages": 0
+    },
+    {
+      "width": 1440,
+      "variant": "C",
+      "scene": "expired",
+      "overflow": false,
+      "missingImages": 0
+    }
+  ],
+  "errors": []
+}

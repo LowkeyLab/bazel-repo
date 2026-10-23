@@ -1,0 +1,221 @@
+<!doctype html>
+<!-- Throwaway visual prototype. Three layouts share fixture data and ?variant=A|B|C. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Book Smartz personal library prototype</title>
+    <link rel="stylesheet" href="/prototype_styles.css" />
+  </head>
+  <body class="bg-library text-ink font-controls">
+    <div class="prototype-tools" aria-label="Prototype controls">
+      <strong>Design prototype</strong>
+      <label for="scene">Screen</label>
+      <select id="scene">
+        <option value="comparison">Compare books</option>
+        <option value="signin">Sign in</option>
+        <option value="search">Search results</option>
+        <option value="selection">Selected book</option>
+        <option value="submitting">Submitting</option>
+        <option value="confirmed">Confirmed preference</option>
+        <option value="paused">Paused placement</option>
+        <option value="ranking">Saved ranking</option>
+        <option value="empty">Empty library</option>
+        <option value="noresults">No search results</option>
+        <option value="error">Search error</option>
+        <option value="checking">Original action unresolved</option>
+        <option value="rejected">Original action rejected</option>
+        <option value="stale">Stale comparison</option>
+        <option value="expired">Session expired</option>
+      </select>
+      <button id="confirm" class="tool-button">
+        Simulate server confirmation
+      </button>
+      <span>Fixture data. No account or save.</span>
+    </div>
+    <header class="app-header">
+      <a class="brand font-heading" href="?scene=ranking"
+        >Book Smartz<span class="book-mark" aria-hidden="true">▤</span></a
+      >
+      <nav aria-label="Library">
+        <a href="?scene=search">Find a book</a
+        ><a href="?scene=ranking">Your ranking</a>
+      </nav>
+      <span class="reader">Your private library</span>
+    </header>
+    <main id="workspace" tabindex="-1"></main>
+    <div class="prototype-switcher" aria-label="Layout variants">
+      <button id="previous" aria-label="Previous layout">←</button>
+      <span id="variant-label" aria-live="polite"></span>
+      <button id="next" aria-label="Next layout">→</button>
+    </div>
+    <script type="module">
+      const variants = {
+        A: "Cover shelf",
+        B: "Comparison desk",
+        C: "Reading list",
+      };
+      const scenes = [...document.querySelector("#scene").options].map(
+        (option) => option.value,
+      );
+      const params = new URLSearchParams(location.search);
+      let variant = Object.hasOwn(variants, params.get("variant"))
+        ? params.get("variant")
+        : "A";
+      let scene = scenes.includes(params.get("scene"))
+        ? params.get("scene")
+        : "comparison";
+      let destination = "confirmed";
+      let submission = "Preference";
+      const books = [
+        {
+          title: "Dune",
+          author: "Frank Herbert",
+          image: "/prototype-assets/dune.jpg",
+          year: "1965",
+        },
+        {
+          title: "Piranesi",
+          author: "Susanna Clarke",
+          image: null,
+          year: "2020",
+        },
+        {
+          title: "A Wizard of Earthsea",
+          author: "Ursula K. Le Guin",
+          image: null,
+          year: "1968",
+        },
+      ];
+      const candidate = {
+        title: "The Left Hand of Darkness",
+        author: "Ursula K. Le Guin",
+        image: "/prototype-assets/left-hand.jpg",
+        year: "1969",
+      };
+      const workspace = document.querySelector("#workspace");
+      const cover = (book) =>
+        book.image
+          ? `<img class="cover" src="${book.image}" alt="${book.title} cover" />`
+          : `<div class="cover cover-missing"><span>${book.title}</span><small>Cover unavailable</small></div>`;
+      const book = (value, label) =>
+        `<article class="book"><p class="book-label">${label}</p>${cover(value)}<h3>${value.title}</h3><p>${value.author}</p></article>`;
+      const button = (label, action, secondary = false) =>
+        `<button class="${secondary ? "secondary" : "primary"}" data-action="${action}">${label}</button>`;
+      const notice = (title, text, action = "") =>
+        `<section class="notice"><h2>${title}</h2><p>${text}</p>${action}</section>`;
+      function ranking() {
+        const empty = ["empty", "signin"].includes(scene);
+        return `<aside class="saved" aria-labelledby="saved-heading"><div class="saved-heading"><h2 id="saved-heading">Your ranking</h2><span>${empty ? "0" : "3"} books</span></div><p class="muted">Saved positions</p>${empty ? "<p>Your first confirmed book will appear here.</p>" : `<ol>${books.map((value, index) => `<li><span class="rank">${index + 1}</span>${cover(value)}<div><h3>${value.title}</h3><p>${value.author}</p></div></li>`).join("")}</ol>`}<p class="ranking-note">Pending books receive a position only after placement finishes.</p></aside>`;
+      }
+      function search() {
+        return `<form id="search-form"><label for="query">Book title or author</label><div class="search-controls"><input id="query" name="query" value="Ursula K. Le Guin" maxlength="256" />${button("Search", "search")}</div></form>`;
+      }
+      function task() {
+        if (scene === "signin")
+          return `<div class="intro"><h1>A place for the books<br />you would read again.</h1><p>Build your private ranking, one choice at a time.</p>${button("Continue with Google", "search")}<p class="muted">Sign in to keep your ranking.</p></div><div class="signin-books">${cover(candidate)}${cover(books[0])}</div>`;
+        if (scene === "search")
+          return `<h1>Find your next book to rank</h1><p>Search by title or author. Choose the book you read.</p>${search()}<h2>Search results</h2><div class="results">${[candidate, books[2]].map((value) => `<article class="result">${cover(value)}<div><h3>${value.title}</h3><p>${value.author}</p><p class="muted">First published ${value.year}</p>${button("Select book", "selection", true)}</div></article>`).join("")}</div>${button("Next results", "search", true)}`;
+        if (scene === "selection")
+          return `<h1>Place this book in your library</h1><div class="selection">${book(candidate, "Selected book")}<div><h2>Where does it belong?</h2><p>Compare it with books in your saved ranking.</p><p>It will stay pending until placement finishes.</p>${button("Add this book", "add")}<p><a href="?scene=search">Choose another book</a></p></div></div>`;
+        if (scene === "empty")
+          return `<h1>Your library starts with one book</h1><p>Find a book you read. Your first confirmed book receives position 1.</p>${search()}`;
+        if (scene === "noresults")
+          return `<h1>Find a book</h1>${search()}${notice("No books found", "Check the title or try the author’s name.")}`;
+        if (scene === "error")
+          return `<h1>Find a book</h1>${search()}${notice("Search is unavailable", "Your ranking is unchanged. Try the search again.", button("Retry search", "search"))}`;
+        if (scene === "expired")
+          return `<h1>Sign in to continue</h1>${notice("Your session expired", "Sign-in does not submit your earlier choice. Review the current comparison before you choose again.", button("Continue with Google", "stale"))}`;
+        if (scene === "checking")
+          return `<h1>Check the original save</h1>${notice("The save is not confirmed", "Your original preference needs checking. New ranking actions must wait.", button("Check original save", "recover"))}<div class="evidence"><h2>Original action</h2><p>You chose The Left Hand of Darkness over Piranesi.</p><p>No new rank is confirmed.</p></div>`;
+        if (scene === "rejected")
+          return `<h1>The original action was not saved</h1>${notice("Review the current comparison", "The server rejected the original preference. Your saved ranking is unchanged.", button("Review comparison", "stale"))}`;
+        if (scene === "stale")
+          return `<h1>This comparison changed</h1>${notice("Review before you choose", "Your earlier choice does not apply to the current comparison.", button("Show current comparison", "comparison"))}`;
+        if (scene === "paused")
+          return `<h1>Continue when you are ready</h1><div class="selection">${book(candidate, "Pending placement")}<div><h2>Placement paused</h2><p>Your saved preferences remain. This book has no position yet.</p>${button("Resume placement", "resume")}<p class="muted">Finish this placement before you add another book.</p></div></div>`;
+        if (scene === "ranking")
+          return `<h1>The books you would choose again</h1><p>Your ranking contains 3 saved books.</p><div class="shelf">${books.map((value, index) => book(value, `Position ${index + 1}`)).join("")}</div>${button("Find a book", "search")}`;
+        if (scene === "submitting")
+          return `<h1>Submitting: ${submission}</h1>${notice("Waiting for the server", "This is submission feedback. The save is not confirmed.")}<fieldset disabled aria-busy="true"><legend>Pending placement</legend><div class="comparison">${book(candidate, "Book to place")}${book(books[1], "Position 2")}</div>${button("Saving…", "none")}</fieldset>`;
+        return `${scene === "confirmed" ? '<div class="confirmed" role="status">Preference saved. Placement continues.</div>' : ""}<div class="task-heading"><div><p class="pending">Pending placement</p><h1>Which would you choose again?</h1><p>Choose the book you prefer. Each choice helps find its position.</p></div></div><form id="comparison-form"><fieldset><legend class="sr-only">Choose your preferred book</legend><div class="comparison">${book(candidate, "Book to place")}${book(books[1], "Position 2")}</div><div class="choices">${button("Choose The Left Hand of Darkness", "prefer")}${button("Choose Piranesi", "prefer")}</div></fieldset></form><div class="comparison-footer"><span>1 preference saved. Placement is unfinished.</span>${button("Pause for now", "pause", true)}</div>`;
+      }
+      function render(focus = false) {
+        const url = new URL(location.href);
+        url.searchParams.set("variant", variant);
+        url.searchParams.set("scene", scene);
+        history.replaceState(null, "", url);
+        document.querySelector("#scene").value = scene;
+        document.querySelector("#variant-label").textContent =
+          `${variant} · ${variants[variant]}`;
+        document.querySelector("#confirm").disabled = scene !== "submitting";
+        workspace.className = `layout layout-${variant}`;
+        workspace.innerHTML = `<section class="active-task" aria-label="Active task">${task()}</section>${ranking()}<details class="fixture-state"><summary>Prototype state</summary><p>Layout: ${variants[variant]}. Screen: ${scene}. Action: ${submission}. All account and save outcomes are simulated.</p></details>`;
+        if (focus) workspace.focus();
+      }
+      function go(next) {
+        scene = next;
+        render(true);
+      }
+      function submit(action, next) {
+        submission = action;
+        destination = next;
+        go("submitting");
+      }
+      function cycle(direction) {
+        const names = Object.keys(variants);
+        variant =
+          names[
+            (names.indexOf(variant) + direction + names.length) % names.length
+          ];
+        render();
+      }
+      document.querySelector("#previous").onclick = () => cycle(-1);
+      document.querySelector("#next").onclick = () => cycle(1);
+      document.querySelector("#scene").onchange = (event) =>
+        go(event.target.value);
+      document.querySelector("#confirm").onclick = () => go(destination);
+      workspace.addEventListener("submit", (event) => {
+        event.preventDefault();
+        go("search");
+      });
+      workspace.addEventListener("click", (event) => {
+        const link = event.target.closest("a");
+        if (link) {
+          event.preventDefault();
+          go(new URL(link.href).searchParams.get("scene"));
+          return;
+        }
+        const action = event.target.closest("[data-action]")?.dataset.action;
+        if (!action) return;
+        event.preventDefault();
+        if (action === "add") submit("Add", "comparison");
+        else if (action === "prefer") submit("Preference", "confirmed");
+        else if (action === "pause") submit("Pause", "paused");
+        else if (action === "resume") submit("Resume", "comparison");
+        else if (action === "recover")
+          submit("Check original save", "confirmed");
+        else if (action !== "none") go(action);
+      });
+      document.addEventListener("keydown", (event) => {
+        if (
+          event.target.closest(
+            "input, textarea, select, button, [contenteditable]",
+          )
+        )
+          return;
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+          event.preventDefault();
+          cycle(event.key === "ArrowLeft" ? -1 : 1);
+        }
+      });
+      document.querySelectorAll(".app-header a").forEach((link) =>
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          go(new URL(link.href).searchParams.get("scene"));
+        }),
+      );
+      render();
+    </script>
+  </body>
+</html>
