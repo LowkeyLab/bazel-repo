@@ -294,3 +294,20 @@ rust_library(
         "@crates//:thiserror",
     ],
 )
+
+rust_test(
+    name = "native_command_test",
+    size = "small",
+    srcs = ["native_command_test.rs"],
+    crate_root = "native_command_test.rs",
+    data = [
+        ":go_report",
+        ":go_report_test",
+    ],
+    env = {"COMMAND_CASES": "$(rlocationpath :go_report_test)"},
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@rules_rust//tools/runfiles",
+    ],
+)

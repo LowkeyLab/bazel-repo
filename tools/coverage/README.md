@@ -316,6 +316,17 @@ conflicting evidence, invalid metadata, missing metadata, and large integers.
 Shared-interface tests cover nested and repeated sets, configuration identity,
 cycles, malformed events, missing groups, failed roots, integrity, and lexical paths.
 
+The retained Python command fixtures also run through `native_command_test`.
+This Rust parent declares `go_report` as a child binary.
+The existing native collector then collects its native profiles and checks its object identity.
+The Python test parent alone supplied no Rust execution coverage for this child.
+The wrapper reuses the same fixtures and assertions at the existing command interface.
+
+The [focused native collection run](https://app.buildbuddy.io/invocation/d276c421-70ce-4d42-b79a-1848649df1da)
+measured 319 of 341 executable lines in `native_report.rs` and all 16 in `go_report.rs`.
+The earlier focused run measured no lines in either command-only module.
+Hosted patch coverage supplies separate evidence.
+
 This evidence covers command fixtures and the shared library.
 Real local membership acceptance for the complete migration remains ticket #2636.
 Configured remote execution and hosted workflow results are separate evidence.
