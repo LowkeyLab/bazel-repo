@@ -285,11 +285,51 @@ required-output failures.
 It retains command results, raw profiles, reports, and object evidence.
 
 Evidence directories must be new and outside the checkout.
-Local mode clears remote execution, cache, and Build Event Service (BES) endpoints.
+Local mode clears remote execution, cache, and Build Event Service endpoints.
 Use `--execution configured` to inherit the caller's Bazel configuration.
 The evidence records actual execution and cache status.
-Configuration alone does not establish remote execution.
-Run configured acceptance separately. The hosted workflow does not run it.
+Only execution evidence establishes remote execution.
+Run configured acceptance separately from the hosted workflow.
+
+## Go/Rust report migration evidence
+
+The `go_report` target now runs Rust in both language modes.
+The shared `coverage_reports` library owns build-event interpretation.
+The Go/Rust adapter retains collector checks, source limits, receipts, and report generation.
+See [the accepted architecture decision](../../docs/adr/0003-use-rust-for-native-coverage-reports.md).
+
+On 2026-10-23, the migration compared the Python command from revision
+`faa963828aed4a3a8273429937791bfdb1daa1a9` with the Rust replacement.
+The [paired command run](https://app.buildbuddy.io/invocation/abb8616e-8d5f-419f-8e40-7728a38832c2)
+passed all 44 test cases. Each command received the same initial fixture files.
+The comparison checked exit statuses, stdout, failure prefixes, report bytes,
+and receipt contents after JSON decoding. It also checked report preservation after failure.
+No temporary-path normalization was necessary because both commands used the same fixture paths.
+The migration removed the Python production command only after this comparison passed.
+
+The fixtures cover measured hits, empty executable sets, exclusions, missing sources,
+invalid coverage records, missing artifacts, changed bytes, truncation, missing digests,
+incomplete groups, independent aspects, Rust object evidence, and child-profile limits.
+The comparison also checks repeated and abbreviated command options and legacy integer conversions.
+Additional Rust fixtures cover generated sources, summary gaps, absent mappings,
+conflicting evidence, invalid metadata, missing metadata, and large integers.
+Shared-interface tests cover nested and repeated sets, configuration identity,
+cycles, malformed events, missing groups, failed roots, integrity, and lexical paths.
+
+The retained Python command fixtures also run through `native_command_test`.
+This Rust parent declares `go_report` as a child binary.
+The existing native collector then collects its native profiles and checks its object identity.
+The Python test parent alone supplied no Rust execution coverage for this child.
+The wrapper reuses the same fixtures and assertions at the existing command interface.
+
+The [focused native collection run](https://app.buildbuddy.io/invocation/d276c421-70ce-4d42-b79a-1848649df1da)
+measured 319 of 341 executable lines in `native_report.rs` and all 16 in `go_report.rs`.
+The earlier focused run measured no lines in either command-only module.
+Hosted patch coverage supplies separate evidence.
+
+This evidence covers command fixtures and the shared library.
+Real local membership acceptance for the complete migration remains ticket #2636.
+Configured remote execution and hosted workflow results are separate evidence.
 
 ## Java and Kotlin sources
 
