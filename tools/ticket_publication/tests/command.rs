@@ -2481,3 +2481,126 @@ fn all_ticket_label_conflicts_are_checked_before_the_first_label_mutation() -> a
     assert_that!(f.remote()?, eq(&remote));
     Ok(())
 }
+
+#[googletest::test]
+fn publish_reports_progress_and_preserves_the_final_json_interface() -> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let id = f.prepare()?;
+    let args = ["--state-dir", "state", "publish", "--batch", &id];
+    let output = f.run(&args)?;
+    assert_that!(output.status.success(), eq(true));
+    assert_that!(output.stderr.is_empty(), eq(false));
+    let report: Value = serde_json::from_slice(&output.stdout)?;
+    assert_that!(report["publication_complete"].as_bool(), eq(Some(true)));
+    let status = f.run(&["--state-dir", "state", "status", "--batch", &id])?;
+    assert_that!(status.stderr.is_empty(), eq(true));
+    let export = f.run(&["--state-dir", "state", "export", "--batch", &id])?;
+    assert_that!(export.stderr.is_empty(), eq(true));
+    let resumed = f.run(&args)?;
+    assert_that!(resumed.stderr.is_empty(), eq(false));
+    let resumed_report: Value = serde_json::from_slice(&resumed.stdout)?;
+    assert_that!(
+        resumed_report["publication_complete"].as_bool(),
+        eq(Some(true))
+    );
+    assert_that!(resumed_report["tickets"], eq(&report["tickets"]));
+    Ok(())
+}
+
+#[googletest::test]
+fn progress_arrives_while_a_remote_request_is_held_and_stdout_stays_empty() -> anyhow::Result<()> {
+    use std::{
+        io::{Read, Write},
+        os::unix::net::UnixListener,
+        process::{Child, Stdio},
+        time::{Duration, Instant},
+    };
+    struct Publisher(Option<Child>);
+    impl Drop for Publisher {
+        fn drop(&mut self) {
+            if let Some(child) = &mut self.0 {
+                let _ = child.kill();
+                let _ = child.wait();
+            }
+        }
+    }
+    let f = Fixture::with_github()?;
+    let id = f.prepare()?;
+    let socket = f.directory.path().join("hold.sock");
+    let listener = UnixListener::bind(&socket)?;
+    listener.set_nonblocking(true)?;
+    let stdout = f.directory.path().join("stdout");
+    let stderr = f.directory.path().join("stderr");
+    let mut child = Publisher(Some(
+        f.command(&["--state-dir", "state", "publish", "--batch", &id])
+            .env("REMOTE_HOLD_SOCKET", &socket)
+            .stdout(Stdio::from(fs::File::create(&stdout)?))
+            .stderr(Stdio::from(fs::File::create(&stderr)?))
+            .spawn()?,
+    ));
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let mut stream = loop {
+        match listener.accept() {
+            Ok((stream, _)) => break stream,
+            Err(error)
+                if error.kind() == std::io::ErrorKind::WouldBlock && Instant::now() < deadline =>
+            {
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            Err(error) => return Err(error.into()),
+        }
+    };
+    stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+    stream.read_exact(&mut [0; 5])?;
+    let stdout_while_held = fs::read(&stdout)?;
+    let stderr_while_held = fs::read(&stderr)?;
+    let still_running = child.0.as_mut().unwrap().try_wait()?.is_none();
+    stream.write_all(b"x")?;
+    let status = child.0.take().unwrap().wait()?;
+    assert_that!(still_running, eq(true));
+    assert_that!(stdout_while_held.is_empty(), eq(true));
+    assert_that!(stderr_while_held.is_empty(), eq(false));
+    assert_that!(status.success(), eq(true));
+    let report: Value = serde_json::from_slice(&fs::read(stdout)?)?;
+    assert_that!(report["publication_complete"].as_bool(), eq(Some(true)));
+    Ok(())
+}
+
+#[googletest::test]
+fn stderr_failures_do_not_change_publication_and_progress_excludes_private_contents()
+-> anyhow::Result<()> {
+    let f = Fixture::with_github()?;
+    let id = f.prepare()?;
+    let args = ["--state-dir", "state", "publish", "--batch", &id];
+    let output = f
+        .command(&args)
+        .env("GH_TOKEN", "PRIVATE CREDENTIAL")
+        .output()?;
+    assert_that!(output.status.success(), eq(true));
+    let diagnostics = String::from_utf8(output.stderr)?;
+    for private in [
+        "Prepare a batch",
+        "Describe the behavior.",
+        "PRIVATE CREDENTIAL",
+        "repos/LowkeyLab",
+        "sub_issue_id",
+        f.directory.path().to_str().unwrap(),
+    ] {
+        assert_that!(diagnostics.contains(private), eq(false));
+    }
+    let full = fs::OpenOptions::new().write(true).open("/dev/full")?;
+    let resumed = f.command(&args).stderr(full).output()?;
+    assert_that!(resumed.status.success(), eq(true));
+    let report: Value = serde_json::from_slice(&resumed.stdout)?;
+    assert_that!(report["publication_complete"].as_bool(), eq(Some(true)));
+    let mut remote = f.remote()?;
+    remote["mode"] = json!("permission");
+    f.save_remote(&remote)?;
+    let stopped = f.run(&args)?;
+    assert_that!(stopped.status.success(), eq(false));
+    assert_that!(stopped.stderr.is_empty(), eq(false));
+    let report: Value = serde_json::from_slice(&stopped.stdout)?;
+    assert_that!(report["status"].as_str(), eq(Some("partial")));
+    assert_that!(report["publication_complete"].as_bool(), eq(Some(false)));
+    Ok(())
+}

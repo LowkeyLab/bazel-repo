@@ -217,6 +217,45 @@ failures, and unavailable endpoints prevent completion. Final progress must also
 be durable before publication reports success. An external writer can change
 GitHub state between requests. These checks do not provide isolation.
 
+## Publication progress
+
+Every `publish` invocation reports progress on stderr, including resumed attempts.
+Other commands keep their existing output.
+Stdout remains one final JSON result with the existing schema and exit status.
+Use that JSON interface for software that calls the tool.
+Stderr wording can change.
+
+The publisher emits typed events through a synchronous local listener:
+
+```text
+publication checks and saves -> typed events -> stderr listener -> operator
+```
+
+- `RemoteOperationStarted` precedes each GitHub operation, including repeated checks.
+  It identifies the phase, operation, invocation-local sequence, and applicable tickets.
+- `StepVerified` follows the required checks and successful durable saves.
+  A successful GitHub request alone does not establish a verified step.
+- `PublicationCompleted` follows the final graph checks, label checks, and durable save.
+- `PublicationStopped` reports the existing outcome and last operation context.
+  Read the final JSON result and follow the recovery instructions below.
+
+Phases cover remote checks, issue creation, parent links, blocker links, labels,
+and final verification.
+Relationship operations identify both tickets.
+External issues use issue numbers.
+The events contain no credentials, titles, bodies, request payloads, endpoints,
+GitHub output, private paths, or other private batch contents.
+Progress adds no GitHub requests.
+
+The listener writes each line immediately.
+It ignores stderr write errors and does not change publication outcomes or recovery rules.
+A full stderr pipe can delay execution.
+The tool does not guarantee progress latency.
+These transient messages are not a durable audit record.
+Abrupt termination can omit a terminal message.
+Startup failures before publication starts retain their existing diagnostics.
+There is no event store, exporter, heartbeat, or additional retry mechanism.
+
 ## Explicit recovery
 
 Recovery commands save local decisions. They perform no GitHub writes.

@@ -11,6 +11,7 @@ rust_binary(
         "labels.rs",
         "main.rs",
         "plan.rs",
+        "progress.rs",
         "publish.rs",
         "recovery.rs",
         "store.rs",
@@ -67,5 +68,36 @@ rust_binary(
     deps = [
         "@crates//:anyhow",
         "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "progress_test",
+    size = "small",
+    srcs = [
+        "github.rs",
+        "graph.rs",
+        "labels.rs",
+        "main.rs",
+        "plan.rs",
+        "progress.rs",
+        "progress_tests.rs",
+        "publish.rs",
+        "recovery.rs",
+        "store.rs",
+    ],
+    crate_root = "main.rs",
+    data = [":fake_gh"],
+    env = {"FAKE_GH": "$(rlocationpath :fake_gh)"},
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:clap",
+        "@crates//:googletest",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:tempfile",
+        "@crates//:uuid",
+        "@rules_rust//tools/runfiles",
     ],
 )

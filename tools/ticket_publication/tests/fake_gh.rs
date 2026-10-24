@@ -7,6 +7,21 @@ use std::{
     path::PathBuf,
 };
 fn main() -> Result<()> {
+    if let Some(path) = std::env::var_os("REMOTE_HOLD_SOCKET") {
+        let receipt = PathBuf::from(&path).with_extension("held");
+        if fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(receipt)
+            .is_ok()
+        {
+            use std::io::Read;
+            let mut stream = std::os::unix::net::UnixStream::connect(path)?;
+            stream.write_all(b"ready")?;
+            stream.read_exact(&mut [0])?;
+        }
+    }
+
     if let Some(path) = std::env::var_os("REMOTE_REQUESTS") {
         let mut file = fs::OpenOptions::new()
             .create(true)

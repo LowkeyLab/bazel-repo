@@ -1,4 +1,5 @@
 //! Label publication follows a complete graph check and ends with fresh evidence.
+use crate::progress::{Context as ProgressContext, Phase, Step};
 use crate::{
     github::{self, Conflict},
     graph,
@@ -7,8 +8,9 @@ use crate::{
 };
 use anyhow::{Result, ensure};
 
-fn ticket(batch: &Batch, index: usize) -> Result<LabelProgress> {
-    let actual = graph::check_ticket(batch, index)?.labels()?;
+fn ticket(github: &github::Client<'_>, batch: &Batch, index: usize) -> Result<LabelProgress> {
+    let github = &github.scope(ProgressContext::ticket(Phase::Labels, batch, index));
+    let actual = graph::check_ticket(github, batch, index)?.labels()?;
     let planned = &batch.plan.tickets[index];
     let mut triage = Vec::new();
     for label in actual.iter().chain(&planned.labels) {
@@ -36,9 +38,9 @@ fn ticket(batch: &Batch, index: usize) -> Result<LabelProgress> {
     Ok(progress)
 }
 
-pub fn observe(batch: &Batch) -> Result<LabelsProgress> {
+pub fn observe(github: &github::Client<'_>, batch: &Batch) -> Result<LabelsProgress> {
     let tickets = (0..batch.tickets.len())
-        .map(|index| ticket(batch, index))
+        .map(|index| ticket(github, batch, index))
         .collect::<Result<Vec<_>>>()?;
     let verified = tickets.iter().all(|progress| progress.remaining.is_empty());
     Ok(LabelsProgress {
@@ -48,16 +50,17 @@ pub fn observe(batch: &Batch) -> Result<LabelsProgress> {
     })
 }
 
-pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
+pub fn run(github: &github::Client<'_>, batch: &mut Batch, store: &Store) -> Result<()> {
     ensure!(
         batch.graph.verified,
         "labels require a checked complete graph"
     );
-    batch.labels = observe(batch)?;
+    batch.labels = observe(github, batch)?;
     store.save(batch)?;
     for index in 0..batch.tickets.len() {
+        let github = &github.scope(ProgressContext::ticket(Phase::Labels, batch, index));
         // Check content and labels again immediately before the dependent mutation.
-        batch.labels.tickets[index] = ticket(batch, index)?;
+        batch.labels.tickets[index] = ticket(github, batch, index)?;
         let remaining = batch.labels.tickets[index].remaining.clone();
         if remaining.is_empty() {
             continue;
@@ -67,21 +70,23 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
         let TicketStatus::Created(mapping) = &batch.tickets[index].status else {
             anyhow::bail!("labels require checked issue mappings");
         };
-        github::add_labels(&mapping.number, &remaining)?;
-        batch.labels.tickets[index] = ticket(batch, index)?;
+        github.add_labels(&mapping.number, &remaining)?;
+        batch.labels.tickets[index] = ticket(github, batch, index)?;
         ensure!(
             batch.labels.tickets[index].remaining.is_empty(),
             "accepted labels lack fresh evidence"
         );
         store.save(batch)?;
+        github.verified(Step::Labels);
     }
+    let github = &github.scope(ProgressContext::new(Phase::FinalVerification));
     // Neither a successful write nor a saved observation establishes completion.
-    batch.graph = graph::observe(batch)?;
+    batch.graph = graph::observe(github, batch)?;
     ensure!(
         batch.graph.verified,
         "graph changed during label publication"
     );
-    batch.labels = observe(batch)?;
+    batch.labels = observe(github, batch)?;
     ensure!(batch.labels.verified, "labels changed during publication");
     store.save(batch)
 }
