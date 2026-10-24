@@ -607,7 +607,7 @@
     },
     "@@rules_distroless+//apt:extensions.bzl%apt": {
       "general": {
-        "bzlTransitiveDigest": "wfN3Xi38rLrzixjBC6VIN2zLK8hVDlG+cxWMvSTgYZk=",
+        "bzlTransitiveDigest": "jumCAe7WbOWxG3SbciCGhFYzcLX1ZszlCrwalE5fF40=",
         "usagesDigest": "vcJ9svut/UHnuJgFqm6o6W6JEbhSirUzAh78XOfiMO4=",
         "recordedInputs": [
           "REPO_MAPPING:,ubuntu_archive_keyring +http_file+ubuntu_archive_keyring",
