@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import NotRequired, TypedDict, cast
 
@@ -118,8 +119,9 @@ def verify(tool: str, output: str, url: str) -> bool:
             ).stdout
         ),
     )
-    available = []
-    for path, expected in closure.items():
+
+    def verify_path(item: tuple[str, StoreMetadata]) -> dict[str, object] | None:
+        path, expected = item
         sources = (
             [url]
             if tool == "aspect" and path == output
@@ -137,22 +139,30 @@ def verify(tool: str, output: str, url: str) -> bool:
                 remote["references"]
             ) != sorted(expected["references"]):
                 warning(f"Remote metadata mismatch: {source} {path}")
+                return None
+            return {
+                "path": path,
+                "source": source,
+                "narHash": remote["narHash"],
+                "references": remote["references"],
+                "signatures": remote.get("signatures", []),
+            }
+        warning(
+            f"Runtime closure unavailable: {path}; ordinary consumers may build from source"
+        )
+        return None
+
+    # Limit remote requests and retain the local closure order in the manifest.
+    available: list[dict[str, object]] = []
+    executor = ThreadPoolExecutor(max_workers=8)
+    try:
+        for entry in executor.map(verify_path, closure.items()):
+            if entry is None:
                 return False
-            available.append(
-                {
-                    "path": path,
-                    "source": source,
-                    "narHash": remote["narHash"],
-                    "references": remote["references"],
-                    "signatures": remote.get("signatures", []),
-                }
-            )
-            break
-        else:
-            warning(
-                f"Runtime closure unavailable: {path}; ordinary consumers may build from source"
-            )
-            return False
+            available.append(entry)
+    finally:
+        # Cancel queued checks after a failed path.
+        executor.shutdown(cancel_futures=True)
     manifest = Path(os.environ.get("RUNNER_TEMP", "/tmp")) / f"nix-{tool}-closure.json"
     manifest.write_text(
         json.dumps({"output": output, "paths": available}, indent=2) + "\n"
