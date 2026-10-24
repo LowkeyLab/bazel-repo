@@ -1,4 +1,4 @@
-# Native Node child attribution
+# Native child coverage attribution
 
 [Bug #2672](https://github.com/LowkeyLab/bazel-repo/issues/2672) records the approved correction to native Node child attribution.
 The maintainer approved the required measured-count changes under [specification #2632](https://github.com/LowkeyLab/bazel-repo/issues/2632).
@@ -6,13 +6,13 @@ The other compatibility requirements remain in effect.
 
 ## Cause and correction
 
-The retained rules_js collector uses c8 and a manifest filter.
+The retained `rules_js` collector uses c8 and a manifest filter.
 The launcher preserves the parent entry-point path in the runfiles tree.
 A plain Node child resolves its entry-point symlink to a physical output path.
 The manifest filter excludes that physical path.
 The collector then supplies an empty-script baseline for the child, despite its positive raw V8 count.
 
-The repository applies `rules_js_runfiles.patch` to the pinned rules_js integration.
+The repository applies ``rules_js`_runfiles.patch` to the pinned `rules_js` integration.
 The patch updates its source and committed bundle.
 It matches physical aliases only for existing manifest files.
 It preserves manifest spelling as the report identity.
@@ -21,7 +21,7 @@ It leaves ambiguous aliases and unmatched URLs unchanged.
 The integration supplies normalized profile copies to c8 before c8 merges counts or supplies zero baselines.
 It changes matching script URLs and source-map cache keys, without reconstructing source maps or changing profile ranges.
 The integration retains the original V8 files unchanged and removes its temporary copies after report generation.
-The maintained collector and Bazel LCOV merger still calculate the reports.
+The maintained collector and Bazel `LCOV` merger still calculate the reports.
 The Rust adapter, membership assertions, inventory, thresholds, and scope remain unchanged.
 
 ## Before and after
@@ -45,14 +45,15 @@ Its child branch count is 1.
 The maintained collector no longer reports the fallback function for that measured child.
 The native TypeScript fallback remains subject to its existing original-manifest limit.
 
-An independent report check found 365 unique repository-relative source identities after the correction.
+An independent report audit found 365 unique repository-relative source identities after the correction.
 It checked parent hits, child hits, native unused zeros, hidden-source zeros, and Angular unused-source zeros.
-The subsequent membership assertions did not execute after the Angular child failure.
-These independent checks do not claim that the remaining membership assertions passed.
+The suite stopped after the Angular child assertion.
+The remaining membership assertions remain unverified.
 
-Both executions cleared remote execution, remote cache, and BES endpoints with an external Bazelisk wrapper.
-The wrapper remained active inside the Nix FHS environment and recorded each invocation.
-All three selected measured tests ran uncached with the `linux-sandbox` strategy in each execution.
+Both executions cleared remote execution, remote cache, and build event service endpoints with an external Bazelisk wrapper.
+The wrapper remained active inside the Nix shell and recorded each invocation.
+All three selected measured tests ran without cached test results.
+They used the `linux-sandbox` strategy in each execution.
 The command logs contain no nonzero remote action or remote cache summaries.
 Local action-cache reuse remained enabled.
 
@@ -74,10 +75,10 @@ The private evidence root is:
 | Relative path                                                               | Retained evidence                                                                            |
 | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `before-evidence/`, `after-evidence/`                                       | Fixtures, commands, logs, source revisions, build events, inventories, reports, and receipts |
-| `before-native-test-output/`, `after-native-test-output/`                   | Raw V8 profiles, native LCOV, functional test output, and test metadata                      |
+| `before-native-test-output/`, `after-native-test-output/`                   | Raw V8 profiles, native `LCOV`, functional test output, and test metadata                    |
 | `before-execution.instrumented_files`, `after-execution.instrumented_files` | Exact native manifests                                                                       |
-| `before-combined-native.lcov`, `after-combined-native.lcov`                 | Bazel combined LCOV before adapter filtering                                                 |
-| `before-audit.json`, `after-audit.json`                                     | Counts, unique identities, local execution metadata, and SHA-256 hashes                      |
+| `before-combined-native.lcov`, `after-combined-native.lcov`                 | Bazel combined `LCOV` before adapter filtering                                               |
+| `before-audit.json`, `after-audit.json`                                     | Counts, unique identities, local execution metadata, and `SHA-256` hashes                    |
 | `after-angular-test-output/`                                                | Output and profiles for the later Angular failure                                            |
 | `final-regression-red.log`, `final-regression-green.log`                    | Final regression against original and patched collectors                                     |
 | `command-tests-3.log`                                                       | Successful remote collector and report command regressions                                   |
@@ -91,8 +92,9 @@ Those failed attempts remain separate from the final successful checks.
 Keep [#2636](https://github.com/LowkeyLab/bazel-repo/issues/2636) and [#2632](https://github.com/LowkeyLab/bazel-repo/issues/2632) open.
 The full suite now fails at `angular/projects/nicknamer/src/coverage-child-ynhdi1_k.mjs`.
 The Angular child functional test passed, but its combined report still has no positive line count.
-This record does not diagnose that separate failure or change Angular attribution guarantees.
+The cause of that separate failure remains unknown.
+The Angular attribution guarantees remain unchanged.
 
 Browser and Astro acceptance remain unverified under the restrictions in the [migration acceptance record](rust-migration-acceptance.md).
-These tests did not change website or browser behavior.
+These tests preserve website and browser behavior.
 Command tests, local membership execution, remote regression tests, and hosted checks remain distinct evidence.
