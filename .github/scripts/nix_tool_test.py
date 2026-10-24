@@ -595,3 +595,96 @@ def test_policy_uses_requested_output_and_cache_instead_of_default_constants() -
     assert downloads.classify(set(), [UNRELATED]) == [
         {"path": UNRELATED, "source": cache, "status": "downloaded"},
     ]
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "available",
+        "hash-mismatch",
+        "references-mismatch",
+        "missing",
+        "aspect-upstream-only",
+    ],
+)
+def test_remote_closure_verification(tmp_path: Path, mode: str) -> None:
+    """A slow remote query must not prevent another query from starting."""
+    tools = tmp_path / "bin"
+    tools.mkdir()
+    closure = {
+        ROOT: {"narHash": "sha256-root", "references": [DEPENDENCY]},
+        DEPENDENCY: {"narHash": "sha256-dependency", "references": []},
+    }
+    (tmp_path / "closure.json").write_text(json.dumps(closure))
+    (tools / "nix.py").write_text(
+        "import json, os, pathlib, sys, time\n"
+        "root = pathlib.Path(os.environ['RUNNER_TEMP'])\n"
+        "closure = json.loads((root / 'closure.json').read_text())\n"
+        "if '--recursive' in sys.argv:\n"
+        "    print(json.dumps(closure))\n"
+        "    sys.exit(0)\n"
+        "path = sys.argv[-1]\n"
+        "assert path in closure\n"
+        "source = sys.argv[sys.argv.index('--store') + 1]\n"
+        "with (root / 'queries.jsonl').open('a') as journal:\n"
+        "    journal.write(json.dumps({'path': path, 'source': source}) + '\\n')\n"
+        "(root / (pathlib.Path(path).name + '.started')).touch()\n"
+        "deadline = time.monotonic() + 5\n"
+        "while not all((root / (pathlib.Path(p).name + '.started')).exists() for p in closure):\n"
+        "    if time.monotonic() >= deadline:\n"
+        "        sys.exit(1)\n"
+        "    time.sleep(0.01)\n"
+        "mode = os.environ['NIX_TEST_MODE']\n"
+        "if path == list(closure)[1]:\n"
+        "    if mode == 'missing': sys.exit(1)\n"
+        "    if mode == 'hash-mismatch': closure[path]['narHash'] = 'sha256-other'\n"
+        "    if mode == 'references-mismatch': closure[path]['references'] = list(closure)\n"
+        "if mode == 'aspect-upstream-only' and path == list(closure)[0] and 'cachix' in source:\n"
+        "    sys.exit(1)\n"
+        "print(json.dumps({path: closure[path]}))\n"
+    )
+    nix = tools / "nix"
+    nix.write_text('#!/bin/sh\nexec "$NIX_TEST_PYTHON" "${0}.py" "$@"\n')
+    nix.chmod(0o700)
+    curl = tools / "curl"
+    curl.write_text("#!/bin/sh\nprintf 404\n")
+    curl.chmod(0o700)
+    environment = {
+        **os.environ,
+        "PATH": str(tools) + os.pathsep + os.environ["PATH"],
+        "RUNNER_TEMP": str(tmp_path),
+        "NIX_TEST_PYTHON": nix_tool.sys.executable,
+        "NIX_TEST_MODE": mode,
+        "CACHIX_CACHE_NAME": "",
+        "CACHIX_PUBLIC_KEY": "",
+    }
+
+    tool = "aspect" if mode == "aspect-upstream-only" else "lcov"
+    result = subprocess.run(
+        [nix_tool.sys.executable, nix_tool.__file__, "verify", tool, ROOT],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    manifest_path = tmp_path / f"nix-{tool}-closure.json"
+    assert result.returncode == (0 if mode == "available" else 1), (
+        result.stdout + result.stderr
+    )
+    if mode == "aspect-upstream-only":
+        queries = [
+            json.loads(line)
+            for line in (tmp_path / "queries.jsonl").read_text().splitlines()
+        ]
+        assert [entry["source"] for entry in queries if entry["path"] == ROOT] == [
+            CACHE
+        ]
+    if mode != "available":
+        assert not manifest_path.exists()
+        return
+    manifest = json.loads(manifest_path.read_text())
+    assert [entry["path"] for entry in manifest["paths"]] == [ROOT, DEPENDENCY]
+    assert [entry["source"] for entry in manifest["paths"]] == [CACHE, CACHE]
+    assert manifest["paths"][0]["references"] == [DEPENDENCY]
