@@ -7,9 +7,10 @@ use crate::{
 };
 use anyhow::{Context, Result, bail, ensure};
 
-pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
-    let observed = observe(batch)?;
-    crate::graph::preflight_capacity(batch, &observed)?;
+pub fn run(github: &github::Client<'_>, batch: &mut Batch, store: &Store) -> Result<()> {
+    let observed = observe(github, batch)?;
+    crate::graph::preflight_capacity(github, batch, &observed)?;
+    github.verified(crate::progress::Step::RemoteChecks);
     loop {
         let next = batch
             .plan
@@ -30,22 +31,27 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
         let Some(index) = next else {
             break;
         };
+        let github = &github.scope(crate::progress::Context::ticket(
+            crate::progress::Phase::Creation,
+            batch,
+            index,
+        ));
         let ticket = &batch.plan.tickets[index];
         let body = format!("{}\n\n{}", ticket.body, batch.tickets[index].marker);
         let created = if let Some(mapping) = &observed[index] {
-            let remote = github::read(&mapping.number)?;
+            let remote = github.read(&mapping.number)?;
             ensure!(remote.mapping() == *mapping, Conflict);
             remote
         } else if matches!(
             batch.tickets[index].status,
             TicketStatus::Creating | TicketStatus::RetryAuthorized
         ) {
-            let mut found = github::find(&batch.tickets[index].marker)?;
+            let mut found = github.find(&batch.tickets[index].marker)?;
             match found.len() {
                 0 if matches!(batch.tickets[index].status, TicketStatus::RetryAuthorized) => {
                     batch.tickets[index].status = TicketStatus::Creating;
                     store.save(batch)?;
-                    github::create(&ticket.title, &body)?
+                    github.create(&ticket.title, &body)?
                 }
                 0 => bail!(
                     "Creation remains uncertain. An absent match does not authorize another request."
@@ -61,9 +67,9 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
         } else {
             batch.tickets[index].status = TicketStatus::Creating;
             store.save(batch)?;
-            github::create(&ticket.title, &body)?
+            github.create(&ticket.title, &body)?
         };
-        let checked = github::read(&created.mapping().number)?;
+        let checked = github.read(&created.mapping().number)?;
         checked
             .check_content(&ticket.title, &body)
             .context(Conflict)?;
@@ -75,6 +81,13 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
             batch.tickets[index].status = TicketStatus::Creating;
             return Err(error);
         }
+        github
+            .scope(crate::progress::Context::ticket(
+                crate::progress::Phase::Creation,
+                batch,
+                index,
+            ))
+            .verified(crate::progress::Step::Issue);
     }
     ensure!(
         batch
@@ -83,18 +96,18 @@ pub fn run(batch: &mut Batch, store: &Store) -> Result<()> {
             .all(|p| matches!(p.status, TicketStatus::Created(_))),
         "creation remains incomplete"
     );
-    crate::graph::run(batch, store)?;
-    crate::labels::run(batch, store)
+    crate::graph::run(github, batch, store)?;
+    crate::labels::run(github, batch, store)
 }
 /// Read remote evidence without changing saved progress or GitHub state.
-pub fn observe(batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {
-    github::read(&batch.plan.parent)?;
+pub fn observe(github: &github::Client<'_>, batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {
+    github.read(&batch.plan.parent)?;
     let issues = if batch
         .tickets
         .iter()
         .any(|p| !matches!(p.status, TicketStatus::Created(_)))
     {
-        github::enumerate()?
+        github.enumerate()?
     } else {
         Vec::new()
     };
@@ -103,8 +116,12 @@ pub fn observe(batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {
         .iter()
         .zip(&batch.plan.tickets)
         .map(|(progress, ticket)| {
+            let github = &github.scope(
+                crate::progress::Context::new(crate::progress::Phase::RemoteChecks)
+                    .related(crate::progress::Subject::Ticket(ticket.key.clone())),
+            );
             let remote = if let TicketStatus::Created(mapping) = &progress.status {
-                let remote = github::read(&mapping.number)?;
+                let remote = github.read(&mapping.number)?;
                 ensure!(remote.mapping() == *mapping, Conflict);
                 Some(remote)
             } else {
@@ -129,4 +146,42 @@ pub fn observe(batch: &Batch) -> Result<Vec<Option<IssueMapping>>> {
             }
         })
         .collect()
+}
+
+/// Report one publication attempt, including resumptions and stopped outcomes.
+pub fn publication(
+    github: &github::Client<'_>,
+    saved: &mut Batch,
+    store: &Store,
+) -> (crate::progress::Outcome, Result<()>) {
+    saved.graph = crate::plan::GraphProgress::default();
+    saved.labels.checked = false;
+    saved.labels.verified = false;
+    let result = run(github, saved, store);
+    if result.is_err() {
+        saved.graph.verified = false;
+        saved.labels.verified = false;
+    }
+    let status = if result.is_ok() {
+        crate::progress::Outcome::Complete
+    } else if result
+        .as_ref()
+        .err()
+        .is_some_and(|e| e.downcast_ref::<github::Conflict>().is_some())
+    {
+        crate::progress::Outcome::Conflict
+    } else if result.is_err()
+        && saved.tickets.iter().any(|p| {
+            matches!(
+                p.status,
+                crate::plan::TicketStatus::Creating | crate::plan::TicketStatus::RetryAuthorized
+            )
+        })
+    {
+        crate::progress::Outcome::Uncertain
+    } else {
+        crate::progress::Outcome::Partial
+    };
+    github.progress.finish(status);
+    (status, result)
 }

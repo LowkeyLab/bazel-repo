@@ -3,6 +3,7 @@ mod github;
 mod graph;
 mod labels;
 mod plan;
+mod progress;
 mod publish;
 mod recovery;
 mod store;
@@ -94,6 +95,9 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
         root.to_str().is_some(),
         "state directory must use UTF-8 for JSON output"
     );
+    let command = || std::process::Command::new("gh");
+    let inactive = progress::Progress::silent();
+    let github = github::Client::new(&inactive, &command);
     match cli.command {
         Action::Prepare { plan, batch } => {
             let plan: Plan = serde_json::from_reader(std::fs::File::open(plan)?)?;
@@ -127,35 +131,11 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let id = BatchId::try_from(batch)?;
             let store = Store::open(&root, &id, false)?;
             let mut saved = store.read(&id)?;
+            let progress = progress::Progress::new(progress::stderr_listener(std::io::stderr()));
+            let github = github::Client::new(&progress, &command);
             let previous_labels = saved.labels.clone();
-            saved.graph = plan::GraphProgress::default();
-            saved.labels.checked = false;
-            saved.labels.verified = false;
-            let result = publish::run(&mut saved, &store);
-            if result.is_err() {
-                saved.graph.verified = false;
-                saved.labels.verified = false;
-            }
-            let status = if result.is_ok() {
-                "complete"
-            } else if result
-                .as_ref()
-                .err()
-                .is_some_and(|e| e.downcast_ref::<github::Conflict>().is_some())
-            {
-                "conflict"
-            } else if result.is_err()
-                && saved.tickets.iter().any(|p| {
-                    matches!(
-                        p.status,
-                        plan::TicketStatus::Creating | plan::TicketStatus::RetryAuthorized
-                    )
-                })
-            {
-                "uncertain"
-            } else {
-                "partial"
-            };
+            let (status, result) = publish::publication(&github, &mut saved, &store);
+            let status = status.as_str();
             Ok(
                 json!({"status":status, "phase":if result.is_ok() {"complete"} else {"stopped"}, "publication_complete":result.is_ok(), "graph":saved.graph, "labels":saved.labels, "previous_labels":previous_labels, "batch_id":saved.id, "tickets":saved.tickets, "error":result.err().map(|e|format!("{e:#}"))}),
             )
@@ -189,7 +169,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 !store.plan_path().try_exists()?,
                 "reconstruction cannot replace existing state"
             );
-            let conflicts = recovery::reconstruct(&mut saved, &store)?;
+            let conflicts = recovery::reconstruct(&github, &mut saved, &store)?;
             Ok(
                 json!({"status":if conflicts {"conflict"} else {local_status(&saved)}, "batch_id":saved.id, "tickets":saved.tickets, "error":if conflicts {Some("multiple identity matches remain unresolved; use recover adopt")} else {None}}),
             )
@@ -223,22 +203,22 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
             let id = BatchId::try_from(batch)?;
             let store = Store::open(&root, &id, false)?;
             let mut saved = store.read(&id)?;
-            recovery::adopt(&mut saved, &ticket, &issue, &store)?;
+            recovery::adopt(&github, &mut saved, &ticket, &issue, &store)?;
             Ok(json!({"status":local_status(&saved), "batch_id":saved.id, "tickets":saved.tickets}))
         }
         Action::Status { batch } => {
             let id = BatchId::try_from(batch)?;
             let store = Store::open(&root, &id, false)?;
             let saved = store.read(&id)?;
-            let observed = publish::observe(&saved);
+            let observed = publish::observe(&github, &saved);
             let graph = observed.as_ref().ok().map(|mappings| {
-                graph::preflight_capacity(&saved, mappings)?;
+                graph::preflight_capacity(&github, &saved, mappings)?;
                 if saved
                     .tickets
                     .iter()
                     .all(|p| matches!(p.status, TicketStatus::Created(_)))
                 {
-                    graph::observe(&saved)
+                    graph::observe(&github, &saved)
                 } else {
                     Ok(plan::GraphProgress::default())
                 }
@@ -275,7 +255,7 @@ fn execute(cli: Cli) -> Result<serde_json::Value> {
                 None => None,
             };
             let labels = if graph.as_ref().is_some_and(|graph| graph.verified) {
-                match labels::observe(&saved) {
+                match labels::observe(&github, &saved) {
                     Ok(labels) => Some(labels),
                     Err(cause) => {
                         status = if cause.downcast_ref::<github::Conflict>().is_some() {
@@ -327,3 +307,6 @@ fn main() -> Result<std::process::ExitCode> {
         std::process::ExitCode::SUCCESS
     })
 }
+
+#[cfg(test)]
+mod progress_tests;

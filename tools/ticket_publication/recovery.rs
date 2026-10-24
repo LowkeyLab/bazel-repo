@@ -7,6 +7,7 @@ use crate::{
 use anyhow::{Context, Result, ensure};
 
 pub fn adopt(
+    github: &github::Client<'_>,
     batch: &mut Batch,
     ticket: &TicketKey,
     issue: &IssueNumber,
@@ -17,7 +18,7 @@ pub fn adopt(
         .iter()
         .position(|p| &p.key == ticket)
         .context("unknown ticket key")?;
-    let remote = github::read(issue)?;
+    let remote = github.read(issue)?;
     remote.check_content(
         &batch.plan.tickets[index].title,
         &format!(
@@ -52,9 +53,9 @@ pub fn authorize_retry(batch: &mut Batch, ticket: &TicketKey, store: &Store) -> 
     store.save(batch)
 }
 
-pub fn reconstruct(batch: &mut Batch, store: &Store) -> Result<bool> {
-    github::read(&batch.plan.parent)?;
-    let issues = github::enumerate()?;
+pub fn reconstruct(github: &github::Client<'_>, batch: &mut Batch, store: &Store) -> Result<bool> {
+    github.read(&batch.plan.parent)?;
+    let issues = github.enumerate()?;
     let mut conflicts = false;
     for index in 0..batch.tickets.len() {
         let found: Vec<_> = issues
