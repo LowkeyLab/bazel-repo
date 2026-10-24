@@ -5909,6 +5909,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "roxmltree"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "rust-ini"
 version = "0.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8985,12 +8994,14 @@ dependencies = [
  "opentelemetry-appender-tracing",
  "opentelemetry-proto",
  "opentelemetry_sdk",
+ "percent-encoding",
  "pinyin",
  "pinyinchch",
  "pinyinchch-model-hmm",
  "proc-macro2",
  "regex",
  "reqwest 0.13.5",
+ "roxmltree",
  "rust_decimal",
  "sea-orm",
  "sea-orm-migration",
@@ -9027,6 +9038,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-cli",
  "wiremock",
+ "zip",
 ]
 
 [[package]]

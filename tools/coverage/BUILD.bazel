@@ -143,10 +143,15 @@ java_binary(
 
 exports_files(["jvm.bzl"])
 
-py_binary(
+rust_binary(
     name = "jvm_report",
-    srcs = ["jvm_report.py"],
+    srcs = ["jvm_report.rs"],
+    crate_root = "jvm_report.rs",
     data = [":jvm_analyzer"],
+    deps = [
+        ":coverage_reports",
+        "@crates//:clap",
+    ],
 )
 
 java_import(
@@ -283,15 +288,19 @@ rust_library(
     name = "coverage_reports",
     srcs = [
         "build_event.rs",
+        "jvm_adapter.rs",
         "native_report.rs",
         "report_lib.rs",
     ],
     crate_root = "report_lib.rs",
     deps = [
+        "@crates//:percent-encoding",
+        "@crates//:roxmltree",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:sha2",
         "@crates//:thiserror",
+        "@crates//:zip",
     ],
 )
 
@@ -305,6 +314,26 @@ rust_test(
         ":go_report_test",
     ],
     env = {"COMMAND_CASES": "$(rlocationpath :go_report_test)"},
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+rust_test(
+    name = "jvm_command_test",
+    size = "small",
+    srcs = ["native_command_test.rs"],
+    crate_root = "native_command_test.rs",
+    data = [
+        ":jvm_report",
+        ":jvm_report_test",
+    ],
+    env = {
+        "COMMAND_CASES": "$(rlocationpath :jvm_report_test)",
+        "COMMAND_FILTER": "python_files=jvm_report_test.py",
+    },
     deps = [
         "@crates//:anyhow",
         "@crates//:googletest",

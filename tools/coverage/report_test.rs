@@ -171,3 +171,81 @@ fn unchecked_workspace_policy_preserves_lexical_paths_without_integrity_checks()
     );
     Ok(())
 }
+
+#[gtest]
+fn jvm_artifacts_use_file_uri_without_workspace_integrity() -> anyhow::Result<()> {
+    let directory = tempfile::tempdir()?;
+    let text = event_text(&[
+        json!({"id":{"namedSet":{"id":"files"}},"namedSetOfFiles":{"files":[{"name":"ignored","uri":"file://remote/path%20with%20space.xml","digest":"invalid","length":99}]}}),
+        json!({"id":{"targetCompleted":{"label":"//:root"}},"completed":{"success":true,"outputGroup":[{"name":"baselines","incomplete":true,"fileSets":[{"id":"files"}]}]}}),
+    ]);
+    let events = BuildEvents::parse(&text)?;
+    let selected = events.baselines(
+        &BTreeSet::from(["//:root".to_owned()]),
+        "baselines",
+        directory.path(),
+        "JVM",
+        ArtifactPolicy::JvmLocal,
+    )?;
+    assert_that!(
+        selected[0].paths,
+        eq(&vec![std::path::PathBuf::from("/path with space.xml")])
+    );
+    Ok(())
+}
+
+#[gtest]
+fn jvm_uri_keeps_parent_components_and_does_not_require_a_name() -> anyhow::Result<()> {
+    let events = BuildEvents::parse(&event_text(&[
+        json!({"id":{"namedSet":{"id":"files"}},"namedSetOfFiles":{"files":[{"uri":"file://host/missing/./../baseline.xml"}]}}),
+        json!({"id":{"targetCompleted":{"label":"//:root"}},"completed":{"success":true,"outputGroup":[{"name":"baselines","fileSets":[{"id":"files"}]}]}}),
+    ]))?;
+    let result = events.baselines(
+        &BTreeSet::from(["//:root".to_owned()]),
+        "baselines",
+        std::path::Path::new("/workspace"),
+        "JVM",
+        ArtifactPolicy::JvmLocal,
+    )?;
+    assert_that!(
+        result[0].paths[0].to_string_lossy().as_ref(),
+        eq("/missing/../baseline.xml")
+    );
+    assert_that!(
+        BuildEvents::local_artifact(
+            &json!({"name":"baseline", "uri":"bytestream://remote/blob"}),
+            std::path::Path::new("/workspace"),
+            "JVM"
+        )
+        .is_err(),
+        eq(true)
+    );
+    Ok(())
+}
+
+#[gtest]
+fn jvm_input_selection_retains_aspect_configuration_and_execution_evidence() -> anyhow::Result<()> {
+    let events = BuildEvents::parse(&event_text(&[
+        json!({"id":{"namedSet":{"id":"inputs"}},"namedSetOfFiles":{"files":[{"name":"inputs.json"}]}}),
+        json!({"id":{"targetCompleted":{"label":"//:test","aspect":"inputs-aspect","configuration":{"id":"configured"}}},"completed":{"success":true,"outputGroup":[{"name":"jvm_test_inputs","fileSets":[{"id":"inputs"}]}]}}),
+        json!({"id":{"testResult":{"label":"//:test","run":2}},"testResult":{"testActionOutput":[{"name":"test.log","uri":"file:///logs/test.log"}],"cachedLocally":true,"executionInfo":{"strategy":"remote"}}}),
+    ]))?;
+    let root = std::path::Path::new("/workspace");
+    let inputs = events.jvm_inputs(root)?;
+    assert_that!(inputs.len(), eq(1));
+    assert_that!(
+        inputs[0].identity.configuration,
+        eq(&Some(json!({"id":"configured"})))
+    );
+    assert_that!(inputs[0].identity.aspect, eq(&Some(json!("inputs-aspect"))));
+    assert_that!(inputs[0].paths, eq(&vec![root.join("inputs.json")]));
+    let results = events.jvm_test_results(root)?;
+    assert_that!(results.len(), eq(1));
+    assert_that!(results[0].cached, eq(&json!(true)));
+    assert_that!(results[0].execution, eq(&json!({"strategy":"remote"})));
+    assert_that!(
+        results[0].logs,
+        eq(&vec![std::path::PathBuf::from("/logs/test.log")])
+    );
+    Ok(())
+}

@@ -29,6 +29,9 @@ juniper_axum = "0.3.0"
 opentelemetry-appender-tracing = { version = "0.33.0", default-features = false }
 opentelemetry_sdk = { version = "0.33.0", default-features = false, features = ["logs"] }
 opentelemetry-proto = { version = "0.33.0", default-features = false, features = ["gen-tonic-messages", "logs", "with-serde"] }
+percent-encoding = "2"
+roxmltree = "0.21.1"
+zip = { version = "9.0.5", default-features = false, features = ["deflate"] }
 pinyin = "0.11"
 pinyinchch = { version = "0.3.0", features = ["hmm"] }
 pinyinchch-model-hmm = "0.3.0"

@@ -11,7 +11,11 @@ fn retained_command_fixtures_pass_with_the_declared_native_child() -> anyhow::Re
     let cases = rlocation!(files, std::env::var("COMMAND_CASES")?)
         .context("The retained command fixture executable is missing.")?;
     let result = Command::new(cases)
-        .args(["-o", "python_files=go_report_test.py"])
+        .args([
+            "-o",
+            &std::env::var("COMMAND_FILTER")
+                .unwrap_or_else(|_| "python_files=go_report_test.py".to_owned()),
+        ])
         .output()?;
     assert_that!(
         result.status.success(),
