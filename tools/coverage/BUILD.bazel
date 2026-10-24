@@ -377,3 +377,14 @@ rust_test(
         "@rules_rust//tools/runfiles",
     ],
 )
+
+js_test(
+    name = "native_node_collector_test",
+    size = "small",
+    data = ["@aspect_rules_js//js/private/coverage:coverage.js"],
+    entry_point = "native_node_collector_test.mjs",
+    env = {"NATIVE_JAVASCRIPT_COLLECTOR": "$(rootpath @aspect_rules_js//js/private/coverage:coverage.js)"},
+    no_copy_to_bin = ["@aspect_rules_js//js/private/coverage:coverage.js"],
+)
+
+exports_files(["rules_js_runfiles.patch"])

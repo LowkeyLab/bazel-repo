@@ -1,0 +1,130 @@
+diff --git a/js/private/coverage/bundle/c8.js b/js/private/coverage/bundle/c8.js
+--- a/js/private/coverage/bundle/c8.js
++++ b/js/private/coverage/bundle/c8.js
+@@ -1,6 +1,7 @@
+ import { Report } from 'c8'
+ import fs from 'fs'
+ import path from 'path'
++import { pathToFileURL } from 'node:url'
+ 
+ // Runs in the test action, the only place the V8 data and the instrumented sources are
+ // both present. coverage.sh.tpl reads back this exact filename; keep them in sync.
+@@ -73,12 +74,47 @@
+     }
+ }
+ 
++// Node resolves a plain child's main-module symlink. Match only aliases of
++// manifest files, then give c8 their original runfiles URLs before it merges
++// profiles or adds zero baselines. Keep the raw V8 files unchanged.
++const manifestUrls = new Set(include.map((file) => pathToFileURL(path.resolve(pwd, file)).href))
++const aliases = new Map()
++for (const file of include) {
++    const original = path.resolve(pwd, file)
++    if (!fs.existsSync(original)) continue
++    const physical = pathToFileURL(fs.realpathSync(original)).href
++    const logical = pathToFileURL(original).href
++    aliases.set(physical, aliases.has(physical) && aliases.get(physical) !== logical ? null : logical)
++}
++const originalUrl = (url) => manifestUrls.has(url) ? url : (aliases.get(url) || url)
++const profileDirectory = fs.mkdtempSync(path.join(process.env.COVERAGE_DIR, '.runfiles-'))
++for (const file of fs.readdirSync(process.env.COVERAGE_DIR)) {
++    if (!fs.statSync(path.join(process.env.COVERAGE_DIR, file)).isFile()) continue
++    const bytes = fs.readFileSync(path.join(process.env.COVERAGE_DIR, file))
++    let profile
++    try {
++        profile = JSON.parse(bytes)
++    } catch {
++        fs.writeFileSync(path.join(profileDirectory, file), bytes)
++        continue
++    }
++    if (profile && Array.isArray(profile.result)) {
++        for (const script of profile.result) script.url = originalUrl(script.url)
++        if (profile['source-map-cache']) {
++            profile['source-map-cache'] = Object.fromEntries(
++                Object.entries(profile['source-map-cache']).map(([url, data]) => [originalUrl(url), data])
++            )
++        }
++    }
++    fs.writeFileSync(path.join(profileDirectory, file), JSON.stringify(profile))
++}
++
+ // `include`, `exclude`, `extension`, `excludeNodeModules` and `allowExternal` are omitted:
+ // Report forwards them to the test-exclude instance it builds in its constructor, and we
+ // replace that instance outright.
+ const report = new Report({
+     reportsDirectory: process.env.COVERAGE_DIR,
+-    tempDirectory: process.env.COVERAGE_DIR,
++    tempDirectory: profileDirectory,
+     resolve: '',
+     src: pwd,
+     all: true,
+@@ -98,6 +134,7 @@
+         const total = (Number(process.hrtime.bigint() - started) / 1e6).toFixed(0)
+         logDebug(`coverage report generated in ${total}ms`)
+     })
++    .finally(() => fs.rmSync(profileDirectory, { recursive: true, force: true }))
+     .catch((err) => {
+         console.error(err)
+         process.exit(1)
+diff --git a/js/private/coverage/coverage.js b/js/private/coverage/coverage.js
+--- a/js/private/coverage/coverage.js
++++ b/js/private/coverage/coverage.js
+@@ -16138,12 +16138,49 @@
+     }
+ }
+ 
++const { pathToFileURL } = require$$2$1;
++
++// Node resolves a plain child's main-module symlink. Match only aliases of
++// manifest files, then give c8 their original runfiles URLs before it merges
++// profiles or adds zero baselines. Keep the raw V8 files unchanged.
++const manifestUrls = new Set(include.map((file) => pathToFileURL(path.resolve(pwd, file)).href))
++const aliases = new Map()
++for (const file of include) {
++    const original = path.resolve(pwd, file)
++    if (!require$$0$1.existsSync(original)) continue
++    const physical = pathToFileURL(require$$0$1.realpathSync(original)).href
++    const logical = pathToFileURL(original).href
++    aliases.set(physical, aliases.has(physical) && aliases.get(physical) !== logical ? null : logical)
++}
++const originalUrl = (url) => manifestUrls.has(url) ? url : (aliases.get(url) || url)
++const profileDirectory = require$$0$1.mkdtempSync(path.join(process.env.COVERAGE_DIR, '.runfiles-'))
++for (const file of require$$0$1.readdirSync(process.env.COVERAGE_DIR)) {
++    if (!require$$0$1.statSync(path.join(process.env.COVERAGE_DIR, file)).isFile()) continue
++    const bytes = require$$0$1.readFileSync(path.join(process.env.COVERAGE_DIR, file))
++    let profile
++    try {
++        profile = JSON.parse(bytes)
++    } catch {
++        require$$0$1.writeFileSync(path.join(profileDirectory, file), bytes)
++        continue
++    }
++    if (profile && Array.isArray(profile.result)) {
++        for (const script of profile.result) script.url = originalUrl(script.url)
++        if (profile['source-map-cache']) {
++            profile['source-map-cache'] = Object.fromEntries(
++                Object.entries(profile['source-map-cache']).map(([url, data]) => [originalUrl(url), data])
++            )
++        }
++    }
++    require$$0$1.writeFileSync(path.join(profileDirectory, file), JSON.stringify(profile))
++}
++
+ // `include`, `exclude`, `extension`, `excludeNodeModules` and `allowExternal` are omitted:
+ // Report forwards them to the test-exclude instance it builds in its constructor, and we
+ // replace that instance outright.
+ const report = new c8Exports.Report({
+     reportsDirectory: process.env.COVERAGE_DIR,
+-    tempDirectory: process.env.COVERAGE_DIR,
++    tempDirectory: profileDirectory,
+     resolve: '',
+     src: pwd,
+     all: true,
+@@ -16163,6 +16200,7 @@
+         const total = (Number(process.hrtime.bigint() - started) / 1e6).toFixed(0);
+         logDebug(`coverage report generated in ${total}ms`);
+     })
++    .finally(() => require$$0$1.rmSync(profileDirectory, { recursive: true, force: true }))
+     .catch((err) => {
+         console.error(err);
+         process.exit(1);
