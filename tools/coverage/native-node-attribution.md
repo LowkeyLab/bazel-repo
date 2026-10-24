@@ -12,7 +12,7 @@ A plain Node child resolves its entry-point symlink to a physical output path.
 The manifest filter excludes that physical path.
 The collector then supplies an empty-script baseline for the child, despite its positive raw V8 count.
 
-The repository applies ``rules_js`_runfiles.patch` to the pinned `rules_js` integration.
+The repository applies `rules_js_runfiles.patch` to the pinned `rules_js` integration.
 The patch updates its source and committed bundle.
 It matches physical aliases only for existing manifest files.
 It preserves manifest spelling as the report identity.
