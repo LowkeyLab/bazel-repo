@@ -3,7 +3,7 @@
   "__INPUT_ARTIFACTS_HASH": {
     "ch.qos.logback:logback-classic": 1541110191,
     "com.google.code.findbugs:jsr305": 495355163,
-    "com.google.code.gson:gson": 579810017,
+    "com.google.code.gson:gson": -1217141342,
     "com.google.errorprone:error_prone_annotations": -846490651,
     "com.google.guava:guava": 1922279566,
     "com.google.j2objc:j2objc-annotations": 2003271689,
@@ -52,9 +52,9 @@
     "com.google.code.findbugs:jsr305": 870839855,
     "com.google.code.findbugs:jsr305:jar:javadoc": -893133004,
     "com.google.code.findbugs:jsr305:jar:sources": -935881202,
-    "com.google.code.gson:gson": 1948049175,
-    "com.google.code.gson:gson:jar:javadoc": 1573639940,
-    "com.google.code.gson:gson:jar:sources": 935710753,
+    "com.google.code.gson:gson": 2019875040,
+    "com.google.code.gson:gson:jar:javadoc": -233898049,
+    "com.google.code.gson:gson:jar:sources": 755669897,
     "com.google.errorprone:error_prone_annotations": 295418660,
     "com.google.errorprone:error_prone_annotations:jar:javadoc": 424653935,
     "com.google.errorprone:error_prone_annotations:jar:sources": -751507593,
@@ -481,11 +481,11 @@
     },
     "com.google.code.gson:gson": {
       "shasums": {
-        "jar": "2cbd119bf1961c28788310963dc80ba65f58cdeec1dd139c8bdb1240faa2c36f",
-        "javadoc": "6a99679a5a6a3448571834f56d8614b37327d5e5fceb930d26a40a7734134301",
-        "sources": "a4873f0ef88981cab520c3d7449cd89a68e605f15e9fe46e1aa2c77d5f87eb6f"
+        "jar": "96d3dd843dc2911de01cdabcd50064cb9e860353102a0a78c96fd833d396fc7d",
+        "javadoc": "cda506154cf2f252673c93b3f78ee41323955e89455fb1148aa86c97e50de482",
+        "sources": "e689856e33f12904741d481825ee582fa160f751c741836601bc16666dbc7249"
       },
-      "version": "2.14.0"
+      "version": "2.15.0"
     },
     "com.google.errorprone:error_prone_annotations": {
       "shasums": {
