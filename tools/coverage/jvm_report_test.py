@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -389,15 +390,19 @@ def test_inactive_owner_retains_limit_for_an_active_source(fixture: Path) -> Non
     )
 
 
-@pytest.mark.parametrize("kind", ["session", "header"])
+@pytest.mark.parametrize("kind", ["session", "header", "session-missing-jar"])
 def test_profile_without_class_data(fixture: Path, kind: str) -> None:
-    add_test_result(fixture, [SOURCE])
+    add_test_result(
+        fixture,
+        [SOURCE],
+        [str(fixture / "missing.jar")] if kind == "session-missing-jar" else None,
+    )
     profile = fixture / "_coverage/required.exec"
     profile.parent.mkdir()
     result = run(
         str(ROOT / "tools/coverage/fixtures/jvm_profile/profile"),
         str(profile),
-        kind,
+        "session" if kind == "session-missing-jar" else kind,
         cwd=fixture,
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -420,7 +425,14 @@ def test_profile_without_class_data(fixture: Path, kind: str) -> None:
 
 @pytest.mark.parametrize(
     "fault",
-    ["none", "unmapped", "foreign-owner", "foreign-version", "additional-profile"],
+    [
+        "none",
+        "unmapped",
+        "foreign-owner",
+        "foreign-version",
+        "additional-profile",
+        "shared-source",
+    ],
 )
 def test_profile_matches_its_configured_sources(fixture: Path, fault: str) -> None:
     owner = "//tools/coverage/fixtures/jvm_profile:profile.jvm_coverage"
@@ -528,14 +540,70 @@ def test_profile_matches_its_configured_sources(fixture: Path, fault: str) -> No
             cwd=fixture,
         )
         assert result.returncode == 0, result.stdout + result.stderr
+    copied: list[str] = []
+    if fault == "shared-source":
+        copied = ["copied/" + Path(name).name for name in sources]
+        for name, original in zip(copied, sources, strict=True):
+            destination = fixture / name
+            destination.parent.mkdir(exist_ok=True)
+            shutil.copyfile(fixture / original, destination)
+        copied_owner = "//copied:profile.jvm_coverage"
+        data = json.loads((fixture / "inventory.json").read_text())
+        data["coverage_roots"].append(copied_owner)
+        data["eligible"].extend(
+            {
+                "path": name,
+                "language": "jvm",
+                "owners": [{"label": "//copied:profile", "kind": "java_binary"}],
+            }
+            for name in copied
+        )
+        (fixture / "inventory.json").write_text(json.dumps(data))
+        (fixture / "copied-inputs.json").write_text(
+            json.dumps({"sources": copied, "jars": [str(jar)]})
+        )
+        events = [
+            {
+                "id": {"namedSet": {"id": "copied"}},
+                "namedSetOfFiles": {
+                    "files": [
+                        {"name": str(fixture / name)}
+                        for name in ("copied-inputs.json", "profile-baseline.xml")
+                    ]
+                },
+            },
+            {
+                "id": {"targetCompleted": {"label": copied_owner}},
+                "completed": {
+                    "success": True,
+                    "outputGroup": [
+                        {
+                            "name": "jvm_coverage_baselines",
+                            "fileSets": [{"id": "copied"}],
+                        }
+                    ],
+                },
+            },
+        ]
+        with (fixture / "events.jsonl").open("a") as stream:
+            stream.write("".join(json.dumps(event) + "\n" for event in events))
     result = report(fixture)
-    if fault in {"none", "unmapped"}:
+    if fault in {"none", "unmapped", "shared-source"}:
         assert result.returncode == 0, result.stdout + result.stderr
         receipt = json.loads((fixture / "evidence/receipt.json").read_text())
         assert any(
             item["class"] == "coverage/fixture/Marker"
             for item in receipt["matched_classes"]
         )
+        if fault == "shared-source":
+            text = (fixture / "report.lcov").read_text()
+            assert all(
+                "SF:" + name + "\n" not in text for name in [sources[1], copied[1]]
+            )
+            assert any(
+                "shared by distinct original sources" in item["missing_guarantee"]
+                for item in receipt["limits"]
+            )
         if fault == "unmapped":
             assert "SF:" + sources[1] not in (fixture / "report.lcov").read_text()
             assert any(
@@ -547,3 +615,88 @@ def test_profile_matches_its_configured_sources(fixture: Path, fault: str) -> No
         assert result.returncode != 0
         assert "No required JVM profile matches a configured class" in result.stderr
         assert (fixture / "report.lcov").read_text() == OTHER
+
+
+@pytest.mark.parametrize(
+    "artifact", ["nested-xml", "original-class-members", "cr-only-source"]
+)
+def test_standard_analyzer_preserves_xml_and_archive_selection(
+    fixture: Path, artifact: str
+) -> None:
+    if artifact == "cr-only-source":
+        source = fixture / SOURCE
+        source.write_bytes(source.read_bytes().replace(b"\n", b"\r"))
+    elif artifact == "nested-xml":
+        tree = ET.parse(fixture / "baseline.xml")
+        group = ET.SubElement(tree.getroot(), "group")
+        package = ET.SubElement(group, "package", name="ignored")
+        ET.SubElement(package, "class", name="ignored/Nested")
+        ET.SubElement(package, "sourcefile", name="Nested.java")
+        tree.write(fixture / "baseline.xml")
+    else:
+        original = ROOT / "tools/coverage/jvm_analyzer.jar"
+        archive = fixture / "originals.jar"
+        with (
+            zipfile.ZipFile(original) as source,
+            zipfile.ZipFile(archive, "w") as target,
+        ):
+            for entry in source.infolist():
+                name = entry.filename
+                content = source.read(entry)
+                target.writestr(entry, content)
+                if (
+                    name.endswith(".class")
+                    and name + ".uninstrumented" not in source.namelist()
+                ):
+                    target.writestr(name + ".uninstrumented", content)
+        data = json.loads((fixture / "metadata.json").read_text())
+        data["jars"] = [str(archive)]
+        (fixture / "metadata.json").write_text(json.dumps(data))
+    result = report(fixture)
+    assert result.returncode == 0, result.stdout + result.stderr
+    receipt = json.loads((fixture / "evidence/receipt.json").read_text())
+    assert receipt["mappings"][0]["classes"] == ["coverage/JvmReport"]
+    assert "SF:" + SOURCE in (fixture / "report.lcov").read_text()
+
+
+def test_inactive_owners_preserve_declaration_order(fixture: Path) -> None:
+    labels = ["//z:inactive.jvm_coverage", "//a:inactive.jvm_coverage"]
+    (fixture / "inactive.xml").write_text('<report name="empty"/>')
+    (fixture / "inactive.json").write_text(json.dumps({"sources": [], "jars": []}))
+    data = json.loads((fixture / "inventory.json").read_text())
+    data["coverage_roots"].extend(labels)
+    data["jvm_source_declarations"] = {label: [SOURCE] for label in labels}
+    (fixture / "inventory.json").write_text(json.dumps(data))
+    events = [
+        {
+            "id": {"namedSet": {"id": "inactive"}},
+            "namedSetOfFiles": {
+                "files": [
+                    {"name": str(fixture / name)}
+                    for name in ("inactive.json", "inactive.xml")
+                ]
+            },
+        }
+    ]
+    events.extend(
+        {
+            "id": {"targetCompleted": {"label": label}},
+            "completed": {
+                "success": True,
+                "outputGroup": [
+                    {"name": "jvm_coverage_baselines", "fileSets": [{"id": "inactive"}]}
+                ],
+            },
+        }
+        for label in labels
+    )
+    with (fixture / "events.jsonl").open("a") as stream:
+        stream.write("".join(json.dumps(event) + "\n" for event in events))
+    result = report(fixture)
+    assert result.returncode == 0, result.stdout + result.stderr
+    receipt = json.loads((fixture / "evidence/receipt.json").read_text())
+    assert [
+        limit["rule"]
+        for limit in receipt["limits"]
+        if "configured source selection" in limit["missing_guarantee"]
+    ] == labels

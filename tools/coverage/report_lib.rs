@@ -1,5 +1,7 @@
 //! Native coverage reports and shared build-event interpretation.
 pub mod build_event;
+#[path = "jvm_adapter.rs"]
+pub mod jvm_report;
 pub mod native_report;
 
 #[derive(Debug, thiserror::Error)]
