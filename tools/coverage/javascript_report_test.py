@@ -89,7 +89,9 @@ def workspace(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def run(root: Path, merger: Path = MERGER) -> subprocess.CompletedProcess[str]:
+def run(
+    root: Path, merger: Path = MERGER, working_directory: Path | None = None
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             str(REPORTER),
@@ -106,7 +108,7 @@ def run(root: Path, merger: Path = MERGER) -> subprocess.CompletedProcess[str]:
             "--merger",
             str(merger),
         ],
-        cwd=root,
+        cwd=working_directory or root,
         env={**os.environ, "BUILD_WORKSPACE_DIRECTORY": str(root)},
         capture_output=True,
         text=True,
@@ -417,6 +419,12 @@ def test_required_browser_output_cannot_disappear(workspace: Path) -> None:
         "duplicate-source",
         "empty-page",
         "archived-page",
+        "utf16-offset",
+        "large-count",
+        "numeric-schema",
+        "missing-functions",
+        "missing-map-sources",
+        "invalid-range-type",
     ],
 )
 def test_browser_output_validation_and_hit_preservation(
@@ -433,6 +441,9 @@ def test_browser_output_validation_and_hit_preservation(
     )
     inventory_path.write_text(json.dumps(inventory))
     source = (workspace / "module.js").read_text()
+    if fault == "utf16-offset":
+        source = "// 😀\n" + source
+        (workspace / "module.js").write_text(source)
     raw = [
         {
             "url": "http://127.0.0.1:1234/site.js",
@@ -442,7 +453,11 @@ def test_browser_output_validation_and_hit_preservation(
                     "functionName": "choose",
                     "isBlockCoverage": True,
                     "ranges": [
-                        {"startOffset": 0, "endOffset": len(source), "count": 7}
+                        {
+                            "startOffset": 0,
+                            "endOffset": len(source.encode("utf-16-le")) // 2,
+                            "count": 7,
+                        }
                     ],
                 }
             ],
@@ -529,6 +544,24 @@ def test_browser_output_validation_and_hit_preservation(
         files["report.lcov"] = ""
         receipt["scripts"] = []
         receipt["sources"] = []
+    if fault == "missing-functions":
+        del raw[0]["functions"]
+        files["profile.json"] = json.dumps(raw)
+    elif fault == "invalid-range-type":
+        raw[0]["functions"][0]["ranges"][0]["count"] = True
+        files["profile.json"] = json.dumps(raw)
+    elif fault == "missing-map-sources":
+        for key in ("sources", "sourcesContent"):
+            del mapping[key]
+            del receipt["scripts"][0][key]
+        files["0.map"] = json.dumps(mapping)
+    elif fault == "large-count":
+        raw[0]["functions"][0]["ranges"][0]["count"] = 2**4000
+        files["profile.json"] = json.dumps(raw)
+    elif fault == "numeric-schema":
+        receipt["schema_version"] = 1.0
+        mapping["version"] = 3.0
+        files["0.map"] = json.dumps(mapping)
     # Structural faults use valid hashes, so the command must reach their validation.
     if fault not in {"corrupt-profile", "corrupt-map"}:
         for filename, key in (
@@ -586,7 +619,15 @@ def test_browser_output_validation_and_hit_preservation(
     events_path.write_text("".join(json.dumps(event) + "\n" for event in events))
     original = (workspace / "report.lcov").read_bytes()
     result = run(workspace)
-    if fault not in {None, "unmapped-source", "empty-page", "archived-page"}:
+    if fault not in {
+        None,
+        "unmapped-source",
+        "empty-page",
+        "archived-page",
+        "utf16-offset",
+        "large-count",
+        "numeric-schema",
+    }:
         assert result.returncode != 0, result.stdout + result.stderr
         assert (workspace / "report.lcov").read_bytes() == original
         expected = {
@@ -611,7 +652,10 @@ def test_browser_output_validation_and_hit_preservation(
         report = (workspace / "report.lcov").read_text()
         assert report.count("SF:module.js\n") == 1
         assert (
-            "DA:1,11\n" if fault in {None, "archived-page"} else "DA:1,4\n"
+            "DA:1,11\n"
+            if fault
+            in {None, "archived-page", "utf16-offset", "large-count", "numeric-schema"}
+            else "DA:1,4\n"
         ) in report
         result_receipt = json.loads((workspace / "evidence/receipt.json").read_text())
         assert any(
@@ -650,3 +694,182 @@ def test_merger_cannot_discard_required_input_lines_or_hits(
     assert "Missing merged JavaScript lines or hits" in result.stderr
     assert (workspace / "report.lcov").read_bytes() == original
     assert not (workspace / "evidence/receipt.json").exists()
+
+
+@pytest.mark.parametrize("bits", [90, 4000])
+def test_native_profile_accepts_unbounded_integer_ranges(
+    workspace: Path, bits: int
+) -> None:
+    profile = workspace / "test/_coverage/coverage-1.json"
+    profile.write_text(
+        json.dumps(
+            {
+                "result": [
+                    {
+                        "url": "file:///module.js",
+                        "functions": [
+                            {
+                                "functionName": "large",
+                                "ranges": [
+                                    {
+                                        "startOffset": 2**bits,
+                                        "endOffset": 2 ** (bits + 1),
+                                        "count": 2 ** (bits + 2),
+                                    }
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+    )
+    result = run(workspace)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_workspace_environment_controls_relative_artifacts(workspace: Path) -> None:
+    path = workspace / "events.json"
+    events = [json.loads(line) for line in path.read_text().splitlines()]
+    events[0]["namedSetOfFiles"]["files"][0]["uri"] = (
+        "file:fixture.javascript-test-inputs.json"
+    )
+    events[-1]["testResult"]["testActionOutput"][0]["uri"] = "file:test/coverage.dat"
+    path.write_text("".join(json.dumps(event) + "\n" for event in events))
+    result = run(workspace, working_directory=workspace.parent)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_retained_evidence_is_private_and_redacts_credentials(workspace: Path) -> None:
+    path = workspace / "events.json"
+    events = [json.loads(line) for line in path.read_text().splitlines()]
+    events[-1]["testResult"]["credential"] = (
+        "x-buildbuddy-api-key=private-fixture-value"
+    )
+    path.write_text("".join(json.dumps(event) + "\n" for event in events))
+    result = run(workspace)
+    assert result.returncode == 0, result.stdout + result.stderr
+    evidence = workspace / "evidence"
+    for item in [evidence, *evidence.rglob("*")]:
+        assert item.stat().st_mode & 0o077 == 0, item
+    saved = next(evidence.glob("run-*/events.json")).read_text()
+    assert "private-fixture-value" not in saved
+    assert "x-buildbuddy-api-key=<REDACTED>" in saved
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "complete",
+        "missing-main",
+        "unselected",
+        "reported-runners",
+        "missing-runner-setup",
+        "missing-runner-adapter",
+    ],
+)
+def test_angular_instrumentation_preserves_source_specific_limits(
+    workspace: Path, mode: str
+) -> None:
+    inventory_path = workspace / "inventory.json"
+    inventory = json.loads(inventory_path.read_text())
+    angular_sources = [
+        "angular/app/src/main.ts",
+        "angular/app/src/main.spec.ts",
+        "angular/app/src/model.d.ts",
+    ]
+    runners = [
+        "angular/app/vitest.config.ts",
+        "angular/app/vitest-global-setup.ts",
+        "angular/bzl/vitest-coverage.mjs",
+    ]
+    for name in [*angular_sources, *runners]:
+        path = workspace / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("export const fixture = 1;\n")
+        inventory["eligible"].append({**inventory["eligible"][0], "path": name})
+    label = "//angular/app:test"
+    inventory["javascript_tests"] = [] if mode == "unselected" else [label]
+    inventory_path.write_text(json.dumps(inventory))
+    (workspace / "angular/angular.json").write_text(
+        json.dumps(
+            {
+                "projects": {
+                    "demo": {
+                        "root": "app",
+                        "sourceRoot": "app/src",
+                        "architect": {
+                            "test": {
+                                "builder": "@angular/build:unit-test",
+                                "options": {"runnerConfig": "app/vitest.config.ts"},
+                            }
+                        },
+                    },
+                    "other": {
+                        "root": "other",
+                        "architect": {"test": {"builder": "another-builder"}},
+                    },
+                }
+            }
+        )
+    )
+    metadata = workspace / "fixture.javascript-test-inputs.json"
+    inputs = json.loads(metadata.read_text())
+    inputs.update(
+        rule=label,
+        sources=["module.js", *angular_sources, *runners],
+        artifacts=[{"path": "module.js.map"}, {"path": "angular/app"}],
+    )
+    metadata.write_text(json.dumps(inputs))
+    (workspace / "module.js.map").write_text(
+        '{"version":3,"sources":["module.js"],"mappings":"AAAA"}'
+    )
+    report = LCOV
+    if mode != "missing-main":
+        report += "SF:angular/app/src/main.ts\nDA:1,2\nLF:1\nLH:1\nend_of_record\n"
+    omitted_runner = {
+        "complete": runners[0],
+        "missing-runner-setup": runners[1],
+        "missing-runner-adapter": runners[2],
+    }.get(mode)
+    if mode != "unselected":
+        for name in runners:
+            if name != omitted_runner:
+                report += f"SF:{name}\nDA:1,1\nLF:1\nLH:1\nend_of_record\n"
+    (workspace / "report.lcov").write_text(report)
+    (workspace / "test/coverage.dat").write_text(report)
+    path = workspace / "events.json"
+    events = [json.loads(line) for line in path.read_text().splitlines()]
+    events[1]["id"]["targetCompleted"]["label"] = label
+    events[-1]["id"]["testResult"]["label"] = label
+    events[-1]["testResult"]["cachedLocally"] = True
+    path.write_text("".join(json.dumps(event) + "\n" for event in events))
+    result = run(workspace)
+    if mode == "missing-main":
+        assert result.returncode != 0
+        assert "Missing required Angular source record" in result.stderr
+        assert (workspace / "report.lcov").read_text() == report
+    else:
+        assert result.returncode == 0, result.stdout + result.stderr
+        receipt = json.loads((workspace / "evidence/receipt.json").read_text())
+        assert "SF:angular/app/src/main.ts\n" in (workspace / "report.lcov").read_text()
+        limits = receipt["limits"]
+        if mode == "unselected":
+            assert any(
+                item["source"] == angular_sources[0]
+                and "did not run" in item["missing_guarantee"]
+                for item in limits
+            )
+        else:
+            assert receipt["executions"][0]["cached_locally"] is True
+            assert any(
+                item["source"] == angular_sources[1]
+                and "excludes test sources" in item["missing_guarantee"]
+                for item in limits
+            )
+            if mode == "complete":
+                assert any(
+                    item["source"] == runners[0]
+                    and "omits runner configuration" in item["missing_guarantee"]
+                    for item in limits
+                )

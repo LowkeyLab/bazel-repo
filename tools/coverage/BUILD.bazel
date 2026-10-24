@@ -197,11 +197,6 @@ js_binary(
     no_copy_to_bin = ["@aspect_rules_js//js/private/coverage:coverage.js"],
 )
 
-py_binary(
-    name = "javascript_report",
-    srcs = ["javascript_report.py"],
-)
-
 js_test(
     name = "vitest_adapter_test",
     size = "small",
@@ -211,7 +206,7 @@ js_test(
 
 py_test(
     name = "javascript_report_test",
-    size = "small",
+    size = "medium",
     srcs = ["javascript_report_test.py"],
     args = [
         "-o",
@@ -288,6 +283,7 @@ rust_library(
     name = "coverage_reports",
     srcs = [
         "build_event.rs",
+        "javascript_adapter.rs",
         "jvm_adapter.rs",
         "native_report.rs",
         "report_lib.rs",
@@ -295,10 +291,12 @@ rust_library(
     crate_root = "report_lib.rs",
     deps = [
         "@crates//:percent-encoding",
+        "@crates//:regex",
         "@crates//:roxmltree",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:sha2",
+        "@crates//:tempfile",
         "@crates//:thiserror",
         "@crates//:zip",
     ],
@@ -333,6 +331,42 @@ rust_test(
     env = {
         "COMMAND_CASES": "$(rlocationpath :jvm_report_test)",
         "COMMAND_FILTER": "python_files=jvm_report_test.py",
+    },
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+rust_binary(
+    name = "javascript_report",
+    srcs = ["javascript_report.rs"],
+    crate_root = "javascript_report.rs",
+    deps = [
+        ":coverage_reports",
+        "@crates//:clap",
+        "@crates//:rustix",
+    ],
+)
+
+rust_test(
+    name = "javascript_command_test",
+    size = "medium",
+    srcs = ["native_command_test.rs"],
+    crate_root = "native_command_test.rs",
+    data = [
+        ":javascript_baseline",
+        ":javascript_report",
+        ":javascript_report_test",
+        "@bazel_tools//tools/test:lcov_merger",
+    ],
+    env = {
+        "COVERAGE_CORE": "ctrace",
+        "JAVASCRIPT_COLLECTOR": "$(rootpath :javascript_baseline)",
+        "JAVASCRIPT_LCOV_MERGER": "$(rootpath @bazel_tools//tools/test:lcov_merger)",
+        "COMMAND_CASES": "$(rlocationpath :javascript_report_test)",
+        "COMMAND_FILTER": "python_files=javascript_report_test.py",
     },
     deps = [
         "@crates//:anyhow",

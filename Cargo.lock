@@ -9002,6 +9002,7 @@ dependencies = [
  "regex",
  "reqwest 0.13.5",
  "roxmltree",
+ "rustix",
  "rust_decimal",
  "sea-orm",
  "sea-orm-migration",
