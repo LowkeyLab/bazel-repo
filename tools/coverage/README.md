@@ -328,7 +328,8 @@ The earlier focused run measured no lines in either command-only module.
 Hosted patch coverage supplies separate evidence.
 
 This evidence covers command fixtures and the shared library.
-Real local membership acceptance for the complete migration remains ticket #2636.
+The [local migration acceptance record](rust-migration-acceptance.md) retains results and unresolved collector limits.
+Complete acceptance remains ticket #2636.
 Configured remote execution and hosted workflow results are separate evidence.
 
 ## Java and Kotlin sources
@@ -546,5 +547,6 @@ Eight shared-interface tests passed in the same run.
 
 The retained Python regression suite executes the Rust command.
 The `javascript_command_test` Rust parent also executes that suite so `LLVM` can
-collect the child command's profiles. Local membership acceptance remains in
-[#2636](https://github.com/LowkeyLab/bazel-repo/issues/2636).
+collect the child command's profiles. The [local acceptance record](rust-migration-acceptance.md)
+retains the results for [#2636](https://github.com/LowkeyLab/bazel-repo/issues/2636).
+Complete acceptance remains blocked by native Node child attribution.

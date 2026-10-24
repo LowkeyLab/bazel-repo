@@ -29,7 +29,10 @@ py_binary(
 
 filegroup(
     name = "markdown",
-    srcs = ["README.md"],
+    srcs = [
+        "README.md",
+        "rust-migration-acceptance.md",
+    ],
     tags = ["markdown"],
     visibility = ["//tools/lint:__pkg__"],
 )
