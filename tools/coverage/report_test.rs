@@ -249,3 +249,36 @@ fn jvm_input_selection_retains_aspect_configuration_and_execution_evidence() -> 
     );
     Ok(())
 }
+
+#[gtest]
+fn javascript_inputs_and_outputs_preserve_configuration_and_uri_policy() -> anyhow::Result<()> {
+    let directory = tempfile::tempdir()?;
+    let text = event_text(&[
+        json!({"id":{"namedSet":{"id":"leaf"}},"namedSetOfFiles":{"files":[{"uri":"file:///tmp/a%20b","name":"ignored"}]}}),
+        json!({"id":{"targetCompleted":{"label":"//:test","configuration":{"id":"one"},"aspect":"independent"}},"completed":{"outputGroup":[{"name":"javascript_test_inputs","fileSets":[{"id":"leaf"}]}]}}),
+        json!({"id":{"testResult":{"label":"//:test","configuration":{"id":"one"}}},"testResult":{"testActionOutput":[{"name":"test.lcov","uri":"file:///tmp/report"}]}}),
+    ]);
+    let events = BuildEvents::parse(&text)?;
+    let inputs = events.javascript_inputs(directory.path())?;
+    assert_that!(inputs.len(), eq(1));
+    assert_that!(
+        inputs[0].identity.configuration,
+        eq(&Some(json!({"id":"one"})))
+    );
+    assert_that!(
+        inputs[0].paths,
+        eq(&vec![std::path::PathBuf::from("/tmp/a b")])
+    );
+    let results = events.javascript_test_results(&BTreeSet::from(["//:test".to_owned()]))?;
+    assert_that!(results.len(), eq(1));
+    assert_that!(results[0].configuration, eq(&json!("one")));
+    assert_that!(
+        BuildEvents::javascript_artifact(&json!({"uri":"file://host/tmp/a"})).is_err(),
+        eq(true)
+    );
+    assert_that!(
+        BuildEvents::javascript_artifact(&json!({"uri":"bytestream://host/a"})).is_err(),
+        eq(true)
+    );
+    Ok(())
+}

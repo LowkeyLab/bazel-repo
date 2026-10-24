@@ -29,6 +29,7 @@ pub enum ArtifactPolicy {
     WorkspaceIntegrity,
     WorkspaceUnchecked,
     JvmLocal,
+    JavascriptLocal,
 }
 
 pub struct BuildEvents {
@@ -263,6 +264,114 @@ impl BuildEvents {
             .collect()
     }
 
+    /// Locate an output under the JavaScript local-file URI policy.
+    ///
+    /// # Errors
+    /// Return an error for a non-file URI or a URI with an authority.
+    pub fn javascript_artifact(file: &Value) -> Result<PathBuf> {
+        let uri = string(&file["uri"])?;
+        let (scheme, location) = uri.split_once(':').unwrap_or(("", uri));
+        if !scheme.eq_ignore_ascii_case("file") {
+            return Err(invalid(
+                "Required JavaScript artifact is not a local file URI.",
+            ));
+        }
+        let location = location.split(['?', '#']).next().unwrap_or("");
+        let path = if let Some(authority) = location.strip_prefix("//") {
+            if !authority.starts_with('/') && !authority.is_empty() {
+                return Err(invalid(
+                    "Required JavaScript artifact is not a local file URI.",
+                ));
+            }
+            authority
+        } else {
+            location
+        };
+        Ok(lexical_path(Path::new(
+            percent_decode_str(path).decode_utf8_lossy().as_ref(),
+        )))
+    }
+
+    /// Select JavaScript configured inputs in event and artifact order.
+    ///
+    /// # Errors
+    /// Return an error for an invalid required artifact set.
+    pub fn javascript_inputs(&self, root: &Path) -> Result<Vec<BaselineArtifacts>> {
+        let mut selected = Vec::new();
+        for event in &self.events {
+            for group in optional_array(&event["completed"], "outputGroup")? {
+                if group["name"] != "javascript_test_inputs" {
+                    continue;
+                }
+                for reference in optional_array(group, "fileSets")? {
+                    let mut paths = Vec::new();
+                    self.files(
+                        string(&reference["id"])?,
+                        root,
+                        "JavaScript",
+                        ArtifactPolicy::JavascriptLocal,
+                        &mut BTreeSet::new(),
+                        &mut paths,
+                    )?;
+                    let target = &event["id"]["targetCompleted"];
+                    selected.push(BaselineArtifacts {
+                        identity: TargetIdentity {
+                            label: target["label"].as_str().unwrap_or("").to_owned(),
+                            configuration: target.get("configuration").cloned(),
+                            aspect: target.get("aspect").cloned(),
+                        },
+                        paths,
+                    });
+                }
+            }
+        }
+        Ok(selected)
+    }
+
+    /// Select JavaScript test results with their configuration and execution evidence.
+    ///
+    /// # Errors
+    /// Return an error for invalid output names.
+    pub fn javascript_test_results(
+        &self,
+        tests: &BTreeSet<String>,
+    ) -> Result<Vec<JavascriptExecution>> {
+        let mut selected = Vec::new();
+        for event in &self.events {
+            let identity = &event["id"]["testResult"];
+            let Some(label) = identity["label"]
+                .as_str()
+                .filter(|label| tests.contains(*label))
+            else {
+                continue;
+            };
+            let result = &event["testResult"];
+            let mut outputs = Vec::new();
+            for output in optional_array(result, "testActionOutput")? {
+                let name = string(&output["name"])?;
+                if let Some((_, value)) = outputs.iter_mut().find(|(key, _)| key == name) {
+                    *value = output.clone();
+                } else {
+                    outputs.push((name.to_owned(), output.clone()));
+                }
+            }
+            selected.push(JavascriptExecution {
+                label: label.to_owned(),
+                configuration: identity["configuration"]["id"].clone(),
+                outputs,
+                cached: result
+                    .get("cachedLocally")
+                    .cloned()
+                    .unwrap_or(Value::Bool(false)),
+                execution: result
+                    .get("executionInfo")
+                    .cloned()
+                    .unwrap_or_else(|| serde_json::json!({})),
+            });
+        }
+        Ok(selected)
+    }
+
     fn files(
         &self,
         id: &str,
@@ -273,25 +382,32 @@ impl BuildEvents {
         paths: &mut Vec<PathBuf>,
     ) -> Result<()> {
         if !active.insert(id.to_owned()) {
-            return Err(invalid(format!(
-                "A {family} baseline artifact set contains a cycle."
-            )));
+            return Err(invalid(
+                if matches!(policy, ArtifactPolicy::JavascriptLocal) {
+                    "JavaScript artifact sets contain a cycle.".to_owned()
+                } else {
+                    format!("A {family} baseline artifact set contains a cycle.")
+                },
+            ));
         }
         let entry = self
             .named_sets
             .get(id)
             .ok_or_else(|| invalid(format!("'{id}'")))?;
         for file in optional_array(entry, "files")? {
-            let path = if matches!(policy, ArtifactPolicy::JvmLocal) {
-                Self::local_artifact(file, root, family)?
-            } else {
-                let mut path = root.to_path_buf();
-                for prefix in optional_array(file, "pathPrefix")? {
-                    path.push(string(prefix)?);
-                }
-                path.push(string(&file["name"])?);
-                path
-            };
+            let path =
+                if matches!(policy, ArtifactPolicy::JavascriptLocal) && file.get("uri").is_some() {
+                    Self::javascript_artifact(file)?
+                } else if matches!(policy, ArtifactPolicy::JvmLocal) {
+                    Self::local_artifact(file, root, family)?
+                } else {
+                    let mut path = root.to_path_buf();
+                    for prefix in optional_array(file, "pathPrefix")? {
+                        path.push(string(prefix)?);
+                    }
+                    path.push(string(&file["name"])?);
+                    path
+                };
             if matches!(policy, ArtifactPolicy::WorkspaceIntegrity) {
                 let bytes = std::fs::read(&path)?;
                 let mut digest = String::with_capacity(64);
@@ -395,4 +511,13 @@ pub(crate) fn lexical_path(path: &Path) -> PathBuf {
         return PathBuf::from("//").join(normalized.strip_prefix("/").unwrap_or(&normalized));
     }
     normalized
+}
+
+/// A configured JavaScript execution retains output order and optional evidence.
+pub struct JavascriptExecution {
+    pub label: String,
+    pub configuration: Value,
+    pub outputs: Vec<(String, Value)>,
+    pub cached: Value,
+    pub execution: Value,
 }

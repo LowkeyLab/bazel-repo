@@ -516,3 +516,35 @@ Each absent Astro source receives its own inventory owners and evidence location
 in `coverage-javascript/receipt.json`. Browser reports omit Astro's build-time template execution. An unavailable original map or disconnected
 original remains a collector limit. That limit leaves coverage unknown.
 The adapter supplies no processed-script bridge or replacement source map.
+
+## Command migration evidence
+
+Ticket [#2635](https://github.com/LowkeyLab/bazel-repo/issues/2635) replaces the
+complete JavaScript report command with Rust. The retained `javascript_report`
+target uses the shared report library and its build-event interface.
+The native JavaScript collector and Bazel `LCOV` merger remain authoritative.
+
+The migration compared the Python command from revision
+`40fcc7a897f74566e8a26a8794529ef3d93dec08` with these Rust Git blobs:
+
+- Adapter: `0333c24cf296ac811775ec7b6e77a20cfbbf274c`.
+- Entry point: `4223c6ecf53b771b86e7d8d07dfabcbfb9cb1044`.
+- Shared build-event module: `64fd50069fac7dbefdee4ace078056a5341e0d20`.
+
+All 65 comparisons passed before removal of the Python production command.
+The cases included 22 successful invocations and 43 rejected invocations.
+They compared report bytes, semantic receipts, exit statuses, and original-report
+preservation. The receipt comparison normalized JSON formatting and temporary
+directory paths only. The evidence includes source identities and per-case results.
+See the [comparison run](https://app.buildbuddy.io/invocation/326aa7fc-7f0a-4642-9718-912463533498).
+
+The fixtures cover native baselines, profile failures, unbounded integer ranges,
+UTF-16 offsets, browser archives, hashes, source maps, and exact original content.
+They also cover Angular inclusion, runner omissions, execution filters, invalid
+merger output, private evidence, credential redaction, and relative artifact paths.
+Eight shared-interface tests passed in the same run.
+
+The retained Python regression suite executes the Rust command.
+The `javascript_command_test` Rust parent also executes that suite so `LLVM` can
+collect the child command's profiles. Local membership acceptance remains in
+[#2636](https://github.com/LowkeyLab/bazel-repo/issues/2636).

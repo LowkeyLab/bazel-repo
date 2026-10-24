@@ -1,5 +1,7 @@
 //! Native coverage reports and shared build-event interpretation.
 pub mod build_event;
+#[path = "javascript_adapter.rs"]
+pub mod javascript_report;
 #[path = "jvm_adapter.rs"]
 pub mod jvm_report;
 pub mod native_report;
