@@ -382,7 +382,7 @@ fn retain_profiles(profiles: &[PathBuf], evidence: &Path) -> Result<Vec<Value>> 
     let mut retained_profiles = Vec::new();
     for (index, profile) in profiles.iter().enumerate() {
         let retained = evidence.join(format!("profile-{index}.exec"));
-        fs::copy(profile, &retained)?;
+        fs::write(&retained, fs::read(profile)?)?;
         retained_profiles.push(json!({"original":profile,"retained":retained}));
     }
     Ok(retained_profiles)
@@ -609,7 +609,7 @@ fn configured_tests(
             )));
         }
         let retained = evidence.join(format!("test-inputs-{}.json", inputs.len()));
-        fs::copy(&selected.paths[0], &retained)?;
+        fs::write(&retained, fs::read(&selected.paths[0])?)?;
         data["evidence"] = json!(retained);
         inputs.insert(label, data);
     }
@@ -715,16 +715,19 @@ fn analyze_owner(
             }
         }
     }
-    fs::copy(
-        &declaration.baseline_path,
+    fs::write(
         evidence.join(format!("baseline-{index}.xml")),
+        fs::read(&declaration.baseline_path)?,
     )?;
     write_json(
         &evidence.join(format!("inputs-{index}.json")),
         &declaration.data,
     )?;
     for (jar_index, jar) in declaration.jars.iter().enumerate() {
-        fs::copy(jar, evidence.join(format!("class-{index}-{jar_index}.jar")))?;
+        fs::write(
+            evidence.join(format!("class-{index}-{jar_index}.jar")),
+            fs::read(jar)?,
+        )?;
     }
     let mut command = Command::new(fs::canonicalize(root.join(analyzer))?);
     command.arg(&report).current_dir(root);

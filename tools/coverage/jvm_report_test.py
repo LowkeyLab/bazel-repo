@@ -174,6 +174,17 @@ def test_standard_jacoco_baseline_preserves_other_languages(fixture: Path) -> No
     assert receipt["branch_totals"][SOURCE]["covered"] == 0
 
 
+def test_repeated_report_accepts_read_only_inputs(fixture: Path) -> None:
+    (fixture / "baseline.xml").chmod(0o444)
+    first = report(fixture)
+    assert first.returncode == 0, first.stdout + first.stderr
+    original = (fixture / "report.lcov").read_bytes()
+    second = report(fixture)
+    assert second.returncode == 0, second.stdout + second.stderr
+    assert (fixture / "report.lcov").read_bytes() == original
+    assert (fixture / "evidence/receipt.json").is_file()
+
+
 @pytest.mark.parametrize(
     "fault",
     [
