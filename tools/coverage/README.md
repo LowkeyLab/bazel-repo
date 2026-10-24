@@ -549,4 +549,6 @@ The retained Python regression suite executes the Rust command.
 The `javascript_command_test` Rust parent also executes that suite so `LLVM` can
 collect the child command's profiles. The [local acceptance record](rust-migration-acceptance.md)
 retains the results for [#2636](https://github.com/LowkeyLab/bazel-repo/issues/2636).
-Complete acceptance remains blocked by native Node child attribution.
+The [native Node correction record](native-node-attribution.md) documents the approved attribution fix and its measured counts.
+Complete acceptance remains blocked by the later Angular child assertion.
+Browser and Astro restrictions remain explicit in the migration record.
