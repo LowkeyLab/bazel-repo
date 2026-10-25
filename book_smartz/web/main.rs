@@ -32,6 +32,7 @@ use book_smartz_storage::{
 
 mod actions;
 mod catalog;
+mod diagnostic_events;
 mod diagnostics;
 mod feedback;
 mod identity;

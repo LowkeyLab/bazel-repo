@@ -36,3 +36,11 @@ mod identity_test;
 mod test_support;
 
 mod catalog_test;
+
+#[path = "diagnostic_events.rs"]
+#[allow(
+    dead_code,
+    reason = "The packaged application owns event construction."
+)]
+mod diagnostic_events;
+mod diagnostic_test;
