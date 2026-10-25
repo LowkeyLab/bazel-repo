@@ -12,12 +12,14 @@ RUNFILES = Path(os.environ["TEST_SRCDIR"]) / os.environ["TEST_WORKSPACE"]
 
 
 def test_unexplained_source_fails(tmp_path: Path) -> None:
+    (tmp_path / "new.py").write_text("VALUE = 1\n")
     inventory = {
         "eligible": [
             {"path": "new.py", "language": "python", "owners": [{"label": "//:lib"}]}
         ],
         "excluded": [],
         "missing_owners": [],
+        "baseline_sources": ["new.py"],
     }
     (tmp_path / "inventory.json").write_text(json.dumps(inventory))
     (tmp_path / "report.lcov").write_text(
@@ -39,8 +41,36 @@ def test_unexplained_source_fails(tmp_path: Path) -> None:
         check=False,
     )
     assert result.returncode != 0
-    assert "new.py" in result.stderr
+    assert "Unexplained missing source record: new.py" in result.stderr
     assert not (tmp_path / "receipt.json").exists()
+
+
+def test_explained_source_succeeds(tmp_path: Path) -> None:
+    (tmp_path / "new.py").write_text("VALUE = 1\n")
+    inventory = {
+        "eligible": [
+            {"path": "new.py", "language": "python", "owners": [{"label": "//:lib"}]}
+        ],
+        "excluded": [],
+        "missing_owners": [],
+        "baseline_sources": ["new.py"],
+    }
+    report = "SF:new.py\nDA:1,7\nLF:1\nLH:1\nend_of_record\n"
+    result = run_command(tmp_path, inventory, report)
+    assert result.returncode == 0, result.stderr
+    output = json.loads((tmp_path / "receipt.json").read_text())
+    assert output["schema_version"] == 1
+    assert output["sources"] == [
+        {
+            "source": "new.py",
+            "status": "measured",
+            "executable_lines": 1,
+            "hit_lines": 1,
+            "limits": [],
+        }
+    ]
+    assert output["excluded"] == []
+    assert (tmp_path / "report.lcov").read_text() == report
 
 
 def run_command(
