@@ -21,7 +21,7 @@ use topcoat::{
     },
     runtime::RouterBuilderRuntimeExt,
     session::{self, RouterBuilderSessionExt, SessionConfig},
-    view::{View, view},
+    view::{View, ViewExt, view},
 };
 use uuid::Uuid;
 
@@ -248,6 +248,10 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                 book_smartz_views::heading()
                 <main class="library-workspace">
                     <section class="active-task" aria-label="Book workspace">
+                        actions::recovery_controls(
+                            reader: session.reader,
+                            csrf: session.csrf.clone()
+                        )
                         if let Some(receipt) = receipt {
                             book_smartz_views::feedback(
                                 message: receipt.message(),
@@ -270,10 +274,6 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                             <input type="hidden" name="page" value="1">
                             <button type="submit">"Search books"</button>
                         </form>
-                        actions::recovery_controls(
-                            reader: session.reader,
-                            csrf: session.csrf.clone()
-                        )
                         <form method="post" action="/logout">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
                             <button type="submit">"Sign out of this browser"</button>
@@ -409,6 +409,51 @@ fn require_post(cx: &Cx, session: &BrowserSession, csrf: &str) -> Result<()> {
     Ok(())
 }
 
+fn access_error(cx: &Cx, status: topcoat::router::StatusCode) -> topcoat::view::BoxView<'_> {
+    let __cx = cx;
+    let sign_in = status == topcoat::router::StatusCode::UNAUTHORIZED;
+    let title = if sign_in {
+        "Sign in to continue"
+    } else {
+        "Action unavailable"
+    };
+    let message = if sign_in {
+        "Sign in to view your private ranking. Then choose the action you want to submit."
+    } else {
+        "Return to your ranking. Review the current state before you submit another action."
+    };
+    view! {
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                book_smartz_views::assets()
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>(format!("{title} · Book Smartz"))</title>
+                <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
+            </head>
+            <body>
+                book_smartz_views::heading()
+                <main class="sign-in">
+                    <h1 tabindex="-1" data-response-focus="error">(title)</h1>
+                    book_smartz_views::feedback(
+                        message: message.to_owned(),
+                        kind: book_smartz_views::FeedbackKind::Status
+                    )
+                    if sign_in {
+                        <a class="primary-link" href="/auth/google">
+                            "Sign in with Google"
+                        </a>
+                    } else {
+                        <a href="/ranking">"Return to your ranking"</a>
+                    }
+                </main>
+            </body>
+        </html>
+    }
+    .boxed()
+}
+
 struct PrivateResponses;
 impl topcoat::router::Layer for PrivateResponses {
     fn path(&self) -> Option<&topcoat::router::Path> {
@@ -421,13 +466,18 @@ impl topcoat::router::Layer for PrivateResponses {
         next: topcoat::router::Next<'a>,
     ) -> topcoat::router::LayerFuture<'a> {
         Box::pin(async move {
+            use topcoat::router::{
+                StatusCode,
+                error::{ForbiddenError, UnauthorizedError},
+                response::IntoResponse,
+            };
             let headers = topcoat::router::response::response_headers(cx);
             // Registered fingerprinted assets retain the framework's immutable
             // policy. Private HTML/auth responses remain non-cacheable.
-            if !["/_topcoat/assets/", "/_topcoat/fonts/"]
+            let private_html = !["/_topcoat/assets/", "/_topcoat/fonts/"]
                 .iter()
-                .any(|prefix| request::uri(cx).path().starts_with(prefix))
-            {
+                .any(|prefix| request::uri(cx).path().starts_with(prefix));
+            if private_html {
                 headers.append(
                     topcoat::router::header::CACHE_CONTROL,
                     topcoat::router::HeaderValue::from_static("no-store"),
@@ -438,7 +488,25 @@ impl topcoat::router::Layer for PrivateResponses {
                 topcoat::router::header::REFERRER_POLICY,
                 topcoat::router::HeaderValue::from_static("strict-origin"),
             );
-            next.run(cx, body).await
+            let result = next.run(cx, body).await;
+            let status = match &result {
+                Ok(response) => Some(response.status()),
+                Err(error) if error.downcast_ref::<UnauthorizedError>().is_some() => {
+                    Some(StatusCode::UNAUTHORIZED)
+                }
+                Err(error) if error.downcast_ref::<ForbiddenError>().is_some() => {
+                    Some(StatusCode::FORBIDDEN)
+                }
+                Err(_) => None,
+            };
+            let Some(status) =
+                status.filter(|status| private_html && matches!(status.as_u16(), 401 | 403))
+            else {
+                return result;
+            };
+            let mut response = access_error(cx, status).single().await?.into_response(cx)?;
+            *response.status_mut() = status;
+            Ok(response)
         })
     }
 }

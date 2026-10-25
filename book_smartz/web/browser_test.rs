@@ -8,6 +8,10 @@ use runfiles::{Runfiles, rlocation};
 use serde_json::json;
 use std::io::{BufRead, Write};
 use std::process::Stdio;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+};
 use test_support::Fixture;
 use wiremock::{
     Mock, ResponseTemplate,
@@ -19,9 +23,11 @@ use wiremock::{
 async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() -> anyhow::Result<()>
 {
     let app = Fixture::new().await?;
-    Mock::given(method("GET")).and(path("/authorize")).respond_with(|request: &wiremock::Request| {
+    let native_reader = Arc::new(AtomicBool::new(false));
+    let provider_native_reader = Arc::clone(&native_reader);
+    Mock::given(method("GET")).and(path("/authorize")).respond_with(move |request: &wiremock::Request| {
         let query: std::collections::HashMap<_,_>=request.url.query_pairs().into_owned().collect();
-        let claims=json!({"iss":"https://accounts.google.com","aud":"fixture-client","azp":"fixture-client","sub":"browser-reader","nonce":query["nonce"],"exp":chrono::Utc::now().timestamp()+300});
+        let claims=json!({"iss":"https://accounts.google.com","aud":"fixture-client","azp":"fixture-client","sub":if provider_native_reader.load(Ordering::SeqCst) { "native-browser-reader" } else { "browser-reader" },"nonce":query["nonce"],"exp":chrono::Utc::now().timestamp()+300});
         let key=jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("fixtures/public-test-key.pem")).unwrap();
         let mut header=jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);header.kid=Some("fixture".into());
         let token=jsonwebtoken::encode(&header,&claims,&key).unwrap();
@@ -55,8 +61,8 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         if query.get("q").is_some_and(|value| value == "Long title") {
             return ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":"OL520W","title":"A long title about reading and remembering books across a lifetime of changing interests and unexpected discoveries".repeat(3),"author_name":[]}]}));
         }
-        if let Some(title) = query.get("q").filter(|value| matches!(value.as_str(), "Third book" | "Reduced book" | "Interrupted book" | "Native book")) {
-            let id = match title.as_str() { "Third book" => "OL503W", "Reduced book" => "OL504W", "Interrupted book" => "OL505W", _ => "OL506W" };
+        if let Some(title) = query.get("q").filter(|value| matches!(value.as_str(), "Third book" | "Reduced book" | "Interrupted book" | "Recovered book" | "Native book")) {
+            let id = match title.as_str() { "Third book" => "OL503W", "Reduced book" => "OL504W", "Interrupted book" => "OL505W", "Recovered book" => "OL508W", _ => "OL506W" };
             return ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":id,"title":title,"author_name":["Fixture Author"]}]}));
         }
         let first=request.url.query_pairs().any(|(key,value)|key=="q" && value=="First book");
@@ -84,6 +90,12 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         let mut input = child.stdin.take().unwrap();
         for line in std::io::BufReader::new(child.stdout.take().unwrap()).lines() {
             let line = line?;
+            if line == "fixture:native-reader" {
+                native_reader.store(true, Ordering::SeqCst);
+                writeln!(input, "ack")?;
+                input.flush()?;
+                continue;
+            }
             let sql = match line.as_str() {
                 "fixture:reject" => Some("CREATE FUNCTION browser_reject() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'controlled failure'; END $$; CREATE TRIGGER browser_reject BEFORE INSERT ON book_smartz.ranking_events FOR EACH ROW EXECUTE FUNCTION browser_reject()"),
                 "fixture:allow" => Some("DROP TRIGGER browser_reject ON book_smartz.ranking_events; DROP FUNCTION browser_reject()"),

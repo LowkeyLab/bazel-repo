@@ -214,6 +214,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
         return Ok(outcome(
             cx,
             "Checking an earlier save. Reload before trying the original action again.",
+            None,
         ));
     };
     if let Some(original) =
@@ -230,13 +231,13 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             .catalog
             .verify(session.reader, &input.selection)
             .map_err(|_| forbidden())?;
-        if !unresolved(tx.application_history(), tx.ranking_documents())
-            .map_err(|_| topcoat::Error::msg("Action data unavailable"))?
-            .is_empty()
-        {
+        let actions = unresolved(tx.application_history(), tx.ranking_documents())
+            .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
+        if !actions.is_empty() {
             return Ok(outcome(
                 cx,
                 "Checking an earlier save. Resolve it before adding another book.",
+                Some(RecoveryActions::new(&session, actions)),
             ));
         }
         let original = Intent {
@@ -263,12 +264,13 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             return Ok(outcome(
                 cx,
                 "Checking your save. Reload your ranking to recover the original action.",
+                Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
-        return finish(cx, session.reader, input.action, false).await;
+        return finish(cx, &session, input.action, false).await;
     }
     drop(tx);
-    finish(cx, session.reader, input.action, false).await
+    finish(cx, &session, input.action, false).await
 }
 #[page(POST "/answer")]
 pub async fn submit_preference(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
@@ -315,6 +317,7 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
         return Ok(outcome(
             cx,
             "Checking an earlier save. Reload your ranking.",
+            None,
         ));
     };
     if let Some(original) =
@@ -324,13 +327,13 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
             return Err(forbidden().into());
         }
     } else {
-        if !unresolved(tx.application_history(), tx.ranking_documents())
-            .map_err(|_| topcoat::Error::msg("Action data unavailable"))?
-            .is_empty()
-        {
+        let actions = unresolved(tx.application_history(), tx.ranking_documents())
+            .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
+        if !actions.is_empty() {
             return Ok(outcome(
                 cx,
                 "Checking an earlier save. Resolve it before answering another comparison.",
+                Some(RecoveryActions::new(&session, actions)),
             ));
         }
         let original = Intent {
@@ -357,37 +360,105 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
             return Ok(outcome(
                 cx,
                 "Checking your save. Reload your ranking to recover the original action.",
+                Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
-        return finish(cx, session.reader, input.action, false).await;
+        return finish(cx, &session, input.action, false).await;
     }
     drop(tx);
-    finish(cx, session.reader, input.action, false).await
+    finish(cx, &session, input.action, false).await
 }
 #[page(POST "/recover")]
 pub async fn recover(cx: &Cx, Form(input): Form<RecoveryInput>) -> Result<impl View> {
     let session = authorize(cx).await?;
     crate::require_post(cx, &session, &input.csrf)?;
-    finish(cx, session.reader, input.action, true).await
+    finish(cx, &session, input.action, true).await
 }
-fn outcome<'a>(cx: &'a Cx, message: &str) -> BoxView<'a> {
+struct RecoveryActions {
+    csrf: String,
+    actions: Vec<ActionId>,
+}
+impl RecoveryActions {
+    fn new(session: &crate::BrowserSession, actions: Vec<ActionId>) -> Self {
+        Self {
+            csrf: session.csrf.clone(),
+            actions,
+        }
+    }
+}
+#[topcoat::view::component]
+async fn recovery_form(csrf: String, action: ActionId) -> Result<impl View> {
+    Ok(view! {
+        <form method="post" action="/recover" data-ranking-action="">
+            <input type="hidden" name="csrf" value=(csrf)>
+            <input type="hidden" name="action" value=(action.text())>
+            <button type="submit">"Check original save"</button>
+            book_smartz_views::submission_status()
+        </form>
+    })
+}
+fn outcome<'a>(cx: &'a Cx, message: &str, recovery: Option<RecoveryActions>) -> BoxView<'a> {
     let __cx = cx;
     let message = message.to_owned();
+    let (csrf, actions) = recovery.map_or_else(
+        || (String::new(), Vec::new()),
+        |recovery| (recovery.csrf, recovery.actions),
+    );
+    let known = !actions.is_empty();
+    let title = if known {
+        "Check original save"
+    } else {
+        "Check your saved state"
+    };
     view! {
-        <main>
-            <h1>"Book Smartz"</h1>
-            <p role="status">(message)</p>
-            <a href="/ranking">"Return to your ranking"</a>
-        </main>
-    }
-    .boxed()
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                book_smartz_views::assets()
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>"Check your save · Book Smartz"</title>
+                <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
+            </head>
+            <body>
+                book_smartz_views::heading()
+                <main class="library-workspace">
+                    <section class="active-task" aria-label="Book workspace">
+                        <h1 tabindex="-1" data-response-focus="recovery">(title)</h1>
+                        book_smartz_views::feedback(
+                            message: message,
+                            kind: book_smartz_views::FeedbackKind::Status
+                        )
+                        if known {
+                            <p>
+                                "Check original save uses retained action evidence. It can finish only the original action."
+                            </p>
+                        }
+                        for action in actions {
+                            recovery_form(csrf: csrf.clone(), action: action)
+                        }
+                        <a href="/ranking">"Return to your ranking"</a>
+                    </section>
+                    <section
+                        class="saved-ranking"
+                        aria-labelledby="saved-state-heading"
+                    >
+                        <h2 id="saved-state-heading">"Your saved ranking"</h2>
+                        <p>"Read your ranking to see confirmed positions."</p>
+                        <a href="/ranking">"Read saved positions"</a>
+                    </section>
+                </main>
+            </body>
+        </html>
+    }.boxed()
 }
-async fn finish(
-    cx: &Cx,
-    reader: ReaderId,
+async fn finish<'a>(
+    cx: &'a Cx,
+    session: &crate::BrowserSession,
     action: ActionId,
     recovery: bool,
-) -> Result<BoxView<'_>> {
+) -> Result<BoxView<'a>> {
+    let reader = session.reader;
     let app: &Application = app_context(cx);
     // Any failure after intent persists is unresolved, including cancellation.
     let started = std::time::Instant::now();
@@ -423,10 +494,15 @@ async fn finish(
                     </head>
                     <body>
                         book_smartz_views::heading()
-                        <main class="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
-                            <section>
-                                <h1>"Confirm your current ranking"</h1>
-                                <p role="status">(reason)</p>
+                        <main class="library-workspace">
+                            <section class="active-task" aria-label="Book workspace">
+                                <h1 tabindex="-1" data-response-focus="task">
+                                    "Confirm your current ranking"
+                                </h1>
+                                book_smartz_views::feedback(
+                                    message: reason,
+                                    kind: book_smartz_views::FeedbackKind::Error
+                                )
                                 comparison(reader: reader, csrf: session.csrf)
                                 <a href="/ranking">"Return to your ranking"</a>
                             </section>
@@ -443,6 +519,7 @@ async fn finish(
             Ok(outcome(
                 cx,
                 "Checking your save. Reload your ranking to recover the original action.",
+                Some(RecoveryActions::new(session, vec![action])),
             ))
         }
     }
@@ -809,11 +886,13 @@ pub async fn recovery_controls(cx: &Cx, reader: ReaderId, csrf: String) -> Resul
                 <p role="status">
                     "Checking an earlier save. Further ranking changes are blocked."
                 </p>
-                <form method="post" action="/recover">
-                    <input type="hidden" name="csrf" value=(&csrf)>
-                    <input type="hidden" name="action" value=(action.text())>
-                    <button type="submit">"Check original save"</button>
-                </form>
+                <h2 tabindex="-1" data-response-focus="recovery">
+                    "Check original save"
+                </h2>
+                <p>
+                    "Check original save uses retained action evidence. It can finish only the original action."
+                </p>
+                recovery_form(csrf: csrf.clone(), action: action)
             </aside>
         }
     })
@@ -1006,7 +1085,7 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
     };
     Ok(view! {
         <aside class="comparison" aria-label="Pending placement">
-            <h2>"Unfinished comparison"</h2>
+            <h2 tabindex="-1" data-response-focus="task">"Unfinished comparison"</h2>
             <p>
                 "Pending book: "
                 (candidate_title.clone())

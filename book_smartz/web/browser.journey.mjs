@@ -21,6 +21,7 @@ const sockets = new Set();
 const upstreamOrigin = new URL(process.argv[2]);
 let heldResponse;
 let addRequests = 0;
+const mutationRequests = new Map();
 const transport = httpsServer(
   { key: readFileSync(process.argv[3]), cert: readFileSync(process.argv[4]) },
   (incoming, outgoing) => {
@@ -35,6 +36,11 @@ const transport = httpsServer(
         ? heldResponse
         : null;
     if (incoming.method === "POST" && incoming.url === "/add") addRequests++;
+    if (incoming.method === "POST")
+      mutationRequests.set(
+        incoming.url,
+        (mutationRequests.get(incoming.url) ?? 0) + 1,
+      );
     const upstream = request(
       {
         protocol: upstreamOrigin.protocol,
@@ -158,6 +164,15 @@ try {
     route.abort(),
   );
   const page = await context.newPage();
+  let firstSearchAt;
+  page.on("request", (request) => {
+    if (
+      firstSearchAt === undefined &&
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/search"
+    )
+      firstSearchAt = Date.now();
+  });
   page.setDefaultTimeout(10000);
   page.setDefaultNavigationTimeout(10000);
   await page.goto("https://reader.example/");
@@ -493,6 +508,35 @@ try {
     await page.getByRole("status").filter({ hasText: "Checking" }).isVisible(),
     true,
   );
+  const recoveryHeading = page.getByRole("heading", {
+    name: "Check original save",
+    exact: true,
+  });
+  await recoveryHeading.waitFor();
+  await page.waitForLoadState("domcontentloaded");
+  assert.equal(
+    await recoveryHeading.evaluate(
+      (heading) => document.activeElement === heading,
+    ),
+    true,
+  );
+  assert.match(
+    await page.evaluate(() => getComputedStyle(document.body).fontFamily),
+    /Source Sans 3/,
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Check original save", exact: true })
+      .count(),
+    1,
+  );
+  const checkingStatus = page
+    .locator('form[action="/recover"]')
+    .getByRole("status");
+  assert.equal(await checkingStatus.count(), 1);
+  assert.equal(await checkingStatus.textContent(), "");
+  assert.equal(await checkingStatus.getAttribute("aria-live"), "polite");
+  await recordScene("uncertain-save");
   await page.getByRole("link", { name: "Return to your ranking" }).click();
   assert.equal(
     await page
@@ -514,6 +558,10 @@ try {
     true,
   );
   await page.reload();
+  const oldResumeTab = await context.newPage();
+  oldResumeTab.setDefaultTimeout(10000);
+  await oldResumeTab.goto("https://reader.example/ranking");
+  await oldResumeTab.waitForLoadState("domcontentloaded");
   await fixture("expire");
   const expired = page.waitForResponse(
     (response) =>
@@ -522,11 +570,57 @@ try {
   );
   await page.getByRole("button", { name: "Resume", exact: true }).click();
   assert.equal((await expired).status(), 401);
+  const signInRequired = page.getByRole("heading", {
+    name: "Sign in to continue",
+    exact: true,
+  });
+  await signInRequired.waitFor();
+  await page.waitForLoadState("domcontentloaded");
+  assert.equal(
+    await signInRequired.evaluate(
+      (heading) => document.activeElement === heading,
+    ),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .count(),
+    1,
+  );
+  await recordScene("expired-session");
   await page.goto("https://reader.example/");
   await page.getByRole("link", { name: "Sign in with Google" }).click();
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(
     await page.getByText("Your unfinished comparison is paused.").isVisible(),
+    true,
+  );
+  const staleSessionResponse = oldResumeTab.waitForResponse(
+    (response) =>
+      response.url().endsWith("/resume") &&
+      response.request().method() === "POST",
+  );
+  await oldResumeTab
+    .getByRole("button", { name: "Resume", exact: true })
+    .click();
+  assert.equal((await staleSessionResponse).status(), 403);
+  const unavailable = oldResumeTab.getByRole("heading", {
+    name: "Action unavailable",
+    exact: true,
+  });
+  await unavailable.waitFor();
+  await oldResumeTab.waitForLoadState("domcontentloaded");
+  assert.equal(
+    await unavailable.evaluate((heading) => document.activeElement === heading),
+    true,
+  );
+  await recordScene("expired-form-csrf", oldResumeTab);
+  await oldResumeTab.close();
+  assert.equal(
+    await page
+      .getByText("Your unfinished comparison is paused.", { exact: true })
+      .isVisible(),
     true,
   );
   await page.getByRole("button", { name: "Resume", exact: true }).click();
@@ -623,10 +717,32 @@ try {
   await stale
     .getByRole("button", { name: "Prefer First book", exact: true })
     .click();
-  await stale
+  const staleError = stale
     .getByRole("status")
-    .filter({ hasText: "comparison changed" })
-    .waitFor({ state: "visible", timeout: 5000 });
+    .filter({ hasText: "comparison changed" });
+  await staleError.waitFor({ state: "visible", timeout: 5000 });
+  await stale.waitForLoadState("domcontentloaded");
+  assert.equal(
+    await staleError.evaluate((error) => document.activeElement === error),
+    true,
+  );
+  assert.equal(
+    (
+      await stale
+        .getByRole("heading", { name: "Your saved ranking", exact: true })
+        .boundingBox()
+    ).x <
+      (
+        await stale
+          .getByRole("heading", {
+            name: "Confirm your current ranking",
+            exact: true,
+          })
+          .boundingBox()
+      ).x,
+    true,
+  );
+  await recordScene("stale-rejection", stale);
   await page.reload();
   assert.deepEqual(await page.locator("ol li a").allTextContents(), titles);
   await page.waitForTimeout(1100);
@@ -699,10 +815,12 @@ try {
     await page
       .getByRole("button", { name: "Select this work", exact: true })
       .click();
+    await page.waitForLoadState("domcontentloaded");
     await page
       .getByRole("button", { name: "Add to your ranking", exact: true })
       .click();
     await page.waitForURL("https://reader.example/ranking");
+    await page.waitForLoadState("domcontentloaded");
   }
   async function completedMotion(title, after = 0) {
     for (let attempt = 0; attempt < 150; attempt++) {
@@ -770,6 +888,7 @@ try {
   await page
     .getByText("1 preference saved for this placement.", { exact: true })
     .waitFor();
+  await page.waitForLoadState("domcontentloaded");
   const beforeThirdPlacement = motions.length;
   await page
     .getByRole("button", { name: "Prefer Third book", exact: true })
@@ -817,6 +936,7 @@ try {
     await page
       .getByRole("button", { name: "Prefer Reduced book", exact: true })
       .click();
+    await page.waitForLoadState("domcontentloaded");
   }
   await page
     .getByRole("status")
@@ -864,6 +984,7 @@ try {
     await page
       .getByRole("button", { name: "Prefer Interrupted book", exact: true })
       .click();
+    await page.waitForLoadState("domcontentloaded");
   }
   await completedMotion("Interrupted book", beforeInterruption);
   assert.ok(editingDuringHighlight, "Highlight must allow immediate input");
@@ -896,6 +1017,326 @@ try {
     "Available during highlight",
   );
   await recordScene("interrupted-highlight");
+  // Respect the real reader budget before the eleventh deliberate search.
+  await delay(Math.max(0, 65000 - (Date.now() - firstSearchAt)));
+  await addWork("Recovered book");
+  await page
+    .getByRole("button", { name: "Prefer Recovered book", exact: true })
+    .click();
+  await page.waitForLoadState("domcontentloaded");
+  await page
+    .getByText("1 preference saved for this placement.", { exact: true })
+    .waitFor();
+  const beforeRecoveredMotion = motions.length;
+  await fixture("reject");
+  await page
+    .getByRole("button", { name: "Prefer Recovered book", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Check original save", exact: true })
+    .waitFor();
+  await page.waitForLoadState("domcontentloaded");
+  await recordScene("unresolved-completion");
+  await fixture("allow");
+  const replayRecovery = await context.newPage();
+  replayRecovery.setDefaultTimeout(10000);
+  const recoveriesBeforeRead = mutationRequests.get("/recover") ?? 0;
+  await replayRecovery.goto("https://reader.example/ranking");
+  await replayRecovery.reload();
+  assert.equal(await replayRecovery.locator("ol li").count(), 5);
+  assert.equal(
+    await replayRecovery
+      .getByRole("button", { name: "Prefer Recovered book", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(
+    mutationRequests.get("/recover") ?? 0,
+    recoveriesBeforeRead,
+    "Reads must not submit recovery",
+  );
+  let captureRecovery;
+  const submittedRecovery = new Promise((resolve) => {
+    captureRecovery = resolve;
+  });
+  await page.exposeFunction("captureRecoverySubmission", (state) =>
+    captureRecovery(state),
+  );
+  await page.evaluate(() => {
+    let captured = false;
+    let duplicatePrevented = false;
+    document.addEventListener("submit", (event) => {
+      const form = event.target;
+      if (form.getAttribute("action") !== "/recover") return;
+      if (captured) {
+        duplicatePrevented = event.defaultPrevented;
+        return;
+      }
+      captured = true;
+      form.dispatchEvent(
+        new window.SubmitEvent("submit", { bubbles: true, cancelable: true }),
+      );
+      const status = form.querySelector('[role="status"]');
+      window.captureRecoverySubmission({
+        disabled: [...form.querySelectorAll("button")].every(
+          (button) => button.disabled,
+        ),
+        busy: form.getAttribute("aria-busy"),
+        status: status.textContent,
+        focusOffStatus: document.activeElement !== status,
+        success: [...document.querySelectorAll('[role="status"]')].some(
+          (status) =>
+            /Saved at position|The original save is confirmed/.test(
+              status.textContent,
+            ),
+        ),
+        duplicatePrevented,
+      });
+    });
+  });
+  let releaseRecovery;
+  const recoveryGate = new Promise((resolve) => {
+    releaseRecovery = resolve;
+  });
+  let arrivedRecovery, failedRecovery;
+  const recoveryResponse = new Promise((resolve, reject) => {
+    arrivedRecovery = resolve;
+    failedRecovery = reject;
+  });
+  heldResponse = {
+    path: "/recover",
+    arrived: arrivedRecovery,
+    failed: failedRecovery,
+    release: recoveryGate,
+  };
+  const recoveryClick = page
+    .getByRole("button", { name: "Check original save", exact: true })
+    .click({ noWaitAfter: true });
+  try {
+    const [state, status] = await Promise.race([
+      Promise.all([submittedRecovery, recoveryResponse]),
+      delay(10000).then(() => {
+        throw new Error("Held recovery did not reach the server");
+      }),
+    ]);
+    assert.deepEqual(state, {
+      disabled: true,
+      busy: "true",
+      status: "Saving…",
+      focusOffStatus: true,
+      success: false,
+      duplicatePrevented: true,
+    });
+    assert.equal(status, 303);
+    assert.equal(mutationRequests.get("/recover"), recoveriesBeforeRead + 1);
+  } finally {
+    heldResponse = null;
+    releaseRecovery();
+  }
+  await recoveryClick;
+  await page.waitForURL("https://reader.example/ranking");
+  await page.waitForLoadState("domcontentloaded");
+  await page
+    .getByText("The original save is confirmed.", { exact: true })
+    .waitFor();
+  const recoveredTitles = await page.locator("ol li a").allTextContents();
+  assert.equal(recoveredTitles.length, 6);
+  assert.equal(recoveredTitles[0], "Recovered book");
+  await recordScene("recovered-completion");
+  assert.equal(
+    motions.length,
+    beforeRecoveredMotion,
+    "Recovery must not replay completion decoration",
+  );
+  await replayRecovery
+    .getByRole("button", { name: "Check original save", exact: true })
+    .click();
+  await replayRecovery
+    .getByText("The original save is confirmed.", { exact: true })
+    .waitFor();
+  assert.deepEqual(
+    await replayRecovery.locator("ol li a").allTextContents(),
+    recoveredTitles,
+  );
+  await recordScene("replayed-original-save", replayRecovery);
+  assert.equal(
+    motions.length,
+    beforeRecoveredMotion,
+    "Repeated recovery must not replay completion decoration",
+  );
+  await replayRecovery.close();
+  await fixture("native-reader");
+  const nativeJourney = await browser.newContext({
+    javaScriptEnabled: false,
+    ignoreHTTPSErrors: true,
+    viewport: { width: 320, height: 900 },
+  });
+  await nativeJourney.route("https://covers.openlibrary.org/**", (route) =>
+    route.abort(),
+  );
+  const nativeReaderPage = await nativeJourney.newPage();
+  nativeReaderPage.setDefaultTimeout(10000);
+  nativeReaderPage.setDefaultNavigationTimeout(10000);
+  let nativeRankingRequests = 0;
+  nativeReaderPage.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      ["/add", "/answer", "/pause", "/resume", "/recover"].includes(
+        new URL(request.url()).pathname,
+      )
+    )
+      nativeRankingRequests++;
+  });
+  await nativeReaderPage.goto("https://reader.example/");
+  await nativeReaderPage
+    .getByRole("link", { name: "Sign in with Google", exact: true })
+    .click();
+  await nativeReaderPage.waitForURL("https://reader.example/ranking");
+  assert.equal(await nativeReaderPage.locator("ol li").count(), 0);
+  assert.equal(nativeRankingRequests, 0);
+  await recordScene("native-empty-ranking", nativeReaderPage);
+  async function nativeSelection(query) {
+    await nativeReaderPage
+      .getByRole("textbox", { name: "Title or author" })
+      .fill(query);
+    await nativeReaderPage.waitForTimeout(1100);
+    await nativeReaderPage
+      .getByRole("button", { name: /Search books|Retry/ })
+      .click();
+    await nativeReaderPage
+      .getByRole("button", { name: "Select this work", exact: true })
+      .click();
+    await nativeReaderPage
+      .getByRole("heading", { name: "Selected work", exact: true })
+      .waitFor();
+  }
+  await nativeSelection("Native book");
+  await nativeReaderPage
+    .getByRole("button", { name: "Add to your ranking", exact: true })
+    .click();
+  await nativeReaderPage
+    .getByText("Saved at position 1.", { exact: true })
+    .waitFor();
+  assert.deepEqual(
+    await nativeReaderPage.locator("ol li a").allTextContents(),
+    ["Native book"],
+  );
+  await recordScene("native-first-placement", nativeReaderPage);
+  await nativeSelection("Long title");
+  await nativeReaderPage
+    .getByText("Author unavailable", { exact: true })
+    .waitFor();
+  await recordScene("native-selected-long-title", nativeReaderPage);
+  await nativeReaderPage
+    .getByRole("button", { name: "Add to your ranking", exact: true })
+    .click();
+  await nativeReaderPage
+    .getByRole("button", { name: "Prefer Native book", exact: true })
+    .waitFor();
+  assert.equal(await nativeReaderPage.locator("ol li").count(), 1);
+  await recordScene("native-long-comparison", nativeReaderPage);
+  await fixture("reject");
+  await nativeReaderPage
+    .getByRole("button", { name: "Pause for now", exact: true })
+    .click();
+  await nativeReaderPage
+    .getByRole("heading", { name: "Check original save", exact: true })
+    .waitFor();
+  await recordScene("native-uncertain-save", nativeReaderPage);
+  await fixture("allow");
+  const beforeNativeReads = nativeRankingRequests;
+  await nativeReaderPage
+    .getByRole("link", { name: "Return to your ranking", exact: true })
+    .click();
+  await nativeReaderPage.reload();
+  assert.equal(await nativeReaderPage.locator("ol li").count(), 1);
+  assert.equal(
+    await nativeReaderPage
+      .getByText("Your unfinished comparison is paused.", { exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await nativeReaderPage
+      .getByRole("button", { name: "Pause for now", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await nativeReaderPage
+    .getByRole("button", { name: "Sign out of this browser", exact: true })
+    .click();
+  await nativeReaderPage
+    .getByRole("link", { name: "Sign in with Google", exact: true })
+    .click();
+  await nativeReaderPage.waitForURL("https://reader.example/ranking");
+  assert.equal(
+    nativeRankingRequests,
+    beforeNativeReads,
+    "Read, reload, and sign-in must not retry a ranking action",
+  );
+  assert.equal(
+    await nativeReaderPage
+      .getByText("Your unfinished comparison is paused.", { exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await nativeReaderPage
+      .getByRole("button", { name: "Pause for now", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await recordScene("native-retained-original-action", nativeReaderPage);
+  await nativeReaderPage
+    .getByRole("button", { name: "Check original save", exact: true })
+    .click();
+  await nativeReaderPage
+    .getByText("The original save is confirmed.", { exact: true })
+    .waitFor();
+  await nativeReaderPage
+    .getByText("Your unfinished comparison is paused.", { exact: true })
+    .waitFor();
+  await recordScene("native-recovered-pause", nativeReaderPage);
+  await nativeReaderPage
+    .getByRole("button", { name: "Resume", exact: true })
+    .click();
+  const nativePreference = nativeReaderPage.getByRole("button", {
+    name: "Prefer Native book",
+    exact: true,
+  });
+  await nativePreference.waitFor();
+  for (
+    let step = 0;
+    step < 30 &&
+    !(await nativePreference.evaluate(
+      (button) => document.activeElement === button,
+    ));
+    step++
+  )
+    await nativeReaderPage.keyboard.press("Tab");
+  assert.equal(
+    await nativePreference.evaluate(
+      (button) =>
+        document.activeElement === button &&
+        getComputedStyle(button).outlineStyle !== "none",
+    ),
+    true,
+  );
+  const nativeFinish = nativeReaderPage.waitForNavigation();
+  await nativeReaderPage.keyboard.press("Enter");
+  await nativeFinish;
+  await nativeReaderPage
+    .getByText("Saved at position 2.", { exact: true })
+    .waitFor();
+  const nativeTitles = await nativeReaderPage
+    .locator("ol li a")
+    .allTextContents();
+  assert.equal(nativeTitles.length, 2);
+  assert.equal(nativeTitles[0], "Native book");
+  assert.match(nativeTitles[1], /^A long title/);
+  assert.equal(nativeRankingRequests, beforeNativeReads + 3);
+  await recordScene("native-completed-placement", nativeReaderPage);
+  await nativeJourney.close();
   if (evidence)
     writeFileSync(
       join(evidence, "motion-evidence.json"),

@@ -1655,7 +1655,7 @@ async fn recover_evidence(
     .await
 }
 fn recovery_actions(html: &str) -> anyhow::Result<Vec<String>> {
-    regex::Regex::new(r#"(?s)<form method="post" action="/recover">(.*?)</form>"#)?
+    regex::Regex::new(r#"(?s)<form method="post" action="/recover"[^>]*>(.*?)</form>"#)?
         .captures_iter(html)
         .map(|capture| field(&capture[1], "action"))
         .collect()
