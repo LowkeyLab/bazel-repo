@@ -19,7 +19,7 @@ async function fixture(command) {
 }
 const sockets = new Set();
 const upstreamOrigin = new URL(process.argv[2]);
-let heldAddResponse;
+let heldResponse;
 let addRequests = 0;
 const transport = httpsServer(
   { key: readFileSync(process.argv[3]), cert: readFileSync(process.argv[4]) },
@@ -31,8 +31,8 @@ const transport = httpsServer(
         "Native forms must retain the canonical Origin",
       );
     const held =
-      incoming.method === "POST" && incoming.url === "/add"
-        ? heldAddResponse
+      incoming.method === "POST" && incoming.url === heldResponse?.path
+        ? heldResponse
         : null;
     if (incoming.method === "POST" && incoming.url === "/add") addRequests++;
     const upstream = request(
@@ -103,6 +103,56 @@ try {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     ignoreHTTPSErrors: true,
+    reducedMotion: "no-preference",
+  });
+  const motions = [];
+  let observeInterruption;
+  let finishFirstHighlight;
+  const firstHighlight = new Promise((resolve) => {
+    finishFirstHighlight = resolve;
+  });
+  await context.exposeFunction("observeRankingMotion", (record) => {
+    motions.push(record);
+    if (record.type === "transitionend" && record.title === "First book")
+      finishFirstHighlight(record);
+    return observeInterruption?.(record);
+  });
+  await context.addInitScript(() => {
+    for (const type of ["transitionrun", "transitionend"]) {
+      document.addEventListener(type, (event) => {
+        const row = event.target.closest?.("ol li");
+        if (!row) return;
+        const style = getComputedStyle(row, event.pseudoElement || null);
+        window.observeRankingMotion({
+          type,
+          title: row.querySelector("a")?.textContent,
+          property: event.propertyName,
+          duration: style.transitionDuration,
+          easing: style.transitionTimingFunction,
+          elapsed: event.elapsedTime,
+          bounds: {
+            x: row.getBoundingClientRect().x,
+            y: row.getBoundingClientRect().y,
+            width: row.getBoundingClientRect().width,
+            height: row.getBoundingClientRect().height,
+          },
+        });
+      });
+    }
+    document.addEventListener("input", (event) => {
+      if (event.target.value !== "Available during highlight") return;
+      const row = [...document.querySelectorAll("ol li")].find(
+        (row) => row.querySelector("a")?.textContent === "Interrupted book",
+      );
+      window.observeRankingMotion({
+        type: "input",
+        trusted: event.isTrusted,
+        running:
+          row
+            ?.getAnimations({ subtree: true })
+            .some((animation) => animation.playState === "running") ?? false,
+      });
+    });
   });
   await context.route("https://covers.openlibrary.org/**", (route) =>
     route.abort(),
@@ -253,7 +303,8 @@ try {
     arrivedAdd = resolve;
     rejectedAdd = reject;
   });
-  heldAddResponse = {
+  heldResponse = {
+    path: "/add",
     arrived: arrivedAdd,
     failed: rejectedAdd,
     release: heldAdd,
@@ -317,12 +368,59 @@ try {
       "Held native Add: live feedback, no confirmation, duplicate prevented.",
     );
   } finally {
-    heldAddResponse = null;
+    heldResponse = null;
     releaseAdd();
   }
   await addClick;
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(await page.locator("ol li").count(), 1);
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Saved at position 1." })
+    .waitFor();
+  const firstMotion = await Promise.race([
+    firstHighlight,
+    delay(3000).then(() => {
+      throw new Error(
+        "Pointer completion must highlight the newly ranked book",
+      );
+    }),
+  ]);
+  assert.deepEqual(
+    {
+      property: firstMotion.property,
+      duration: firstMotion.duration,
+      easing: firstMotion.easing,
+    },
+    {
+      property: "opacity",
+      duration: "0.16s",
+      easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+    },
+  );
+  assert.equal(Math.abs(firstMotion.elapsed - 0.16) < 0.01, true);
+  assert.deepEqual(
+    motions
+      .filter(
+        (motion) =>
+          motion.type === "transitionrun" || motion.type === "transitionend",
+      )
+      .map((motion) => motion.property),
+    ["opacity", "opacity"],
+  );
+  assert.deepEqual(
+    motions[0].bounds,
+    motions[1].bounds,
+    "Completion must not move the saved row",
+  );
+  const completedMotions = motions.length;
+
+  await page.reload();
+  assert.equal(
+    await page.getByText("Saved at position 1.", { exact: true }).count(),
+    0,
+    "Reload must not replay completion feedback",
+  );
   // Advance past the deployment's one-search-per-second admission deadline.
   await page.waitForTimeout(1100);
   await page
@@ -333,6 +431,44 @@ try {
   await page.getByRole("button", { name: "Add to your ranking" }).click();
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(await page.locator("ol li").count(), 1);
+  const pendingPlacement = page.getByRole("complementary", {
+    name: "Pending placement",
+    exact: true,
+  });
+  await pendingPlacement
+    .getByText("Fixture Author", { exact: true })
+    .first()
+    .waitFor();
+  assert.equal(
+    await pendingPlacement
+      .getByRole("heading", { name: "Which book do you prefer?", exact: true })
+      .evaluate((heading) => document.activeElement === heading),
+    true,
+  );
+  for (const endpoint of ["/answer", "/pause"]) {
+    const status = pendingPlacement
+      .locator(`form[action="${endpoint}"]`)
+      .getByRole("status");
+    assert.equal(
+      await status.count(),
+      1,
+      "Each ranking form needs an existing live region",
+    );
+    assert.equal(await status.textContent(), "");
+    assert.equal(await status.getAttribute("aria-live"), "polite");
+  }
+  const candidateChoice = await pendingPlacement
+    .getByRole("button", { name: "Prefer Later book", exact: true })
+    .boundingBox();
+  const opponentChoice = await pendingPlacement
+    .getByRole("button", { name: "Prefer First book", exact: true })
+    .boundingBox();
+  assert.equal(
+    candidateChoice.x < opponentChoice.x,
+    true,
+    "Desktop choices must be visible beside each other",
+  );
+  await recordScene("pending-comparison");
   assert.equal(await page.locator("ol").getByText("Later book").count(), 0);
   assert.equal(await page.getByRole("button", { name: /Skip/ }).count(), 0);
   const columns = () =>
@@ -427,16 +563,60 @@ try {
             (button) => button.disabled,
           ),
           submitting: !form.querySelector('[role="status"]').hidden,
+          status: form.querySelector('[role="status"]').textContent,
+          busy: form.getAttribute("aria-busy"),
+          saved: document.querySelectorAll("ol li").length,
+          focusOffStatus:
+            document.activeElement !== form.querySelector('[role="status"]'),
         });
     });
   });
+  let releasePreference;
+  const preferenceGate = new Promise((resolve) => {
+    releasePreference = resolve;
+  });
+  let arrivedPreference, failedPreference;
+  const preferenceResponse = new Promise((resolve, reject) => {
+    arrivedPreference = resolve;
+    failedPreference = reject;
+  });
+  heldResponse = {
+    path: "/answer",
+    arrived: arrivedPreference,
+    failed: failedPreference,
+    release: preferenceGate,
+  };
   const navigation = page.waitForNavigation();
-  await prefer.press("Enter", { noWaitAfter: true });
-  const state = await submitted;
-  assert.deepEqual(state, { disabled: true, submitting: true });
+  const preferencePress = prefer.press("Enter", { noWaitAfter: true });
+  try {
+    const [state, status] = await Promise.race([
+      Promise.all([submitted, preferenceResponse]),
+      delay(10000).then(() => {
+        throw new Error("Held preference did not reach the server");
+      }),
+    ]);
+    assert.deepEqual(state, {
+      disabled: true,
+      submitting: true,
+      status: "Saving…",
+      busy: "true",
+      saved: 1,
+      focusOffStatus: true,
+    });
+    assert.equal(status, 303);
+  } finally {
+    heldResponse = null;
+    releasePreference();
+  }
+  await preferencePress;
   await navigation;
   await page.waitForFunction(
     () => document.querySelectorAll("ol li").length === 2,
+  );
+  assert.equal(
+    motions.length,
+    completedMotions,
+    "Keyboard placement, Pause, Resume, recovery, and reload must not replay pointer motion",
   );
   const titles = await page.locator("ol li a").allTextContents();
   assert.deepEqual(titles, ["Later book", "First book"]);
@@ -513,6 +693,218 @@ try {
       .count(),
     0,
   );
+  async function addWork(title) {
+    await page.goto("https://reader.example/ranking");
+    await deliberateSearch(title);
+    await page
+      .getByRole("button", { name: "Select this work", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Add to your ranking", exact: true })
+      .click();
+    await page.waitForURL("https://reader.example/ranking");
+  }
+  async function completedMotion(title, after = 0) {
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const record = motions
+        .slice(after)
+        .find(
+          (motion) => motion.type === "transitionend" && motion.title === title,
+        );
+      if (record) return record;
+      await delay(20);
+    }
+    throw new Error(`No completed highlight for ${title}`);
+  }
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await addWork("Third book");
+  assert.equal(await page.locator("ol li").count(), 2);
+  await page
+    .getByRole("button", { name: "Prefer Later book", exact: true })
+    .click();
+  await page
+    .getByText("1 preference saved for this placement.", { exact: true })
+    .waitFor();
+  await recordScene("saved-preference-progress");
+  await page
+    .getByRole("button", { name: "Pause for now", exact: true })
+    .click();
+  await page
+    .getByText("Placement paused. Your preferences are saved.", { exact: true })
+    .waitFor();
+  await page
+    .getByText("Your unfinished comparison is paused.", { exact: true })
+    .waitFor();
+  await recordScene("paused-placement");
+  await page.reload();
+  await page
+    .getByText("1 preference saved for this placement.", { exact: true })
+    .waitFor();
+  await page
+    .getByRole("button", { name: "Sign out of this browser", exact: true })
+    .click();
+  await page
+    .getByRole("link", { name: "Sign in with Google", exact: true })
+    .click();
+  await page.waitForURL("https://reader.example/ranking");
+  await page
+    .getByText("1 preference saved for this placement.", { exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Prefer Third book", exact: true })
+      .count(),
+    0,
+  );
+  const resumeStatus = page
+    .locator('form[action="/resume"]')
+    .getByRole("status");
+  assert.equal(await resumeStatus.count(), 1);
+  assert.equal(await resumeStatus.textContent(), "");
+  await page.getByRole("button", { name: "Resume", exact: true }).click();
+  await page
+    .getByText("Placement resumed. Your preferences are saved.", {
+      exact: true,
+    })
+    .waitFor();
+  await page
+    .getByText("1 preference saved for this placement.", { exact: true })
+    .waitFor();
+  const beforeThirdPlacement = motions.length;
+  await page
+    .getByRole("button", { name: "Prefer Third book", exact: true })
+    .click();
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Saved at position 2." })
+    .waitFor();
+  await completedMotion("Third book", beforeThirdPlacement);
+  assert.deepEqual(
+    motions
+      .slice(beforeThirdPlacement)
+      .map((motion) => [motion.type, motion.title]),
+    [
+      ["transitionrun", "Third book"],
+      ["transitionend", "Third book"],
+    ],
+  );
+  assert.equal(await page.locator("ol li").count(), 3);
+  await recordScene("pointer-completed-placement");
+  const thirdRow = page.getByRole("listitem").filter({ hasText: "Third book" });
+  const highlightedThird = await thirdRow.screenshot();
+  const beforeReload = motions.length;
+  await page.reload();
+  const cleanThird = await thirdRow.screenshot();
+  assert.equal(highlightedThird.equals(cleanThird), false);
+  await page.reload();
+  assert.equal((await thirdRow.screenshot()).equals(cleanThird), true);
+  assert.equal(
+    motions.length,
+    beforeReload,
+    "Reload must not replay the completion transition",
+  );
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const beforeReduced = motions.length;
+  await addWork("Reduced book");
+  for (
+    let choice = 0;
+    choice < 6 &&
+    (await page
+      .getByRole("button", { name: "Prefer Reduced book", exact: true })
+      .count());
+    choice++
+  ) {
+    await page
+      .getByRole("button", { name: "Prefer Reduced book", exact: true })
+      .click();
+  }
+  await page
+    .getByRole("status")
+    .filter({ hasText: "Saved at position 1." })
+    .waitFor();
+  assert.equal(await page.locator("ol li").count(), 4);
+  const reducedHighlight = await page
+    .getByRole("listitem")
+    .filter({ hasText: "Reduced book" })
+    .evaluate((row) => ({
+      opacity: getComputedStyle(row, "::before").opacity,
+      duration: getComputedStyle(row, "::before").transitionDuration,
+    }));
+  assert.deepEqual(reducedHighlight, { opacity: "0.12", duration: "0s" });
+  assert.equal(
+    motions.length,
+    beforeReduced,
+    "Reduced motion must show the final highlight immediately",
+  );
+  await recordScene("reduced-motion-completion");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await addWork("Interrupted book");
+  const beforeInterruption = motions.length;
+  const searchesBeforeInterruption = searchRequests;
+  let editingDuringHighlight;
+  observeInterruption = (record) => {
+    if (
+      record.type === "transitionrun" &&
+      record.title === "Interrupted book"
+    ) {
+      editingDuringHighlight = page
+        .getByRole("textbox", { name: "Title or author" })
+        .fill("Available during highlight");
+      return editingDuringHighlight;
+    }
+  };
+  for (
+    let choice = 0;
+    choice < 8 &&
+    (await page
+      .getByRole("button", { name: "Prefer Interrupted book", exact: true })
+      .count());
+    choice++
+  ) {
+    await page
+      .getByRole("button", { name: "Prefer Interrupted book", exact: true })
+      .click();
+  }
+  await completedMotion("Interrupted book", beforeInterruption);
+  assert.ok(editingDuringHighlight, "Highlight must allow immediate input");
+  await editingDuringHighlight;
+  const interruption = motions
+    .slice(beforeInterruption)
+    .find((record) => record.type === "input");
+  assert.deepEqual(interruption, {
+    type: "input",
+    trusted: true,
+    running: true,
+  });
+  assert.deepEqual(
+    motions
+      .slice(beforeInterruption)
+      .filter((record) => record.type !== "input")
+      .map((record) => [record.type, record.title]),
+    [
+      ["transitionrun", "Interrupted book"],
+      ["transitionend", "Interrupted book"],
+    ],
+  );
+  assert.equal(
+    searchRequests,
+    searchesBeforeInterruption,
+    "Editing during a highlight must not submit a search",
+  );
+  assert.equal(
+    await page.getByRole("textbox", { name: "Title or author" }).inputValue(),
+    "Available during highlight",
+  );
+  await recordScene("interrupted-highlight");
+  if (evidence)
+    writeFileSync(
+      join(evidence, "motion-evidence.json"),
+      JSON.stringify(
+        { engine: "Chromium", version: browser.version(), motions },
+        null,
+        2,
+      ),
+    );
   console.log("Browser version:", browser.version());
   console.log(
     "Browser journey passed: sign-in, search, first/later Add, keyboard preference, stale tab, mobile layout, reload.",

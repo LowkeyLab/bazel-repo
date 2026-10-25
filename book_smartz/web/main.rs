@@ -33,6 +33,7 @@ use book_smartz_storage::{
 mod actions;
 mod catalog;
 mod diagnostics;
+mod feedback;
 mod identity;
 mod package;
 
@@ -49,6 +50,7 @@ struct Application {
     origin: String,
     google: identity::Google,
     catalog: catalog::Catalog,
+    feedback: feedback::Feedback,
     diagnostics: diagnostics::Diagnostics,
     integrity: package::IntegrityMonitor,
 }
@@ -129,6 +131,7 @@ async fn run() -> anyhow::Result<()> {
             origin,
             google,
             catalog,
+            feedback: feedback::Feedback::from_environment()?,
             diagnostics,
             integrity,
         })
@@ -227,6 +230,9 @@ async fn home() -> Result<impl View> {
 #[page("/ranking")]
 async fn ranking(cx: &Cx) -> Result<impl View> {
     let session = authorize(cx).await?;
+    let app: &Application = app_context(cx);
+    let receipt = app.feedback.take(cx, session.reader);
+    let completion = receipt.as_ref().and_then(feedback::Receipt::completion);
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -242,6 +248,12 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                 book_smartz_views::heading()
                 <main class="library-workspace">
                     <section class="active-task" aria-label="Book workspace">
+                        if let Some(receipt) = receipt {
+                            book_smartz_views::feedback(
+                                message: receipt.message(),
+                                kind: receipt.focus()
+                            )
+                        }
                         actions::comparison(
                             reader: session.reader,
                             csrf: session.csrf.clone()
@@ -267,7 +279,7 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                             <button type="submit">"Sign out of this browser"</button>
                         </form>
                     </section>
-                    saved_ranking(reader: session.reader)
+                    saved_ranking(reader: session.reader, completion: completion)
                 </main>
             </body>
         </html>
@@ -275,7 +287,11 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
 }
 
 #[topcoat::view::component]
-async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
+async fn saved_ranking(
+    cx: &Cx,
+    reader: ReaderId,
+    completion: Option<(Uuid, String)>,
+) -> Result<impl View> {
     let db: &Application = app_context(cx);
     let stored_ranking = db
         .store
@@ -319,6 +335,10 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
             } else {
                 authors.join(", ")
             };
+            let completion_action = completion
+                .as_ref()
+                .filter(|(book, _)| book == entry.book_id().as_uuid())
+                .map(|(_, action)| action.clone());
             entries.push((
                 entry.book_id(),
                 book_smartz_views::BookDisplay {
@@ -329,6 +349,7 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
                         format!("https://covers.openlibrary.org/b/id/{cover}-M.jpg?default=false")
                     }),
                 },
+                completion_action,
             ));
         }
     }
@@ -345,8 +366,11 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
                 <p>"Find a book to begin your private ranking."</p>
             }
             <ol>
-                for (id, display) in entries {
-                    <li data-book-id=(id.as_uuid().to_string())>
+                for (id, display, completion_action) in entries {
+                    <li
+                        data-book-id=(id.as_uuid().to_string())
+                        data-completion-action=(completion_action)
+                    >
                         book_smartz_views::book(display: display, compact: true)
                     </li>
                 }

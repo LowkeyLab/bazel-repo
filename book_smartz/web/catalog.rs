@@ -460,7 +460,10 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
                         <h1 tabindex="-1" data-response-focus="task">"Search books"</h1>
                         <a href="/ranking">"Your saved ranking"</a>
                         if let Some(message) = message {
-                            book_smartz_views::feedback(message: message.to_owned())
+                            book_smartz_views::feedback(
+                                message: message.to_owned(),
+                                kind: book_smartz_views::FeedbackKind::Error
+                            )
                         }
                         <form method="post" action="/search">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
@@ -514,7 +517,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
                             </form>
                         }
                     </section>
-                    crate::saved_ranking(reader: session.reader)
+                    crate::saved_ranking(reader: session.reader, completion: None)
                 </main>
             </body>
         </html>
@@ -581,7 +584,10 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
                         )
                         <p>"This selection expires 15 minutes after search."</p>
                         if let Some(message) = gate {
-                            book_smartz_views::feedback(message: message.to_owned())
+                            book_smartz_views::feedback(
+                                message: message.to_owned(),
+                                kind: book_smartz_views::FeedbackKind::Error
+                            )
                         }
                         <form method="post" action="/add" data-ranking-action="">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
@@ -604,7 +610,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
                         </form>
                         <a href="/ranking">"Return to your ranking"</a>
                     </section>
-                    crate::saved_ranking(reader: session.reader)
+                    crate::saved_ranking(reader: session.reader, completion: None)
                 </main>
             </body>
         </html>

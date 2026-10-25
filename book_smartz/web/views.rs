@@ -86,14 +86,24 @@ pub async fn book(display: BookDisplay, compact: bool) -> Result<impl View> {
         </article>
     })
 }
+#[derive(Clone, Copy)]
+pub enum FeedbackKind {
+    Error,
+    Result,
+    Status,
+}
 #[component]
-pub async fn feedback(message: String) -> Result<impl View> {
+pub async fn feedback(message: String, kind: FeedbackKind) -> Result<impl View> {
     Ok(view! {
         <p
             class="inline-feedback"
             role="status"
             tabindex="-1"
-            data-response-focus="error"
+            data-response-focus=(match kind {
+                FeedbackKind::Error => "error",
+                FeedbackKind::Result => "result",
+                FeedbackKind::Status => "status",
+            })
         >
             (message)
         </p>

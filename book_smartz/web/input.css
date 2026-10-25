@@ -191,6 +191,12 @@
   .active-task {
     grid-area: task;
   }
+  .active-task > form {
+    margin-block: 1.5rem;
+  }
+  .inline-feedback[data-response-focus="result"] {
+    border-color: var(--color-confirmation);
+  }
   .saved-ranking {
     grid-area: ranking;
     background: var(--color-paper);
@@ -316,12 +322,12 @@
     pointer-events: none;
     border-radius: var(--radius-control);
     background: var(--color-confirmation);
-    opacity: 0;
+    opacity: 0.12;
     transition: opacity var(--placement-highlight-duration)
       var(--placement-highlight-easing);
-  }
-  .ranked-highlight.confirmed::before {
-    opacity: 0.12;
+    @starting-style {
+      opacity: 0;
+    }
   }
 }
 @media (min-width: 768px) {

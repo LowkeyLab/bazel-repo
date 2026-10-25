@@ -1,12 +1,20 @@
 # Book Smartz web app
 
-The first web slice signs in with Google, persists browser sessions in PostgreSQL,
+The web app signs in with Google, persists browser sessions in PostgreSQL,
 and reads the existing private ranking and pending placement. Signed-in readers can
 explicitly search Open Library, page through work-level results, and select a
 validated work. Add saves the validated work and display metadata independently,
 then applies the existing Start decision. The first book appears at rank 1 only
 after the database confirms the ranking event. Later books remain pending while the reader chooses either displayed book.
 Pause for now preserves the unfinished comparison. Resume restores it after reload, restart, or another browser login.
+
+The Comparison desk places saved positions beside the active task on desktop.
+Phone layouts place the active task before saved positions. The app uses local
+`Literata` and Source Sans 3 fonts. See [font licenses](fonts/README.md).
+Native forms work without JavaScript. JavaScript announces Saving… during submission
+and preserves the chosen submitter value. The server controls saved positions and
+completion eligibility. Only pointer input can decorate a fresh confirmed placement.
+The opacity transition takes 160 ms. Reduced motion shows the final highlight immediately.
 
 Build the relocatable archive with `aspect build //book_smartz/web:package`.
 It contains `book-smartz`, adjacent `assets`, and `integrity.json`. Run it from
@@ -90,8 +98,13 @@ envelope before its append. Correlation uses the explicitly accepted experimenta
 [Correlation extension at revision 472f0e1](https://github.com/cloudevents/spec/blob/472f0e1d856e335c30fa204f36fd6428c2bfd732/cloudevents/extensions/correlation.md).
 App facts and ranking events have separate sources and sequences.
 
-The accepted ranking event is the sole success evidence. There is no separate
-completion receipt. Repeated submissions recover the original intent even after
+The accepted ranking event is the sole success evidence. No separate durable
+completion fact records success. The app signs a temporary display cookie after a
+confirmed save. The cookie expires after 60 seconds and belongs to the authenticated
+reader. The cookie controls display feedback only. Recovery and repeated
+submissions show confirmation without replaying the completion highlight.
+
+Repeated submissions recover the original intent even after
 selection expiry. A changed selection, action, or revision can't reuse an offer.
 Registration and shared metadata may remain committed after the domain rejects Start.
 blank author/cover fields preserve previously saved data. Rankings use retained

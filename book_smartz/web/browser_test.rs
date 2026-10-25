@@ -55,6 +55,10 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         if query.get("q").is_some_and(|value| value == "Long title") {
             return ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":"OL520W","title":"A long title about reading and remembering books across a lifetime of changing interests and unexpected discoveries".repeat(3),"author_name":[]}]}));
         }
+        if let Some(title) = query.get("q").filter(|value| matches!(value.as_str(), "Third book" | "Reduced book" | "Interrupted book" | "Native book")) {
+            let id = match title.as_str() { "Third book" => "OL503W", "Reduced book" => "OL504W", "Interrupted book" => "OL505W", _ => "OL506W" };
+            return ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":id,"title":title,"author_name":["Fixture Author"]}]}));
+        }
         let first=request.url.query_pairs().any(|(key,value)|key=="q" && value=="First book");
         let (id,title)=if first {("OL501W","First book")} else {("OL502W","Later book")};
         ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":id,"title":title,"author_name":["Fixture Author"]}]}))

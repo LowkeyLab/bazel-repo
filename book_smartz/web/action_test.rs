@@ -1214,7 +1214,7 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
         html.as_str(),
         not(contains_substring("Which book do you prefer?"))
     );
-    assert_that!(html.as_str(), contains_substring("1 preferences saved"));
+    assert_that!(html.as_str(), contains_substring("1 preference saved"));
     app.restart().await?;
     let other = app.login("pause-reader").await?;
     let resume = placement_form(&app.ranking(&other).await?.text().await?, "/resume")?;
@@ -1245,7 +1245,7 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
     );
     assert_that!(
         app.ranking(&other).await?.text().await?.as_str(),
-        contains_substring("1 preferences saved")
+        contains_substring("1 preference saved")
     );
     Ok(())
 }
@@ -2008,5 +2008,115 @@ async fn evidence_first_preparation_requires_the_complete_envelope_including_opt
         );
         assert_that!(store(&app).load_ranking_documents(id).await?, eq(&ranking));
     }
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_replay()
+-> anyhow::Result<()> {
+    use base64::Engine;
+    let app = Fixture::new().await?;
+    let owner = app.login("display-owner").await?;
+    let other = app.login("display-other").await?;
+    let id = reader(&app, "display-owner").await?;
+    let values = offer(
+        &app,
+        &owner,
+        id,
+        work("OL899W", "Confirmed display book"),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    let response = post(&app, &owner, "/add", &values).await?;
+    assert_that!(response.status().as_u16(), eq(303));
+    let display_cookie = |response: &reqwest::Response| -> anyhow::Result<String> {
+        Ok(response
+            .headers()
+            .get_all("set-cookie")
+            .iter()
+            .filter_map(|value| value.to_str().ok())
+            .find(|value| value.starts_with("__Host-book-smartz-feedback="))
+            .ok_or_else(|| anyhow::anyhow!("Missing confirmed display cookie"))?
+            .to_owned())
+    };
+    let raw = display_cookie(&response)?;
+    for attribute in ["Secure", "HttpOnly", "SameSite=Lax", "Path=/", "Max-Age=60"] {
+        assert_that!(raw.as_str(), contains_substring(attribute));
+    }
+    let cookie = raw.split(';').next().unwrap();
+    let token = cookie.strip_prefix("__Host-book-smartz-feedback=").unwrap();
+    let response = app.ranking(&format!("{owner}; {cookie}")).await?;
+    assert_that!(response.status().as_u16(), eq(200));
+    assert_that!(
+        display_cookie(&response)?.as_str(),
+        contains_substring("Max-Age=0")
+    );
+    assert_that!(
+        response.text().await?.as_str(),
+        contains_substring("Saved at position 1.")
+    );
+    assert_that!(
+        app.ranking(&owner).await?.text().await?.as_str(),
+        not(contains_substring("Saved at position"))
+    );
+    let foreign = app.ranking(&format!("{other}; {cookie}")).await?;
+    assert_that!(foreign.status().as_u16(), eq(200));
+    let foreign = foreign.text().await?;
+    assert_that!(
+        foreign.as_str(),
+        not(contains_substring("Saved at position"))
+    );
+    assert_that!(
+        foreign.as_str(),
+        contains_substring("Your ranking is empty.")
+    );
+    let mut tampered = token.as_bytes().to_vec();
+    let signature = token.rfind('.').unwrap() + 1;
+    tampered[signature] = if tampered[signature] == b'A' {
+        b'B'
+    } else {
+        b'A'
+    };
+    let tampered = String::from_utf8(tampered)?;
+    let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(token.split('.').nth(1).unwrap())?;
+    let claims: Value = serde_json::from_slice(&payload)?;
+    let resign = |claims: &Value| {
+        jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::HS256),
+            claims,
+            &jsonwebtoken::EncodingKey::from_secret(
+                b"public-fixture-key-at-least-thirty-two-bytes",
+            ),
+        )
+    };
+    let mut expired = claims.clone();
+    expired["exp"] = json!(chrono::Utc::now().timestamp() - 1);
+    let mut wrong_audience = claims;
+    wrong_audience["aud"] = json!("book-smartz-add");
+    for invalid in [tampered, resign(&expired)?, resign(&wrong_audience)?] {
+        let response = app
+            .ranking(&format!("{owner}; __Host-book-smartz-feedback={invalid}"))
+            .await?;
+        assert_that!(response.status().as_u16(), eq(200));
+        let html = response.text().await?;
+        assert_that!(html.as_str(), not(contains_substring("Saved at position")));
+        assert_that!(html.as_str(), contains_substring("Confirmed display book"));
+    }
+    let replay = post(&app, &owner, "/add", &values).await?;
+    assert_that!(replay.status().as_u16(), eq(303));
+    let replay_cookie = display_cookie(&replay)?;
+    let replay_cookie = replay_cookie.split(';').next().unwrap();
+    let html = app
+        .ranking(&format!("{owner}; {replay_cookie}"))
+        .await?
+        .text()
+        .await?;
+    assert_that!(
+        html.as_str(),
+        contains_substring("This action was already saved.")
+    );
+    assert_that!(html.as_str(), not(contains_substring("Saved at position")));
     Ok(())
 }
