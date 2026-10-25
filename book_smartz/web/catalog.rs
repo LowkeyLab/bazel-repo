@@ -17,6 +17,7 @@ use topcoat::{
 
 use book_smartz_domain::{OpenLibraryWorkId, ReaderId};
 
+use crate::diagnostic_events::{OperationOutcome, Reason, Stage};
 use crate::{Application, authorize};
 
 pub struct Catalog {
@@ -212,15 +213,33 @@ impl Catalog {
     async fn discover(
         &self,
         pool: &PgPool,
-        diagnostics: &crate::diagnostics::Diagnostics,
+        diagnostic: &mut crate::diagnostics::Operation<'_>,
         reader: ReaderId,
         query: &str,
         page: u32,
     ) -> Result<Discovery> {
-        let mut diagnostic = diagnostics.scope(crate::diagnostics::Category::Catalog);
-        let result = if admit(pool, reader).await? {
+        diagnostic.stage(Stage::Admission);
+        let admitted = match admit(pool, reader).await {
+            Ok(admitted) => admitted,
+            Err(error) => {
+                let reason = if error
+                    .as_database_error()
+                    .and_then(sqlx::error::DatabaseError::code)
+                    .is_some_and(|code| matches!(code.as_ref(), "42P01" | "42703" | "3F000"))
+                {
+                    Reason::Schema
+                } else {
+                    Reason::Database
+                };
+                diagnostic.finish(OperationOutcome::DependencyFailure, reason);
+                return Err(error.into());
+            }
+        };
+        let result = if admitted {
+            diagnostic.stage(Stage::Provider);
             self.search(query, page).await
         } else {
+            diagnostic.finish(OperationOutcome::Rejected, Reason::AdmissionLimited);
             Err(Failure::Limited)
         };
         let mut results = Vec::new();
@@ -228,7 +247,7 @@ impl Catalog {
         let mut more = false;
         match result {
             Ok(found) => {
-                diagnostic.outcome(crate::diagnostics::Outcome::Confirmed);
+                diagnostic.stage(Stage::Selection);
                 more = found.more && page < 1_000_000;
                 if found.works.is_empty() {
                     message = Some(if found.no_matches {
@@ -238,19 +257,37 @@ impl Catalog {
                     });
                 }
                 for work in found.works {
-                    let token = self.sign(reader, work.clone())?;
+                    let token = match self.sign(reader, work.clone()) {
+                        Ok(token) => token,
+                        Err(error) => {
+                            diagnostic.finish(
+                                OperationOutcome::DependencyFailure,
+                                Reason::SelectionPreparation,
+                            );
+                            return Err(error.into());
+                        }
+                    };
                     results.push((work, token));
                 }
+                diagnostic.finish(OperationOutcome::Confirmed, Reason::None);
             }
             Err(error) => {
-                use crate::diagnostics::Outcome;
-                diagnostic.outcome(match error {
-                    Failure::Limited => Outcome::Limited,
-                    Failure::Unavailable => Outcome::Unavailable,
-                    Failure::Timeout => Outcome::Timeout,
-                    Failure::Malformed => Outcome::Malformed,
-                    Failure::Oversized => Outcome::Oversized,
-                });
+                if admitted {
+                    diagnostic.finish(
+                        if matches!(error, Failure::Limited) {
+                            OperationOutcome::Rejected
+                        } else {
+                            OperationOutcome::DependencyFailure
+                        },
+                        match error {
+                            Failure::Limited => Reason::ProviderLimited,
+                            Failure::Unavailable => Reason::Unavailable,
+                            Failure::Timeout => Reason::Timeout,
+                            Failure::Malformed => Reason::Malformed,
+                            Failure::Oversized => Reason::Oversized,
+                        },
+                    );
+                }
                 message = Some(error.message());
             }
         }
@@ -425,7 +462,9 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
     let session = authorize(cx).await?;
     let app: &Application = app_context(cx);
     crate::require_post(cx, &session, &input.csrf)?;
+    let mut diagnostic = app.diagnostics.catalog_search();
     if !valid_text(&input.query, 256) || !(1..=1_000_000).contains(&input.page) {
+        diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
         return Err(bad_request("Enter 1–256 search characters and a valid page").into());
     }
     let Discovery {
@@ -436,7 +475,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
         .catalog
         .discover(
             &app.pool,
-            &app.diagnostics,
+            &mut diagnostic,
             session.reader,
             &input.query,
             input.page,

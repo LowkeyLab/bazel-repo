@@ -44,8 +44,10 @@ Ranking GETs derive reader authority
 from the stored session. Reader identifiers supplied by browsers confer none.
 The app installs a silent storage observer so existing reader-identifying
 storage diagnostics don't become routine web diagnostics. The web listener emits only allowlisted app facts through a bounded,
-best-effort queue. See [maintainer operations](OPERATIONS.md) for release, health,
-private diagnostics and original-action recovery.
+queue. Producers do not wait for output. Catalog searches use typed operation facts with safe stage, reason, severity, and correlation context.
+The producer and listener checks inspect structured values.
+Packaged HTTP checks use controlled providers and real PostgreSQL.
+See [OPERATIONS.md](OPERATIONS.md) for private diagnostics and original-action recovery.
 
 The HTTP and app suites run the actual archive with isolated PostgreSQL
 and controlled Google token/JSON Web Key endpoints. Package acceptance checks delivered

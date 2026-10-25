@@ -45,17 +45,53 @@ settings aren't capacity measurements.
 
 ## Diagnostics and private evidence
 
-Restrict platform logs and database access to the maintainer. Routine structured
-records permit only outcome category, outcome, elapsed milliseconds, release
-fingerprint, and an optional opaque action ID. They exclude reader IDs, Google
-subjects, email, searches, titles, ranking contents, cookies, tokens, selections,
-raw requests, SQL, and database errors. Never paste private evidence into public
-issues or logs. Action IDs belong in diagnostic records, never metric dimensions.
+Restrict platform logs and database access to the maintainer.
+Catalog searches emit `OperationFinished` facts with `CatalogSearch` as the operation kind.
+The stderr values are `operation_finished` and `catalog_search`.
+The producer captures one opaque operation ID per attempt and one process-instance ID per serving process.
+The release fingerprint comes from the verified package.
+Elapsed duration uses a monotonic clock and whole milliseconds.
+Listeners receive this closed field allowlist before they select severity or delivery policy.
 
-Catalog, authentication, persistence, and checking outcomes identify the area to
-investigate. Confirm success using durable state. A diagnostic record is advisory.
-Delivery uses a bounded queue and best effort output. A missing record doesn't prove failure or
-rollback. Replaying saved state produces no new business activity.
+The catalog fact permits only event identity, operation kind, outcome, stage,
+bounded reason, duration, release, process-instance ID, and operation ID.
+The structured stderr record contains `fact` and `severity`.
+Catalog searches have no original-action ID.
+Other operations retain their existing category, outcome, duration, release, and optional action ID records until their separate diagnostic tickets complete.
+
+| Outcome or reason                          | Meaning                                                        | Severity |
+| ------------------------------------------ | -------------------------------------------------------------- | -------- |
+| Confirmed                                  | The search and selection preparation completed                 | `INFO`   |
+| Invalid input                              | The app rejected the submitted search                          | `INFO`   |
+| Admission limited                          | The existing shared admission policy rejected the attempt      | `INFO`   |
+| Provider limited                           | The provider returned its rate limit                           | `INFO`   |
+| Timeout, unavailable, malformed, oversized | The provider operation failed                                  | `WARN`   |
+| Database or configuration failure          | Admission or selection preparation failed                      | `ERROR`  |
+| Interrupted                                | Work stopped at its last known stage without a terminal result | `WARN`   |
+
+Stages distinguish validation, admission, provider access, and selection preparation.
+Catalog observation starts after authorization and cross-site request forgery validation.
+Missing relation, column, or schema SQLSTATE codes identify schema failures.
+Other admission errors identify database failures.
+The listener never formats their messages.
+Interruption does not invent a dependency cause.
+An HTTP disconnect does not prove that the framework cancelled the operation.
+Abrupt process termination can prevent a terminal fact.
+The existing provider budgets, deadlines, rejection responses, and saved state remain unchanged.
+
+The allowlist excludes reader IDs, Google subjects, email, searches, titles,
+ranking contents, cookies, tokens, selections, raw requests, SQL, and dependency errors.
+Never paste private action evidence into public issues or logs.
+Opaque operation, process, and action identifiers must not become metric dimensions.
+This change adds no metrics, exporter, or operational endpoint.
+
+Delivery retains the 256-record queue. Producers do not wait for output.
+Full or closed destinations can discard records without changing app results.
+The listener owns severity, record formatting, and stderr output.
+A missing diagnostic record proves neither failure nor rollback.
+Successful stderr output does not prove platform ingestion.
+Diagnostic records remain advisory. Confirm saved outcomes from authoritative state.
+Replaying saved state produces no new business activity.
 
 Configure and verify the destination's retention against the seven-day target.
 Record actual access and retention settings during launch. Local code can't
