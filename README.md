@@ -76,16 +76,17 @@ bazel run @pnpm -- <args>
 
 ### Prose lint
 
-Vale checks first-party Markdown with the Google technical-writing rules and American English spelling. Errors and warnings block the existing lint workflow; suggestions are advisory. Generated and vendored documents are excluded.
+Vale checks first-party Markdown with the Google technical-writing rules and American English spelling. Configured errors and warnings block the complete baseline test. Suggestions remain advisory. Generated and vendored documents are excluded.
 
-Run the existing lint command, or explicitly validate all documents locally without filtering to changed lines:
+Run the complete baseline before you complete prose changes:
 
 ```bash
-aspect lint //...
-aspect test //tools/lint:vale_test
+nix develop --command aspect test //tools/lint:vale_test
 ```
 
-The full-document test is tagged `manual` and does not run in CI.
+The required CI test job also runs this baseline. It includes Book Smartz web documentation and checks all lines independently of the current diff. See the [prose completion contract](tools/lint/README.md) for exit codes and policy tests.
+
+The normal `aspect lint //...` command uses changed-line filtering by default.
 
 Markdown belongs in a `filegroup` tagged `markdown`. Each participating Bazel package has a `:markdown` target; its recursive glob includes documents outside child packages. When adding a new package with Markdown, add its target to `//tools/lint:vale_test`.
 

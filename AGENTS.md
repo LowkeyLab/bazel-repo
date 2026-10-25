@@ -9,7 +9,7 @@ This file contains instructions for AI agents working in this Bazel-based polygl
 ### BuildBuddy authorization
 
 BuildBuddy use at `remote.buildbuddy.io` is authorized for this repository without separate approval.
-This authorization includes private source inputs, build and test artifacts, cache data, and build events.
+This authorization includes private source inputs, build artifacts, test artifacts, cache data, and build events.
 For checks that require local execution, clear remote execution, cache, and BES endpoints.
 
 ### Core workflows

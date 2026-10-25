@@ -42,6 +42,7 @@
 [Cc]oroutine
 [Cc]oroutines
 [Cc]owsay
+[Cc]utover
 [Dd]eathrattle
 [Dd]eathrattles
 [Dd]ebuggable
@@ -222,6 +223,7 @@
 [Uu]nexhausted
 [Uu]nexported
 [Uu]nmanaged
+[Uu]nmerged
 [Uu]nranked
 [Uu]nreferenced
 [Uu]nrepresentable
