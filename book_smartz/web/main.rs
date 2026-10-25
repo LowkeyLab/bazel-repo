@@ -240,13 +240,15 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
             </head>
             <body>
                 book_smartz_views::heading()
-                <main class="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
-                    <section aria-label="Book workspace">
+                <main class="library-workspace">
+                    <section class="active-task" aria-label="Book workspace">
                         actions::comparison(
                             reader: session.reader,
                             csrf: session.csrf.clone()
                         )
-                        <h1>"Find your next book"</h1>
+                        <h1 tabindex="-1" data-response-focus="task">
+                            "Find your next book"
+                        </h1>
                         <form method="post" action="/search">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
                             <label>
@@ -318,63 +320,39 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
                 authors.join(", ")
             };
             entries.push((
-                format!("https://openlibrary.org/works/{work}"),
-                title,
-                author,
-                cover,
+                entry.book_id(),
+                book_smartz_views::BookDisplay {
+                    source: format!("https://openlibrary.org/works/{work}"),
+                    title,
+                    author,
+                    cover: cover.map(|cover| {
+                        format!("https://covers.openlibrary.org/b/id/{cover}-M.jpg?default=false")
+                    }),
+                },
             ));
         }
     }
     Ok(view! {
-        <section>
-            <h2>"Your saved ranking"</h2>
+        <section
+            class="saved-ranking"
+            id="saved-ranking"
+            aria-labelledby="saved-ranking-heading"
+        >
+            <h2 id="saved-ranking-heading">"Your saved ranking"</h2>
+            <p>"Saved positions"</p>
             if entries.is_empty() {
                 <p>"Your ranking is empty."</p>
+                <p>"Find a book to begin your private ranking."</p>
             }
             <ol>
-                for (link, title, author, cover) in entries {
-                    <li>
-                        ranked_cover(cover: cover)
-                        <a href=(link)>(title)</a>
-                        <span>
-                            " · "
-                            (author)
-                        </span>
+                for (id, display) in entries {
+                    <li data-book-id=(id.as_uuid().to_string())>
+                        book_smartz_views::book(display: display, compact: true)
                     </li>
                 }
             </ol>
+            <p>"Pending books receive a position only after placement finishes."</p>
         </section>
-    })
-}
-
-#[topcoat::view::component]
-async fn ranked_cover(cover: Option<i64>) -> Result<impl View> {
-    Ok(view! {
-        <div style="width:48px;height:72px;position:relative">
-            <img
-                src=(topcoat::asset::asset!("./cover-placeholder.svg"))
-                alt="Cover unavailable"
-                width="48"
-                height="72"
-            >
-            if let Some(cover) = cover {
-                <object
-                    data=(format!(
-                        "https://covers.openlibrary.org/b/id/{cover}-M.jpg?default=false",
-                    ))
-                    type="image/jpeg"
-                    aria-label="Representative book cover"
-                    style="position:absolute;inset:0;width:48px;height:72px"
-                >
-                    <img
-                        src=(topcoat::asset::asset!("./cover-placeholder.svg"))
-                        alt="Cover unavailable"
-                        width="48"
-                        height="72"
-                    >
-                </object>
-            }
-        </div>
     })
 }
 

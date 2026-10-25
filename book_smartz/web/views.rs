@@ -117,3 +117,16 @@ pub async fn assets() -> Result<impl View> {
         >
     })
 }
+
+#[component]
+pub async fn submission_status() -> Result<impl View> {
+    Ok(view! {
+        <p
+            class="submission-status"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            data-submitting=""
+        ></p>
+    })
+}

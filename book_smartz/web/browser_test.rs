@@ -43,6 +43,18 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         if request.url.query_pairs().any(|(key,value)|key=="q" && value=="Unavailable") {
             return ResponseTemplate::new(503);
         }
+        let query: std::collections::HashMap<_, _> = request.url.query_pairs().into_owned().collect();
+        if query.get("q").is_some_and(|value| value == "No matches") {
+            return ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":0,"docs":[]}));
+        }
+        if query.get("q").is_some_and(|value| value == "Pages") {
+            let second = query.get("page").is_some_and(|value| value == "2");
+            let (start,id,title)=if second {(20,"OL511W","Page two")} else {(0,"OL510W","Page one")};
+            return ResponseTemplate::new(200).set_body_json(json!({"start":start,"numFound":21,"docs":[{"key":id,"title":title,"author_name":[]}]}));
+        }
+        if query.get("q").is_some_and(|value| value == "Long title") {
+            return ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":"OL520W","title":"A long title about reading and remembering books across a lifetime of changing interests and unexpected discoveries".repeat(3),"author_name":[]}]}));
+        }
         let first=request.url.query_pairs().any(|(key,value)|key=="q" && value=="First book");
         let (id,title)=if first {("OL501W","First book")} else {("OL502W","Later book")};
         ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":id,"title":title,"author_name":["Fixture Author"]}]}))

@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { createServer as httpServer, request } from "node:http";
 import { createServer as httpsServer } from "node:https";
 import { connect } from "node:net";
+import { setTimeout as delay } from "node:timers/promises";
 
 // Real TLS transport preserves native redirects, secure cookies, and form Origin.
 // The CONNECT proxy routes only the fixture hostname to this package's loopback app.
@@ -18,6 +19,8 @@ async function fixture(command) {
 }
 const sockets = new Set();
 const upstreamOrigin = new URL(process.argv[2]);
+let heldAddResponse;
+let addRequests = 0;
 const transport = httpsServer(
   { key: readFileSync(process.argv[3]), cert: readFileSync(process.argv[4]) },
   (incoming, outgoing) => {
@@ -27,6 +30,11 @@ const transport = httpsServer(
         "https://reader.example",
         "Native forms must retain the canonical Origin",
       );
+    const held =
+      incoming.method === "POST" && incoming.url === "/add"
+        ? heldAddResponse
+        : null;
+    if (incoming.method === "POST" && incoming.url === "/add") addRequests++;
     const upstream = request(
       {
         protocol: upstreamOrigin.protocol,
@@ -36,12 +44,17 @@ const transport = httpsServer(
         method: incoming.method,
         headers: incoming.headers,
       },
-      (response) => {
+      async (response) => {
+        if (held) {
+          held.arrived(response.statusCode);
+          await held.release;
+        }
         outgoing.writeHead(response.statusCode, response.headers);
         response.pipe(outgoing);
       },
     );
-    upstream.on("error", () => {
+    upstream.on("error", (error) => {
+      if (held) held.failed(error);
       outgoing.writeHead(502);
       outgoing.end();
     });
@@ -76,6 +89,7 @@ const executablePath =
   process.env.CHROMIUM_EXECUTABLE ||
   process.env.CHROME_BIN ||
   chromium.executablePath();
+
 const browser = await chromium.launch({
   executablePath,
   args: ["--no-sandbox"],
@@ -84,6 +98,7 @@ const browser = await chromium.launch({
     bypass: "127.0.0.1,localhost",
   },
 });
+
 try {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
@@ -183,6 +198,20 @@ try {
   await native.close();
   await page.getByRole("link", { name: "Sign in with Google" }).click();
   await page.waitForURL("https://reader.example/ranking");
+  await recordScene("empty-library");
+  const savedHeading = page.getByRole("heading", {
+    name: "Your saved ranking",
+    exact: true,
+  });
+  const taskHeading = page.getByRole("heading", {
+    name: "Find your next book",
+    exact: true,
+  });
+  assert.equal(
+    (await savedHeading.boundingBox()).x < (await taskHeading.boundingBox()).x,
+    true,
+    "Desktop saved positions must precede the active task visually",
+  );
   await page
     .getByRole("textbox", { name: "Title or author" })
     .fill("First book");
@@ -192,7 +221,106 @@ try {
     .waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await page.getByAltText("Cover unavailable").count(), 1);
   await page.getByRole("button", { name: "Select this work" }).click();
-  await page.getByRole("button", { name: "Add to your ranking" }).click();
+  await page.waitForLoadState("domcontentloaded");
+  await page
+    .getByText("Fixture Author", { exact: true })
+    .waitFor({ state: "visible" });
+  await page.getByAltText("Cover unavailable").waitFor({ state: "visible" });
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Selected work", exact: true })
+      .evaluate((heading) => document.activeElement === heading),
+    true,
+  );
+  await recordScene("selected-work");
+  assert.equal(
+    await page.getByRole("status").count(),
+    1,
+    "Add needs an existing live region before submission",
+  );
+  assert.equal(await page.getByRole("status").textContent(), "");
+  assert.equal(
+    await page.getByRole("status").getAttribute("aria-live"),
+    "polite",
+  );
+
+  let releaseAdd;
+  const heldAdd = new Promise((resolve) => {
+    releaseAdd = resolve;
+  });
+  let arrivedAdd, rejectedAdd;
+  const serverAdd = new Promise((resolve, reject) => {
+    arrivedAdd = resolve;
+    rejectedAdd = reject;
+  });
+  heldAddResponse = {
+    arrived: arrivedAdd,
+    failed: rejectedAdd,
+    release: heldAdd,
+  };
+  let captureAdd;
+  const submittedAdd = new Promise((resolve) => {
+    captureAdd = resolve;
+  });
+  await page.exposeFunction("captureAddSubmission", (state) =>
+    captureAdd(state),
+  );
+  await page.evaluate(() => {
+    let captured = false;
+    let duplicatePrevented = false;
+    document.addEventListener("submit", (event) => {
+      const form = event.target;
+      if (form.getAttribute("action") !== "/add") return;
+      if (captured) {
+        duplicatePrevented = event.defaultPrevented;
+        return;
+      }
+      captured = true;
+      form.dispatchEvent(
+        new window.SubmitEvent("submit", { bubbles: true, cancelable: true }),
+      );
+      const status = form.querySelector('[role="status"]');
+      window.captureAddSubmission({
+        disabled: [...form.querySelectorAll("button")].every(
+          (button) => button.disabled,
+        ),
+        busy: form.getAttribute("aria-busy"),
+        status: status.textContent,
+        focusOffStatus: document.activeElement !== status,
+        saved: document.querySelectorAll("ol li").length,
+        duplicatePrevented,
+      });
+    });
+  });
+
+  const addClick = page
+    .getByRole("button", { name: "Add to your ranking" })
+    .click({ noWaitAfter: true });
+  try {
+    const [state, serverStatus] = await Promise.race([
+      Promise.all([submittedAdd, serverAdd]),
+      delay(10000).then(() => {
+        throw new Error("Held native Add did not reach the controlled server");
+      }),
+    ]);
+    assert.deepEqual(state, {
+      disabled: true,
+      busy: "true",
+      status: "Saving…",
+      focusOffStatus: true,
+      saved: 0,
+      duplicatePrevented: true,
+    });
+    assert.equal(serverStatus, 303);
+    assert.equal(addRequests, 1);
+    console.log(
+      "Held native Add: live feedback, no confirmation, duplicate prevented.",
+    );
+  } finally {
+    heldAddResponse = null;
+    releaseAdd();
+  }
+  await addClick;
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(await page.locator("ol li").count(), 1);
   // Advance past the deployment's one-search-per-second admission deadline.
@@ -329,6 +457,62 @@ try {
   await page
     .getByRole("button", { name: /Retry/ })
     .waitFor({ state: "visible", timeout: 5000 });
+  await recordScene("provider-error");
+  let searchRequests = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === "/search"
+    )
+      searchRequests++;
+  });
+  async function deliberateSearch(query) {
+    const before = searchRequests;
+    await page.getByRole("textbox", { name: "Title or author" }).fill(query);
+    await page.waitForTimeout(1100);
+    assert.equal(searchRequests, before, "Typing must not start a search");
+    await page.getByRole("button", { name: /Search books|Retry/ }).click();
+  }
+  await deliberateSearch("Pages");
+  await page.getByRole("link", { name: "Page one", exact: true }).waitFor();
+  assert.equal(
+    await page.getByText("Author unavailable", { exact: true }).count(),
+    1,
+  );
+  await page.waitForTimeout(1100);
+  await page.getByRole("button", { name: "Next page", exact: true }).click();
+  await page.getByRole("link", { name: "Page two", exact: true }).waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Previous page", exact: true })
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await page.getByRole("button", { name: "Next page", exact: true }).count(),
+    0,
+  );
+  await recordScene("pagination");
+  await deliberateSearch("Long title");
+  await page.getByRole("link", { name: /^A long title/ }).waitFor();
+  await recordScene("long-title-missing-metadata");
+  await page
+    .getByRole("button", { name: "Select this work", exact: true })
+    .click();
+  await page
+    .getByRole("heading", { name: "Selected work", exact: true })
+    .waitFor();
+  await recordScene("selected-long-title");
+  await page.getByRole("link", { name: "Return to your ranking" }).click();
+  await deliberateSearch("No matches");
+  await page.getByText("No matches found.", { exact: true }).waitFor();
+  await recordScene("empty-results");
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Select this work", exact: true })
+      .count(),
+    0,
+  );
   console.log("Browser version:", browser.version());
   console.log(
     "Browser journey passed: sign-in, search, first/later Add, keyboard preference, stale tab, mobile layout, reload.",

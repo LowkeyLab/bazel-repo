@@ -1,4 +1,4 @@
-/* global document, window, HTMLFormElement, HTMLButtonElement */
+/* global document, window, HTMLFormElement, HTMLButtonElement, HTMLElement */
 // Keep the selected preference in native form data before disabling controls.
 document.addEventListener("submit", (event) => {
   const form = event.target;
@@ -23,10 +23,23 @@ document.addEventListener("submit", (event) => {
   }
   for (const control of form.querySelectorAll("button"))
     control.disabled = true;
-  for (const status of form.querySelectorAll("[data-submitting]"))
+  for (const status of form.querySelectorAll("[data-submitting]")) {
     status.hidden = false;
+    status.textContent = "Saving…";
+  }
 });
 // Back/forward cache restores the page snapshot; fetch authoritative state again.
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) window.location.reload();
 });
+
+// Move response focus only after navigation receives a rendered server response.
+const responseFocus =
+  document.querySelector(
+    '[data-response-focus="error"], [data-response-focus="recovery"]',
+  ) ||
+  document.querySelector('[data-response-focus="result"]') ||
+  document.querySelector("[data-comparison-heading]") ||
+  document.querySelector('[data-response-focus="task"]');
+if (responseFocus instanceof HTMLElement)
+  responseFocus.focus({ preventScroll: true });
