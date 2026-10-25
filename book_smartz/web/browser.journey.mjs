@@ -12,7 +12,11 @@ import { setTimeout as delay } from "node:timers/promises";
 
 const lifecycle = createLifecycle("journey");
 const stalledPhase = process.env.BOOK_SMARTZ_BROWSER_STALL_PHASE || "";
-assert.ok(["", "browser_shutdown", "proxy_shutdown"].includes(stalledPhase));
+assert.ok(
+  ["", "assertions", "browser_shutdown", "proxy_shutdown"].includes(
+    stalledPhase,
+  ),
+);
 lifecycle.record("runner", "start");
 
 // Real TLS transport preserves native redirects, secure cookies, and form Origin.
@@ -114,6 +118,10 @@ try {
   });
   lifecycle.record("runner", "complete");
   lifecycle.record("assertions", "start");
+  if (stalledPhase === "assertions")
+    await new Promise(() => {
+      /* Exercise the child supervisor deadline. */
+    });
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     ignoreHTTPSErrors: true,

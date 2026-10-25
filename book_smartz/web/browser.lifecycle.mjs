@@ -100,13 +100,14 @@ export function monitorChild(child, lifecycle, timeoutMs) {
     let timedOut = false;
     let settled = false;
     let childPhase;
+    let failedPhase;
     let pending = "";
     let forcedStop;
     const status = () => ({
       child_pid: child.pid,
       exit_code: child.exitCode,
       signal: child.signalCode,
-      child_phase: childPhase,
+      child_phase: childPhase ?? failedPhase,
     });
     const signal = (name) => {
       try {
@@ -146,9 +147,13 @@ export function monitorChild(child, lifecycle, timeoutMs) {
         try {
           const record = JSON.parse(line.slice(recordPrefix.length));
           if (!phases.has(record.phase)) continue;
-          if (record.state === "start" || record.state === "failed")
-            childPhase = record.phase;
-          else if (record.state === "complete" && childPhase === record.phase)
+          if (record.state === "start") childPhase = record.phase;
+          else if (record.state === "failed") {
+            failedPhase = phases.has(record.child_phase)
+              ? record.child_phase
+              : record.phase;
+            childPhase = undefined;
+          } else if (record.state === "complete" && childPhase === record.phase)
             childPhase = undefined;
         } catch {
           /* Other stderr output is not a lifecycle record. */

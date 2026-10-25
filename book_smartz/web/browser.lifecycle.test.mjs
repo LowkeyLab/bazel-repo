@@ -156,7 +156,13 @@ for (const mode of ["success", "stall", "browser-failure"]) {
   });
 }
 
-for (const mode of ["success", "failure", "stall", "ignore-term"]) {
+for (const mode of [
+  "success",
+  "failure",
+  "cleanup-failure",
+  "stall",
+  "ignore-term",
+]) {
   test(`child supervision retains ${mode} status`, async () => {
     const child = spawn(
       process.execPath,
@@ -171,8 +177,15 @@ for (const mode of ["success", "failure", "stall", "ignore-term"]) {
       if (${JSON.stringify(mode)} === "ignore-term") process.on("SIGTERM", () => {});
       process.on("message", () => {
         if (["stall", "ignore-term"].includes(${JSON.stringify(mode)})) return;
+        if (${JSON.stringify(mode)} === "cleanup-failure") {
+          for (const record of [
+            { phase: "browser_shutdown", state: "failed" },
+            { phase: "proxy_shutdown", state: "start" },
+            { phase: "proxy_shutdown", state: "complete" },
+          ]) process.stderr.write("browser-lifecycle " + JSON.stringify(record) + "\\n");
+        }
         server.close(() => {
-          process.exitCode = ${mode === "failure" ? 7 : 0};
+          process.exitCode = ${["failure", "cleanup-failure"].includes(mode) ? 7 : 0};
           process.disconnect();
         });
       });
@@ -186,7 +199,7 @@ for (const mode of ["success", "failure", "stall", "ignore-term"]) {
       const result = monitorChild(
         child,
         createLifecycle("collection"),
-        mode === "success" || mode === "failure" ? 2000 : 100,
+        ["success", "failure", "cleanup-failure"].includes(mode) ? 2000 : 100,
       );
       child.send("finish");
       if (mode === "success") await result;
@@ -214,6 +227,8 @@ for (const mode of ["success", "failure", "stall", "ignore-term"]) {
         records.at(-1).state,
         mode === "success" ? "complete" : "failed",
       );
+      if (mode === "cleanup-failure")
+        assert.equal(records.at(-1).child_phase, "browser_shutdown");
       if (["stall", "ignore-term"].includes(mode))
         assert.ok(
           records.some((record) => record.child_phase === "proxy_shutdown"),

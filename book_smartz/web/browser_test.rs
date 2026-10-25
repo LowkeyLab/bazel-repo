@@ -105,13 +105,14 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
     let mut output_open = true;
     let mut exit = None;
     let mut child_phase = None;
-    // Reserve time for child termination and the existing fixture cleanup.
+    let mut failed_phase = None;
+    // Finish before the collection supervisor. Keep thirty seconds for fixture cleanup.
     let outer_seconds = std::env::var("TEST_TIMEOUT")
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or(300);
     let budget = Duration::from_secs(outer_seconds)
-        .saturating_sub(lifecycle.started.elapsed() + Duration::from_secs(15));
+        .saturating_sub(lifecycle.started.elapsed() + Duration::from_secs(45));
     lifecycle.record("runner", "start", child_pid, "running", None);
     let result = tokio::time::timeout(budget, async {
         while output_open || errors.is_some() || exit.is_none() {
@@ -146,7 +147,8 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
                         let phase = record["phase"].as_str().unwrap_or_default();
                         if matches!(phase, "runner" | "assertions" | "control_shutdown" | "browser_shutdown" | "proxy_shutdown" | "journey_teardown") {
                             match record["state"].as_str() {
-                                Some("start" | "failed") => child_phase = Some(phase.to_owned()),
+                                Some("start") => child_phase = Some(phase.to_owned()),
+                                Some("failed") => { failed_phase = Some(phase.to_owned()); child_phase = None; },
                                 Some("complete") if child_phase.as_deref() == Some(phase) => child_phase = None,
                                 _ => (),
                             }
@@ -169,7 +171,7 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
             "failed",
             child_pid,
             &status,
-            child_phase.as_deref(),
+            child_phase.as_deref().or(failed_phase.as_deref()),
         );
         Err(anyhow::anyhow!("browser child exceeded its exit deadline"))
     });
@@ -190,7 +192,7 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         },
         child_pid,
         &status,
-        child_phase.as_deref(),
+        child_phase.as_deref().or(failed_phase.as_deref()),
     );
     drop(input);
     lifecycle.record("fixture_cleanup", "start", child_pid, &status, None);

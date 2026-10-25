@@ -171,8 +171,10 @@ The records distinguish assertions, browser shutdown, proxy shutdown, child exit
 and fixture cleanup. Harness completion follows successful child exit and cleanup.
 The collection entry point also waits for the fixture's output streams to close.
 
-Cleanup phases have ten-second deadlines. The child supervisors reserve fifteen
-seconds before the outer test timeout for a failure record and process termination.
+Cleanup phases have ten-second deadlines. The Rust child supervisor reserves
+forty-five seconds before the outer test timeout. The collection supervisor reserves
+fifteen seconds. This gives Rust thirty seconds to stop its child and finish
+fixture cleanup before the collection supervisor can stop the fixture.
 A failure record retains the incomplete phase and available child status.
 Node records also include resource types and counts.
 Records contain no request, identity, cookie, credential, or book fields.
@@ -189,6 +191,10 @@ For a controlled packaged teardown failure, run both entry points with
 This test-only fault retains the phase after the real proxy cleanup finishes.
 The cleanup deadline must fail both tests without a harness completion record.
 `browser_shutdown` selects the corresponding browser cleanup fault.
+`assertions` retains the assertion phase until the child supervisor terminates it.
+Use `--test_timeout=90` for that controlled probe. This reduces the outer timeout.
+Rust must finish fixture cleanup before the collection supervisor's later deadline.
+Failed phase attribution survives subsequent successful cleanup.
 Chromium supplies computed appearance data. Node calculates contrast and validates
 those results. Native Node profiles measure Node execution. Browser execution
 remains outside those profiles. Browser assertions validate submission behavior.
