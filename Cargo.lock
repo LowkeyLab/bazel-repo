@@ -7649,9 +7649,9 @@ dependencies = [
  "tokio-tungstenite 0.29.0",
  "topcoat-asset",
  "topcoat-cookie",
- "topcoat-core 0.11.0",
+ "topcoat-core",
  "topcoat-core-macro",
- "topcoat-font 0.11.0",
+ "topcoat-font",
  "topcoat-font-macro",
  "topcoat-icon",
  "topcoat-icon-macro",
@@ -7662,7 +7662,7 @@ dependencies = [
  "topcoat-runtime",
  "topcoat-runtime-macro",
  "topcoat-session",
- "topcoat-view 0.11.0",
+ "topcoat-view",
  "topcoat-view-macro",
 ]
 
@@ -7681,9 +7681,9 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "toml 1.1.8+spec-1.1.0",
- "topcoat-core 0.11.0",
+ "topcoat-core",
  "topcoat-router",
- "topcoat-view 0.11.0",
+ "topcoat-view",
  "ureq",
 ]
 
@@ -7698,24 +7698,8 @@ dependencies = [
  "http",
  "serde",
  "serde_json",
- "topcoat-core 0.11.0",
+ "topcoat-core",
  "topcoat-router",
-]
-
-[[package]]
-name = "topcoat-core"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e50a7a9c7df454982f9103ac0ff0c1f7a0dacc304bf5273686d9652c56dbf24"
-dependencies = [
- "anymap3",
- "base64 0.22.1",
- "elsa",
- "http",
- "pin-project-lite",
- "siphasher",
- "thiserror 2.0.21",
- "tokio",
 ]
 
 [[package]]
@@ -7732,18 +7716,6 @@ dependencies = [
  "siphasher",
  "thiserror 2.0.21",
  "tokio",
-]
-
-[[package]]
-name = "topcoat-core-grammar"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80e281c766230381a4d1b2827c4177487342210b4673f850864c2749e071ee81"
-dependencies = [
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 3.0.9",
 ]
 
 [[package]]
@@ -7766,19 +7738,7 @@ checksum = "3e3786bf2ee2c8b4f728d3fb53c41f639aa66583788b3135acbd63c11458b25b"
 dependencies = [
  "quote",
  "syn 3.0.9",
- "topcoat-core-grammar 0.11.0",
-]
-
-[[package]]
-name = "topcoat-font"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ccfde441afe9559296586891317bc8bd332bed8bfb4daaf78578d2f4f5f08ae"
-dependencies = [
- "heck 0.5.0",
- "serde",
- "serde_json",
- "topcoat-core 0.10.0",
+ "topcoat-core-grammar",
 ]
 
 [[package]]
@@ -7792,23 +7752,10 @@ dependencies = [
  "serde",
  "serde_json",
  "topcoat-asset",
- "topcoat-core 0.11.0",
+ "topcoat-core",
  "topcoat-router",
- "topcoat-view 0.11.0",
+ "topcoat-view",
  "topcoat-view-macro",
-]
-
-[[package]]
-name = "topcoat-font-grammar"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c962dddbbf22479c3a65cae250fdd6fc30b28c1d67eba0f2284f7848d204e9f3"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 3.0.9",
- "topcoat-core-grammar 0.10.0",
- "topcoat-font 0.10.0",
 ]
 
 [[package]]
@@ -7820,8 +7767,8 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
- "topcoat-core-grammar 0.11.0",
- "topcoat-font 0.11.0",
+ "topcoat-core-grammar",
+ "topcoat-font",
 ]
 
 [[package]]
@@ -7832,7 +7779,7 @@ checksum = "40776cd3087aaea5e0c8b597126b1c09dbfb0d69833088d7f3b229305bbbb87f"
 dependencies = [
  "quote",
  "syn 3.0.9",
- "topcoat-font-grammar 0.11.0",
+ "topcoat-font-grammar",
 ]
 
 [[package]]
@@ -7844,8 +7791,8 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
- "topcoat-core 0.11.0",
- "topcoat-view 0.11.0",
+ "topcoat-core",
+ "topcoat-view",
  "topcoat-view-macro",
  "ureq",
 ]
@@ -7861,7 +7808,7 @@ dependencies = [
  "quote",
  "serde_json",
  "syn 3.0.9",
- "topcoat-core-grammar 0.11.0",
+ "topcoat-core-grammar",
  "topcoat-icon",
 ]
 
@@ -7885,8 +7832,8 @@ checksum = "34da63b3a5aea3d6c243d9fa8c98ca79b181b985f6a0a042f630672f54d12e9e"
 dependencies = [
  "icu_locale",
  "icu_locale_core",
- "topcoat-core 0.11.0",
- "topcoat-view 0.11.0",
+ "topcoat-core",
+ "topcoat-view",
 ]
 
 [[package]]
@@ -7898,9 +7845,9 @@ dependencies = [
  "lettre",
  "thiserror 2.0.21",
  "time",
- "topcoat-core 0.11.0",
+ "topcoat-core",
  "topcoat-router",
- "topcoat-view 0.11.0",
+ "topcoat-view",
 ]
 
 [[package]]
@@ -7932,8 +7879,8 @@ dependencies = [
  "serde_urlencoded",
  "tokio",
  "tokio-tungstenite 0.29.0",
- "topcoat-core 0.11.0",
- "topcoat-view 0.11.0",
+ "topcoat-core",
+ "topcoat-view",
  "tower",
  "tower-http 0.7.1",
 ]
@@ -7948,7 +7895,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
- "topcoat-core-grammar 0.11.0",
+ "topcoat-core-grammar",
 ]
 
 [[package]]
@@ -7975,9 +7922,9 @@ dependencies = [
  "serde_json",
  "tokio",
  "topcoat-asset",
- "topcoat-core 0.11.0",
+ "topcoat-core",
  "topcoat-router",
- "topcoat-view 0.11.0",
+ "topcoat-view",
  "topcoat-view-macro",
 ]
 
@@ -7992,7 +7939,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn 3.0.9",
- "topcoat-core-grammar 0.11.0",
+ "topcoat-core-grammar",
  "topcoat-router",
  "topcoat-runtime",
 ]
@@ -8020,24 +7967,9 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "topcoat-cookie",
- "topcoat-core 0.11.0",
+ "topcoat-core",
  "topcoat-router",
  "web-time",
-]
-
-[[package]]
-name = "topcoat-view"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f46315fff49446cdaf8a748fd9fb525f0345e9540b5ea4fdbacf9b9412907d12"
-dependencies = [
- "futures-core",
- "futures-util",
- "memchr",
- "pin-project-lite",
- "siphasher",
- "smallvec",
- "topcoat-core 0.10.0",
 ]
 
 [[package]]
@@ -8053,21 +7985,7 @@ dependencies = [
  "pin-project-lite",
  "siphasher",
  "smallvec",
- "topcoat-core 0.11.0",
-]
-
-[[package]]
-name = "topcoat-view-grammar"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59d799180330985df38cd4e1666dd6cada55bd1fa9b083760f9872c0f520b47b"
-dependencies = [
- "heck 0.5.0",
- "proc-macro2",
- "quote",
- "syn 3.0.9",
- "topcoat-core-grammar 0.10.0",
- "topcoat-view 0.10.0",
+ "topcoat-core",
 ]
 
 [[package]]
@@ -8080,8 +7998,8 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
- "topcoat-core-grammar 0.11.0",
- "topcoat-view 0.11.0",
+ "topcoat-core-grammar",
+ "topcoat-view",
 ]
 
 [[package]]
@@ -8092,7 +8010,7 @@ checksum = "ffa1688d165704f08d58c03710453d0d39553292bea61b18be7959a996c3e39b"
 dependencies = [
  "quote",
  "syn 3.0.9",
- "topcoat-view-grammar 0.11.0",
+ "topcoat-view-grammar",
 ]
 
 [[package]]
@@ -9139,9 +9057,9 @@ dependencies = [
  "tokio",
  "topcoat",
  "topcoat-asset",
- "topcoat-core-grammar 0.10.0",
- "topcoat-font-grammar 0.10.0",
- "topcoat-view-grammar 0.10.0",
+ "topcoat-core-grammar",
+ "topcoat-font-grammar",
+ "topcoat-view-grammar",
  "tower",
  "tower-http 0.7.1",
  "tracing",

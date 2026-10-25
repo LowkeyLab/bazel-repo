@@ -7,6 +7,19 @@
   },
   "packageRules": [
     {
+      "description": "Update Topcoat crates and runtime asset paths together",
+      "matchManagers": ["cargo", "custom.regex"],
+      "matchPackageNames": [
+        "topcoat",
+        "topcoat-asset",
+        "topcoat-core-grammar",
+        "topcoat-font-grammar",
+        "topcoat-view-grammar",
+        "topcoat-runtime"
+      ],
+      "groupName": "Topcoat"
+    },
+    {
       "matchManagers": ["bazel-module"],
       "matchDatasources": ["maven"],
       "postUpgradeTasks": {
@@ -141,6 +154,15 @@
     }
   ],
   "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
+      "matchStrings": [
+        "CARGO_MANIFEST_DIR\": \"external/rules_rs\\+\\+crate\\+crates__topcoat-runtime-(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "crate",
+      "depNameTemplate": "topcoat-runtime"
+    },
     {
       "customType": "regex",
       "managerFilePatterns": ["/^MODULE\\.bazel$/", "/^\\.bazelrc$/"],
