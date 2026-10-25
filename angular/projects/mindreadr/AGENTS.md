@@ -24,10 +24,4 @@ Project-specific commands and notes for the Mindreadr Angular app.
 
 ## Notes
 
-- Install dependencies from the repo root:
-
-  ```bash
-  pnpm install
-  ```
-
 - For repo-wide commands and Angular workspace guidance, see `angular/AGENTS.md`.

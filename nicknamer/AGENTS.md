@@ -52,22 +52,10 @@ Key targets:
   aspect test //nicknamer/server/lib/tests:tests --test_filter="test_name_pattern"
   ```
 
-Test structure:
+Place unit tests in `nicknamer/server/lib/tests/`.
 
-- Unit tests in `nicknamer/server/lib/tests/`
-- Use `googletest` as the Rust test library and its matchers for assertions
-- Snapshot testing with the `insta` crate alongside `googletest`
-- Integration tests with `testcontainers` (spins up PostgreSQL automatically)
-
-## Code style guidelines (Rust)
-
-- Use Rust 2024 edition
-- Prefer the newtype pattern wherever practical for distinct domain concepts, such as user IDs and validated names, instead of interchangeable primitives or type aliases
-- Keep fields private when enforcing invariants, validate through constructors or `TryFrom`, and expose only domain-appropriate traits and conversions
-- Format with rustfmt (run `aspect format` at repo root)
-- Follow `cargo clippy` recommendations
-- Prefer explicit error handling with `anyhow::Result`
-- Use structured logging with `tracing`
+For test libraries and Rust rules, read [the Rust standards](../docs/agents/rust.md).
+Use [the development workflow](../docs/agents/development.md) for the required verification sequence.
 
 ## Architecture patterns
 
@@ -81,7 +69,6 @@ Test structure:
 
 - Keep dependencies minimal and well-justified
 - Use workspace dependencies from `MODULE.bazel`
-- Prefer async/await patterns on Tokio runtime
 
 ## Database
 
@@ -137,16 +124,6 @@ Required environment variables (local dev):
   ```
 
 The app serves on port 8080 by default.
-
-## Development workflow
-
-1. Make code changes
-2. Format code: `aspect format --scope=all`
-3. Run linters: `aspect lint`
-4. Run tests: `aspect test //nicknamer/server/lib/tests:tests`
-5. Test locally: `bazel run //nicknamer:run_locally`
-6. Build image: `aspect build //nicknamer/server/bin:image`
-7. Ensure all tests pass before committing
 
 ## Troubleshooting
 
