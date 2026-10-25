@@ -23,27 +23,42 @@ function run(mode, brokenDelivery = false) {
   const full = brokenDelivery ? openSync("/dev/full", "w") : undefined;
   try {
     const program = `
-      import { createLifecycle, teardown } from ${JSON.stringify(lifecycleModule)};
+      import { createLifecycle, teardown, runJourney } from ${JSON.stringify(lifecycleModule)};
       import { createServer } from "node:net";
       const lifecycle = createLifecycle("journey");
       const server = createServer();
       await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
       console.log("fixture:native-reader");
-      lifecycle.record("assertions", "complete");
+      const mode = ${JSON.stringify(mode)};
+      const workFailure = ["assertion-failure", "combined-failure"].includes(mode);
+      const journeyMode = workFailure || mode === "cleanup-journey-failure";
+      const originalError = new Error("controlled assertion failure");
+      const cleanupError = new Error("controlled cleanup failure");
+      const operations = {
+        controls() {},
+        async browser() {
+          if (mode === "browser-falsy-failure") throw undefined;
+          if (["browser-failure", "combined-failure", "cleanup-journey-failure"].includes(mode)) throw cleanupError;
+        },
+        async proxy() {
+          await new Promise(resolve => server.close(resolve));
+          if (mode === "stall") await new Promise(() => {});
+        },
+      };
       try {
-        await teardown(lifecycle, {
-          controls() {},
-          async browser() {
-            if (${JSON.stringify(mode)} === "browser-falsy-failure") throw undefined;
-            if (${JSON.stringify(mode)} === "browser-failure") throw new Error("controlled cleanup failure");
-          },
-          async proxy() {
-            await new Promise(resolve => server.close(resolve));
-            if (${JSON.stringify(mode)} === "stall") await new Promise(() => {});
-          },
-        }, 25);
-      } catch {
-        process.exitCode = 1;
+        if (journeyMode) {
+          await runJourney(lifecycle, async () => {
+            lifecycle.record("assertions", "start");
+            if (workFailure) throw originalError;
+            lifecycle.record("assertions", "complete");
+          }, operations, 25);
+        } else {
+          lifecycle.record("assertions", "complete");
+          await teardown(lifecycle, operations, 25);
+        }
+      } catch (error) {
+        const expected = mode === "cleanup-journey-failure" ? cleanupError : originalError;
+        process.exitCode = journeyMode && error !== expected ? 2 : 1;
       }
     `;
     const child = spawnSync(
@@ -150,7 +165,41 @@ for (const mode of ["browser-failure", "browser-falsy-failure"])
     );
   });
 
-for (const mode of ["success", "stall", "browser-failure"]) {
+for (const mode of [
+  "assertion-failure",
+  "combined-failure",
+  "cleanup-journey-failure",
+]) {
+  test(`journey ${mode} preserves its error and completes cleanup`, () => {
+    const { child, records } = run(mode);
+    assert.equal(child.status, 1, child.stderr);
+    if (mode !== "cleanup-journey-failure")
+      assert.ok(
+        records.some(
+          (record) =>
+            record.phase === "assertions" && record.state === "failed",
+        ),
+      );
+    assert.ok(
+      records.some(
+        (record) =>
+          record.phase === "proxy_shutdown" && record.state === "complete",
+      ),
+    );
+    assert.equal(
+      records.some((record) => record.phase === "journey_teardown"),
+      mode === "assertion-failure",
+    );
+  });
+}
+
+for (const mode of [
+  "success",
+  "stall",
+  "browser-failure",
+  "assertion-failure",
+  "combined-failure",
+]) {
   test(`diagnostic delivery failure preserves ${mode} and cleanup`, () => {
     const { child } = run(mode, true);
     assert.equal(child.status, mode === "success" ? 0 : 1);

@@ -1,5 +1,5 @@
 /* global process, URL, getComputedStyle, document, console, window */
-import { createLifecycle, teardown } from "./browser.lifecycle.mjs";
+import { createLifecycle, runJourney } from "./browser.lifecycle.mjs";
 import { createInterface } from "node:readline";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
@@ -107,10 +107,7 @@ const executablePath =
   chromium.executablePath();
 
 let browser;
-let activePhase = "runner";
-let journeyFailed = false;
-let journeyError;
-try {
+async function journey() {
   browser = await chromium.launch({
     executablePath,
     args: ["--no-sandbox"],
@@ -120,7 +117,6 @@ try {
     },
   });
   lifecycle.record("runner", "complete");
-  activePhase = "assertions";
   lifecycle.record("assertions", "start");
   if (process.env.BOOK_SMARTZ_BROWSER_FAIL_ASSERTION === "1")
     assert.fail("Controlled assertion failure");
@@ -1574,42 +1570,29 @@ try {
     "Browser assertions passed: native and enhanced reader actions, explicit recovery, held responses, motion, contrast, and responsive layout.",
   );
   lifecycle.record("assertions", "complete");
-} catch (error) {
-  journeyFailed = true;
-  lifecycle.record(activePhase, "failed");
-  journeyError = error;
-} finally {
-  try {
-    await teardown(lifecycle, {
-      controls() {
-        controls.close();
-        process.stdin.destroy();
-      },
-      async browser() {
-        await browser?.close();
-        if (stalledPhase === "browser_shutdown")
-          await new Promise(() => {
-            /* Retain the phase until its cleanup deadline. */
-          });
-      },
-      async proxy() {
-        for (const socket of sockets) socket.destroy();
-        await Promise.all([
-          new Promise((resolve) => proxy.close(resolve)),
-          new Promise((resolve) => transport.close(resolve)),
-        ]);
-        if (stalledPhase === "proxy_shutdown")
-          await new Promise(() => {
-            /* Retain the phase until its cleanup deadline. */
-          });
-      },
-    });
-  } catch (error) {
-    // Preserve the original journey error after all cleanup operations run.
-    if (!journeyFailed) {
-      journeyFailed = true;
-      journeyError = error;
-    }
-  }
 }
-if (journeyFailed) throw journeyError;
+
+await runJourney(lifecycle, journey, {
+  controls() {
+    controls.close();
+    process.stdin.destroy();
+  },
+  async browser() {
+    await browser?.close();
+    if (stalledPhase === "browser_shutdown")
+      await new Promise(() => {
+        /* Retain the phase until its cleanup deadline. */
+      });
+  },
+  async proxy() {
+    for (const socket of sockets) socket.destroy();
+    await Promise.all([
+      new Promise((resolve) => proxy.close(resolve)),
+      new Promise((resolve) => transport.close(resolve)),
+    ]);
+    if (stalledPhase === "proxy_shutdown")
+      await new Promise(() => {
+        /* Retain the phase until its cleanup deadline. */
+      });
+  },
+});

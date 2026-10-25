@@ -22,9 +22,14 @@ const phases = new Set([
 export function createLifecycle(role) {
   const started = performance.now();
   let sequence = 0;
+  let currentPhase = "runner";
   return {
+    get currentPhase() {
+      return currentPhase;
+    },
     record(phase, state, status = {}) {
       if (!phases.has(phase)) return;
+      currentPhase = phase;
       const resource_types = process.getActiveResourcesInfo().sort();
       const record = {
         role,
@@ -175,4 +180,31 @@ export function monitorChild(child, lifecycle, timeoutMs) {
       finish(error);
     });
   });
+}
+
+// Preserve the work error while every cleanup operation still runs.
+export async function runJourney(
+  lifecycle,
+  work,
+  operations,
+  timeoutMs = 10000,
+) {
+  let failed = false;
+  let failure;
+  try {
+    await work();
+  } catch (error) {
+    failed = true;
+    failure = error;
+    lifecycle.record(lifecycle.currentPhase, "failed");
+  }
+  try {
+    await teardown(lifecycle, operations, timeoutMs);
+  } catch (error) {
+    if (!failed) {
+      failed = true;
+      failure = error;
+    }
+  }
+  if (failed) throw failure;
 }
