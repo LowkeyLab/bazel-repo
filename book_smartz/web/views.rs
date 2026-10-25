@@ -51,12 +51,6 @@ pub async fn cover(url: Option<String>, compact: bool) -> Result<impl View> {
     let height = if compact { "72" } else { "240" };
     Ok(view! {
         <div class=(if compact { "book-cover compact" } else { "book-cover" })>
-            <img
-                src=(asset!("./cover-placeholder.svg"))
-                alt="Cover unavailable"
-                width=(width)
-                height=(height)
-            >
             if let Some(cover) = url {
                 <object
                     data=(cover)
@@ -70,6 +64,13 @@ pub async fn cover(url: Option<String>, compact: bool) -> Result<impl View> {
                         height=(height)
                     >
                 </object>
+            } else {
+                <img
+                    src=(asset!("./cover-placeholder.svg"))
+                    alt="Cover unavailable"
+                    width=(width)
+                    height=(height)
+                >
             }
         </div>
     })

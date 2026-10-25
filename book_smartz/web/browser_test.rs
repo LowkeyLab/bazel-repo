@@ -63,7 +63,7 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         }
         if let Some(title) = query.get("q").filter(|value| matches!(value.as_str(), "Third book" | "Reduced book" | "Interrupted book" | "Recovered book" | "Native book")) {
             let id = match title.as_str() { "Third book" => "OL503W", "Reduced book" => "OL504W", "Interrupted book" => "OL505W", "Recovered book" => "OL508W", _ => "OL506W" };
-            return ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":id,"title":title,"author_name":["Fixture Author"]}]}));
+            return ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":id,"title":title,"author_name":["Fixture Author"],"cover_i": if title == "Third book" { Some(123) } else { None }}]}));
         }
         let first=request.url.query_pairs().any(|(key,value)|key=="q" && value=="First book");
         let (id,title)=if first {("OL501W","First book")} else {("OL502W","Later book")};

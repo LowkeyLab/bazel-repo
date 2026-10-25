@@ -158,6 +158,24 @@ lost-commit-acknowledgement and process-cancellation recovery. These checks prov
 controlled acceptance evidence. Live-provider and deployment acceptance remain
 separate delivery work.
 
+The browser records every acceptance scene at 320 × 900, 390 × 900, and
+1440 × 900. `browser-evidence.json` contains the Chromium version, viewport,
+visible-control bounds, and computed foreground/background contrast measurements.
+The measurements composite ancestor backgrounds and the placement highlight.
+They use the [W3C sRGB luminance formula](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html#dfn-relative-luminance).
+Normal text must reach 4.5:1. Large text, control boundaries, and visible focus
+outlines must reach 3:1. The checks include inactive controls. These measurements cover the rendered
+acceptance scenes. Web Content Accessibility Guidelines conformance requires
+separate review.
+
+Full-page screenshots and `motion-evidence.json` remain in the Bazel test outputs.
+Use `--test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=<tested-commit>` to identify the
+commit in both evidence files. Final acceptance must force fresh test execution.
+The native journey disables JavaScript and checks first Add, comparison,
+uncertainty, read/reload/sign-in without recovery, explicit Check original save,
+Resume, and keyboard completion. Fixture controls remain outside production routes.
+A failed remote cover exposes one accessible placeholder and retains its catalog URL.
+
 The browser target uses the [pinned combined worker](../../tools/book_smartz_browser_worker/README.md)
 on BuildBuddy Firecracker, with Docker initialization and the matching bundled
 Chromium under `/ms-playwright`. The worker's [publication and anonymous full-image verification](https://github.com/LowkeyLab/bazel-repo/actions/runs/39092168629)

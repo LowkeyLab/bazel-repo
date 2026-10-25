@@ -160,9 +160,11 @@ try {
       });
     });
   });
-  await context.route("https://covers.openlibrary.org/**", (route) =>
-    route.abort(),
-  );
+  const coverRequests = [];
+  await context.route("https://covers.openlibrary.org/**", (route) => {
+    coverRequests.push(route.request().url());
+    return route.abort();
+  });
   const page = await context.newPage();
   let firstSearchAt;
   page.on("request", (request) => {
@@ -190,8 +192,162 @@ try {
         true,
         `${name} overflows at ${width}px`,
       );
+      const audit = await target.evaluate(() => {
+        const rgba = (value) => {
+          const parts = value.match(/[\d.]+/g).map(Number);
+          return [parts[0], parts[1], parts[2], parts[3] ?? 1];
+        };
+        const blend = (front, back) =>
+          front
+            .slice(0, 3)
+            .map((part, i) => part * front[3] + back[i] * (1 - front[3]));
+        const background = (element) => {
+          const chain = [];
+          for (let node = element; node; node = node.parentElement)
+            chain.unshift(node);
+          let color = [255, 255, 255];
+          for (const node of chain) {
+            color = blend(rgba(getComputedStyle(node).backgroundColor), color);
+            const decoration = getComputedStyle(node, "::before");
+            if (
+              decoration.content !== "none" &&
+              decoration.content !== "normal"
+            ) {
+              const tint = rgba(decoration.backgroundColor);
+              tint[3] *= Number(decoration.opacity);
+              color = blend(tint, color);
+            }
+          }
+          return color;
+        };
+        const luminance = (color) =>
+          color
+            .map((value) => {
+              const channel = value / 255;
+              return channel <= 0.04045
+                ? channel / 12.92
+                : ((channel + 0.055) / 1.055) ** 2.4;
+            })
+            .reduce(
+              (sum, value, index) =>
+                sum + value * [0.2126, 0.7152, 0.0722][index],
+              0,
+            );
+        const ratio = (front, back) => {
+          const first = luminance(front),
+            second = luminance(back);
+          return (
+            (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
+          );
+        };
+        const visible = (element) =>
+          element.checkVisibility({
+            checkOpacity: true,
+            checkVisibilityCSS: true,
+          });
+        const controls = [
+          ...document.querySelectorAll(
+            'a[href],button,input:not([type="hidden"])',
+          ),
+        ].map((element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            name: (
+              element.textContent ||
+              element.getAttribute("aria-label") ||
+              element.name
+            ).trim(),
+            visible: visible(element),
+            x: rect.x,
+            right: rect.right,
+            width: rect.width,
+            height: rect.height,
+          };
+        });
+        const measurements = [];
+        for (const element of document.querySelectorAll(
+          'h1,h2,h3,p,a,label,legend,button,input:not([type="hidden"])',
+        )) {
+          if (!visible(element)) continue;
+          const style = getComputedStyle(element);
+          const name = (
+            element.textContent ||
+            element.value ||
+            element.placeholder ||
+            ""
+          ).trim();
+          const back = background(element);
+          if (name) {
+            const front = blend(rgba(style.color), back);
+            const large =
+              parseFloat(style.fontSize) >= 24 ||
+              (parseFloat(style.fontSize) >= 18.6667 &&
+                Number(style.fontWeight) >= 700);
+            measurements.push({
+              kind: "text",
+              name,
+              foreground: front,
+              background: back,
+              fontSize: style.fontSize,
+              fontWeight: style.fontWeight,
+              disabled: element.matches(":disabled"),
+              ratio: ratio(front, back),
+              minimum: large ? 3 : 4.5,
+            });
+          }
+          if (element.matches("button,input")) {
+            const adjacent = background(element.parentElement);
+            const border = blend(rgba(style.borderTopColor), adjacent);
+            measurements.push({
+              kind: "control boundary",
+              name,
+              foreground: border,
+              background: adjacent,
+              disabled: element.matches(":disabled"),
+              ratio: ratio(border, adjacent),
+              minimum: 3,
+            });
+          }
+          if (
+            style.outlineStyle !== "none" &&
+            parseFloat(style.outlineWidth) > 0
+          ) {
+            const adjacent = background(element.parentElement);
+            const outline = blend(rgba(style.outlineColor), adjacent);
+            measurements.push({
+              kind: "focus outline",
+              name,
+              foreground: outline,
+              background: adjacent,
+              ratio: ratio(outline, adjacent),
+              minimum: 3,
+            });
+          }
+        }
+        return { controls, measurements };
+      });
+      for (const control of audit.controls) {
+        assert.equal(
+          control.visible && control.width > 0 && control.height > 0,
+          true,
+          `${name}: hidden control ${control.name}`,
+        );
+        assert.equal(
+          control.x >= -1 && control.right <= width + 1,
+          true,
+          `${name}: clipped control ${control.name}`,
+        );
+      }
+      for (const measurement of audit.measurements)
+        assert.equal(
+          measurement.ratio >= measurement.minimum,
+          true,
+          `${name}: ${measurement.kind} contrast ${measurement.ratio} for ${measurement.name}`,
+        );
       const record = {
+        commit: process.env.BOOK_SMARTZ_ACCEPTANCE_COMMIT || "working-tree",
         name,
+        ...audit,
         engine: "Chromium",
         version: browser.version(),
         width,
@@ -836,6 +992,23 @@ try {
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   await addWork("Third book");
+  await page.waitForLoadState("load");
+  assert.equal(
+    coverRequests.includes(
+      "https://covers.openlibrary.org/b/id/123-M.jpg?default=false",
+    ),
+    true,
+  );
+  const thirdSummary = page.getByRole("article").filter({
+    has: page.getByRole("link", { name: "Third book", exact: true }),
+  });
+  assert.equal(
+    await thirdSummary
+      .getByRole("img", { name: "Cover unavailable", exact: true })
+      .count(),
+    1,
+    "An unavailable remote cover exposes one accessible placeholder",
+  );
   assert.equal(await page.locator("ol li").count(), 2);
   await page
     .getByRole("button", { name: "Prefer Later book", exact: true })
@@ -1341,14 +1514,19 @@ try {
     writeFileSync(
       join(evidence, "motion-evidence.json"),
       JSON.stringify(
-        { engine: "Chromium", version: browser.version(), motions },
+        {
+          commit: process.env.BOOK_SMARTZ_ACCEPTANCE_COMMIT || "working-tree",
+          engine: "Chromium",
+          version: browser.version(),
+          motions,
+        },
         null,
         2,
       ),
     );
   console.log("Browser version:", browser.version());
   console.log(
-    "Browser journey passed: sign-in, search, first/later Add, keyboard preference, stale tab, mobile layout, reload.",
+    "Browser journey passed: native and enhanced reader actions, explicit recovery, held responses, motion, contrast, and responsive layout.",
   );
 } finally {
   controls.close();
