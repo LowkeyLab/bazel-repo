@@ -71,7 +71,7 @@ pub enum Severity {
 }
 
 /// This closed shape applies the privacy allowlist before listener dispatch.
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct OperationFinished {
     pub event: EventIdentity,
@@ -85,7 +85,7 @@ pub struct OperationFinished {
     pub operation_id: OperationId,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct OperationRecord {
     pub severity: Severity,

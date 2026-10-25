@@ -48,23 +48,7 @@ async fn catalog_failure_emits_safe_typed_facts_through_packaged_composition() -
         .respond_with(ResponseTemplate::new(503).set_body_string("private provider payload"))
         .mount(&app.provider)
         .await;
-    let response = app
-        .client
-        .post(format!("{}/search", app.base))
-        .header("cookie", &cookie)
-        .header("origin", "https://reader.example")
-        .header("content-type", "application/x-www-form-urlencoded")
-        .body(
-            url::form_urlencoded::Serializer::new(String::new())
-                .extend_pairs([
-                    ("csrf", csrf.as_str()),
-                    ("query", "private query"),
-                    ("page", "1"),
-                ])
-                .finish(),
-        )
-        .send()
-        .await?;
+    let response = submit(&app, &app.base, &cookie, &csrf, "private query").await?;
     assert_that!(response.status().as_u16(), eq(200));
     let record = next_record(&app, 0).await?;
     assert_that!(record.severity, eq(Severity::Warn));
