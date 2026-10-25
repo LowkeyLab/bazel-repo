@@ -12,7 +12,13 @@ topcoat_rust_library(
     name = "views",
     package_name = "book-smartz-views",
     srcs = ["views.rs"],
-    asset_inputs = [":font"],
+    asset_inputs = [
+        "fonts/literata.ttf",
+        "fonts/source-sans-3.ttf",
+        "fonts/literata-OFL.txt",
+        "fonts/source-sans-3-OFL.txt",
+        "cover-placeholder.svg",
+    ],
     crate_name = "book_smartz_views",
     crate_root = "views.rs",
     iconify_json = ":icons",
@@ -34,7 +40,6 @@ topcoat_rust_binary(
     ],
     asset_inputs = [
         ":styles",
-        "cover-placeholder.svg",
         ":submitting_script",
     ],
     compile_data = [
@@ -64,13 +69,6 @@ topcoat_rust_binary(
         "@crates//:url",
         "@crates//:uuid",
     ],
-)
-
-genrule(
-    name = "font",
-    srcs = ["//tools:node_modules/@fontsource/roboto"],
-    outs = ["local/font.woff2"],
-    cmd = "for p in $(execpaths //tools:node_modules/@fontsource/roboto); do case $$p in */tools/node_modules/@fontsource/roboto) cp $$p/files/roboto-latin-400-normal.woff2 $@ ;; esac; done",
 )
 
 genrule(

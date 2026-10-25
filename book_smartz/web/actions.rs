@@ -395,6 +395,7 @@ async fn finish(cx: &Cx, reader: ReaderId, action: ActionId) -> Result<BoxView<'
                 <!DOCTYPE html>
                 <html lang="en">
                     <head>
+                        book_smartz_views::assets()
                         <meta
                             name="viewport"
                             content="width=device-width, initial-scale=1"

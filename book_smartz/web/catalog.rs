@@ -447,6 +447,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
         <!DOCTYPE html>
         <html lang="en">
             <head>
+                book_smartz_views::assets()
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"Search · Book Smartz"</title>
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
@@ -561,6 +562,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
         <!DOCTYPE html>
         <html lang="en">
             <head>
+                book_smartz_views::assets()
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"Selected work · Book Smartz"</title>
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>

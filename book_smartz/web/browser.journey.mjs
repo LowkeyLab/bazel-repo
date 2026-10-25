@@ -2,7 +2,8 @@
 import { createInterface } from "node:readline";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { createServer as httpServer, request } from "node:http";
 import { createServer as httpsServer } from "node:https";
 import { connect } from "node:net";
@@ -85,7 +86,7 @@ const browser = await chromium.launch({
 });
 try {
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 900 },
+    viewport: { width: 1440, height: 900 },
     ignoreHTTPSErrors: true,
   });
   await context.route("https://covers.openlibrary.org/**", (route) =>
@@ -95,6 +96,91 @@ try {
   page.setDefaultTimeout(10000);
   page.setDefaultNavigationTimeout(10000);
   await page.goto("https://reader.example/");
+  const evidence = process.env.TEST_UNDECLARED_OUTPUTS_DIR;
+  const scenes = [];
+  async function recordScene(name, target = page) {
+    const original = target.viewportSize();
+    for (const width of [320, 390, 1440]) {
+      await target.setViewportSize({ width, height: 900 });
+      await target.evaluate(() => document.fonts.ready);
+      assert.equal(
+        await target.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+        true,
+        `${name} overflows at ${width}px`,
+      );
+      const record = {
+        name,
+        engine: "Chromium",
+        version: browser.version(),
+        width,
+        height: 900,
+      };
+      scenes.push(record);
+      if (evidence) {
+        mkdirSync(evidence, { recursive: true });
+        await target.screenshot({
+          path: join(evidence, `${name}-${width}.png`),
+          fullPage: true,
+        });
+        writeFileSync(
+          join(evidence, "browser-evidence.json"),
+          JSON.stringify(scenes, null, 2),
+        );
+      }
+    }
+    await target.setViewportSize(original);
+  }
+  await recordScene("sign-in");
+  const typography = await page.evaluate(() => ({
+    body: getComputedStyle(document.body).fontFamily,
+    heading: getComputedStyle(document.querySelector("h1")).fontFamily,
+    loaded: [...document.fonts]
+      .filter((font) => font.status === "loaded")
+      .map((font) => font.family.replaceAll('"', "")),
+  }));
+  assert.match(typography.body, /Source Sans 3/);
+  assert.match(typography.heading, /Literata/);
+  assert.equal(typography.loaded.includes("Literata"), true);
+  assert.equal(typography.loaded.includes("Source Sans 3"), true);
+  const signIn = page.getByRole("link", { name: "Sign in with Google" });
+  await signIn.focus();
+  assert.notEqual(
+    await signIn.evaluate((link) => getComputedStyle(link).outlineStyle),
+    "none",
+  );
+  const native = await browser.newContext({
+    javaScriptEnabled: false,
+    ignoreHTTPSErrors: true,
+    viewport: { width: 320, height: 900 },
+  });
+  const nativePage = await native.newPage();
+  let nativeActions = 0;
+  nativePage.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      [
+        "/search",
+        "/select",
+        "/add",
+        "/answer",
+        "/pause",
+        "/resume",
+        "/recover",
+      ].includes(new URL(request.url()).pathname)
+    )
+      nativeActions++;
+  });
+  await nativePage.goto("https://reader.example/");
+  await nativePage.getByRole("link", { name: "Sign in with Google" }).click();
+  await nativePage.waitForURL("https://reader.example/ranking");
+  assert.equal(
+    nativeActions,
+    0,
+    "Authentication must not submit an earlier action",
+  );
+  await native.close();
   await page.getByRole("link", { name: "Sign in with Google" }).click();
   await page.waitForURL("https://reader.example/ranking");
   await page

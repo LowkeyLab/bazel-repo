@@ -111,6 +111,7 @@ async fn run() -> anyhow::Result<()> {
         .layer(PrivateResponses)
         .runtime()
         .font(book_smartz_views::FONT)
+        .font(book_smartz_views::HEADING_FONT)
         .route(ready)
         .route(identity::login)
         .route(identity::callback)
@@ -199,12 +200,24 @@ async fn home() -> Result<impl View> {
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en">
-            <head><title>"Book Smartz"</title></head>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>"Book Smartz"</title>
+                book_smartz_views::assets()
+                <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
+            </head>
             <body>
-                <main>
-                    <h1>"Book Smartz"</h1>
+                book_smartz_views::heading()
+                <main class="sign-in">
+                    <h1 tabindex="-1" data-response-focus="task">"Book Smartz"</h1>
                     <p>"Your books, in your order."</p>
-                    <a href="/auth/google">"Sign in with Google"</a>
+                    <p>
+                        "Sign in to build your private ranking. You choose what to save after sign-in."
+                    </p>
+                    <a class="primary-link" href="/auth/google">
+                        "Sign in with Google"
+                    </a>
                 </main>
             </body>
         </html>
@@ -220,11 +233,12 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"Your ranking · Book Smartz"</title>
+                book_smartz_views::assets()
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
                 <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
                 <script type="module" src=(topcoat::runtime::SCRIPT)></script>
             </head>
-            <body class="bg-stone-50 text-stone-900">
+            <body>
                 book_smartz_views::heading()
                 <main class="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
                     <section aria-label="Book workspace">
