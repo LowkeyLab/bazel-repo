@@ -195,6 +195,10 @@ The cleanup deadline must fail both tests without a harness completion record.
 Use `--test_timeout=90` for that controlled probe. This reduces the outer timeout.
 Rust must finish fixture cleanup before the collection supervisor's later deadline.
 Failed phase attribution survives subsequent successful cleanup.
+
+Use `--test_env=BOOK_SMARTZ_BROWSER_FAIL_ASSERTION=1` for a controlled assertion failure.
+Cleanup must finish. Failed child records retain `assertions` after successful cleanup.
+If cleanup also fails, the original journey error remains the test error.
 Chromium supplies computed appearance data. Node calculates contrast and validates
 those results. Native Node profiles measure Node execution. Browser execution
 remains outside those profiles. Browser assertions validate submission behavior.

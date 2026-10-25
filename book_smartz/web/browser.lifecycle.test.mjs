@@ -34,6 +34,7 @@ function run(mode, brokenDelivery = false) {
         await teardown(lifecycle, {
           controls() {},
           async browser() {
+            if (${JSON.stringify(mode)} === "browser-falsy-failure") throw undefined;
             if (${JSON.stringify(mode)} === "browser-failure") throw new Error("controlled cleanup failure");
           },
           async proxy() {
@@ -127,26 +128,27 @@ test("a stalled cleanup retains the incomplete phase and fails", () => {
   );
 });
 
-test("a browser cleanup failure still closes the proxy", () => {
-  const { child, records } = run("browser-failure");
-  assert.equal(child.status, 1);
-  assert.ok(
-    records.some(
-      (record) =>
-        record.phase === "browser_shutdown" && record.state === "failed",
-    ),
-  );
-  assert.ok(
-    records.some(
-      (record) =>
-        record.phase === "proxy_shutdown" && record.state === "complete",
-    ),
-  );
-  assert.equal(
-    records.some((record) => record.phase === "journey_teardown"),
-    false,
-  );
-});
+for (const mode of ["browser-failure", "browser-falsy-failure"])
+  test(`a ${mode} still closes the proxy`, () => {
+    const { child, records } = run(mode);
+    assert.equal(child.status, 1);
+    assert.ok(
+      records.some(
+        (record) =>
+          record.phase === "browser_shutdown" && record.state === "failed",
+      ),
+    );
+    assert.ok(
+      records.some(
+        (record) =>
+          record.phase === "proxy_shutdown" && record.state === "complete",
+      ),
+    );
+    assert.equal(
+      records.some((record) => record.phase === "journey_teardown"),
+      false,
+    );
+  });
 
 for (const mode of ["success", "stall", "browser-failure"]) {
   test(`diagnostic delivery failure preserves ${mode} and cleanup`, () => {

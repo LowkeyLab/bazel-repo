@@ -65,6 +65,7 @@ export function createLifecycle(role) {
 // Each deadline bounds an actual cleanup operation. Every operation still runs.
 export async function teardown(lifecycle, operations, timeoutMs = 10000) {
   let failure;
+  let failed = false;
   for (const [phase, operation] of [
     ["control_shutdown", operations.controls],
     ["browser_shutdown", operations.browser],
@@ -85,12 +86,13 @@ export async function teardown(lifecycle, operations, timeoutMs = 10000) {
       lifecycle.record(phase, "complete");
     } catch (error) {
       lifecycle.record(phase, "failed");
-      failure ??= error;
+      if (!failed) failure = error;
+      failed = true;
     } finally {
       clearTimeout(timer);
     }
   }
-  if (failure) throw failure;
+  if (failed) throw failure;
   lifecycle.record("journey_teardown", "complete");
 }
 
