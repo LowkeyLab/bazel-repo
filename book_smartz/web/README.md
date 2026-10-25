@@ -158,6 +158,15 @@ lost-commit-acknowledgement and process-cancellation recovery. These checks prov
 controlled acceptance evidence. Live-provider and deployment acceptance remain
 separate delivery work.
 
+The `browser_collection_test` target runs the same packaged journey through a
+native Node test entry point. This retains Node child profiles for the journey.
+The native Rust test retains `LLVM` objects and child profiles.
+Normal fixture teardown requests `SIGTERM` before its bounded `Child::kill` fallback.
+Explicit cancellation tests retain their direct `Child::kill` calls.
+Chromium supplies computed appearance data. Node calculates contrast and validates
+those results. Native Node profiles measure Node execution. Browser execution
+remains outside those profiles. Browser assertions validate submission behavior.
+
 The browser records every acceptance scene at 320 × 900, 390 × 900, and
 1440 × 900. `browser-evidence.json` contains the Chromium version, viewport,
 visible-control bounds, and computed foreground/background contrast measurements.

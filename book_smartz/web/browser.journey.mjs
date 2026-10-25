@@ -180,6 +180,105 @@ try {
   await page.goto("https://reader.example/");
   const evidence = process.env.TEST_UNDECLARED_OUTPUTS_DIR;
   const scenes = [];
+  // Chromium supplies computed styles. Node measures their contrast.
+  function rgba(value) {
+    const parts = value.match(/[\d.]+/g).map(Number);
+    return [parts[0], parts[1], parts[2], parts[3] ?? 1];
+  }
+  function blend(front, back) {
+    return front
+      .slice(0, 3)
+      .map((part, index) => part * front[3] + back[index] * (1 - front[3]));
+  }
+  function background(chain) {
+    let color = [255, 255, 255];
+    for (const layer of chain) {
+      color = blend(rgba(layer.background), color);
+      if (layer.content !== "none" && layer.content !== "normal") {
+        const tint = rgba(layer.tint);
+        tint[3] *= Number(layer.opacity);
+        color = blend(tint, color);
+      }
+    }
+    return color;
+  }
+  function luminance(color) {
+    return color
+      .map((value) => {
+        const channel = value / 255;
+        return channel <= 0.04045
+          ? channel / 12.92
+          : ((channel + 0.055) / 1.055) ** 2.4;
+      })
+      .reduce(
+        (sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index],
+        0,
+      );
+  }
+  function contrast(foreground, back) {
+    const first = luminance(foreground),
+      second = luminance(back);
+    return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+  }
+  function measureAppearance(elements) {
+    const controls = elements
+      .filter((element) => element.control)
+      .map((element) => ({
+        name: element.controlName,
+        visible: element.visible,
+        ...element.bounds,
+      }));
+    const measurements = [];
+    for (const element of elements.filter((element) => element.visible)) {
+      const back = background(element.chain);
+      if (element.name) {
+        const foreground = blend(rgba(element.color), back);
+        const large =
+          parseFloat(element.fontSize) >= 24 ||
+          (parseFloat(element.fontSize) >= 18.6667 &&
+            Number(element.fontWeight) >= 700);
+        measurements.push({
+          kind: "text",
+          name: element.name,
+          foreground,
+          background: back,
+          fontSize: element.fontSize,
+          fontWeight: element.fontWeight,
+          disabled: element.disabled,
+          ratio: contrast(foreground, back),
+          minimum: large ? 3 : 4.5,
+        });
+      }
+      const adjacent = background(element.chain.slice(0, -1));
+      if (["BUTTON", "INPUT"].includes(element.tag)) {
+        const foreground = blend(rgba(element.border), adjacent);
+        measurements.push({
+          kind: "control boundary",
+          name: element.name,
+          foreground,
+          background: adjacent,
+          disabled: element.disabled,
+          ratio: contrast(foreground, adjacent),
+          minimum: 3,
+        });
+      }
+      if (
+        element.outlineStyle !== "none" &&
+        parseFloat(element.outlineWidth) > 0
+      ) {
+        const foreground = blend(rgba(element.outlineColor), adjacent);
+        measurements.push({
+          kind: "focus outline",
+          name: element.name,
+          foreground,
+          background: adjacent,
+          ratio: contrast(foreground, adjacent),
+          minimum: 3,
+        });
+      }
+    }
+    return { controls, measurements };
+  }
   async function recordScene(name, target = page) {
     const original = target.viewportSize();
     for (const width of [320, 390, 1440]) {
@@ -192,140 +291,64 @@ try {
         true,
         `${name} overflows at ${width}px`,
       );
-      const audit = await target.evaluate(() => {
-        const rgba = (value) => {
-          const parts = value.match(/[\d.]+/g).map(Number);
-          return [parts[0], parts[1], parts[2], parts[3] ?? 1];
-        };
-        const blend = (front, back) =>
-          front
-            .slice(0, 3)
-            .map((part, i) => part * front[3] + back[i] * (1 - front[3]));
-        const background = (element) => {
-          const chain = [];
-          for (let node = element; node; node = node.parentElement)
-            chain.unshift(node);
-          let color = [255, 255, 255];
-          for (const node of chain) {
-            color = blend(rgba(getComputedStyle(node).backgroundColor), color);
-            const decoration = getComputedStyle(node, "::before");
-            if (
-              decoration.content !== "none" &&
-              decoration.content !== "normal"
-            ) {
-              const tint = rgba(decoration.backgroundColor);
-              tint[3] *= Number(decoration.opacity);
-              color = blend(tint, color);
-            }
-          }
-          return color;
-        };
-        const luminance = (color) =>
-          color
-            .map((value) => {
-              const channel = value / 255;
-              return channel <= 0.04045
-                ? channel / 12.92
-                : ((channel + 0.055) / 1.055) ** 2.4;
-            })
-            .reduce(
-              (sum, value, index) =>
-                sum + value * [0.2126, 0.7152, 0.0722][index],
-              0,
-            );
-        const ratio = (front, back) => {
-          const first = luminance(front),
-            second = luminance(back);
-          return (
-            (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
-          );
-        };
-        const visible = (element) =>
-          element.checkVisibility({
-            checkOpacity: true,
-            checkVisibilityCSS: true,
-          });
-        const controls = [
+      const appearance = await target.evaluate(() =>
+        [
           ...document.querySelectorAll(
-            'a[href],button,input:not([type="hidden"])',
+            'h1,h2,h3,p,a,label,legend,button,input:not([type="hidden"])',
           ),
         ].map((element) => {
+          const style = getComputedStyle(element);
           const rect = element.getBoundingClientRect();
+          const chain = [];
+          for (let node = element; node; node = node.parentElement) {
+            const decoration = getComputedStyle(node, "::before");
+            chain.unshift({
+              background: getComputedStyle(node).backgroundColor,
+              tint: decoration.backgroundColor,
+              opacity: decoration.opacity,
+              content: decoration.content,
+            });
+          }
           return {
+            tag: element.tagName,
             name: (
               element.textContent ||
-              element.getAttribute("aria-label") ||
-              element.name
+              element.value ||
+              element.placeholder ||
+              ""
             ).trim(),
-            visible: visible(element),
-            x: rect.x,
-            right: rect.right,
-            width: rect.width,
-            height: rect.height,
+            controlName: (
+              element.textContent ||
+              element.getAttribute("aria-label") ||
+              element.name ||
+              ""
+            ).trim(),
+            control: element.matches(
+              'a[href],button,input:not([type="hidden"])',
+            ),
+            visible: element.checkVisibility({
+              checkOpacity: true,
+              checkVisibilityCSS: true,
+            }),
+            disabled: element.matches(":disabled"),
+            bounds: {
+              x: rect.x,
+              right: rect.right,
+              width: rect.width,
+              height: rect.height,
+            },
+            color: style.color,
+            fontSize: style.fontSize,
+            fontWeight: style.fontWeight,
+            border: style.borderTopColor,
+            outlineStyle: style.outlineStyle,
+            outlineWidth: style.outlineWidth,
+            outlineColor: style.outlineColor,
+            chain,
           };
-        });
-        const measurements = [];
-        for (const element of document.querySelectorAll(
-          'h1,h2,h3,p,a,label,legend,button,input:not([type="hidden"])',
-        )) {
-          if (!visible(element)) continue;
-          const style = getComputedStyle(element);
-          const name = (
-            element.textContent ||
-            element.value ||
-            element.placeholder ||
-            ""
-          ).trim();
-          const back = background(element);
-          if (name) {
-            const front = blend(rgba(style.color), back);
-            const large =
-              parseFloat(style.fontSize) >= 24 ||
-              (parseFloat(style.fontSize) >= 18.6667 &&
-                Number(style.fontWeight) >= 700);
-            measurements.push({
-              kind: "text",
-              name,
-              foreground: front,
-              background: back,
-              fontSize: style.fontSize,
-              fontWeight: style.fontWeight,
-              disabled: element.matches(":disabled"),
-              ratio: ratio(front, back),
-              minimum: large ? 3 : 4.5,
-            });
-          }
-          if (element.matches("button,input")) {
-            const adjacent = background(element.parentElement);
-            const border = blend(rgba(style.borderTopColor), adjacent);
-            measurements.push({
-              kind: "control boundary",
-              name,
-              foreground: border,
-              background: adjacent,
-              disabled: element.matches(":disabled"),
-              ratio: ratio(border, adjacent),
-              minimum: 3,
-            });
-          }
-          if (
-            style.outlineStyle !== "none" &&
-            parseFloat(style.outlineWidth) > 0
-          ) {
-            const adjacent = background(element.parentElement);
-            const outline = blend(rgba(style.outlineColor), adjacent);
-            measurements.push({
-              kind: "focus outline",
-              name,
-              foreground: outline,
-              background: adjacent,
-              ratio: ratio(outline, adjacent),
-              minimum: 3,
-            });
-          }
-        }
-        return { controls, measurements };
-      });
+        }),
+      );
+      const audit = measureAppearance(appearance);
       for (const control of audit.controls) {
         assert.equal(
           control.visible && control.width > 0 && control.height > 0,
@@ -1530,8 +1553,11 @@ try {
   );
 } finally {
   controls.close();
+  process.stdin.destroy();
   await browser.close();
   for (const socket of sockets) socket.destroy();
-  proxy.close();
-  transport.close();
+  await Promise.all([
+    new Promise((resolve) => proxy.close(resolve)),
+    new Promise((resolve) => transport.close(resolve)),
+  ]);
 }
