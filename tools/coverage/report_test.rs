@@ -1,7 +1,10 @@
 use std::collections::BTreeSet;
 
 use coverage_reports::build_event::{ArtifactPolicy, BuildEvents};
-use googletest::{assert_that, gtest, matchers::eq};
+use googletest::{
+    assert_that, gtest,
+    matchers::{contains_substring, eq},
+};
 use serde_json::json;
 
 #[gtest]
@@ -91,19 +94,33 @@ fn event_text(events: &[serde_json::Value]) -> String {
 #[gtest]
 fn required_baselines_reject_missing_cyclic_and_incomplete_evidence() -> anyhow::Result<()> {
     let directory = tempfile::tempdir()?;
+    std::fs::write(directory.path().join("baseline"), b"lines")?;
     let roots = BTreeSet::from(["//:root".to_owned()]);
-    for fault in [
-        "missing-root",
-        "failed-root",
-        "missing-group",
-        "incomplete",
-        "cycle",
-        "missing-set",
+    let baseline = vec![
+        json!({"id":{"namedSet":{"id":"files"}},"namedSetOfFiles":{"files":[{"name":"baseline","length":"5","digest":"5ea44c3961f16643e614435496b16115aa6d75458b5cc3fd5398aae291f3126b"}]}}),
+        json!({"id":{"targetCompleted":{"label":"//:root"}},"completed":{"success":true,"outputGroup":[{"name":"baselines","fileSets":[{"id":"files"}]}]}}),
+    ];
+    let selected = BuildEvents::parse(&event_text(&baseline))?.baselines(
+        &roots,
+        "baselines",
+        directory.path(),
+        "Go",
+        ArtifactPolicy::WorkspaceIntegrity,
+    )?;
+    assert_that!(selected.len(), eq(1));
+    assert_that!(
+        selected[0].paths,
+        eq(&vec![directory.path().join("baseline")])
+    );
+    for (fault, diagnostic) in [
+        ("missing-root", "Missing Go baseline roots"),
+        ("failed-root", "Go baseline root failed"),
+        ("missing-group", "Missing Go baseline artifact"),
+        ("incomplete", "Incomplete Go baseline output group"),
+        ("cycle", "A Go baseline artifact set contains a cycle"),
+        ("missing-set", "'missing'"),
     ] {
-        let mut events = vec![
-            json!({"id":{"namedSet":{"id":"files"}},"namedSetOfFiles":{"fileSets":[{"id":"files"}]}}),
-            json!({"id":{"targetCompleted":{"label":"//:root"}},"completed":{"success":true,"outputGroup":[{"name":"baselines","fileSets":[{"id":"files"}]}]}}),
-        ];
+        let mut events = baseline.clone();
         match fault {
             "missing-root" => {
                 events.pop();
@@ -111,22 +128,21 @@ fn required_baselines_reject_missing_cyclic_and_incomplete_evidence() -> anyhow:
             "failed-root" => events[1]["completed"]["success"] = json!(false),
             "missing-group" => events[1]["completed"]["outputGroup"] = json!([]),
             "incomplete" => events[1]["completed"]["outputGroup"][0]["incomplete"] = json!(true),
-            "missing-set" => events[0]["namedSetOfFiles"]["fileSets"][0]["id"] = json!("missing"),
-            _ => (),
+            "cycle" => events[0]["namedSetOfFiles"]["fileSets"] = json!([{"id":"files"}]),
+            "missing-set" => events[0]["namedSetOfFiles"]["fileSets"] = json!([{"id":"missing"}]),
+            _ => unreachable!("Unknown fault: {fault}"),
         }
         let events = BuildEvents::parse(&event_text(&events))?;
-        assert_that!(
-            events
-                .baselines(
-                    &roots,
-                    "baselines",
-                    directory.path(),
-                    "Go",
-                    ArtifactPolicy::WorkspaceIntegrity
-                )
-                .is_err(),
-            eq(true)
-        );
+        let error = events
+            .baselines(
+                &roots,
+                "baselines",
+                directory.path(),
+                "Go",
+                ArtifactPolicy::WorkspaceIntegrity,
+            )
+            .expect_err(fault);
+        assert_that!(error.to_string(), contains_substring(diagnostic));
     }
     assert_that!(BuildEvents::parse("{bad json}").is_err(), eq(true));
     assert_that!(
