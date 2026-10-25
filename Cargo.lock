@@ -7630,7 +7630,7 @@ dependencies = [
  "topcoat-cookie",
  "topcoat-core 0.10.0",
  "topcoat-core-macro",
- "topcoat-font",
+ "topcoat-font 0.10.0",
  "topcoat-font-macro",
  "topcoat-icon",
  "topcoat-icon-macro",
@@ -7740,6 +7740,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "topcoat-core-grammar"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b788a2010234cd29fc050268e52ceb393d2124b20f669a83d8f61a9dbf895bb6"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
 name = "topcoat-core-macro"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7747,7 +7759,7 @@ checksum = "1b7a0f2d5d7faaa2cdf48e19b042b26d5da185f1d42be87dc3c16a6868dcdeb5"
 dependencies = [
  "quote",
  "syn 3.0.9",
- "topcoat-core-grammar",
+ "topcoat-core-grammar 0.10.0",
 ]
 
 [[package]]
@@ -7768,6 +7780,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "topcoat-font"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "caa4656294aac116def1e7633f03117a84b65126c503242793ff4adc78577fb8"
+dependencies = [
+ "heck 0.5.0",
+ "serde",
+ "serde_json",
+ "topcoat-core 0.11.0",
+]
+
+[[package]]
 name = "topcoat-font-grammar"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7776,8 +7800,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
- "topcoat-core-grammar",
- "topcoat-font",
+ "topcoat-core-grammar 0.10.0",
+ "topcoat-font 0.10.0",
+]
+
+[[package]]
+name = "topcoat-font-grammar"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b462fae28641a1bb24eab1fa9c473520389ca690331ca53fd6143d5b2746045e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+ "topcoat-core-grammar 0.11.0",
+ "topcoat-font 0.11.0",
 ]
 
 [[package]]
@@ -7788,7 +7825,7 @@ checksum = "b9d7f98899e3ad0ed2d008c175a28880e4e4158cf92fce04ca2f2715d7f1241c"
 dependencies = [
  "quote",
  "syn 3.0.9",
- "topcoat-font-grammar",
+ "topcoat-font-grammar 0.10.0",
 ]
 
 [[package]]
@@ -7817,7 +7854,7 @@ dependencies = [
  "quote",
  "serde_json",
  "syn 3.0.9",
- "topcoat-core-grammar",
+ "topcoat-core-grammar 0.10.0",
  "topcoat-icon",
 ]
 
@@ -7892,7 +7929,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
- "topcoat-core-grammar",
+ "topcoat-core-grammar 0.10.0",
 ]
 
 [[package]]
@@ -7936,7 +7973,7 @@ dependencies = [
  "serde",
  "serde_json",
  "syn 3.0.9",
- "topcoat-core-grammar",
+ "topcoat-core-grammar 0.10.0",
  "topcoat-router",
  "topcoat-runtime",
 ]
@@ -7995,7 +8032,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 3.0.9",
- "topcoat-core-grammar",
+ "topcoat-core-grammar 0.10.0",
  "topcoat-view",
 ]
 
@@ -9054,8 +9091,8 @@ dependencies = [
  "tokio",
  "topcoat",
  "topcoat-asset 0.11.0",
- "topcoat-core-grammar",
- "topcoat-font-grammar",
+ "topcoat-core-grammar 0.10.0",
+ "topcoat-font-grammar 0.11.0",
  "topcoat-view-grammar",
  "tower",
  "tower-http 0.7.1",
