@@ -22,13 +22,12 @@ fn check(text: &str) -> anyhow::Result<(bool, Vec<Value>)> {
         .arg(source)
         .env("VALE_STYLES_PATH", styles)
         .output()?;
-    let reports: BTreeMap<String, Vec<Value>> = serde_json::from_slice(&output.stdout)
-        .with_context(|| {
-            format!(
-                "Invalid Vale report: {}",
-                String::from_utf8_lossy(&output.stderr)
-            )
-        })?;
+    let report_context = format!(
+        "Invalid Vale report: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let reports: BTreeMap<String, Vec<Value>> =
+        serde_json::from_slice(&output.stdout).context(report_context)?;
     Ok((
         output.status.success(),
         reports.into_values().flatten().collect(),
@@ -73,11 +72,6 @@ fn advisory_prose_succeeds_with_a_suggestion() -> anyhow::Result<()> {
 fn strict_ste_prose_has_no_contraction_suggestion() -> anyhow::Result<()> {
     let (success, diagnostics) = check("# Checks\n\nDo not change the configuration.\n")?;
     assert_that!(success, eq(true));
-    assert_that!(
-        diagnostics
-            .iter()
-            .any(|d| d["Check"] == "Google.Contractions"),
-        eq(false)
-    );
+    assert_that!(diagnostics.is_empty(), eq(true));
     Ok(())
 }
