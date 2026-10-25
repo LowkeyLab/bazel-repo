@@ -163,6 +163,42 @@ native Node test entry point. This retains Node child profiles for the journey.
 The native Rust test retains `LLVM` objects and child profiles.
 Normal fixture teardown requests `SIGTERM` before its bounded `Child::kill` fallback.
 Explicit cancellation tests retain their direct `Child::kill` calls.
+
+Both browser entry points retain lifecycle records on stderr and in
+`browser-lifecycle-<pid>.jsonl` files under the Bazel undeclared test outputs.
+Each process records a sequence number and elapsed milliseconds.
+The records distinguish assertions, browser shutdown, proxy shutdown, child exit,
+and fixture cleanup. Harness completion follows successful child exit and cleanup.
+The collection entry point also waits for the fixture's output streams to close.
+
+Cleanup phases have ten-second deadlines. The Rust child supervisor reserves
+forty-five seconds before the outer test timeout. The collection supervisor reserves
+fifteen seconds. This gives Rust thirty seconds to stop its child and finish
+fixture cleanup before the collection supervisor can stop the fixture.
+A failure record retains the incomplete phase and available child status.
+Node records also include resource types and counts.
+Records contain no request, identity, cookie, credential, or book fields.
+Diagnostic delivery is best effort and does not determine the test result.
+
+The `browser_lifecycle_test` target checks successful cleanup, controlled stalls,
+child failures, forced termination, and failed diagnostic delivery.
+The `browser_diagnostic_failure_test` target runs the packaged fixture through
+the native Node entry point with its diagnostic pipe closed.
+The journey and required cleanup must still pass.
+For a controlled packaged teardown failure, run both entry points with
+`--test_env=BOOK_SMARTZ_BROWSER_STALL_PHASE=proxy_shutdown`,
+`--nocache_test_results`, and `--flaky_test_attempts=1`.
+This test-only fault retains the phase after the real proxy cleanup finishes.
+The cleanup deadline must fail both tests without a harness completion record.
+`browser_shutdown` selects the corresponding browser cleanup fault.
+`assertions` retains the assertion phase until the child supervisor terminates it.
+Use `--test_timeout=90` for that controlled probe. This reduces the outer timeout.
+Rust must finish fixture cleanup before the collection supervisor's later deadline.
+Failed phase attribution survives subsequent successful cleanup.
+
+Use `--test_env=BOOK_SMARTZ_BROWSER_FAIL_ASSERTION=1` for a controlled assertion failure.
+Cleanup must finish. Failed child records retain `assertions` after successful cleanup.
+If cleanup also fails, the original journey error remains the test error.
 Chromium supplies computed appearance data. Node calculates contrast and validates
 those results. Native Node profiles measure Node execution. Browser execution
 remains outside those profiles. Browser assertions validate submission behavior.

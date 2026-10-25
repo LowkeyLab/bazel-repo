@@ -4,24 +4,31 @@
     reason = "The shared fixture also supports HTTP and persistence suites."
 )]
 mod test_support;
+use std::{
+    io::Write,
+    process::Stdio,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    time::{Duration, Instant},
+};
+
 use runfiles::{Runfiles, rlocation};
 use serde_json::json;
-use std::io::{BufRead, Write};
-use std::process::Stdio;
-use std::sync::{
-    Arc,
-    atomic::{AtomicBool, Ordering},
-};
-use test_support::Fixture;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 use wiremock::{
     Mock, ResponseTemplate,
     matchers::{method, path},
 };
 
+use test_support::Fixture;
+
 #[googletest::test]
 #[tokio::test]
 async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() -> anyhow::Result<()>
 {
+    let mut lifecycle = BrowserLifecycle::new();
     let app = Fixture::new().await?;
     let native_reader = Arc::new(AtomicBool::new(false));
     let provider_native_reader = Arc::clone(&native_reader);
@@ -76,43 +83,164 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         .ok_or_else(|| anyhow::anyhow!("Missing fixture TLS key"))?;
     let certificate = rlocation!(files, std::env::var("BROWSER_CERTIFICATE")?)
         .ok_or_else(|| anyhow::anyhow!("Missing fixture certificate"))?;
-    let base = app.base.clone();
-    let pool = app.pool.clone();
-    let runtime = tokio::runtime::Handle::current();
-    let status = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-        let mut child = std::process::Command::new(runner)
-            .args([
-                base.as_str(),
-                key.to_str().unwrap(),
-                certificate.to_str().unwrap(),
-            ])
-            .stdin(Stdio::piped()).stdout(Stdio::piped()).spawn()?;
-        let mut input = child.stdin.take().unwrap();
-        for line in std::io::BufReader::new(child.stdout.take().unwrap()).lines() {
-            let line = line?;
-            if line == "fixture:native-reader" {
-                native_reader.store(true, Ordering::SeqCst);
-                writeln!(input, "ack")?;
-                input.flush()?;
-                continue;
-            }
-            let sql = match line.as_str() {
-                "fixture:reject" => Some("CREATE FUNCTION browser_reject() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'controlled failure'; END $$; CREATE TRIGGER browser_reject BEFORE INSERT ON book_smartz.ranking_events FOR EACH ROW EXECUTE FUNCTION browser_reject()"),
-                "fixture:allow" => Some("DROP TRIGGER browser_reject ON book_smartz.ranking_events; DROP FUNCTION browser_reject()"),
-                "fixture:expire" => Some("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second'"),
-                _ => None,
-            };
-            if let Some(sql) = sql {
-                runtime.block_on(sqlx::raw_sql(sql).execute(&pool))?;
-                writeln!(input, "ack")?;
-                input.flush()?;
-            } else {
-                println!("{line}");
+    let mut child = tokio::process::Command::new(runner)
+        .args([
+            app.base.as_str(),
+            key.to_str().unwrap(),
+            certificate.to_str().unwrap(),
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true)
+        .spawn()?;
+    let child_pid = child.id();
+    let mut input = child.stdin.take().unwrap();
+    let mut output = tokio::io::BufReader::new(child.stdout.take().unwrap()).lines();
+    let mut errors = Some(tokio::io::BufReader::new(child.stderr.take().unwrap()).lines());
+    // This test-only fault closes the real pipe. Child diagnostic writes then fail.
+    if std::env::var("BOOK_SMARTZ_BROWSER_CLOSE_DIAGNOSTIC_PIPE").as_deref() == Ok("1") {
+        errors = None;
+    }
+    let mut output_open = true;
+    let mut exit = None;
+    let mut child_phase = None;
+    let mut failed_phase = None;
+    // Finish before the collection supervisor. Keep thirty seconds for fixture cleanup.
+    let outer_seconds = std::env::var("TEST_TIMEOUT")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(300);
+    let budget = Duration::from_secs(outer_seconds)
+        .saturating_sub(lifecycle.started.elapsed() + Duration::from_secs(45));
+    lifecycle.record("runner", "start", child_pid, "running", None);
+    let result = tokio::time::timeout(budget, async {
+        while output_open || errors.is_some() || exit.is_none() {
+            tokio::select! {
+                line = output.next_line(), if output_open => {
+                    let Some(line) = line? else { output_open = false; continue; };
+                    if line == "fixture:native-reader" {
+                        native_reader.store(true, Ordering::SeqCst);
+                        input.write_all(b"ack\n").await?;
+                        input.flush().await?;
+                        continue;
+                    }
+                    let sql = match line.as_str() {
+                        "fixture:reject" => Some("CREATE FUNCTION browser_reject() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'controlled failure'; END $$; CREATE TRIGGER browser_reject BEFORE INSERT ON book_smartz.ranking_events FOR EACH ROW EXECUTE FUNCTION browser_reject()"),
+                        "fixture:allow" => Some("DROP TRIGGER browser_reject ON book_smartz.ranking_events; DROP FUNCTION browser_reject()"),
+                        "fixture:expire" => Some("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second'"),
+                        _ => None,
+                    };
+                    if let Some(sql) = sql {
+                        sqlx::raw_sql(sql).execute(&app.pool).await?;
+                        input.write_all(b"ack\n").await?;
+                        input.flush().await?;
+                    } else {
+                        println!("{line}");
+                    }
+                }
+                line = async { errors.as_mut().unwrap().next_line().await }, if errors.is_some() => {
+                    let Ok(Some(line)) = line else { errors = None; continue; };
+                    let _ = writeln!(std::io::stderr().lock(), "{line}");
+                    if let Some(record) = line.strip_prefix("browser-lifecycle ")
+                        .and_then(|value| serde_json::from_str::<serde_json::Value>(value).ok()) {
+                        let phase = record["phase"].as_str().unwrap_or_default();
+                        if matches!(phase, "runner" | "assertions" | "control_shutdown" | "browser_shutdown" | "proxy_shutdown" | "journey_teardown") {
+                            match record["state"].as_str() {
+                                Some("start") => child_phase = Some(phase.to_owned()),
+                                Some("failed") => { failed_phase = Some(phase.to_owned()); child_phase = None; },
+                                Some("complete") if child_phase.as_deref() == Some(phase) => child_phase = None,
+                                _ => (),
+                            }
+                        }
+                    }
+                }
+                status = child.wait(), if exit.is_none() => exit = Some(status?),
             }
         }
-        Ok(child.wait()?)
-    })
-    .await??;
-    anyhow::ensure!(status.success(), "browser journey failed");
+        Ok::<_, anyhow::Error>(exit.unwrap())
+    }).await;
+    let result = result.unwrap_or_else(|_| {
+        let status = match child.try_wait() {
+            Ok(Some(status)) => status.to_string(),
+            Ok(None) => "running".to_owned(),
+            Err(_) => "unavailable".to_owned(),
+        };
+        lifecycle.record(
+            "child_exit",
+            "failed",
+            child_pid,
+            &status,
+            child_phase.as_deref().or(failed_phase.as_deref()),
+        );
+        Err(anyhow::anyhow!("browser child exceeded its exit deadline"))
+    });
+    if result.is_err() {
+        let _ = child.kill().await;
+    }
+    let status = child
+        .try_wait()
+        .ok()
+        .flatten()
+        .map_or_else(|| "unavailable".to_owned(), |status| status.to_string());
+    lifecycle.record(
+        "child_exit",
+        if result.as_ref().is_ok_and(std::process::ExitStatus::success) {
+            "complete"
+        } else {
+            "failed"
+        },
+        child_pid,
+        &status,
+        child_phase.as_deref().or(failed_phase.as_deref()),
+    );
+    drop(input);
+    lifecycle.record("fixture_cleanup", "start", child_pid, &status, None);
+    drop(app);
+    lifecycle.record("fixture_cleanup", "complete", child_pid, &status, None);
+    anyhow::ensure!(result?.success(), "browser journey failed");
+    lifecycle.record("harness_complete", "complete", child_pid, &status, None);
     Ok(())
+}
+
+struct BrowserLifecycle {
+    started: Instant,
+    sequence: u64,
+}
+
+impl BrowserLifecycle {
+    fn new() -> Self {
+        Self {
+            started: Instant::now(),
+            sequence: 0,
+        }
+    }
+
+    fn record(
+        &mut self,
+        phase: &str,
+        state: &str,
+        child_pid: Option<u32>,
+        child_status: &str,
+        child_phase: Option<&str>,
+    ) {
+        self.sequence += 1;
+        let record = json!({
+            "role": "rust_fixture", "pid": std::process::id(), "sequence": self.sequence,
+            "elapsed_ms": self.started.elapsed().as_millis(), "phase": phase, "state": state,
+            "child_pid": child_pid, "child_status": child_status, "child_phase": child_phase,
+        });
+        let _ = writeln!(std::io::stderr().lock(), "browser-lifecycle {record}");
+        if let Some(directory) = std::env::var_os("TEST_UNDECLARED_OUTPUTS_DIR") {
+            let directory = std::path::PathBuf::from(directory);
+            let _ = std::fs::create_dir_all(&directory);
+            if let Ok(mut file) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(directory.join(format!("browser-lifecycle-{}.jsonl", std::process::id())))
+            {
+                let _ = writeln!(file, "{record}");
+            }
+        }
+    }
 }

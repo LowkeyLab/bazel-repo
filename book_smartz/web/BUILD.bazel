@@ -282,6 +282,7 @@ js_binary(
     testonly = True,
     data = [
         "browser.journey.mjs",
+        ":browser_lifecycle",
         "//:node_modules/playwright",
     ],
     entry_point = "browser.journey.mjs",
@@ -354,6 +355,7 @@ js_library(
     testonly = True,
     srcs = ["browser.journey.mjs"],
     deps = [
+        ":browser_lifecycle",
         ":submitting_script",
         "//:node_modules/playwright",
     ],
@@ -393,34 +395,75 @@ rust_test(
 )
 
 # This collector executes the existing packaged journey, with native Node profiles.
+_BROWSER_COLLECTION_DATA = [
+    "fixtures/browser-test-certificate.pem",
+    "fixtures/public-test-key.pem",
+    ":browser_runner",
+    ":browser_test",
+    ":package",
+    ":scripts",
+] + image_data("postgres_18")
+
+_BROWSER_COLLECTION_ENV = image_env("postgres_18") | {
+    "BROWSER_FIXTURE": "$(rootpath :browser_test)",
+    "PACKAGE_ARCHIVE": "$(rlocationpath :package)",
+    "BROWSER_RUNNER": "$(rlocationpath :browser_runner)",
+    "BROWSER_KEY": "$(rlocationpath fixtures/public-test-key.pem)",
+    "BROWSER_CERTIFICATE": "$(rlocationpath fixtures/browser-test-certificate.pem)",
+    "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright",
+}
+
+_BROWSER_COLLECTION_EXEC_PROPERTIES = {
+    "test.container-image": "docker://ghcr.io/lowkeylab/book_smartz_browser_worker@sha256:6fdbf236c09d41b4bc82d140ea6f5510eb27de20d422f4fa88b64cf59413990f",
+    "test.workload-isolation-type": "firecracker",
+    "test.init-dockerd": "true",
+}
+
 js_test(
     name = "browser_collection_test",
     size = "medium",
     timeout = "long",
-    data = [
-        "fixtures/browser-test-certificate.pem",
-        "fixtures/public-test-key.pem",
-        ":browser_runner",
-        ":browser_test",
-        ":package",
-        ":scripts",
-    ] + image_data("postgres_18"),
+    data = _BROWSER_COLLECTION_DATA,
     entry_point = "browser.collection.mjs",
-    env = image_env("postgres_18") | {
-        "BROWSER_FIXTURE": "$(rootpath :browser_test)",
-        "PACKAGE_ARCHIVE": "$(rlocationpath :package)",
-        "BROWSER_RUNNER": "$(rlocationpath :browser_runner)",
-        "BROWSER_KEY": "$(rlocationpath fixtures/public-test-key.pem)",
-        "BROWSER_CERTIFICATE": "$(rlocationpath fixtures/browser-test-certificate.pem)",
-        "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright",
-    },
-    exec_properties = {
-        "test.container-image": "docker://ghcr.io/lowkeylab/book_smartz_browser_worker@sha256:6fdbf236c09d41b4bc82d140ea6f5510eb27de20d422f4fa88b64cf59413990f",
-        "test.workload-isolation-type": "firecracker",
-        "test.init-dockerd": "true",
-    },
+    env = _BROWSER_COLLECTION_ENV,
+    exec_properties = _BROWSER_COLLECTION_EXEC_PROPERTIES,
     tags = [
         "requires-docker",
         "requires-network",
     ],
+)
+
+# A closed diagnostic pipe must preserve the real packaged journey and cleanup.
+js_test(
+    name = "browser_diagnostic_failure_test",
+    size = "medium",
+    timeout = "long",
+    data = _BROWSER_COLLECTION_DATA,
+    entry_point = "browser.collection.mjs",
+    env = _BROWSER_COLLECTION_ENV | {"BOOK_SMARTZ_BROWSER_CLOSE_DIAGNOSTIC_PIPE": "1"},
+    exec_properties = _BROWSER_COLLECTION_EXEC_PROPERTIES,
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
+)
+
+js_test(
+    name = "browser_lifecycle_test",
+    size = "small",
+    data = [":browser_lifecycle_tests"],
+    entry_point = "browser.lifecycle.test.mjs",
+)
+
+js_library(
+    name = "browser_lifecycle",
+    testonly = True,
+    srcs = ["browser.lifecycle.mjs"],
+)
+
+js_library(
+    name = "browser_lifecycle_tests",
+    testonly = True,
+    srcs = ["browser.lifecycle.test.mjs"],
+    deps = [":browser_lifecycle"],
 )
