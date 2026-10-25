@@ -1,4 +1,5 @@
 /* global process, URL, getComputedStyle, document, console, window */
+import { createLifecycle, teardown } from "./browser.lifecycle.mjs";
 import { createInterface } from "node:readline";
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
@@ -8,6 +9,11 @@ import { createServer as httpServer, request } from "node:http";
 import { createServer as httpsServer } from "node:https";
 import { connect } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
+
+const lifecycle = createLifecycle("journey");
+const stalledPhase = process.env.BOOK_SMARTZ_BROWSER_STALL_PHASE || "";
+assert.ok(["", "browser_shutdown", "proxy_shutdown"].includes(stalledPhase));
+lifecycle.record("runner", "start");
 
 // Real TLS transport preserves native redirects, secure cookies, and form Origin.
 // The CONNECT proxy routes only the fixture hostname to this package's loopback app.
@@ -96,16 +102,18 @@ const executablePath =
   process.env.CHROME_BIN ||
   chromium.executablePath();
 
-const browser = await chromium.launch({
-  executablePath,
-  args: ["--no-sandbox"],
-  proxy: {
-    server: `http://127.0.0.1:${proxy.address().port}`,
-    bypass: "127.0.0.1,localhost",
-  },
-});
-
+let browser;
 try {
+  browser = await chromium.launch({
+    executablePath,
+    args: ["--no-sandbox"],
+    proxy: {
+      server: `http://127.0.0.1:${proxy.address().port}`,
+      bypass: "127.0.0.1,localhost",
+    },
+  });
+  lifecycle.record("runner", "complete");
+  lifecycle.record("assertions", "start");
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     ignoreHTTPSErrors: true,
@@ -1549,15 +1557,32 @@ try {
     );
   console.log("Browser version:", browser.version());
   console.log(
-    "Browser journey passed: native and enhanced reader actions, explicit recovery, held responses, motion, contrast, and responsive layout.",
+    "Browser assertions passed: native and enhanced reader actions, explicit recovery, held responses, motion, contrast, and responsive layout.",
   );
+  lifecycle.record("assertions", "complete");
 } finally {
-  controls.close();
-  process.stdin.destroy();
-  await browser.close();
-  for (const socket of sockets) socket.destroy();
-  await Promise.all([
-    new Promise((resolve) => proxy.close(resolve)),
-    new Promise((resolve) => transport.close(resolve)),
-  ]);
+  await teardown(lifecycle, {
+    controls() {
+      controls.close();
+      process.stdin.destroy();
+    },
+    async browser() {
+      await browser?.close();
+      if (stalledPhase === "browser_shutdown")
+        await new Promise(() => {
+          /* Retain the phase until its cleanup deadline. */
+        });
+    },
+    async proxy() {
+      for (const socket of sockets) socket.destroy();
+      await Promise.all([
+        new Promise((resolve) => proxy.close(resolve)),
+        new Promise((resolve) => transport.close(resolve)),
+      ]);
+      if (stalledPhase === "proxy_shutdown")
+        await new Promise(() => {
+          /* Retain the phase until its cleanup deadline. */
+        });
+    },
+  });
 }
