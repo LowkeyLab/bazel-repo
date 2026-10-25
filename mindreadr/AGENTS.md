@@ -81,16 +81,12 @@ Tip: use any WebSocket client to connect (e.g., `wscat` or browser). Create a ga
 ## Logs & observability
 
 - Logging: `logback.xml`
-- Call ID and request logging are enabled; `X-Request-Id` is supported
+- The server enables call ID and request logging. It supports `X-Request-Id`.
 
-## Dev hygiene
+## Development references
 
-- Format code and BUILD files before committing:
-
-  ```bash
-  aspect format --scope=all
-  bazel run //tools:buildifier
-  ```
+Read [the Kotlin standards](../docs/agents/kotlin.md) before Kotlin changes.
+Use [the development workflow](../docs/agents/development.md) for verification.
 
 ## Troubleshooting
 
