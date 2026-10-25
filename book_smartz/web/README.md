@@ -1,12 +1,20 @@
 # Book Smartz web app
 
-The first web slice signs in with Google, persists browser sessions in PostgreSQL,
+The web app signs in with Google, persists browser sessions in PostgreSQL,
 and reads the existing private ranking and pending placement. Signed-in readers can
 explicitly search Open Library, page through work-level results, and select a
 validated work. Add saves the validated work and display metadata independently,
 then applies the existing Start decision. The first book appears at rank 1 only
 after the database confirms the ranking event. Later books remain pending while the reader chooses either displayed book.
 Pause for now preserves the unfinished comparison. Resume restores it after reload, restart, or another browser login.
+
+The Comparison desk places saved positions beside the active task on desktop.
+Phone layouts place the active task before saved positions. The app uses local
+`Literata` and Source Sans 3 fonts. See [font licenses](fonts/README.md).
+Native forms work without JavaScript. JavaScript announces Saving… during submission
+and preserves the chosen submitter value. The server controls saved positions and
+completion eligibility. Only pointer input can decorate a fresh confirmed placement.
+The opacity transition takes 160 ms. Reduced motion shows the final highlight immediately.
 
 Build the relocatable archive with `aspect build //book_smartz/web:package`.
 It contains `book-smartz`, adjacent `assets`, and `integrity.json`. Run it from
@@ -90,8 +98,13 @@ envelope before its append. Correlation uses the explicitly accepted experimenta
 [Correlation extension at revision 472f0e1](https://github.com/cloudevents/spec/blob/472f0e1d856e335c30fa204f36fd6428c2bfd732/cloudevents/extensions/correlation.md).
 App facts and ranking events have separate sources and sequences.
 
-The accepted ranking event is the sole success evidence. There is no separate
-completion receipt. Repeated submissions recover the original intent even after
+The accepted ranking event is the sole success evidence. No separate durable
+completion fact records success. The app signs a temporary display cookie after a
+confirmed save. The cookie expires after 60 seconds and belongs to the authenticated
+reader. The cookie controls display feedback only. Recovery and repeated
+submissions show confirmation without replaying the completion highlight.
+
+Repeated submissions recover the original intent even after
 selection expiry. A changed selection, action, or revision can't reuse an offer.
 Registration and shared metadata may remain committed after the domain rejects Start.
 blank author/cover fields preserve previously saved data. Rankings use retained
@@ -144,6 +157,33 @@ The app suite covers ordering, action/security boundaries, expiry, and real
 lost-commit-acknowledgement and process-cancellation recovery. These checks provide
 controlled acceptance evidence. Live-provider and deployment acceptance remain
 separate delivery work.
+
+The `browser_collection_test` target runs the same packaged journey through a
+native Node test entry point. This retains Node child profiles for the journey.
+The native Rust test retains `LLVM` objects and child profiles.
+Normal fixture teardown requests `SIGTERM` before its bounded `Child::kill` fallback.
+Explicit cancellation tests retain their direct `Child::kill` calls.
+Chromium supplies computed appearance data. Node calculates contrast and validates
+those results. Native Node profiles measure Node execution. Browser execution
+remains outside those profiles. Browser assertions validate submission behavior.
+
+The browser records every acceptance scene at 320 × 900, 390 × 900, and
+1440 × 900. `browser-evidence.json` contains the Chromium version, viewport,
+visible-control bounds, and computed foreground/background contrast measurements.
+The measurements composite ancestor backgrounds and the placement highlight.
+They use the [W3C sRGB luminance formula](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html#dfn-relative-luminance).
+Normal text must reach 4.5:1. Large text, control boundaries, and visible focus
+outlines must reach 3:1. The checks include inactive controls. These measurements cover the rendered
+acceptance scenes. Web Content Accessibility Guidelines conformance requires
+separate review.
+
+Full-page screenshots and `motion-evidence.json` remain in the Bazel test outputs.
+Use `--test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=<tested-commit>` to identify the
+commit in both evidence files. Final acceptance must force fresh test execution.
+The native journey disables JavaScript and checks first Add, comparison,
+uncertainty, read/reload/sign-in without recovery, explicit Check original save,
+Resume, and keyboard completion. Fixture controls remain outside production routes.
+A failed remote cover exposes one accessible placeholder and retains its catalog URL.
 
 The browser target uses the [pinned combined worker](../../tools/book_smartz_browser_worker/README.md)
 on BuildBuddy Firecracker, with Docker initialization and the matching bundled

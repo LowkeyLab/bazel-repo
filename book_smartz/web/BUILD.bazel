@@ -2,6 +2,7 @@
 # gazelle:ignore
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("//tools/coverage:javascript.bzl", "js_test")
 load("//tools/coverage:rust.bzl", "rust_binary", "rust_test")
 load("//tools/test_images:defs.bzl", "image_data", "image_env")
 load("//tools/topcoat:defs.bzl", "topcoat_assets", "topcoat_package", "topcoat_rust_binary", "topcoat_rust_library", "topcoat_tailwind")
@@ -12,7 +13,13 @@ topcoat_rust_library(
     name = "views",
     package_name = "book-smartz-views",
     srcs = ["views.rs"],
-    asset_inputs = [":font"],
+    asset_inputs = [
+        "fonts/literata.ttf",
+        "fonts/source-sans-3.ttf",
+        "fonts/literata-OFL.txt",
+        "fonts/source-sans-3-OFL.txt",
+        "cover-placeholder.svg",
+    ],
     crate_name = "book_smartz_views",
     crate_root = "views.rs",
     iconify_json = ":icons",
@@ -28,13 +35,13 @@ topcoat_rust_binary(
         "actions/evidence.rs",
         "catalog.rs",
         "diagnostics.rs",
+        "feedback.rs",
         "identity.rs",
         "main.rs",
         "package.rs",
     ],
     asset_inputs = [
         ":styles",
-        "cover-placeholder.svg",
         ":submitting_script",
     ],
     compile_data = [
@@ -64,13 +71,6 @@ topcoat_rust_binary(
         "@crates//:url",
         "@crates//:uuid",
     ],
-)
-
-genrule(
-    name = "font",
-    srcs = ["//tools:node_modules/@fontsource/roboto"],
-    outs = ["local/font.woff2"],
-    cmd = "for p in $(execpaths //tools:node_modules/@fontsource/roboto); do case $$p in */tools/node_modules/@fontsource/roboto) cp $$p/files/roboto-latin-400-normal.woff2 $@ ;; esac; done",
 )
 
 genrule(
@@ -389,5 +389,38 @@ rust_test(
     deps = [
         "@crates//:googletest",
         "@crates//:wiremock",
+    ],
+)
+
+# This collector executes the existing packaged journey, with native Node profiles.
+js_test(
+    name = "browser_collection_test",
+    size = "medium",
+    timeout = "long",
+    data = [
+        "fixtures/browser-test-certificate.pem",
+        "fixtures/public-test-key.pem",
+        ":browser_runner",
+        ":browser_test",
+        ":package",
+        ":scripts",
+    ] + image_data("postgres_18"),
+    entry_point = "browser.collection.mjs",
+    env = image_env("postgres_18") | {
+        "BROWSER_FIXTURE": "$(rootpath :browser_test)",
+        "PACKAGE_ARCHIVE": "$(rlocationpath :package)",
+        "BROWSER_RUNNER": "$(rlocationpath :browser_runner)",
+        "BROWSER_KEY": "$(rlocationpath fixtures/public-test-key.pem)",
+        "BROWSER_CERTIFICATE": "$(rlocationpath fixtures/browser-test-certificate.pem)",
+        "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright",
+    },
+    exec_properties = {
+        "test.container-image": "docker://ghcr.io/lowkeylab/book_smartz_browser_worker@sha256:6fdbf236c09d41b4bc82d140ea6f5510eb27de20d422f4fa88b64cf59413990f",
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
     ],
 )

@@ -93,7 +93,7 @@ async fn packaged_pages_deliver_local_css_fonts_runtime_and_icons() -> anyhow::R
     assert_that!(served_styles.iter().all(|seen| *seen), eq(true));
     assert_that!(css, ge(2));
     assert_that!(scripts, ge(1));
-    assert_that!(fonts, ge(1));
+    assert_that!(fonts, ge(2));
     Ok(())
 }
 

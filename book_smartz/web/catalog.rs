@@ -447,6 +447,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
         <!DOCTYPE html>
         <html lang="en">
             <head>
+                book_smartz_views::assets()
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"Search · Book Smartz"</title>
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
@@ -454,12 +455,15 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
             </head>
             <body>
                 book_smartz_views::heading()
-                <main class="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
-                    <section>
-                        <h1>"Search books"</h1>
+                <main class="library-workspace">
+                    <section class="active-task" aria-label="Book workspace">
+                        <h1 tabindex="-1" data-response-focus="task">"Search books"</h1>
                         <a href="/ranking">"Your saved ranking"</a>
                         if let Some(message) = message {
-                            <p role="status">(message)</p>
+                            book_smartz_views::feedback(
+                                message: message.to_owned(),
+                                kind: book_smartz_views::FeedbackKind::Error
+                            )
                         }
                         <form method="post" action="/search">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
@@ -479,7 +483,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
                             >
                             <button type="submit">"Retry search"</button>
                         </form>
-                        <ul>
+                        <ul class="search-results" aria-label="Search results">
                             for (work, token) in results {
                                 result_card(
                                     work: work,
@@ -513,7 +517,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
                             </form>
                         }
                     </section>
-                    crate::saved_ranking(reader: session.reader)
+                    crate::saved_ranking(reader: session.reader, completion: None)
                 </main>
             </body>
         </html>
@@ -561,6 +565,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
         <!DOCTYPE html>
         <html lang="en">
             <head>
+                book_smartz_views::assets()
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"Selected work · Book Smartz"</title>
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
@@ -568,28 +573,44 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
             </head>
             <body>
                 book_smartz_views::heading()
-                <main>
-                    <h1>"Selected work"</h1>
-                    <a href=(work.source())>(work.title)</a>
-                    <p>"This selection expires 15 minutes after search."</p>
-                    if let Some(message) = gate {
-                        <p role="status">(message)</p>
-                    }
-                    <form method="post" action="/add" data-ranking-action="">
-                        <input type="hidden" name="csrf" value=(&session.csrf)>
-                        <input type="hidden" name="selection" value=(&input.selection)>
-                        <input type="hidden" name="action" value=(action.text())>
-                        <input
-                            type="hidden"
-                            name="revision"
-                            value=(revision.to_string())
-                        >
-                        <input type="hidden" name="offer" value=(offer)>
-                        <button type="submit" disabled=(blocked)>
-                            "Add to your ranking"
-                        </button>
-                    </form>
-                    <a href="/ranking">"Return to your ranking"</a>
+                <main class="library-workspace">
+                    <section class="active-task" aria-label="Book workspace">
+                        <h1 tabindex="-1" data-response-focus="task">
+                            "Selected work"
+                        </h1>
+                        book_smartz_views::book(
+                            display: presentation(&work),
+                            compact: false
+                        )
+                        <p>"This selection expires 15 minutes after search."</p>
+                        if let Some(message) = gate {
+                            book_smartz_views::feedback(
+                                message: message.to_owned(),
+                                kind: book_smartz_views::FeedbackKind::Error
+                            )
+                        }
+                        <form method="post" action="/add" data-ranking-action="">
+                            <input type="hidden" name="csrf" value=(&session.csrf)>
+                            <input
+                                type="hidden"
+                                name="selection"
+                                value=(&input.selection)
+                            >
+                            <input type="hidden" name="action" value=(action.text())>
+                            <input
+                                type="hidden"
+                                name="revision"
+                                value=(revision.to_string())
+                            >
+                            <input type="hidden" name="offer" value=(offer)>
+                            <button type="submit" disabled=(blocked)>
+                                "Add to your ranking"
+                            </button>
+                            book_smartz_views::submission_status()
+                        </form>
+                        <a href="/ranking">"Return to your ranking"</a>
+                    </section>
+                    crate::saved_ranking(reader: session.reader, completion: None)
                 </main>
             </body>
         </html>
@@ -600,31 +621,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
 async fn result_card(work: CatalogWork, token: String, csrf: String) -> Result<impl View> {
     Ok(view! {
         <li>
-            <div style="width:96px;height:144px;position:relative">
-                <img
-                    src=(topcoat::asset::asset!("./cover-placeholder.svg"))
-                    alt="Cover unavailable"
-                    width="96"
-                    height="144"
-                >
-                if let Some(cover) = work.cover_url() {
-                    <object
-                        data=(cover)
-                        type="image/jpeg"
-                        aria-label="Representative book cover"
-                        style="position:absolute;inset:0;width:96px;height:144px"
-                    >
-                        <img
-                            src=(topcoat::asset::asset!("./cover-placeholder.svg"))
-                            alt="Cover unavailable"
-                            width="96"
-                            height="144"
-                        >
-                    </object>
-                }
-            </div>
-            <a href=(work.source())>(work.title.clone())</a>
-            <p>(work.author_label())</p>
+            book_smartz_views::book(display: presentation(&work), compact: false)
             if let Some(year) = work.year {
                 <p>(year.to_string())</p>
             }
@@ -635,6 +632,15 @@ async fn result_card(work: CatalogWork, token: String, csrf: String) -> Result<i
             </form>
         </li>
     })
+}
+
+fn presentation(work: &CatalogWork) -> book_smartz_views::BookDisplay {
+    book_smartz_views::BookDisplay {
+        title: work.title.clone(),
+        author: work.author_label(),
+        cover: work.cover_url(),
+        source: work.source(),
+    }
 }
 
 #[cfg(test)]

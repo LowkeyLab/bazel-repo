@@ -78,12 +78,14 @@ async fn concurrent_signup_and_changed_email_restore_one_private_ranking_and_pen
             contains_substring("https://openlibrary.org/works/OL111W")
         );
         assert_that!(saved, not(contains_substring("OL222W")));
-        let pending = body.split("<aside>").nth(1).unwrap();
         assert_that!(
-            pending,
+            body.as_str(),
             contains_substring("https://openlibrary.org/works/OL222W")
         );
-        assert_that!(pending, contains_substring("paused"));
+        assert_that!(
+            body.as_str(),
+            contains_substring("Your unfinished comparison is paused.")
+        );
     }
     let other = app.login("different-account").await?;
     let response = app

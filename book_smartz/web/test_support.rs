@@ -21,6 +21,22 @@ use wiremock::{
 pub struct Process(pub Child);
 impl Drop for Process {
     fn drop(&mut self) {
+        // Normal teardown lets the server drain and LLVM write child profiles.
+        // Explicit cancellation tests retain their direct kill operations.
+        if self.0.try_wait().ok().flatten().is_some() {
+            return;
+        }
+        let _ = Command::new("kill")
+            .args(["-TERM", &self.0.id().to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+        for _ in 0..200 {
+            if self.0.try_wait().ok().flatten().is_some() {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
         let _ = self.0.kill();
         let _ = self.0.wait();
     }

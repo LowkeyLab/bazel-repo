@@ -21,7 +21,7 @@ use topcoat::{
     },
     runtime::RouterBuilderRuntimeExt,
     session::{self, RouterBuilderSessionExt, SessionConfig},
-    view::{View, view},
+    view::{View, ViewExt, view},
 };
 use uuid::Uuid;
 
@@ -33,6 +33,7 @@ use book_smartz_storage::{
 mod actions;
 mod catalog;
 mod diagnostics;
+mod feedback;
 mod identity;
 mod package;
 
@@ -49,6 +50,7 @@ struct Application {
     origin: String,
     google: identity::Google,
     catalog: catalog::Catalog,
+    feedback: feedback::Feedback,
     diagnostics: diagnostics::Diagnostics,
     integrity: package::IntegrityMonitor,
 }
@@ -111,6 +113,7 @@ async fn run() -> anyhow::Result<()> {
         .layer(PrivateResponses)
         .runtime()
         .font(book_smartz_views::FONT)
+        .font(book_smartz_views::HEADING_FONT)
         .route(ready)
         .route(identity::login)
         .route(identity::callback)
@@ -128,6 +131,7 @@ async fn run() -> anyhow::Result<()> {
             origin,
             google,
             catalog,
+            feedback: feedback::Feedback::from_environment()?,
             diagnostics,
             integrity,
         })
@@ -199,12 +203,24 @@ async fn home() -> Result<impl View> {
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en">
-            <head><title>"Book Smartz"</title></head>
+            <head>
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>"Book Smartz"</title>
+                book_smartz_views::assets()
+                <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
+            </head>
             <body>
-                <main>
-                    <h1>"Book Smartz"</h1>
+                book_smartz_views::heading()
+                <main class="sign-in">
+                    <h1 tabindex="-1" data-response-focus="task">"Book Smartz"</h1>
                     <p>"Your books, in your order."</p>
-                    <a href="/auth/google">"Sign in with Google"</a>
+                    <p>
+                        "Sign in to build your private ranking. You choose what to save after sign-in."
+                    </p>
+                    <a class="primary-link" href="/auth/google">
+                        "Sign in with Google"
+                    </a>
                 </main>
             </body>
         </html>
@@ -214,25 +230,41 @@ async fn home() -> Result<impl View> {
 #[page("/ranking")]
 async fn ranking(cx: &Cx) -> Result<impl View> {
     let session = authorize(cx).await?;
+    let app: &Application = app_context(cx);
+    let receipt = app.feedback.take(cx, session.reader);
+    let completion = receipt.as_ref().and_then(feedback::Receipt::completion);
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
                 <title>"Your ranking · Book Smartz"</title>
+                book_smartz_views::assets()
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
                 <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
                 <script type="module" src=(topcoat::runtime::SCRIPT)></script>
             </head>
-            <body class="bg-stone-50 text-stone-900">
+            <body>
                 book_smartz_views::heading()
-                <main class="mx-auto grid max-w-5xl gap-8 p-6 md:grid-cols-2">
-                    <section aria-label="Book workspace">
+                <main class="library-workspace">
+                    <section class="active-task" aria-label="Book workspace">
+                        actions::recovery_controls(
+                            reader: session.reader,
+                            csrf: session.csrf.clone()
+                        )
+                        if let Some(receipt) = receipt {
+                            book_smartz_views::feedback(
+                                message: receipt.message(),
+                                kind: receipt.focus()
+                            )
+                        }
                         actions::comparison(
                             reader: session.reader,
                             csrf: session.csrf.clone()
                         )
-                        <h1>"Find your next book"</h1>
+                        <h1 tabindex="-1" data-response-focus="task">
+                            "Find your next book"
+                        </h1>
                         <form method="post" action="/search">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
                             <label>
@@ -242,16 +274,12 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                             <input type="hidden" name="page" value="1">
                             <button type="submit">"Search books"</button>
                         </form>
-                        actions::recovery_controls(
-                            reader: session.reader,
-                            csrf: session.csrf.clone()
-                        )
                         <form method="post" action="/logout">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
                             <button type="submit">"Sign out of this browser"</button>
                         </form>
                     </section>
-                    saved_ranking(reader: session.reader)
+                    saved_ranking(reader: session.reader, completion: completion)
                 </main>
             </body>
         </html>
@@ -259,7 +287,11 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
 }
 
 #[topcoat::view::component]
-async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
+async fn saved_ranking(
+    cx: &Cx,
+    reader: ReaderId,
+    completion: Option<(Uuid, String)>,
+) -> Result<impl View> {
     let db: &Application = app_context(cx);
     let stored_ranking = db
         .store
@@ -303,64 +335,48 @@ async fn saved_ranking(cx: &Cx, reader: ReaderId) -> Result<impl View> {
             } else {
                 authors.join(", ")
             };
+            let completion_action = completion
+                .as_ref()
+                .filter(|(book, _)| book == entry.book_id().as_uuid())
+                .map(|(_, action)| action.clone());
             entries.push((
-                format!("https://openlibrary.org/works/{work}"),
-                title,
-                author,
-                cover,
+                entry.book_id(),
+                book_smartz_views::BookDisplay {
+                    source: format!("https://openlibrary.org/works/{work}"),
+                    title,
+                    author,
+                    cover: cover.map(|cover| {
+                        format!("https://covers.openlibrary.org/b/id/{cover}-M.jpg?default=false")
+                    }),
+                },
+                completion_action,
             ));
         }
     }
     Ok(view! {
-        <section>
-            <h2>"Your saved ranking"</h2>
+        <section
+            class="saved-ranking"
+            id="saved-ranking"
+            aria-labelledby="saved-ranking-heading"
+        >
+            <h2 id="saved-ranking-heading">"Your saved ranking"</h2>
+            <p>"Saved positions"</p>
             if entries.is_empty() {
                 <p>"Your ranking is empty."</p>
+                <p>"Find a book to begin your private ranking."</p>
             }
             <ol>
-                for (link, title, author, cover) in entries {
-                    <li>
-                        ranked_cover(cover: cover)
-                        <a href=(link)>(title)</a>
-                        <span>
-                            " · "
-                            (author)
-                        </span>
+                for (id, display, completion_action) in entries {
+                    <li
+                        data-book-id=(id.as_uuid().to_string())
+                        data-completion-action=(completion_action)
+                    >
+                        book_smartz_views::book(display: display, compact: true)
                     </li>
                 }
             </ol>
+            <p>"Pending books receive a position only after placement finishes."</p>
         </section>
-    })
-}
-
-#[topcoat::view::component]
-async fn ranked_cover(cover: Option<i64>) -> Result<impl View> {
-    Ok(view! {
-        <div style="width:48px;height:72px;position:relative">
-            <img
-                src=(topcoat::asset::asset!("./cover-placeholder.svg"))
-                alt="Cover unavailable"
-                width="48"
-                height="72"
-            >
-            if let Some(cover) = cover {
-                <object
-                    data=(format!(
-                        "https://covers.openlibrary.org/b/id/{cover}-M.jpg?default=false",
-                    ))
-                    type="image/jpeg"
-                    aria-label="Representative book cover"
-                    style="position:absolute;inset:0;width:48px;height:72px"
-                >
-                    <img
-                        src=(topcoat::asset::asset!("./cover-placeholder.svg"))
-                        alt="Cover unavailable"
-                        width="48"
-                        height="72"
-                    >
-                </object>
-            }
-        </div>
     })
 }
 
@@ -393,6 +409,51 @@ fn require_post(cx: &Cx, session: &BrowserSession, csrf: &str) -> Result<()> {
     Ok(())
 }
 
+fn access_error(cx: &Cx, status: topcoat::router::StatusCode) -> topcoat::view::BoxView<'_> {
+    let __cx = cx;
+    let sign_in = status == topcoat::router::StatusCode::UNAUTHORIZED;
+    let title = if sign_in {
+        "Sign in to continue"
+    } else {
+        "Action unavailable"
+    };
+    let message = if sign_in {
+        "Sign in to view your private ranking. Then choose the action you want to submit."
+    } else {
+        "Return to your ranking. Review the current state before you submit another action."
+    };
+    view! {
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                book_smartz_views::assets()
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>(format!("{title} · Book Smartz"))</title>
+                <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
+                <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
+            </head>
+            <body>
+                book_smartz_views::heading()
+                <main class="sign-in">
+                    <h1 tabindex="-1" data-response-focus="error">(title)</h1>
+                    book_smartz_views::feedback(
+                        message: message.to_owned(),
+                        kind: book_smartz_views::FeedbackKind::Status
+                    )
+                    if sign_in {
+                        <a class="primary-link" href="/auth/google">
+                            "Sign in with Google"
+                        </a>
+                    } else {
+                        <a href="/ranking">"Return to your ranking"</a>
+                    }
+                </main>
+            </body>
+        </html>
+    }
+    .boxed()
+}
+
 struct PrivateResponses;
 impl topcoat::router::Layer for PrivateResponses {
     fn path(&self) -> Option<&topcoat::router::Path> {
@@ -405,13 +466,18 @@ impl topcoat::router::Layer for PrivateResponses {
         next: topcoat::router::Next<'a>,
     ) -> topcoat::router::LayerFuture<'a> {
         Box::pin(async move {
+            use topcoat::router::{
+                StatusCode,
+                error::{ForbiddenError, UnauthorizedError},
+                response::IntoResponse,
+            };
             let headers = topcoat::router::response::response_headers(cx);
             // Registered fingerprinted assets retain the framework's immutable
             // policy. Private HTML/auth responses remain non-cacheable.
-            if !["/_topcoat/assets/", "/_topcoat/fonts/"]
+            let private_html = !["/_topcoat/assets/", "/_topcoat/fonts/"]
                 .iter()
-                .any(|prefix| request::uri(cx).path().starts_with(prefix))
-            {
+                .any(|prefix| request::uri(cx).path().starts_with(prefix));
+            if private_html {
                 headers.append(
                     topcoat::router::header::CACHE_CONTROL,
                     topcoat::router::HeaderValue::from_static("no-store"),
@@ -422,7 +488,25 @@ impl topcoat::router::Layer for PrivateResponses {
                 topcoat::router::header::REFERRER_POLICY,
                 topcoat::router::HeaderValue::from_static("strict-origin"),
             );
-            next.run(cx, body).await
+            let result = next.run(cx, body).await;
+            let status = match &result {
+                Ok(response) => Some(response.status()),
+                Err(error) if error.downcast_ref::<UnauthorizedError>().is_some() => {
+                    Some(StatusCode::UNAUTHORIZED)
+                }
+                Err(error) if error.downcast_ref::<ForbiddenError>().is_some() => {
+                    Some(StatusCode::FORBIDDEN)
+                }
+                Err(_) => None,
+            };
+            let Some(status) =
+                status.filter(|status| private_html && matches!(status.as_u16(), 401 | 403))
+            else {
+                return result;
+            };
+            let mut response = access_error(cx, status).single().await?.into_response(cx)?;
+            *response.status_mut() = status;
+            Ok(response)
         })
     }
 }
