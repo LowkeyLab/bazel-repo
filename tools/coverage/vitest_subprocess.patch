@@ -1,0 +1,50 @@
+--- a/dist/provider.js
++++ b/dist/provider.js
+@@ -1,5 +1,5 @@
+-import { existsSync, promises } from 'node:fs';
+-import { fileURLToPath } from 'node:url';
++import fs, { existsSync, promises } from 'node:fs';
++import { fileURLToPath, pathToFileURL } from 'node:url';
+ import { mergeScriptCovs } from '@bcoe/v8-coverage';
+ import * as libCoverage from '@vitest/istanbul-lib-coverage';
+ import * as libReport from '@vitest/istanbul-lib-report';
+@@ -16,6 +16,27 @@
+ var version = "5.0.5";
+ 
+ const FILE_PROTOCOL = "file://";
++// Node resolves subprocess entry-point symlinks outside Bazel's logical roots.
++// Match only existing files admitted by the provider's unchanged root and filters.
++async function createRunfilesUrlResolver(provider) {
++    if (!process.env.TEST_SRCDIR || !process.env.TEST_WORKSPACE) return (url) => url;
++    const logicalUrls = new Set();
++    const aliases = new Map();
++    // rules_js retains this operation for integrations that need physical paths.
++    const realpath = fs._unpatched?.realpathSync || fs.realpathSync;
++    for (const root of provider.roots) {
++        const sources = await provider.getUntestedFilesByRoot([], ['**/*'], root);
++        for (const logical of sources) {
++            if (!existsSync(logical)) continue;
++            const logicalUrl = pathToFileURL(logical).href;
++            const physicalUrl = pathToFileURL(realpath(logical)).href;
++            logicalUrls.add(logicalUrl);
++            aliases.set(physicalUrl, aliases.has(physicalUrl) && aliases.get(physicalUrl) !== logicalUrl ? null : logicalUrl);
++        }
++    }
++    return (url) => logicalUrls.has(url) ? url : (aliases.get(url) || url);
++}
++
+ const debug = createDebug("vitest:coverage");
+ class V8CoverageProvider extends BaseCoverageProvider {
+ 	name = "v8";
+@@ -48,9 +69,11 @@
+ 		const coverageMap = this.createCoverageMap();
+ 		const mergedScripts = new Map();
+ 		const autoAttachSubprocess = this.options.autoAttachSubprocess;
++		const originalUrl = autoAttachSubprocess ? await createRunfilesUrlResolver(this) : (url) => url;
+ 		await this.readCoverageFiles({
+ 			onFileRead(coverage) {
+ 				for (const script of coverage.result) {
++					if (script.isExtendedContext) script.url = originalUrl(script.url);
+ 					const previous = mergedScripts.get(script.url);
+ 					const merged = mergeScriptCovs(previous ? [previous, script] : [script]);
+ 					const startOffset = previous?.startOffset || script.startOffset || 0;

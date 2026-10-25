@@ -31,6 +31,7 @@ filegroup(
     name = "markdown",
     srcs = [
         "README.md",
+        "angular-child-attribution.md",
         "native-node-attribution.md",
         "rust-migration-acceptance.md",
     ],
@@ -388,4 +389,17 @@ js_test(
     no_copy_to_bin = ["@aspect_rules_js//js/private/coverage:coverage.js"],
 )
 
-exports_files(["rules_js_runfiles.patch"])
+exports_files([
+    "rules_js_runfiles.patch",
+    "vitest_subprocess.patch",
+])
+
+js_test(
+    name = "vitest_subprocess_collector_test",
+    size = "small",
+    data = [
+        "//angular:node_modules/@vitest/coverage-v8",
+        "//angular:node_modules/vitest",
+    ],
+    entry_point = "vitest_subprocess_collector_test.mjs",
+)
