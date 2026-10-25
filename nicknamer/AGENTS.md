@@ -52,6 +52,8 @@ Key targets:
   aspect test //nicknamer/server/lib/tests:tests --test_filter="test_name_pattern"
   ```
 
+Place unit tests in `nicknamer/server/lib/tests/`.
+
 For test libraries and Rust rules, read [the Rust standards](../docs/agents/rust.md).
 Use [the development workflow](../docs/agents/development.md) for the required verification sequence.
 
