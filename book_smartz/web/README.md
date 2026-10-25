@@ -43,7 +43,7 @@ to preserve native form Origin headers without disclosing URL paths or queries.
 Ranking GETs derive reader authority
 from the stored session. Reader identifiers supplied by browsers confer none.
 The app installs a silent storage observer so existing reader-identifying
-storage diagnostics don't become routine web diagnostics. The web listener emits only allowlisted app facts through a bounded,
+storage diagnostics don't become routine web diagnostics. The web listener emits only allowlisted app facts through a bounded
 queue. Producers do not wait for output. Catalog searches use typed operation facts with safe stage, reason, severity, and correlation context.
 The producer and listener checks inspect structured values.
 Packaged HTTP checks use controlled providers and real PostgreSQL.
