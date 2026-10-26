@@ -29,7 +29,12 @@ const fn operation_record(fact: OperationFinished) -> OperationRecord {
     let severity = match (fact.outcome, fact.reason) {
         (
             OperationOutcome::DependencyFailure,
-            Reason::Database | Reason::Schema | Reason::SelectionPreparation,
+            Reason::Database
+            | Reason::Schema
+            | Reason::SelectionPreparation
+            | Reason::CorruptHistory
+            | Reason::PersistenceFailure
+            | Reason::SessionOperation,
         ) => Severity::Error,
         (OperationOutcome::DependencyFailure | OperationOutcome::Interrupted, _) => Severity::Warn,
         _ => Severity::Info,
@@ -47,7 +52,6 @@ enum Delivery {
 #[derive(Clone, Copy, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
-    Authentication,
     Persistence,
     Checking,
 }
@@ -56,7 +60,6 @@ pub enum Category {
 #[serde(rename_all = "snake_case")]
 pub enum Outcome {
     Confirmed,
-    Failed,
     Unconfirmed,
 }
 
@@ -123,9 +126,16 @@ impl Diagnostics {
         }));
     }
 
-    pub fn catalog_search(&self) -> Operation<'_> {
+    pub fn catalog_search(&self) -> Operation {
+        self.operation(OperationKind::CatalogSearch)
+    }
+
+    pub fn operation(&self, kind: OperationKind) -> Operation {
         Operation {
-            diagnostics: self,
+            listener: self.listener.clone(),
+            release: self.release.clone(),
+            process_instance: self.process_instance,
+            kind,
             id: OperationId::fresh(),
             started: Instant::now(),
             stage: Stage::Validation,
@@ -138,65 +148,65 @@ impl Diagnostics {
             self.record(category, Outcome::Unconfirmed, started, Some(action));
         }
     }
-
-    pub fn scope(&self, category: Category) -> Scope<'_> {
-        Scope {
-            diagnostics: self,
-            category,
-            outcome: Outcome::Failed,
-            started: Instant::now(),
-        }
-    }
-}
-
-pub struct Scope<'a> {
-    diagnostics: &'a Diagnostics,
-    category: Category,
-    outcome: Outcome,
-    started: Instant,
-}
-impl Scope<'_> {
-    pub const fn outcome(&mut self, outcome: Outcome) {
-        self.outcome = outcome;
-    }
-}
-impl Drop for Scope<'_> {
-    fn drop(&mut self) {
-        self.diagnostics
-            .record(self.category, self.outcome, self.started, None);
-    }
 }
 
 /// Dropping incomplete work reports interruption at its last known stage.
-pub struct Operation<'a> {
-    diagnostics: &'a Diagnostics,
+pub struct Operation {
+    listener: Arc<dyn OperationListener>,
+    release: String,
+    process_instance: ProcessInstanceId,
+    kind: OperationKind,
     id: OperationId,
     started: Instant,
     stage: Stage,
     terminal: Option<(OperationOutcome, Reason)>,
 }
-impl Operation<'_> {
+impl Operation {
     pub const fn stage(&mut self, stage: Stage) {
         self.stage = stage;
+    }
+    pub fn database_failure(&mut self, error: &sqlx::Error) {
+        let reason = if error
+            .as_database_error()
+            .and_then(sqlx::error::DatabaseError::code)
+            .is_some_and(|code| matches!(code.as_ref(), "42P01" | "42703" | "3F000"))
+        {
+            Reason::Schema
+        } else {
+            Reason::Database
+        };
+        self.finish(OperationOutcome::DependencyFailure, reason);
+    }
+    pub fn storage_failure(&mut self, error: &book_smartz_storage::StoreError) {
+        match error {
+            book_smartz_storage::StoreError::Database(error) => self.database_failure(error),
+            book_smartz_storage::StoreError::CorruptHistory(_) => {
+                self.finish(OperationOutcome::DependencyFailure, Reason::CorruptHistory);
+            }
+            _ => self.finish(
+                OperationOutcome::DependencyFailure,
+                Reason::PersistenceFailure,
+            ),
+        }
     }
     pub const fn finish(&mut self, outcome: OperationOutcome, reason: Reason) {
         self.terminal = Some((outcome, reason));
     }
 }
-impl Drop for Operation<'_> {
+impl Drop for Operation {
     fn drop(&mut self) {
         let (outcome, reason) = self
             .terminal
             .unwrap_or((OperationOutcome::Interrupted, Reason::Interrupted));
-        self.diagnostics.listener.observe(OperationFinished {
+        self.listener.observe(OperationFinished {
             event: EventIdentity::OperationFinished,
-            operation: OperationKind::CatalogSearch,
+            operation: self.kind,
             outcome,
             stage: self.stage,
             reason,
             duration_ms: u64::try_from(self.started.elapsed().as_millis()).unwrap_or(u64::MAX),
-            release: self.diagnostics.release.clone(),
-            process_instance: self.diagnostics.process_instance,
+            release: self.release.clone(),
+            process_instance: self.process_instance,
             operation_id: self.id,
         });
     }
@@ -269,23 +279,70 @@ mod tests {
     #[googletest::test]
     #[tokio::test]
     async fn cancellation_reports_interruption_at_the_known_stage() -> anyhow::Result<()> {
-        let (diagnostics, capture) = capture();
-        let (started, ready) = tokio::sync::oneshot::channel();
-        let task = tokio::spawn(async move {
-            let mut operation = diagnostics.catalog_search();
-            operation.stage(Stage::Provider);
-            let _ = started.send(());
-            std::future::pending::<()>().await;
-        });
-        ready.await?;
-        task.abort();
-        assert_that!(task.await.unwrap_err().is_cancelled(), eq(true));
-        let events = capture.0.lock().unwrap();
-        assert_that!(events.len(), eq(1));
-        assert_that!(events[0].stage, eq(Stage::Provider));
-        assert_that!(events[0].outcome, eq(OperationOutcome::Interrupted));
-        assert_that!(events[0].reason, eq(Reason::Interrupted));
+        for kind in [
+            OperationKind::CatalogSearch,
+            OperationKind::SignInStart,
+            OperationKind::SignIn,
+            OperationKind::SignOut,
+            OperationKind::RankingRead,
+        ] {
+            let (diagnostics, capture) = capture();
+            let (started, ready) = tokio::sync::oneshot::channel();
+            let task = tokio::spawn(async move {
+                let mut operation = diagnostics.operation(kind);
+                operation.stage(Stage::Persistence);
+                let _ = started.send(());
+                std::future::pending::<()>().await;
+            });
+            ready.await?;
+            task.abort();
+            assert_that!(task.await.unwrap_err().is_cancelled(), eq(true));
+            let events = capture.0.lock().unwrap();
+            assert_that!(events.len(), eq(1));
+            assert_that!(events[0].operation, eq(kind));
+            assert_that!(events[0].stage, eq(Stage::Persistence));
+            assert_that!(events[0].outcome, eq(OperationOutcome::Interrupted));
+            assert_that!(events[0].reason, eq(Reason::Interrupted));
+        }
         Ok(())
+    }
+
+    #[googletest::test]
+    fn storage_failures_preserve_stage_and_remove_private_causes() {
+        use book_smartz_storage::StoreError;
+
+        const PRIVATE_CAUSE: &str = "private-reader-history-and-database-address";
+        for (error, reason) in [
+            (
+                StoreError::Database(sqlx::Error::Protocol(PRIVATE_CAUSE.into())),
+                Reason::Database,
+            ),
+            (
+                StoreError::CorruptHistory(PRIVATE_CAUSE),
+                Reason::CorruptHistory,
+            ),
+            (
+                StoreError::CommitUncertain(sqlx::Error::Protocol(PRIVATE_CAUSE.into())),
+                Reason::PersistenceFailure,
+            ),
+            (StoreError::InvalidComposition, Reason::PersistenceFailure),
+        ] {
+            let (diagnostics, capture) = capture();
+            {
+                let mut operation = diagnostics.operation(OperationKind::RankingRead);
+                operation.stage(Stage::Persistence);
+                operation.storage_failure(&error);
+            }
+            let events = capture.0.lock().unwrap();
+            assert_that!(events.len(), eq(1));
+            let record = super::operation_record(events[0].clone());
+            assert_that!(record.fact.operation, eq(OperationKind::RankingRead));
+            assert_that!(record.fact.stage, eq(Stage::Persistence));
+            assert_that!(record.fact.outcome, eq(OperationOutcome::DependencyFailure));
+            assert_that!(record.fact.reason, eq(reason));
+            assert_that!(record.severity, eq(Severity::Error));
+            assert_that!(&record.fact.release, eq(&"a".repeat(64)));
+        }
     }
 
     fn fact(outcome: OperationOutcome, reason: Reason) -> OperationFinished {

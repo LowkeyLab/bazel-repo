@@ -56,6 +56,9 @@ Each uses a separate reader and independently specified HTTP expectations.
 | `broken_diagnostic_delivery_preserves_confirmed_outcomes_and_durable_history`       | Diagnostic delivery can't alter durable outcomes.                                                 |
 | `initial_intent_ack_loss_reports_checking_before_original_action_recovery`          | Initial-intent acknowledgement loss remains recoverable.                                          |
 
+The diagnostic replay assertion counts business records separately from authentication and read attempts.
+The typed read facts do not represent new saves.
+
 The existing HTTP, browser, package, domain, and storage suites remain part of the
 repository acceptance. Controlled identity/catalog providers and local or hosted
 test results don't establish live-provider behavior or deployment readiness.

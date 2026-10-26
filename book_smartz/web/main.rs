@@ -38,6 +38,8 @@ mod feedback;
 mod identity;
 mod package;
 
+use crate::diagnostic_events::{OperationKind, OperationOutcome, Reason, Stage};
+
 struct QuietObserver;
 impl Observer for QuietObserver {
     fn observe(&self, _: &Observation) -> std::result::Result<(), ObservationDeliveryError> {
@@ -175,11 +177,44 @@ struct BrowserSession {
     csrf: String,
 }
 async fn authorize(cx: &Cx) -> Result<BrowserSession> {
-    let hash = session::token_hash(cx).await?.ok_or_else(unauthorized)?;
+    authorize_observed(cx, None).await
+}
+
+async fn authorize_observed(
+    cx: &Cx,
+    mut diagnostic: Option<&mut diagnostics::Operation>,
+) -> Result<BrowserSession> {
+    if let Some(operation) = diagnostic.as_mut() {
+        operation.stage(Stage::Authentication);
+    }
+    let hash = match session::token_hash(cx).await {
+        Ok(Some(hash)) => hash,
+        Ok(None) => {
+            if let Some(operation) = diagnostic.as_mut() {
+                operation.finish(OperationOutcome::Rejected, Reason::IdentityRejected);
+            }
+            return Err(unauthorized().into());
+        }
+        Err(error) => {
+            if let Some(operation) = diagnostic.as_mut() {
+                operation.stage(Stage::Session);
+                operation.finish(
+                    OperationOutcome::DependencyFailure,
+                    Reason::SessionOperation,
+                );
+            }
+            return Err(error);
+        }
+    };
     let db: &Application = app_context(cx);
     let row: Option<(Uuid, String)> = sqlx::query_as("SELECT reader_id, csrf FROM book_smartz_web.sessions WHERE token_hash = $1 AND expires_at > now()")
-        .bind(hash.as_slice()).fetch_optional(&db.pool).await?;
-    let (reader, csrf) = row.ok_or_else(unauthorized)?;
+        .bind(hash.as_slice()).fetch_optional(&db.pool).await.inspect_err(|error| { if let Some(operation) = diagnostic.as_mut() { operation.database_failure(error); } })?;
+    let Some((reader, csrf)) = row else {
+        if let Some(operation) = diagnostic.as_mut() {
+            operation.finish(OperationOutcome::Rejected, Reason::IdentityRejected);
+        }
+        return Err(unauthorized().into());
+    };
     Ok(BrowserSession {
         reader: ReaderId::new(reader),
         hash,
@@ -230,8 +265,9 @@ async fn home() -> Result<impl View> {
 
 #[page("/ranking")]
 async fn ranking(cx: &Cx) -> Result<impl View> {
-    let session = authorize(cx).await?;
     let app: &Application = app_context(cx);
+    let mut diagnostic = app.diagnostics.operation(OperationKind::RankingRead);
+    let session = authorize_observed(cx, Some(&mut diagnostic)).await?;
     let receipt = app.feedback.take(cx, session.reader);
     let completion = receipt.as_ref().and_then(feedback::Receipt::completion);
     Ok(view! {
@@ -280,7 +316,11 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                             <button type="submit">"Sign out of this browser"</button>
                         </form>
                     </section>
-                    saved_ranking(reader: session.reader, completion: completion)
+                    saved_ranking(
+                        reader: session.reader,
+                        completion: completion,
+                        diagnostic: Some(diagnostic)
+                    )
                 </main>
             </body>
         </html>
@@ -292,12 +332,17 @@ async fn saved_ranking(
     cx: &Cx,
     reader: ReaderId,
     completion: Option<(Uuid, String)>,
+    diagnostic: Option<diagnostics::Operation>,
 ) -> Result<impl View> {
     let db: &Application = app_context(cx);
+    let mut diagnostic =
+        diagnostic.unwrap_or_else(|| db.diagnostics.operation(OperationKind::RankingRead));
+    diagnostic.stage(Stage::Persistence);
     let stored_ranking = db
         .store
         .load_ranking(reader, OperationContext::default())
-        .await?;
+        .await
+        .inspect_err(|error| diagnostic.storage_failure(error))?;
     let projection = stored_ranking.projection();
     let ids: Vec<_> = projection
         .entries()
@@ -308,7 +353,8 @@ async fn saved_ranking(
     let books: std::collections::HashMap<_, _> = db
         .store
         .books_by_ids(&ids, OperationContext::default())
-        .await?
+        .await
+        .inspect_err(|error| diagnostic.storage_failure(error))?
         .into_iter()
         .map(|book| (book.id(), book))
         .collect();
@@ -318,7 +364,8 @@ async fn saved_ranking(
     )
     .bind(&display_ids)
     .fetch_all(&db.pool)
-    .await?;
+    .await
+    .inspect_err(|error| diagnostic.database_failure(error))?;
     let displays: std::collections::HashMap<_, _> = display_rows
         .into_iter()
         .map(|(id, title, authors, cover)| (id, (title, authors, cover)))
@@ -354,6 +401,7 @@ async fn saved_ranking(
             ));
         }
     }
+    diagnostic.finish(OperationOutcome::Confirmed, Reason::None);
     Ok(view! {
         <section
             class="saved-ranking"
@@ -387,14 +435,26 @@ struct Logout {
 }
 #[route(POST "/logout")]
 async fn logout(cx: &Cx, Form(input): Form<Logout>) -> Result<()> {
-    let session = authorize(cx).await?;
     let db: &Application = app_context(cx);
-    require_post(cx, &session, &input.csrf)?;
+    let mut diagnostic = db.diagnostics.operation(OperationKind::SignOut);
+    let session = authorize_observed(cx, Some(&mut diagnostic)).await?;
+    diagnostic.stage(Stage::Validation);
+    require_post(cx, &session, &input.csrf)
+        .inspect_err(|_| diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput))?;
+    diagnostic.stage(Stage::SessionRevocation);
     sqlx::query("DELETE FROM book_smartz_web.sessions WHERE token_hash = $1")
         .bind(session.hash.as_slice())
         .execute(&db.pool)
-        .await?;
-    session::stop(cx).await?;
+        .await
+        .inspect_err(|error| diagnostic.database_failure(error))?;
+    diagnostic.stage(Stage::Session);
+    session::stop(cx).await.inspect_err(|_| {
+        diagnostic.finish(
+            OperationOutcome::DependencyFailure,
+            Reason::SessionOperation,
+        );
+    })?;
+    diagnostic.finish(OperationOutcome::Confirmed, Reason::None);
     Err(see_other("/").into())
 }
 

@@ -21,6 +21,7 @@ async fn next_record(app: &Fixture, after: usize) -> anyhow::Result<OperationRec
             if let Some(record) = contents
                 .lines()
                 .filter_map(|line| serde_json::from_str::<OperationRecord>(line).ok())
+                .filter(|record| record.fact.operation == OperationKind::CatalogSearch)
                 .nth(after)
             {
                 return Ok::<_, anyhow::Error>(record);

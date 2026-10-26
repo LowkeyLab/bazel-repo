@@ -23,6 +23,7 @@ use topcoat::{
 use uuid::Uuid;
 
 use crate::Application;
+use crate::diagnostic_events::{OperationKind, OperationOutcome, Reason, Stage};
 
 const STATE_COOKIE: &str = "__Host-book-smartz-login";
 const SESSION_COOKIE: &str = "__Host-book-smartz-session";
@@ -126,17 +127,22 @@ impl Google {
             )?,
         })
     }
-    async fn key(&self, kid: &str) -> anyhow::Result<DecodingKey> {
+    async fn key(&self, kid: &str) -> std::result::Result<DecodingKey, IdentityFailure> {
         let mut cached = self.cached_keys.lock().await;
         if let Some(cached) = cached.as_ref()
             && cached.expires > Instant::now()
             && let Some(key) = cached.keys.find(kid)
         {
-            return Ok(DecodingKey::from_jwk(key)?);
+            return DecodingKey::from_jwk(key).map_err(|_| IdentityFailure::Malformed);
         }
         // Serialize refreshes; an unknown kid triggers rotation discovery even
         // during a valid cache lifetime. Failed refreshes never extend that lifetime.
-        let response = self.client.get(self.keys.clone()).send().await?;
+        let response = self
+            .client
+            .get(self.keys.clone())
+            .send()
+            .await
+            .map_err(IdentityFailure::from)?;
         let policy = response
             .headers()
             .get("cache-control")
@@ -165,12 +171,21 @@ impl Google {
             .unwrap_or(0);
         let expires = Instant::now() + Duration::from_secs(seconds.saturating_sub(age).min(86_400));
         let keys: JwkSet = bounded(response).await?;
-        let key = keys.find(kid).map(DecodingKey::from_jwk).transpose()?;
+        let key = keys
+            .find(kid)
+            .map(DecodingKey::from_jwk)
+            .transpose()
+            .map_err(|_| IdentityFailure::Malformed)?;
         *cached = Some(CachedKeys { keys, expires });
         drop(cached);
-        key.ok_or_else(|| anyhow::anyhow!("unknown identity key"))
+        key.ok_or(IdentityFailure::Rejected)
     }
-    async fn claims(&self, code: &str, verifier: &str, nonce: &str) -> anyhow::Result<Claims> {
+    async fn claims(
+        &self,
+        code: &str,
+        verifier: &str,
+        nonce: &str,
+    ) -> std::result::Result<Claims, IdentityFailure> {
         let body = url::form_urlencoded::Serializer::new(String::new())
             .extend_pairs([
                 ("code", code),
@@ -181,65 +196,116 @@ impl Google {
                 ("code_verifier", verifier),
             ])
             .finish();
-        let tokens: Tokens = bounded(
+        let tokens = token_response(
             self.client
                 .post(self.token.clone())
                 .header("content-type", "application/x-www-form-urlencoded")
                 .body(body)
                 .send()
-                .await?,
+                .await
+                .map_err(IdentityFailure::from)?,
         )
         .await?;
-        let header = decode_header(&tokens.id_token)?;
-        anyhow::ensure!(
-            header.alg == Algorithm::RS256,
-            "unaccepted identity algorithm"
-        );
+        let header = decode_header(&tokens.id_token).map_err(|_| IdentityFailure::Rejected)?;
+        if header.alg != Algorithm::RS256 {
+            return Err(IdentityFailure::Rejected);
+        }
         let key = self
-            .key(
-                header
-                    .kid
-                    .as_deref()
-                    .ok_or_else(|| anyhow::anyhow!("missing identity key"))?,
-            )
+            .key(header.kid.as_deref().ok_or(IdentityFailure::Rejected)?)
             .await?;
         let mut validation = Validation::new(Algorithm::RS256);
         validation.leeway = 0;
         validation.set_required_spec_claims(&["exp", "iss", "aud", "sub"]);
         validation.set_audience(&[&self.client_id]);
         validation.set_issuer(&[ISSUER, "accounts.google.com"]);
-        let claims = decode::<Claims>(&tokens.id_token, &key, &validation)?.claims;
-        anyhow::ensure!(
-            !claims.sub.is_empty() && claims.sub.len() <= 255 && claims.nonce == nonce,
-            "invalid identity claims"
-        );
+        let claims = decode::<Claims>(&tokens.id_token, &key, &validation)
+            .map_err(|_| IdentityFailure::Rejected)?
+            .claims;
+        if claims.sub.is_empty() || claims.sub.len() > 255 || claims.nonce != nonce {
+            return Err(IdentityFailure::Rejected);
+        }
         let multiple_audiences = claims
             .aud
             .as_array()
             .is_some_and(|audiences| audiences.len() > 1);
-        anyhow::ensure!(
-            claims
-                .azp
-                .as_deref()
-                .is_none_or(|presenter| presenter == self.client_id)
-                && (!multiple_audiences || claims.azp.as_deref() == Some(self.client_id.as_str())),
-            "invalid identity presenter"
-        );
+        if claims
+            .azp
+            .as_deref()
+            .is_some_and(|presenter| presenter != self.client_id)
+            || (multiple_audiences && claims.azp.as_deref() != Some(self.client_id.as_str()))
+        {
+            return Err(IdentityFailure::Rejected);
+        }
         Ok(claims)
     }
 }
 
-async fn bounded<T: serde::de::DeserializeOwned>(response: reqwest::Response) -> anyhow::Result<T> {
-    let mut response = response.error_for_status()?;
+#[derive(Clone, Copy)]
+enum IdentityFailure {
+    Rejected,
+    Limited,
+    Timeout,
+    Unavailable,
+    Malformed,
+    Oversized,
+}
+impl From<reqwest::Error> for IdentityFailure {
+    fn from(error: reqwest::Error) -> Self {
+        if error.is_timeout() {
+            Self::Timeout
+        } else {
+            Self::Unavailable
+        }
+    }
+}
+
+// Only an allowlisted protocol code identifies an expected grant rejection.
+#[derive(Deserialize)]
+struct TokenRejection {
+    error: TokenErrorCode,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum TokenErrorCode {
+    InvalidGrant,
+    #[serde(other)]
+    Other,
+}
+
+async fn token_response(
+    response: reqwest::Response,
+) -> std::result::Result<Tokens, IdentityFailure> {
+    if response.status().as_u16() == 400 {
+        let rejection: TokenRejection = bounded_body(response).await?;
+        return Err(match rejection.error {
+            TokenErrorCode::InvalidGrant => IdentityFailure::Rejected,
+            TokenErrorCode::Other => IdentityFailure::Unavailable,
+        });
+    }
+    bounded(response).await
+}
+
+async fn bounded<T: serde::de::DeserializeOwned>(
+    response: reqwest::Response,
+) -> std::result::Result<T, IdentityFailure> {
+    if response.status().as_u16() == 429 {
+        return Err(IdentityFailure::Limited);
+    }
+    let response = response.error_for_status().map_err(IdentityFailure::from)?;
+    bounded_body(response).await
+}
+
+async fn bounded_body<T: serde::de::DeserializeOwned>(
+    mut response: reqwest::Response,
+) -> std::result::Result<T, IdentityFailure> {
     let mut bytes = Vec::new();
-    while let Some(chunk) = response.chunk().await? {
-        anyhow::ensure!(
-            bytes.len() + chunk.len() <= 1_048_576,
-            "identity response too large"
-        );
+    while let Some(chunk) = response.chunk().await.map_err(IdentityFailure::from)? {
+        if bytes.len() + chunk.len() > 1_048_576 {
+            return Err(IdentityFailure::Oversized);
+        }
         bytes.extend_from_slice(&chunk);
     }
-    Ok(serde_json::from_slice(&bytes)?)
+    serde_json::from_slice(&bytes).map_err(|_| IdentityFailure::Malformed)
 }
 #[derive(Deserialize)]
 struct Tokens {
@@ -261,9 +327,12 @@ pub struct Callback {
 #[route(GET "/auth/google")]
 pub async fn login(cx: &Cx) -> Result<()> {
     let app: &Application = app_context(cx);
+    let mut diagnostic = app.diagnostics.operation(OperationKind::SignInStart);
+    diagnostic.stage(Stage::Persistence);
     let state = Token::random();
     let nonce = Token::random().encode();
     let verifier = Token::random().encode().trim_end_matches('=').to_owned();
+    async {
     let mut transaction = app.pool.begin().await?;
     sqlx::query("DELETE FROM book_smartz_web.login_challenges WHERE expires_at <= now()")
         .execute(&mut *transaction)
@@ -274,6 +343,9 @@ pub async fn login(cx: &Cx) -> Result<()> {
     sqlx::query("INSERT INTO book_smartz_web.login_challenges (state_hash, nonce, verifier, expires_at) VALUES ($1, $2, $3, now() + interval '10 minutes')")
         .bind(state.hash().as_slice()).bind(&nonce).bind(&verifier).execute(&mut *transaction).await?;
     transaction.commit().await?;
+        Ok::<(), sqlx::Error>(())
+    }.await.inspect_err(|error| diagnostic.database_failure(error))?;
+    diagnostic.stage(Stage::Session);
     cookies(cx).add(
         Cookie::build((STATE_COOKIE, state.encode()))
             .secure(true)
@@ -296,32 +368,76 @@ pub async fn login(cx: &Cx) -> Result<()> {
         ("code_challenge", challenge.as_str()),
         ("code_challenge_method", "S256"),
     ]);
+    diagnostic.finish(OperationOutcome::Confirmed, Reason::None);
     Err(see_other(destination.as_str()).into())
 }
 
 #[route(GET "/auth/google/callback")]
 pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
     let app: &Application = app_context(cx);
-    let mut diagnostic = app
-        .diagnostics
-        .scope(crate::diagnostics::Category::Authentication);
-    let state = Token::decode(&input.state).map_err(|_| unauthorized())?;
-    let cookie = cookies(cx).get(STATE_COOKIE).ok_or_else(unauthorized)?;
-    let browser = Token::decode(cookie.value()).map_err(|_| unauthorized())?;
+    let mut diagnostic = app.diagnostics.operation(OperationKind::SignIn);
+    diagnostic.stage(Stage::Authentication);
+    let state = Token::decode(&input.state).map_err(|_| {
+        diagnostic.finish(OperationOutcome::Rejected, Reason::IdentityRejected);
+        unauthorized()
+    })?;
+    let cookie = cookies(cx).get(STATE_COOKIE).ok_or_else(|| {
+        diagnostic.finish(OperationOutcome::Rejected, Reason::IdentityRejected);
+        unauthorized()
+    })?;
+    let browser = Token::decode(cookie.value()).map_err(|_| {
+        diagnostic.finish(OperationOutcome::Rejected, Reason::IdentityRejected);
+        unauthorized()
+    })?;
     if browser.hash() != state.hash() {
+        diagnostic.finish(OperationOutcome::Rejected, Reason::IdentityRejected);
         return Err(unauthorized().into());
     }
     let app: &Application = app_context(cx);
+    diagnostic.stage(Stage::Persistence);
     let challenge: Option<(String, String)> = sqlx::query_as("DELETE FROM book_smartz_web.login_challenges WHERE state_hash = $1 AND expires_at > now() RETURNING nonce, verifier")
-        .bind(state.hash().as_slice()).fetch_optional(&app.pool).await?;
-    let (nonce, verifier) = challenge.ok_or_else(unauthorized)?;
+        .bind(state.hash().as_slice()).fetch_optional(&app.pool).await.inspect_err(|error| diagnostic.database_failure(error))?;
+    diagnostic.stage(Stage::Authentication);
+    let (nonce, verifier) = challenge.ok_or_else(|| {
+        diagnostic.finish(OperationOutcome::Rejected, Reason::IdentityRejected);
+        unauthorized()
+    })?;
+    diagnostic.stage(Stage::Provider);
     let claims = app
         .google
         .claims(&input.code, &verifier, &nonce)
         .await
-        .map_err(|_| unauthorized())?;
-    let issued = session::start(cx).await?;
+        .map_err(|error| {
+            let (outcome, reason) = match error {
+                IdentityFailure::Rejected => (OperationOutcome::Rejected, Reason::IdentityRejected),
+                IdentityFailure::Limited => (OperationOutcome::Rejected, Reason::ProviderLimited),
+                IdentityFailure::Timeout => (OperationOutcome::DependencyFailure, Reason::Timeout),
+                IdentityFailure::Unavailable => {
+                    (OperationOutcome::DependencyFailure, Reason::Unavailable)
+                }
+                IdentityFailure::Malformed => {
+                    (OperationOutcome::DependencyFailure, Reason::Malformed)
+                }
+                IdentityFailure::Oversized => {
+                    (OperationOutcome::DependencyFailure, Reason::Oversized)
+                }
+            };
+            if matches!(error, IdentityFailure::Rejected) {
+                diagnostic.stage(Stage::Authentication);
+            }
+            diagnostic.finish(outcome, reason);
+            unauthorized()
+        })?;
+    diagnostic.stage(Stage::Session);
+    let issued = session::start(cx).await.inspect_err(|_| {
+        diagnostic.finish(
+            OperationOutcome::DependencyFailure,
+            Reason::SessionOperation,
+        );
+    })?;
     let csrf = Token::random().encode();
+    diagnostic.stage(Stage::Persistence);
+    async {
     let mut transaction = app.pool.begin().await?;
     let reader: Uuid = sqlx::query_scalar("INSERT INTO book_smartz_web.accounts (issuer, subject, reader_id) VALUES ($1, $2, $3) ON CONFLICT (issuer, subject) DO UPDATE SET subject = EXCLUDED.subject RETURNING reader_id")
         .bind(ISSUER).bind(claims.sub).bind(Uuid::new_v4()).fetch_one(&mut *transaction).await?;
@@ -329,7 +445,9 @@ pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
     sqlx::query("INSERT INTO book_smartz_web.sessions (token_hash, reader_id, csrf, expires_at) VALUES ($1, $2, $3, $4)")
         .bind(issued.token_hash.as_slice()).bind(reader).bind(csrf).bind(expires).execute(&mut *transaction).await?;
     transaction.commit().await?;
-    diagnostic.outcome(crate::diagnostics::Outcome::Confirmed);
+        Ok::<(), sqlx::Error>(())
+    }.await.inspect_err(|error| diagnostic.database_failure(error))?;
+    diagnostic.finish(OperationOutcome::Confirmed, Reason::None);
     cookies(cx).remove(
         Cookie::build((STATE_COOKIE, ""))
             .path("/")

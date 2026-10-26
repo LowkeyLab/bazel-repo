@@ -29,6 +29,10 @@ pub enum EventIdentity {
 #[serde(rename_all = "snake_case")]
 pub enum OperationKind {
     CatalogSearch,
+    RankingRead,
+    SignIn,
+    SignInStart,
+    SignOut,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -45,6 +49,10 @@ pub enum Stage {
     Admission,
     Provider,
     Selection,
+    Persistence,
+    Authentication,
+    Session,
+    SessionRevocation,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -61,6 +69,10 @@ pub enum Reason {
     Schema,
     SelectionPreparation,
     Interrupted,
+    CorruptHistory,
+    PersistenceFailure,
+    IdentityRejected,
+    SessionOperation,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "UPPERCASE")]

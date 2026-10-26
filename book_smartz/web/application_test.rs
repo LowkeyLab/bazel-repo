@@ -215,3 +215,10 @@ async fn first_add_is_saved_once_and_restored_with_display_metadata() -> anyhow:
 }
 
 mod action_test;
+
+#[path = "diagnostic_events.rs"]
+#[allow(
+    dead_code,
+    reason = "The packaged application owns event construction."
+)]
+mod diagnostic_events;
