@@ -506,7 +506,11 @@ async fn finish<'a>(
                                 comparison(reader: reader, csrf: session.csrf)
                                 <a href="/ranking">"Return to your ranking"</a>
                             </section>
-                            crate::saved_ranking(reader: reader, completion: None)
+                            crate::saved_ranking(
+                                reader: reader,
+                                completion: None,
+                                diagnostic: None
+                            )
                         </main>
                     </body>
                 </html>

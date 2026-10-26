@@ -1412,26 +1412,34 @@ async fn private_diagnostics_confirm_new_commits_without_replaying_activity() ->
             .as_u16(),
         eq(303)
     );
+    // Business records retain their replay count. Auth and read attempts are separate facts.
     let read = || -> anyhow::Result<Vec<Value>> {
-        std::fs::read_to_string(app.diagnostics.path())?
+        Ok(std::fs::read_to_string(app.diagnostics.path())?
             .lines()
-            .map(|line| Ok(serde_json::from_str(line)?))
-            .collect()
+            .map(serde_json::from_str::<Value>)
+            .collect::<std::result::Result<Vec<_>, _>>()?
+            .into_iter()
+            .filter(|record| record.get("category").is_some())
+            .collect())
     };
     app.diagnostic("persistence", "confirmed").await?;
     let facts = read()?;
-    assert_that!(
-        facts
-            .iter()
-            .any(|f| f["category"] == "authentication" && f["outcome"] == "confirmed"),
-        eq(true)
-    );
-    assert_that!(
-        facts
-            .iter()
-            .any(|f| f["category"] == "authentication" && f["outcome"] == "failed"),
-        eq(true)
-    );
+    let typed: Vec<crate::diagnostic_events::OperationRecord> =
+        std::fs::read_to_string(app.diagnostics.path())?
+            .lines()
+            .filter_map(|line| serde_json::from_str(line).ok())
+            .collect();
+    for outcome in [
+        crate::diagnostic_events::OperationOutcome::Confirmed,
+        crate::diagnostic_events::OperationOutcome::Rejected,
+    ] {
+        assert_that!(
+            typed.iter().any(|record| record.fact.operation
+                == crate::diagnostic_events::OperationKind::SignIn
+                && record.fact.outcome == outcome),
+            eq(true)
+        );
+    }
     let text = std::fs::read_to_string(app.diagnostics.path())?;
     for forbidden in [
         "never-log-this-subject",

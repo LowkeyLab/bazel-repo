@@ -44,3 +44,5 @@ mod catalog_test;
 )]
 mod diagnostic_events;
 mod diagnostic_test;
+
+mod identity_diagnostic_test;

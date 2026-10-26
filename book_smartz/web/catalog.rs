@@ -213,7 +213,7 @@ impl Catalog {
     async fn discover(
         &self,
         pool: &PgPool,
-        diagnostic: &mut crate::diagnostics::Operation<'_>,
+        diagnostic: &mut crate::diagnostics::Operation,
         reader: ReaderId,
         query: &str,
         page: u32,
@@ -222,16 +222,7 @@ impl Catalog {
         let admitted = match admit(pool, reader).await {
             Ok(admitted) => admitted,
             Err(error) => {
-                let reason = if error
-                    .as_database_error()
-                    .and_then(sqlx::error::DatabaseError::code)
-                    .is_some_and(|code| matches!(code.as_ref(), "42P01" | "42703" | "3F000"))
-                {
-                    Reason::Schema
-                } else {
-                    Reason::Database
-                };
-                diagnostic.finish(OperationOutcome::DependencyFailure, reason);
+                diagnostic.database_failure(&error);
                 return Err(error.into());
             }
         };
@@ -556,7 +547,11 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
                             </form>
                         }
                     </section>
-                    crate::saved_ranking(reader: session.reader, completion: None)
+                    crate::saved_ranking(
+                        reader: session.reader,
+                        completion: None,
+                        diagnostic: None
+                    )
                 </main>
             </body>
         </html>
@@ -649,7 +644,11 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
                         </form>
                         <a href="/ranking">"Return to your ranking"</a>
                     </section>
-                    crate::saved_ranking(reader: session.reader, completion: None)
+                    crate::saved_ranking(
+                        reader: session.reader,
+                        completion: None,
+                        diagnostic: None
+                    )
                 </main>
             </body>
         </html>

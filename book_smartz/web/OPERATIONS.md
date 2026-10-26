@@ -46,52 +46,75 @@ settings aren't capacity measurements.
 ## Diagnostics and private evidence
 
 Restrict platform logs and database access to the maintainer.
-Catalog searches emit `OperationFinished` facts with `CatalogSearch` as the operation kind.
-The stderr values are `operation_finished` and `catalog_search`.
+Observed operations emit typed `OperationFinished` facts.
 The producer captures one opaque operation ID per attempt and one process-instance ID per serving process.
 The release fingerprint comes from the verified package.
 Elapsed duration uses a monotonic clock and whole milliseconds.
-Listeners receive this closed field allowlist before they select severity or delivery policy.
+Listeners receive the closed field allowlist before they select severity or delivery policy.
 
-The catalog fact permits only event identity, operation kind, outcome, stage,
+Each fact permits only event identity, operation kind, outcome, stage,
 bounded reason, duration, release, process-instance ID, and operation ID.
-The structured stderr record contains `fact` and `severity`.
-Catalog searches have no original-action ID.
-Other operations retain their existing category, outcome, duration, release, and optional action ID records until their separate diagnostic tickets complete.
+The stderr record contains `fact` and `severity`.
+These catalog, identity, and read operations have no original-action ID.
+Persistence and original-save checks retain their existing records until their separate diagnostic tickets complete.
 
-| Outcome or reason                          | Meaning                                                        | Severity |
-| ------------------------------------------ | -------------------------------------------------------------- | -------- |
-| Confirmed                                  | The search and selection preparation completed                 | `INFO`   |
-| Invalid input                              | The app rejected the submitted search                          | `INFO`   |
-| Admission limited                          | The existing shared admission policy rejected the attempt      | `INFO`   |
-| Provider limited                           | The provider returned its rate limit                           | `INFO`   |
-| Timeout, unavailable, malformed, oversized | The provider operation failed                                  | `WARN`   |
-| Database or configuration failure          | Admission or selection preparation failed                      | `ERROR`  |
-| Interrupted                                | Work stopped at its last known stage without a terminal result | `WARN`   |
+| Operation kind   | Confirmed meaning                                                    |
+| ---------------- | -------------------------------------------------------------------- |
+| `catalog_search` | The app prepared search results and selections                       |
+| `sign_in_start`  | The app stored the challenge and prepared the redirect               |
+| `sign_in`        | Account and session persistence received a commit acknowledgement    |
+| `sign_out`       | Revocation received an acknowledgement and session cleanup completed |
+| `ranking_read`   | The app loaded saved-ranking data and display metadata               |
 
-Stages distinguish validation, admission, provider access, and selection preparation.
-Catalog observation starts after authorization and cross-site request forgery validation.
+A confirmed `sign_in_start` does not mean that the reader signed in.
+Each endpoint attempt has its own operation ID.
+OAuth state, session tokens, and reader identities do not supply diagnostic correlation.
+
+| Outcome or reason                                  | Meaning                                                        | Severity |
+| -------------------------------------------------- | -------------------------------------------------------------- | -------- |
+| Confirmed                                          | The named operation completed                                  | `INFO`   |
+| Identity rejected or invalid input                 | The app rejected the attempt                                   | `INFO`   |
+| Admission limited or provider limited              | The applicable limit rejected the attempt                      | `INFO`   |
+| Timeout, unavailable, malformed, oversized         | The provider operation failed                                  | `WARN`   |
+| Database, schema, or persistence failure           | A storage operation failed                                     | `ERROR`  |
+| Corrupt history                                    | The app could not interpret the stored ranking                 | `ERROR`  |
+| Session operation or selection preparation failure | The named preparation failed                                   | `ERROR`  |
+| Interrupted                                        | Work stopped at its last known stage without a terminal result | `WARN`   |
+
+Stages distinguish authentication, validation, admission, provider access,
+selection preparation, persistence, session work, and session revocation.
 Missing relation, column, or schema SQLSTATE codes identify schema failures.
-Other admission errors identify database failures.
-The listener never formats their messages.
+Other database errors retain the bounded database reason.
+The listener never formats dependency messages.
+Provider unavailability does not identify its underlying cause.
+
+The protected ranking route and sign-out route observe authorization rejections.
+Catalog observation starts after authorization and cross-site request forgery validation.
+Saved-ranking observation continues through asynchronous data loading.
+Other authorized pages also emit read facts when they load a saved-ranking section.
+A completed read does not prove that the browser received the response.
+
 Interruption does not invent a dependency cause.
 An HTTP disconnect does not prove that the framework cancelled the operation.
+A dependency failure or interruption during a write does not prove rollback.
+A session cleanup failure does not undo an acknowledged revocation.
 Abrupt process termination can prevent a terminal fact.
-The existing provider budgets, deadlines, rejection responses, and saved state remain unchanged.
+Provider budgets, deadlines, authorization, session behavior, and saved state remain unchanged.
 
 The allowlist excludes reader IDs, Google subjects, email, searches, titles,
 ranking contents, cookies, tokens, selections, raw requests, SQL, and dependency errors.
 Never paste private action evidence into public issues or logs.
 Opaque operation, process, and action identifiers must not become metric dimensions.
-This change adds no metrics, exporter, or operational endpoint.
+These diagnostics add no metrics, exporter, or operational endpoint.
 
 Delivery retains the 256-record queue. Producers do not wait for output.
 Full or closed destinations can discard records without changing app results.
-The listener owns severity, record formatting, and stderr output.
+The listener owns severity, formatting, and stderr output.
 A missing diagnostic record proves neither failure nor rollback.
 Successful stderr output does not prove platform ingestion.
 Diagnostic records remain advisory. Confirm saved outcomes from authoritative state.
-Replaying saved state produces no new business activity.
+An operation fact describes an attempt, not a business-activity count.
+Reading or replaying saved state can emit read facts but produces no new business activity.
 
 Configure and verify the destination's retention against the seven-day target.
 Record actual access and retention settings during launch. Local code can't
