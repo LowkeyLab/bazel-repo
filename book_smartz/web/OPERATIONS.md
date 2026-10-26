@@ -87,6 +87,10 @@ Missing relation, column, or schema SQLSTATE codes identify schema failures.
 Other database errors retain the bounded database reason.
 The listener never formats dependency messages.
 Provider unavailability does not identify its underlying cause.
+The token reader recognizes HTTP 400 with the allowlisted `invalid_grant` code as an expected identity rejection.
+[OAuth 2.0 specification section 5.2](https://www.rfc-editor.org/rfc/rfc6749.html#section-5.2) defines this protocol response.
+The reader ignores error descriptions and preserves the existing response-size limit and deadline.
+Other token-error codes do not establish an identity rejection.
 
 The protected ranking route and sign-out route observe authorization rejections.
 Catalog observation starts after authorization and cross-site request forgery validation.

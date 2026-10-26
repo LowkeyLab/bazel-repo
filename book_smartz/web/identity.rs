@@ -196,7 +196,7 @@ impl Google {
                 ("code_verifier", verifier),
             ])
             .finish();
-        let tokens: Tokens = bounded(
+        let tokens = token_response(
             self.client
                 .post(self.token.clone())
                 .header("content-type", "application/x-www-form-urlencoded")
@@ -259,13 +259,45 @@ impl From<reqwest::Error> for IdentityFailure {
     }
 }
 
+// Only an allowlisted protocol code identifies an expected grant rejection.
+#[derive(Deserialize)]
+struct TokenRejection {
+    error: TokenErrorCode,
+}
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum TokenErrorCode {
+    InvalidGrant,
+    #[serde(other)]
+    Other,
+}
+
+async fn token_response(
+    response: reqwest::Response,
+) -> std::result::Result<Tokens, IdentityFailure> {
+    if response.status().as_u16() == 400 {
+        let rejection: TokenRejection = bounded_body(response).await?;
+        return Err(match rejection.error {
+            TokenErrorCode::InvalidGrant => IdentityFailure::Rejected,
+            TokenErrorCode::Other => IdentityFailure::Unavailable,
+        });
+    }
+    bounded(response).await
+}
+
 async fn bounded<T: serde::de::DeserializeOwned>(
     response: reqwest::Response,
 ) -> std::result::Result<T, IdentityFailure> {
     if response.status().as_u16() == 429 {
         return Err(IdentityFailure::Limited);
     }
-    let mut response = response.error_for_status().map_err(IdentityFailure::from)?;
+    let response = response.error_for_status().map_err(IdentityFailure::from)?;
+    bounded_body(response).await
+}
+
+async fn bounded_body<T: serde::de::DeserializeOwned>(
+    mut response: reqwest::Response,
+) -> std::result::Result<T, IdentityFailure> {
     let mut bytes = Vec::new();
     while let Some(chunk) = response.chunk().await.map_err(IdentityFailure::from)? {
         if bytes.len() + chunk.len() > 1_048_576 {

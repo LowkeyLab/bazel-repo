@@ -133,27 +133,35 @@ async fn sign_in_distinguishes_provider_failure_from_rejected_identity() -> anyh
             assert_that!(failure.fact.duration_ms >= 4_500, eq(true));
         }
     }
-    let login = app.begin().await?;
-    app.provider.reset().await;
-    Mock::given(method("GET"))
-        .and(path("/keys"))
-        .respond_with(ResponseTemplate::new(503))
-        .mount(&app.provider)
-        .await;
-    assert_that!(
-        app.finish(&login, Fixture::claims(&login, "private-key-reader"))
-            .await?
-            .status()
-            .as_u16(),
-        eq(401)
-    );
-    let key_failure = record(&app, OperationKind::SignIn, 5).await?;
-    assert_that!(
-        key_failure.fact.outcome,
-        eq(OperationOutcome::DependencyFailure)
-    );
-    assert_that!(key_failure.fact.reason, eq(Reason::Unavailable));
-    assert_that!(key_failure.fact.stage, eq(Stage::Provider));
+    for (offset, template) in [
+        ResponseTemplate::new(503),
+        ResponseTemplate::new(400).set_body_json(serde_json::json!({"error":"invalid_grant"})),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let login = app.begin().await?;
+        app.provider.reset().await;
+        Mock::given(method("GET"))
+            .and(path("/keys"))
+            .respond_with(template)
+            .mount(&app.provider)
+            .await;
+        assert_that!(
+            app.finish(&login, Fixture::claims(&login, "private-key-reader"))
+                .await?
+                .status()
+                .as_u16(),
+            eq(401)
+        );
+        let key_failure = record(&app, OperationKind::SignIn, 5 + offset).await?;
+        assert_that!(
+            key_failure.fact.outcome,
+            eq(OperationOutcome::DependencyFailure)
+        );
+        assert_that!(key_failure.fact.reason, eq(Reason::Unavailable));
+        assert_that!(key_failure.fact.stage, eq(Stage::Provider));
+    }
     Ok(())
 }
 
@@ -366,5 +374,44 @@ async fn ranking_failure_is_observed_after_component_loading_and_survives_broken
     assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(401));
     let fresh = app.login("private-broken-output-reader").await?;
     assert_that!(app.ranking(&fresh).await?.status().as_u16(), eq(200));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn rejected_oauth_grants_are_expected_rejections_not_provider_outages() -> anyhow::Result<()>
+{
+    use wiremock::{
+        Mock, ResponseTemplate,
+        matchers::{method, path},
+    };
+    let app = Fixture::new().await?;
+    let cases = [
+        (ResponseTemplate::new(400).set_body_json(serde_json::json!({"error":"invalid_grant","error_description":"private grant details"})),OperationOutcome::Rejected,Reason::IdentityRejected,Stage::Authentication,Severity::Info),
+        (ResponseTemplate::new(400).set_body_json(serde_json::json!({"error":"invalid_client","error_description":"invalid_grant"})),OperationOutcome::DependencyFailure,Reason::Unavailable,Stage::Provider,Severity::Warn),
+        (ResponseTemplate::new(400).set_body_string("private malformed error"),OperationOutcome::DependencyFailure,Reason::Malformed,Stage::Provider,Severity::Warn),
+        (ResponseTemplate::new(400).set_body_string("x".repeat(1_048_577)),OperationOutcome::DependencyFailure,Reason::Oversized,Stage::Provider,Severity::Warn),
+    ];
+    for (index, (template, outcome, reason, stage, severity)) in cases.into_iter().enumerate() {
+        let login = app.begin().await?;
+        app.provider.reset().await;
+        Mock::given(method("POST"))
+            .and(path("/token"))
+            .respond_with(template)
+            .mount(&app.provider)
+            .await;
+        assert_that!(
+            app.callback(&login, "private-code", &login.state, &login.cookie)
+                .await?
+                .status()
+                .as_u16(),
+            eq(401)
+        );
+        let observed = record(&app, OperationKind::SignIn, index).await?;
+        assert_that!(observed.fact.outcome, eq(outcome));
+        assert_that!(observed.fact.reason, eq(reason));
+        assert_that!(observed.fact.stage, eq(stage));
+        assert_that!(observed.severity, eq(severity));
+    }
     Ok(())
 }
