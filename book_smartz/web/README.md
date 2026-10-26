@@ -44,9 +44,11 @@ Ranking GETs derive reader authority
 from the stored session. Reader identifiers supplied by browsers confer none.
 The app installs a silent storage observer so existing reader-identifying
 storage diagnostics don't become routine web diagnostics. The web listener emits only allowlisted app facts through a bounded
-queue. Producers do not wait for output. Catalog searches, sign-in, sign-out, saved-ranking reads, and mutations use typed operation facts.
+queue. Producers do not wait for output. Catalog searches, sign-in, sign-out, saved-ranking reads, mutations, and original-save checks use typed operation facts.
 The facts retain safe stage, reason, severity, and correlation context.
 Add, preference, Pause, and Resume retain distinct kinds and the existing original-action ID.
+Original-save checks distinguish newly acknowledged saves, retained saved evidence, authoritative rejection, and unresolved persistence.
+The original-action identity remains stable across checks.
 Unresolved persistence and duplicate attempts do not create new save activity.
 The producer and listener checks inspect structured values.
 Packaged HTTP checks use controlled providers and real PostgreSQL.

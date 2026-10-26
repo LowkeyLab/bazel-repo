@@ -205,7 +205,7 @@ async fn fact(
     Ok(())
 }
 
-async fn authorize_mutation(
+async fn authorize_action(
     cx: &Cx,
     csrf: &str,
     diagnostic: &mut Operation,
@@ -222,7 +222,7 @@ async fn authorize_mutation(
 pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
     let app: &Application = app_context(cx);
     let mut diagnostic = app.diagnostics.operation(OperationKind::Add);
-    let session = authorize_mutation(cx, &input.csrf, &mut diagnostic).await?;
+    let session = authorize_action(cx, &input.csrf, &mut diagnostic).await?;
     let started = std::time::Instant::now();
     app.catalog
         .verify_offer(
@@ -311,10 +311,10 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
                 Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
-        return finish(cx, &session, input.action, false, Some(&mut diagnostic)).await;
+        return finish(cx, &session, input.action, false, &mut diagnostic).await;
     }
     drop(tx);
-    finish(cx, &session, input.action, false, Some(&mut diagnostic)).await
+    finish(cx, &session, input.action, false, &mut diagnostic).await
 }
 #[page(POST "/answer")]
 pub async fn submit_preference(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
@@ -339,7 +339,7 @@ async fn submit_ranking_command(
         diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
         return Err(forbidden().into());
     }
-    let session = authorize_mutation(cx, &input.csrf, &mut diagnostic).await?;
+    let session = authorize_action(cx, &input.csrf, &mut diagnostic).await?;
     let started = std::time::Instant::now();
     let answer = Preference {
         candidate: input.candidate,
@@ -423,16 +423,20 @@ async fn submit_ranking_command(
                 Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
-        return finish(cx, &session, input.action, false, Some(&mut diagnostic)).await;
+        return finish(cx, &session, input.action, false, &mut diagnostic).await;
     }
     drop(tx);
-    finish(cx, &session, input.action, false, Some(&mut diagnostic)).await
+    finish(cx, &session, input.action, false, &mut diagnostic).await
 }
 #[page(POST "/recover")]
 pub async fn recover(cx: &Cx, Form(input): Form<RecoveryInput>) -> Result<impl View> {
-    let session = authorize(cx).await?;
-    crate::require_post(cx, &session, &input.csrf)?;
-    finish(cx, &session, input.action, true, None).await
+    let app: &Application = app_context(cx);
+    let mut diagnostic = app.diagnostics.operation(OperationKind::OriginalSaveCheck);
+    let session = authorize_action(cx, &input.csrf, &mut diagnostic).await?;
+    diagnostic.original_action(input.action.0.into());
+    diagnostic.stage(Stage::Persistence);
+    diagnostic.persistence_started();
+    finish(cx, &session, input.action, true, &mut diagnostic).await
 }
 struct RecoveryActions {
     csrf: String,
@@ -517,7 +521,7 @@ async fn finish<'a>(
     session: &crate::BrowserSession,
     action: ActionId,
     recovery: bool,
-    mut diagnostic: Option<&mut Operation>,
+    diagnostic: &mut Operation,
 ) -> Result<BoxView<'a>> {
     let reader = session.reader;
     let app: &Application = app_context(cx);
@@ -525,16 +529,14 @@ async fn finish<'a>(
     let started = std::time::Instant::now();
     match execute(app, reader, action).await {
         Ok(Outcome::Saved(mut receipt)) => {
-            if let Some(operation) = diagnostic.as_mut() {
-                operation.finish(
-                    OperationOutcome::Confirmed,
-                    if matches!(receipt.source, crate::feedback::Source::Replay) {
-                        Reason::ExistingSaved
-                    } else {
-                        Reason::None
-                    },
-                );
-            }
+            diagnostic.finish(
+                OperationOutcome::Confirmed,
+                if matches!(receipt.source, crate::feedback::Source::Replay) {
+                    Reason::ExistingSaved
+                } else {
+                    Reason::None
+                },
+            );
             if recovery {
                 receipt.source = crate::feedback::Source::Recovery;
             }
@@ -542,9 +544,7 @@ async fn finish<'a>(
             Err(see_other("/ranking").into())
         }
         Ok(Outcome::Rejected(reason)) => {
-            if let Some(operation) = diagnostic.as_mut() {
-                operation.finish(OperationOutcome::Rejected, Reason::ActionRejected);
-            }
+            diagnostic.finish(OperationOutcome::Rejected, Reason::ActionRejected);
             let session = authorize(cx).await?;
             let __cx = cx;
             Ok(view! {
@@ -592,15 +592,11 @@ async fn finish<'a>(
             .boxed())
         }
         Ok(Outcome::Missing) => {
-            if let Some(operation) = diagnostic.as_mut() {
-                operation.finish(OperationOutcome::Rejected, Reason::InvalidInput);
-            }
+            diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
             Err(forbidden().into())
         }
         Err(error) => {
-            if let Some(operation) = diagnostic.as_mut() {
-                operation.action_failure(&error);
-            }
+            diagnostic.action_failure(&error);
             app.diagnostics.unconfirmed_save(started, action);
             Ok(outcome(
                 cx,
