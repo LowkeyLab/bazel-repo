@@ -44,7 +44,10 @@ Ranking GETs derive reader authority
 from the stored session. Reader identifiers supplied by browsers confer none.
 The app installs a silent storage observer so existing reader-identifying
 storage diagnostics don't become routine web diagnostics. The web listener emits only allowlisted app facts through a bounded
-queue. Producers do not wait for output. Catalog searches, sign-in, sign-out, and saved-ranking reads use typed operation facts with safe stage, reason, severity, and correlation context.
+queue. Producers do not wait for output. Catalog searches, sign-in, sign-out, saved-ranking reads, and mutations use typed operation facts.
+The facts retain safe stage, reason, severity, and correlation context.
+Add, preference, Pause, and Resume retain distinct kinds and the existing original-action ID.
+Unresolved persistence and duplicate attempts do not create new save activity.
 The producer and listener checks inspect structured values.
 Packaged HTTP checks use controlled providers and real PostgreSQL.
 See [OPERATIONS.md](OPERATIONS.md) for private diagnostics and original-action recovery.
@@ -269,11 +272,16 @@ migration uses a separate pool capped at one connection. The two-minute bound
 includes connection establishment. SIGTERM stops admission and drains requests
 for twenty seconds, followed by at most five seconds for pool closure.
 
-Diagnostic records contain typed category/outcome, elapsed milliseconds, an executable
-release fingerprint, and an optional opaque action ID. Authentication and
-catalog records report operation outcomes. Ranking confirmation requires a newly
-acknowledged commit. Recovering an already saved action and replaying state emit
-no new ranking activity. Failed or uncertain writes remain unconfirmed/checking.
+Typed operation facts contain kind, outcome, stage, bounded reason, elapsed milliseconds,
+release fingerprint, process-instance ID, operation ID, and an optional original-action ID.
+The listener adds severity. Legacy business records retain category, outcome, and an optional action ID.
+
+New save activity requires a commit acknowledgement.
+A duplicate mutation attempt can confirm an existing saved result with reason `existing_saved`.
+It does not count as another save.
+Recovering an already saved action and replaying state emit no new ranking activity.
+Failed or uncertain writes remain unconfirmed/checking.
+
 The 256-record queue drops on saturation or destination failure. Delivery has no
 retries and doesn't extend process shutdown. The queue may drop buffered records.
 The app installs no traces or metrics. The platform collects stderr. Configure its

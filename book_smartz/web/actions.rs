@@ -29,7 +29,9 @@ use book_smartz_domain::{
 };
 use book_smartz_storage::{ApplicationEvent, CommandTransaction, OperationContext};
 
-use crate::{Application, authorize, catalog::CatalogWork};
+use crate::diagnostic_events::{OperationKind, OperationOutcome, Reason, Stage};
+use crate::diagnostics::Operation;
+use crate::{Application, authorize, authorize_observed, catalog::CatalogWork};
 
 mod evidence;
 
@@ -67,6 +69,15 @@ enum Choice {
     Opponent,
     Pause,
     Resume,
+}
+impl Choice {
+    const fn operation_kind(self) -> OperationKind {
+        match self {
+            Self::Candidate | Self::Opponent => OperationKind::Preference,
+            Self::Pause => OperationKind::Pause,
+            Self::Resume => OperationKind::Resume,
+        }
+    }
 }
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -194,11 +205,24 @@ async fn fact(
     Ok(())
 }
 
+async fn authorize_mutation(
+    cx: &Cx,
+    csrf: &str,
+    diagnostic: &mut Operation,
+) -> Result<crate::BrowserSession> {
+    let session = authorize_observed(cx, Some(diagnostic)).await?;
+    diagnostic.stage(Stage::Validation);
+    crate::require_post(cx, &session, csrf).inspect_err(|_| {
+        diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
+    })?;
+    Ok(session)
+}
+
 #[page(POST "/add")]
 pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
-    let session = authorize(cx).await?;
-    crate::require_post(cx, &session, &input.csrf)?;
     let app: &Application = app_context(cx);
+    let mut diagnostic = app.diagnostics.operation(OperationKind::Add);
+    let session = authorize_mutation(cx, &input.csrf, &mut diagnostic).await?;
     let started = std::time::Instant::now();
     app.catalog
         .verify_offer(
@@ -208,32 +232,49 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             input.revision,
             &input.offer,
         )
-        .map_err(|_| forbidden())?;
-    let Ok(mut tx) = app.store.begin_command(session.reader).await else {
-        app.diagnostics.unconfirmed_save(started, input.action);
-        return Ok(outcome(
-            cx,
-            "Checking an earlier save. Reload before trying the original action again.",
-            None,
-        ));
+        .map_err(|_| {
+            diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
+            forbidden()
+        })?;
+    diagnostic.original_action(input.action.0.into());
+    diagnostic.stage(Stage::Persistence);
+    let mut tx = match app.store.begin_command(session.reader).await {
+        Ok(tx) => tx,
+        Err(error) => {
+            diagnostic.storage_failure(&error);
+            app.diagnostics.unconfirmed_save(started, input.action);
+            return Ok(outcome(
+                cx,
+                "Checking an earlier save. Reload before trying the original action again.",
+                None,
+            ));
+        }
     };
-    if let Some(original) =
-        intent(&tx, input.action).map_err(|_| topcoat::Error::msg("Action data unavailable"))?
+    if let Some(original) = intent(&tx, input.action)
+        .inspect_err(|error| diagnostic.action_failure(error))
+        .map_err(|_| topcoat::Error::msg("Action data unavailable"))?
     {
         if original.answer.is_some()
             || original.selection != input.selection
             || original.revision != input.revision
         {
+            diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
             return Err(forbidden().into());
         }
+        diagnostic.persistence_started();
     } else {
         let work = app
             .catalog
             .verify(session.reader, &input.selection)
-            .map_err(|_| forbidden())?;
+            .map_err(|_| {
+                diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
+                forbidden()
+            })?;
         let actions = unresolved(tx.application_history(), tx.ranking_documents())
+            .inspect_err(|error| diagnostic.action_failure(error))
             .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
         if !actions.is_empty() {
+            diagnostic.finish(OperationOutcome::Rejected, Reason::ActionBlocked);
             return Ok(outcome(
                 cx,
                 "Checking an earlier save. Resolve it before adding another book.",
@@ -258,8 +299,11 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             serde_json::to_value(original)?,
         )
         .await
+        .inspect_err(|error| diagnostic.action_failure(error))
         .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
-        if tx.commit().await.is_err() {
+        diagnostic.persistence_started();
+        if let Err(error) = tx.commit().await {
+            diagnostic.action_failure(&error.into());
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
@@ -267,36 +311,35 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
                 Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
-        return finish(cx, &session, input.action, false).await;
+        return finish(cx, &session, input.action, false, Some(&mut diagnostic)).await;
     }
     drop(tx);
-    finish(cx, &session, input.action, false).await
+    finish(cx, &session, input.action, false, Some(&mut diagnostic)).await
 }
 #[page(POST "/answer")]
 pub async fn submit_preference(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
-    if !matches!(input.choice, Choice::Candidate | Choice::Opponent) {
-        return Err(forbidden().into());
-    }
-    submit_ranking_command(cx, input).await
+    submit_ranking_command(cx, input, OperationKind::Preference).await
 }
 #[page(POST "/pause")]
 pub async fn pause(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
-    if input.choice != Choice::Pause {
-        return Err(forbidden().into());
-    }
-    submit_ranking_command(cx, input).await
+    submit_ranking_command(cx, input, OperationKind::Pause).await
 }
 #[page(POST "/resume")]
 pub async fn resume(cx: &Cx, Form(input): Form<AnswerInput>) -> Result<impl View> {
-    if input.choice != Choice::Resume {
+    submit_ranking_command(cx, input, OperationKind::Resume).await
+}
+async fn submit_ranking_command(
+    cx: &Cx,
+    input: AnswerInput,
+    kind: OperationKind,
+) -> Result<BoxView<'_>> {
+    let app: &Application = app_context(cx);
+    let mut diagnostic = app.diagnostics.operation(kind);
+    if input.choice.operation_kind() != kind {
+        diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
         return Err(forbidden().into());
     }
-    submit_ranking_command(cx, input).await
-}
-async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'_>> {
-    let session = authorize(cx).await?;
-    crate::require_post(cx, &session, &input.csrf)?;
-    let app: &Application = app_context(cx);
+    let session = authorize_mutation(cx, &input.csrf, &mut diagnostic).await?;
     let started = std::time::Instant::now();
     let answer = Preference {
         candidate: input.candidate,
@@ -311,25 +354,39 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
             input.revision,
             &input.offer,
         )
-        .map_err(|_| forbidden())?;
-    let Ok(mut tx) = app.store.begin_command(session.reader).await else {
-        app.diagnostics.unconfirmed_save(started, input.action);
-        return Ok(outcome(
-            cx,
-            "Checking an earlier save. Reload your ranking.",
-            None,
-        ));
+        .map_err(|_| {
+            diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
+            forbidden()
+        })?;
+    diagnostic.original_action(input.action.0.into());
+    diagnostic.stage(Stage::Persistence);
+    let mut tx = match app.store.begin_command(session.reader).await {
+        Ok(tx) => tx,
+        Err(error) => {
+            diagnostic.storage_failure(&error);
+            app.diagnostics.unconfirmed_save(started, input.action);
+            return Ok(outcome(
+                cx,
+                "Checking an earlier save. Reload your ranking.",
+                None,
+            ));
+        }
     };
-    if let Some(original) =
-        intent(&tx, input.action).map_err(|_| topcoat::Error::msg("Action data unavailable"))?
+    if let Some(original) = intent(&tx, input.action)
+        .inspect_err(|error| diagnostic.action_failure(error))
+        .map_err(|_| topcoat::Error::msg("Action data unavailable"))?
     {
         if original.answer.as_ref() != Some(&answer) || original.revision != input.revision {
+            diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
             return Err(forbidden().into());
         }
+        diagnostic.persistence_started();
     } else {
         let actions = unresolved(tx.application_history(), tx.ranking_documents())
+            .inspect_err(|error| diagnostic.action_failure(error))
             .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
         if !actions.is_empty() {
+            diagnostic.finish(OperationOutcome::Rejected, Reason::ActionBlocked);
             return Ok(outcome(
                 cx,
                 "Checking an earlier save. Resolve it before answering another comparison.",
@@ -354,8 +411,11 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
             serde_json::to_value(original)?,
         )
         .await
+        .inspect_err(|error| diagnostic.action_failure(error))
         .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
-        if tx.commit().await.is_err() {
+        diagnostic.persistence_started();
+        if let Err(error) = tx.commit().await {
+            diagnostic.action_failure(&error.into());
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
@@ -363,16 +423,16 @@ async fn submit_ranking_command(cx: &Cx, input: AnswerInput) -> Result<BoxView<'
                 Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
-        return finish(cx, &session, input.action, false).await;
+        return finish(cx, &session, input.action, false, Some(&mut diagnostic)).await;
     }
     drop(tx);
-    finish(cx, &session, input.action, false).await
+    finish(cx, &session, input.action, false, Some(&mut diagnostic)).await
 }
 #[page(POST "/recover")]
 pub async fn recover(cx: &Cx, Form(input): Form<RecoveryInput>) -> Result<impl View> {
     let session = authorize(cx).await?;
     crate::require_post(cx, &session, &input.csrf)?;
-    finish(cx, &session, input.action, true).await
+    finish(cx, &session, input.action, true, None).await
 }
 struct RecoveryActions {
     csrf: String,
@@ -457,6 +517,7 @@ async fn finish<'a>(
     session: &crate::BrowserSession,
     action: ActionId,
     recovery: bool,
+    mut diagnostic: Option<&mut Operation>,
 ) -> Result<BoxView<'a>> {
     let reader = session.reader;
     let app: &Application = app_context(cx);
@@ -464,6 +525,16 @@ async fn finish<'a>(
     let started = std::time::Instant::now();
     match execute(app, reader, action).await {
         Ok(Outcome::Saved(mut receipt)) => {
+            if let Some(operation) = diagnostic.as_mut() {
+                operation.finish(
+                    OperationOutcome::Confirmed,
+                    if matches!(receipt.source, crate::feedback::Source::Replay) {
+                        Reason::ExistingSaved
+                    } else {
+                        Reason::None
+                    },
+                );
+            }
             if recovery {
                 receipt.source = crate::feedback::Source::Recovery;
             }
@@ -471,6 +542,9 @@ async fn finish<'a>(
             Err(see_other("/ranking").into())
         }
         Ok(Outcome::Rejected(reason)) => {
+            if let Some(operation) = diagnostic.as_mut() {
+                operation.finish(OperationOutcome::Rejected, Reason::ActionRejected);
+            }
             let session = authorize(cx).await?;
             let __cx = cx;
             Ok(view! {
@@ -517,8 +591,16 @@ async fn finish<'a>(
             }
             .boxed())
         }
-        Ok(Outcome::Missing) => Err(forbidden().into()),
-        Err(_) => {
+        Ok(Outcome::Missing) => {
+            if let Some(operation) = diagnostic.as_mut() {
+                operation.finish(OperationOutcome::Rejected, Reason::InvalidInput);
+            }
+            Err(forbidden().into())
+        }
+        Err(error) => {
+            if let Some(operation) = diagnostic.as_mut() {
+                operation.action_failure(&error);
+            }
             app.diagnostics.unconfirmed_save(started, action);
             Ok(outcome(
                 cx,

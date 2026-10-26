@@ -33,6 +33,10 @@ pub enum OperationKind {
     SignIn,
     SignInStart,
     SignOut,
+    Add,
+    Preference,
+    Pause,
+    Resume,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -41,6 +45,7 @@ pub enum OperationOutcome {
     Rejected,
     DependencyFailure,
     Interrupted,
+    UncertainPersistence,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -73,6 +78,10 @@ pub enum Reason {
     PersistenceFailure,
     IdentityRejected,
     SessionOperation,
+    CommitUncertain,
+    ExistingSaved,
+    ActionRejected,
+    ActionBlocked,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -80,6 +89,15 @@ pub enum Severity {
     Info,
     Warn,
     Error,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(transparent)]
+pub struct OriginalActionId(Uuid);
+impl From<Uuid> for OriginalActionId {
+    fn from(value: Uuid) -> Self {
+        Self(value)
+    }
 }
 
 /// This closed shape applies the privacy allowlist before listener dispatch.
@@ -95,6 +113,8 @@ pub struct OperationFinished {
     pub release: String,
     pub process_instance: ProcessInstanceId,
     pub operation_id: OperationId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_action_id: Option<OriginalActionId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
