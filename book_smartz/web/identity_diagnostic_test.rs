@@ -415,3 +415,99 @@ async fn rejected_oauth_grants_are_expected_rejections_not_provider_outages() ->
     }
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn stalled_output_preserves_requests_and_reports_accumulated_loss_after_resuming()
+-> anyhow::Result<()> {
+    use crate::diagnostic_events::{DiagnosticLossRecord, EventIdentity, WorkerStatus};
+    const REQUESTS: usize = 1_500;
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("stalled-output-reader").await?;
+    let mut reader = app.stall_diagnostic_delivery().await?;
+    tokio::time::timeout(Duration::from_secs(45), async {
+        for _ in 0..REQUESTS {
+            let response = app.ranking(&cookie).await?;
+            assert_that!(response.status().as_u16(), eq(200));
+            let _ = response.text().await?;
+        }
+        Ok::<_, anyhow::Error>(())
+    })
+    .await??;
+    let response = tokio::time::timeout(Duration::from_secs(5), app.ranking(&cookie)).await??;
+    assert_that!(response.status().as_u16(), eq(200));
+    let _ = response.text().await?;
+    let captured = tempfile::NamedTempFile::new()?;
+    let mut output = captured.as_file().try_clone()?;
+    let resumed = std::thread::spawn(move || std::io::copy(&mut reader, &mut output));
+    let (records, loss) = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let contents = std::fs::read_to_string(captured.path())?;
+            let records: Vec<OperationRecord> = contents
+                .lines()
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            let loss: Vec<DiagnosticLossRecord> = contents
+                .lines()
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            let dropped: u64 = loss.iter().map(|record| record.fact.queue_drops).sum();
+            if !loss.is_empty()
+                && u64::try_from(records.len())? + dropped == u64::try_from(REQUESTS + 1)?
+            {
+                break Ok::<_, anyhow::Error>((records, loss));
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .map_err(|_| anyhow::anyhow!("Accumulated diagnostic loss record is absent."))??;
+    assert_that!(
+        std::process::Command::new("kill")
+            .arg("-TERM")
+            .arg(app.process.0.id().to_string())
+            .status()?
+            .success(),
+        eq(true)
+    );
+    app.process.0.wait()?;
+    resumed
+        .join()
+        .map_err(|_| anyhow::anyhow!("Diagnostic capture failed."))??;
+    assert_that!(
+        loss.iter()
+            .map(|record| record.fact.queue_drops)
+            .sum::<u64>()
+            > 0,
+        eq(true)
+    );
+    assert_that!(
+        records
+            .iter()
+            .all(|record| record.fact.operation == OperationKind::RankingRead
+                && record.fact.outcome == OperationOutcome::Confirmed),
+        eq(true)
+    );
+    let ids: Vec<_> = records
+        .iter()
+        .map(|record| record.fact.operation_id)
+        .collect();
+    assert_that!(
+        ids.iter()
+            .enumerate()
+            .all(|(index, id)| !ids[..index].contains(id)),
+        eq(true)
+    );
+    for record in loss {
+        assert_that!(record.fact.event, eq(EventIdentity::DiagnosticLossObserved));
+        assert_that!(record.fact.destination_failures, eq(0));
+        assert_that!(record.fact.worker_status, eq(WorkerStatus::Running));
+        assert_that!(record.severity, eq(Severity::Warn));
+        assert_that!(
+            record.fact.process_instance,
+            eq(records[0].fact.process_instance)
+        );
+        assert_that!(&record.fact.release, eq(&records[0].fact.release));
+    }
+    Ok(())
+}

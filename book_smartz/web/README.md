@@ -284,8 +284,13 @@ It does not count as another save.
 Recovering an already saved action and replaying state emit no new ranking activity.
 Failed or uncertain writes remain unconfirmed/checking.
 
-The 256-record queue drops on saturation or destination failure. Delivery has no
-retries and doesn't extend process shutdown. The queue may drop buffered records.
+The 256-record queue discards records on saturation or closure.
+Process-local counters retain queue drops, failed output attempts, and worker status.
+After a new record reaches stderr, a typed loss summary can report pending counts.
+A failed summary remains pending for a later successful record.
+Discarded records have no delivery retry.
+Blocked output cannot hold admitted requests, and diagnostics do not extend process shutdown.
+Process exit can lose buffered records, counters, and pending summaries.
 The app installs no traces or metrics. The platform collects stderr. Configure its
 private access and retention separately. The app turns off dependency SQL statement logging and avoids raw
 process-error formatting to protect private payloads.
