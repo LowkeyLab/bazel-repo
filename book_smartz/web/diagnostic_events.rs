@@ -27,6 +27,9 @@ pub enum EventIdentity {
     DiagnosticLossObserved,
     StartupFinished,
     MigrationFinished,
+    ReadinessChanged,
+    ShutdownStarted,
+    ShutdownFinished,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -200,4 +203,94 @@ pub struct InitializationFinished {
 pub struct InitializationRecord {
     pub severity: Severity,
     pub fact: InitializationFinished,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadinessState {
+    Ready,
+    Unavailable,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadinessStage {
+    Complete,
+    Package,
+    Schema,
+    Database,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReadinessReason {
+    None,
+    Package,
+    Schema,
+    Database,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadinessResult {
+    pub state: ReadinessState,
+    pub stage: ReadinessStage,
+    pub reason: ReadinessReason,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadinessChanged {
+    pub event: EventIdentity,
+    pub state: ReadinessState,
+    pub stage: ReadinessStage,
+    pub reason: ReadinessReason,
+    pub duration_ms: u64,
+    pub release: String,
+    pub process_instance: ProcessInstanceId,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReadinessRecord {
+    pub severity: Severity,
+    pub fact: ReadinessChanged,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShutdownOutcome {
+    Started,
+    Completed,
+    Failed,
+    DeadlineExceeded,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShutdownStage {
+    RequestDrain,
+    PoolClosure,
+    DiagnosticDrain,
+    Complete,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ShutdownReason {
+    None,
+    Signal,
+    Listener,
+    Timeout,
+    Unavailable,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShutdownFact {
+    pub event: EventIdentity,
+    pub outcome: ShutdownOutcome,
+    pub stage: ShutdownStage,
+    pub reason: ShutdownReason,
+    pub duration_ms: u64,
+    pub release: String,
+    pub process_instance: ProcessInstanceId,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ShutdownRecord {
+    pub severity: Severity,
+    pub fact: ShutdownFact,
 }

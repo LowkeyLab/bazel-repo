@@ -41,7 +41,8 @@ mod package;
 
 use crate::diagnostic_events::{
     EventIdentity, InitializationOutcome, InitializationReason, InitializationStage, OperationKind,
-    OperationOutcome, Reason, Stage,
+    OperationOutcome, ReadinessReason, ReadinessResult, ReadinessStage, ReadinessState, Reason,
+    ShutdownReason, Stage,
 };
 
 struct QuietObserver;
@@ -152,6 +153,8 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
         InitializationStage::Listener,
         InitializationReason::Unavailable,
     );
+    let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+    let mut interrupt = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::interrupt())?;
     let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
     let diagnostics = diagnostics::Diagnostics::start(release, observation.instance());
     let startup_delivery = diagnostics.clone();
@@ -198,8 +201,24 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
     {
         initialization::fallback(fact);
     }
-    topcoat::serve(listener, service).await?;
-    tokio::time::timeout(Duration::from_secs(5), pool.close()).await?;
+    let mut shutdown_started = None;
+    let shutdown = async {
+        tokio::select! { _ = terminate.recv() => {}, _ = interrupt.recv() => {} }
+        shutdown_started = Some(startup_delivery.begin_shutdown(ShutdownReason::Signal));
+    };
+    let serving = topcoat::serve_until(listener, service, shutdown).await;
+    let started = shutdown_started
+        .unwrap_or_else(|| startup_delivery.begin_shutdown(ShutdownReason::Listener));
+    let reason = if serving.is_ok() {
+        ShutdownReason::Signal
+    } else {
+        ShutdownReason::Listener
+    };
+    let cleanup = startup_delivery
+        .finish_shutdown(started, reason, pool.close(), Duration::from_secs(5))
+        .await;
+    serving?;
+    cleanup?;
     Ok(())
 }
 
@@ -300,12 +319,52 @@ async fn authorize_observed(
 #[route(GET "/health/ready")]
 async fn ready(cx: &Cx) -> Result<&'static str> {
     let db: &Application = app_context(cx);
-    if !db.integrity.is_ready() {
+    let started = std::time::Instant::now();
+    let result = if !db.integrity.is_ready() {
+        ReadinessResult {
+            state: ReadinessState::Unavailable,
+            stage: ReadinessStage::Package,
+            reason: ReadinessReason::Package,
+        }
+    } else if let Err(error) = identity::ready(&db.pool).await {
+        let database = error
+            .chain()
+            .find_map(|source| source.downcast_ref::<sqlx::Error>())
+            .is_some_and(|error| match error {
+                sqlx::Error::Database(error) => !error
+                    .code()
+                    .is_some_and(|code| code.starts_with("42") || code.starts_with("3F")),
+                sqlx::Error::ColumnNotFound(_)
+                | sqlx::Error::ColumnDecode { .. }
+                | sqlx::Error::Decode(_)
+                | sqlx::Error::TypeNotFound { .. }
+                | sqlx::Error::Migrate(_) => false,
+                _ => true,
+            });
+        if database {
+            ReadinessResult {
+                state: ReadinessState::Unavailable,
+                stage: ReadinessStage::Database,
+                reason: ReadinessReason::Database,
+            }
+        } else {
+            ReadinessResult {
+                state: ReadinessState::Unavailable,
+                stage: ReadinessStage::Schema,
+                reason: ReadinessReason::Schema,
+            }
+        }
+    } else {
+        ReadinessResult {
+            state: ReadinessState::Ready,
+            stage: ReadinessStage::Complete,
+            reason: ReadinessReason::None,
+        }
+    };
+    db.diagnostics.observe_readiness(result, started);
+    if result.state == ReadinessState::Unavailable {
         return Err(topcoat::router::error::service_unavailable(1).into());
     }
-    identity::ready(&db.pool)
-        .await
-        .map_err(|_| topcoat::router::error::service_unavailable(1))?;
     Ok("ready")
 }
 
