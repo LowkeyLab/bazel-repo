@@ -36,9 +36,13 @@ mod diagnostic_events;
 mod diagnostics;
 mod feedback;
 mod identity;
+mod initialization;
 mod package;
 
-use crate::diagnostic_events::{OperationKind, OperationOutcome, Reason, Stage};
+use crate::diagnostic_events::{
+    EventIdentity, InitializationOutcome, InitializationReason, InitializationStage, OperationKind,
+    OperationOutcome, Reason, Stage,
+};
 
 struct QuietObserver;
 impl Observer for QuietObserver {
@@ -64,20 +68,40 @@ async fn main() -> std::process::ExitCode {
         return std::process::ExitCode::SUCCESS;
     }
     // Never format dependency errors: they may contain private SQL or credentials.
-    // Exit without synchronous diagnostic I/O so a broken sink cannot delay shutdown.
+    // Early diagnostic output has a bounded wait and cannot replace this failure status.
     std::process::ExitCode::FAILURE
 }
 
 async fn run() -> anyhow::Result<()> {
     let command = std::env::args().nth(1).unwrap_or_else(|| "serve".into());
-    anyhow::ensure!(
-        matches!(command.as_str(), "serve" | "migrate"),
-        "expected serve or migrate"
-    );
-    if command == "migrate" {
-        tokio::time::timeout(Duration::from_secs(120), async {
-            let pool = connect(1).await?;
+    let event = if command == "migrate" {
+        EventIdentity::MigrationFinished
+    } else {
+        EventIdentity::StartupFinished
+    };
+    let mut observation = initialization::Initialization::new(event);
+    let result = match command.as_str() {
+        "migrate" => migrate(&mut observation).await,
+        "serve" => serve(&mut observation).await,
+        _ => Err(anyhow::anyhow!("expected serve or migrate")),
+    };
+    if let Err(error) = &result {
+        observation.failure(error);
+        if let Some(fact) = observation.finish(InitializationOutcome::Failed) {
+            initialization::fallback(fact);
+        }
+    }
+    result
+}
+
+async fn migrate(observation: &mut initialization::Initialization) -> anyhow::Result<()> {
+    initialization::migrate(
+        observation,
+        Duration::from_secs(120),
+        async |observation| {
+            let pool = connect(1, observation).await?;
             let store = Store::new(pool.clone(), Arc::new(QuietObserver));
+            observation.phase(InitializationStage::Schema, InitializationReason::Schema);
             let result = async {
                 store.migrate(OperationContext::default()).await?;
                 identity::migrate(&pool).await
@@ -85,24 +109,52 @@ async fn run() -> anyhow::Result<()> {
             .await;
             pool.close().await;
             result
-        })
-        .await??;
-        return Ok(());
-    }
-    let pool = connect(5).await?;
+        },
+        initialization::fallback,
+    )
+    .await
+}
+
+async fn serve(observation: &mut initialization::Initialization) -> anyhow::Result<()> {
+    let pool = connect(5, observation).await?;
     let store = Store::new(pool.clone(), Arc::new(QuietObserver));
+    observation.phase(InitializationStage::Package, InitializationReason::Package);
     let assets = tokio::task::spawn_blocking(package::load).await??;
+    let release = package::release()?;
+    observation.verified_release(release.clone());
     let integrity = package::IntegrityMonitor::start()?;
-    let diagnostics = diagnostics::Diagnostics::start(package::release()?);
+    observation.phase(
+        InitializationStage::Configuration,
+        InitializationReason::Configuration,
+    );
     let origin = std::env::var("BOOK_SMARTZ_ORIGIN")?;
     let parsed = url::Url::parse(&origin)?;
     anyhow::ensure!(
         parsed.scheme() == "https" && parsed.origin().ascii_serialization() == origin,
         "canonical origin must be an HTTPS origin without a path"
     );
+    observation.phase(
+        InitializationStage::Provider,
+        InitializationReason::Provider,
+    );
     let google = identity::Google::from_environment(&origin)?;
     let catalog = catalog::Catalog::from_environment()?;
+    observation.phase(InitializationStage::Schema, InitializationReason::Schema);
     identity::ready(&pool).await?;
+    observation.phase(
+        InitializationStage::Configuration,
+        InitializationReason::Configuration,
+    );
+    let feedback = feedback::Feedback::from_environment()?;
+    let host = environment_or_default("HOST", "127.0.0.1")?;
+    let port = environment_or_default("PORT", "3000")?.parse::<u16>()?;
+    observation.phase(
+        InitializationStage::Listener,
+        InitializationReason::Unavailable,
+    );
+    let listener = tokio::net::TcpListener::bind((host.as_str(), port)).await?;
+    let diagnostics = diagnostics::Diagnostics::start(release, observation.instance());
+    let startup_delivery = diagnostics.clone();
     let router = module_router!()
         .page(ranking)
         .page(catalog::search)
@@ -134,19 +186,47 @@ async fn run() -> anyhow::Result<()> {
             origin,
             google,
             catalog,
-            feedback: feedback::Feedback::from_environment()?,
+            feedback,
             diagnostics,
             integrity,
         })
         .build();
     let service =
         topcoat::router::RouterService::new(router).shutdown_timeout(Duration::from_secs(20));
-    topcoat::start(service).await?;
+    if let Some(fact) = observation.finish(InitializationOutcome::Succeeded)
+        && let Err(fact) = startup_delivery.observe_initialization(fact)
+    {
+        initialization::fallback(fact);
+    }
+    topcoat::serve(listener, service).await?;
     tokio::time::timeout(Duration::from_secs(5), pool.close()).await?;
     Ok(())
 }
 
-async fn connect(maximum: u32) -> anyhow::Result<PgPool> {
+fn environment_or_default(key: &str, default: &str) -> anyhow::Result<String> {
+    match std::env::var(key) {
+        Ok(value) => Ok(value),
+        Err(std::env::VarError::NotPresent) => Ok(default.into()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+async fn connect(
+    maximum: u32,
+    observation: &mut initialization::Initialization,
+) -> anyhow::Result<PgPool> {
+    observation.phase(
+        InitializationStage::Configuration,
+        InitializationReason::Configuration,
+    );
+    let options = std::env::var("DATABASE_URL")?
+        .parse::<PgConnectOptions>()?
+        .application_name("book-smartz")
+        .disable_statement_logging();
+    observation.phase(
+        InitializationStage::Database,
+        InitializationReason::Database,
+    );
     let pool = PgPoolOptions::new()
         .max_connections(maximum)
         .acquire_timeout(Duration::from_secs(5))
@@ -161,12 +241,7 @@ async fn connect(maximum: u32) -> anyhow::Result<PgPool> {
                 Ok(())
             })
         })
-        .connect_with(
-            std::env::var("DATABASE_URL")?
-                .parse::<PgConnectOptions>()?
-                .application_name("book-smartz")
-                .disable_statement_logging(),
-        )
+        .connect_with(options)
         .await?;
     Ok(pool)
 }

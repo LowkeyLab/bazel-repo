@@ -13,9 +13,9 @@ use serde::Serialize;
 
 use crate::actions::ActionId;
 use crate::diagnostic_events::{
-    DiagnosticLossObserved, DiagnosticLossRecord, EventIdentity, OperationFinished, OperationId,
-    OperationKind, OperationOutcome, OperationRecord, OriginalActionId, ProcessInstanceId, Reason,
-    Severity, Stage, WorkerStatus,
+    DiagnosticLossObserved, DiagnosticLossRecord, EventIdentity, InitializationFinished,
+    InitializationRecord, OperationFinished, OperationId, OperationKind, OperationOutcome,
+    OperationRecord, OriginalActionId, ProcessInstanceId, Reason, Severity, Stage, WorkerStatus,
 };
 
 /// Listeners receive only the immutable allowlisted fact.
@@ -60,6 +60,7 @@ enum Delivery {
     Legacy(Fact),
     Operation(OperationRecord),
     Loss(DiagnosticLossRecord),
+    Initialization(InitializationRecord),
 }
 
 #[derive(Default)]
@@ -225,6 +226,7 @@ struct Fact {
     action: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct Diagnostics {
     sender: DeliverySender,
     release: String,
@@ -233,9 +235,8 @@ pub struct Diagnostics {
 }
 
 impl Diagnostics {
-    pub fn start(release: String) -> Self {
+    pub fn start(release: String, process_instance: ProcessInstanceId) -> Self {
         let (sender, receiver) = channel();
-        let process_instance = ProcessInstanceId::fresh();
         let context = LossContext {
             release: release.clone(),
             process_instance,
@@ -264,6 +265,20 @@ impl Diagnostics {
             release,
             process_instance,
         }
+    }
+
+    pub fn observe_initialization(
+        &self,
+        fact: InitializationFinished,
+    ) -> Result<(), InitializationFinished> {
+        if !self.sender.health.running.load(Ordering::Acquire) {
+            return Err(fact);
+        }
+        self.sender
+            .send(Delivery::Initialization(crate::initialization::record(
+                fact,
+            )));
+        Ok(())
     }
 
     pub fn record(
@@ -418,11 +433,51 @@ mod tests {
 
     use googletest::{assert_that, matchers::eq};
 
-    use super::{Delivery, Diagnostics, OperationListener, QUEUE_CAPACITY, StderrListener};
+    use super::{Delivery, Diagnostics, OperationListener, StderrListener};
     use crate::diagnostic_events::{
         EventIdentity, OperationFinished, OperationId, OperationKind, OperationOutcome,
         ProcessInstanceId, Reason, Severity, Stage,
     };
+
+    #[googletest::test]
+    fn startup_delivery_returns_the_fact_when_the_worker_is_unavailable() {
+        for stopped in [false, true] {
+            let (mut diagnostics, _) = capture();
+            let (sender, receiver) = super::channel();
+            diagnostics.sender = sender;
+            let receiver = if stopped {
+                drop(receiver);
+                diagnostics
+                    .sender
+                    .send(Delivery::Operation(super::operation_record(fact(
+                        OperationOutcome::Confirmed,
+                        Reason::None,
+                    ))));
+                None
+            } else {
+                Some(receiver)
+            };
+            let mut startup =
+                crate::initialization::Initialization::new(EventIdentity::StartupFinished);
+            let fact = startup
+                .finish(crate::diagnostic_events::InitializationOutcome::Succeeded)
+                .unwrap();
+            let result = diagnostics.observe_initialization(fact.clone());
+            if let Some(receiver) = receiver {
+                assert_that!(result.is_ok(), eq(true));
+                let Delivery::Initialization(record) = receiver.try_recv().unwrap() else {
+                    panic!("The startup record is absent.");
+                };
+                assert_that!(&record.fact, eq(&fact));
+                assert_that!(record.severity, eq(Severity::Info));
+                assert_that!(receiver.try_recv().is_err(), eq(true));
+            } else {
+                let returned = result.expect_err("The stopped worker must return the fact.");
+                assert_that!(&returned, eq(&fact));
+                assert_that!(diagnostics.sender.health.snapshot().queue_drops, eq(1));
+            }
+        }
+    }
 
     #[derive(Default)]
     struct Capture(Mutex<Vec<OperationFinished>>);

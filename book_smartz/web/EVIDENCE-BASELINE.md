@@ -107,3 +107,20 @@ Ranking requests complete while output remains blocked.
 After capture resumes, structured operation records and loss summaries account for the attempts without duplicate operation IDs.
 This test adapter adds no production access surface.
 These checks do not establish platform ingestion or durable diagnostic delivery.
+
+## Initialization acceptance
+
+Packaged composition checks cover migration configuration failure and serving success before reader operations.
+Startup failures distinguish configuration, database, package, provider configuration, schema, and listener binding.
+Unverified packages supply no release fingerprint. Serving and operation records share verified context and process identity.
+Real PostgreSQL migrations retain sessions across repeated success and checksum failure.
+Structured assertions verify terminal outcomes, severity, safe context, and one record per occurrence.
+
+A controlled producer test expires a smaller migration budget and retains the known stage.
+Production keeps the 120-second limit. The test with a smaller budget does not measure a deployed two-minute deadline.
+Stopped-worker checks inspect the returned fact and normal queue delivery separately.
+Controlled fallback failures preserve migration results and typed database causes.
+A blocked destination expires the 250-millisecond fallback wait.
+A packaged process with a full unnamed stderr stream retains its failure exit within an outer five-second test limit.
+The unnamed stream is a test adapter and adds no production access surface.
+These checks do not establish platform ingestion, deployed startup behavior, or shutdown draining.

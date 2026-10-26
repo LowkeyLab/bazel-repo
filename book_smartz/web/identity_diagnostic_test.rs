@@ -511,3 +511,291 @@ async fn stalled_output_preserves_requests_and_reports_accumulated_loss_after_re
     }
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn migration_configuration_failure_reports_a_safe_terminal_fact() -> anyhow::Result<()> {
+    use crate::diagnostic_events::{
+        EventIdentity, InitializationOutcome, InitializationReason, InitializationRecord,
+        InitializationStage,
+    };
+    let app = Fixture::new().await?;
+    let capture = tempfile::NamedTempFile::new()?;
+    let status = std::process::Command::new(app.package.path().join("book-smartz"))
+        .arg("migrate")
+        .env("DATABASE_URL", "private invalid database configuration")
+        .current_dir(app.cwd.path())
+        .stdout(std::process::Stdio::null())
+        .stderr(capture.as_file().try_clone()?)
+        .status()?;
+    assert_that!(status.success(), eq(false));
+    let contents = std::fs::read_to_string(capture.path())?;
+    let records: Vec<InitializationRecord> = contents
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<Result<_, _>>()?;
+    assert_that!(records.len(), eq(1));
+    let record = records
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("The initialization fact is absent."))?;
+    assert_that!(record.fact.event, eq(EventIdentity::MigrationFinished));
+    assert_that!(record.fact.outcome, eq(InitializationOutcome::Failed));
+    assert_that!(record.fact.stage, eq(InitializationStage::Configuration));
+    assert_that!(record.fact.reason, eq(InitializationReason::Configuration));
+    assert_that!(record.fact.release.is_none(), eq(true));
+    assert_that!(record.severity, eq(Severity::Error));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn serving_reports_verified_startup_before_reader_operations() -> anyhow::Result<()> {
+    use crate::diagnostic_events::{
+        EventIdentity, InitializationOutcome, InitializationReason, InitializationRecord,
+        InitializationStage,
+    };
+    let app = Fixture::new().await?;
+    let startup = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let contents = std::fs::read_to_string(app.diagnostics.path())?;
+            let records: Vec<InitializationRecord> = contents
+                .lines()
+                .filter_map(|line| serde_json::from_str(line).ok())
+                .collect();
+            if let Some(record) = records.first() {
+                assert_that!(records.len(), eq(1));
+                return Ok::<_, anyhow::Error>(record.clone());
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .map_err(|_| anyhow::anyhow!("The serving startup fact is absent."))??;
+    assert_that!(startup.fact.event, eq(EventIdentity::StartupFinished));
+    assert_that!(startup.fact.outcome, eq(InitializationOutcome::Succeeded));
+    assert_that!(startup.fact.stage, eq(InitializationStage::Complete));
+    assert_that!(startup.fact.reason, eq(InitializationReason::None));
+    assert_that!(startup.severity, eq(Severity::Info));
+    let cookie = app.login("private-startup-reader").await?;
+    assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
+    let operation = record(&app, OperationKind::RankingRead, 0).await?;
+    assert_that!(
+        startup.fact.release.as_ref(),
+        eq(Some(&operation.fact.release))
+    );
+    assert_that!(
+        startup.fact.process_instance,
+        eq(operation.fact.process_instance)
+    );
+    Ok(())
+}
+
+fn initialization_command(app: &Fixture, command: &str) -> std::process::Command {
+    let mut child = std::process::Command::new(app.package.path().join("book-smartz"));
+    child
+        .arg(command)
+        .current_dir(app.cwd.path())
+        .env("DATABASE_URL", &app.database)
+        .env("HOST", "127.0.0.1")
+        .env("PORT", "0")
+        .env("BOOK_SMARTZ_ORIGIN", "https://reader.example")
+        .env("BOOK_SMARTZ_MAINTAINER_CONTACT", "maintainer@example.test")
+        .env(
+            "BOOK_SMARTZ_SELECTION_KEY",
+            "public-fixture-key-at-least-thirty-two-bytes",
+        )
+        .env("GOOGLE_CLIENT_ID", "fixture-client")
+        .env("GOOGLE_CLIENT_SECRET", "fixture-secret")
+        .env(
+            "GOOGLE_TOKEN_ENDPOINT",
+            format!("{}/token", app.provider.uri()),
+        )
+        .stdout(std::process::Stdio::null());
+    child
+}
+
+fn rejected_initialization(
+    command: &mut std::process::Command,
+) -> anyhow::Result<crate::diagnostic_events::InitializationRecord> {
+    let capture = tempfile::NamedTempFile::new()?;
+    command.stderr(capture.as_file().try_clone()?);
+    assert_that!(command.status()?.success(), eq(false));
+    let contents = std::fs::read_to_string(capture.path())?;
+    let records: Vec<crate::diagnostic_events::InitializationRecord> = contents
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<Result<_, _>>()?;
+    assert_that!(records.len(), eq(1));
+    records
+        .into_iter()
+        .next()
+        .ok_or_else(|| anyhow::anyhow!("The initialization fact is absent."))
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn startup_failures_keep_typed_causes_and_only_verified_release_context() -> anyhow::Result<()>
+{
+    use crate::diagnostic_events::{
+        EventIdentity, InitializationOutcome, InitializationReason, InitializationStage,
+    };
+    let mut app = Fixture::new().await?;
+    app.process.0.kill()?;
+    app.process.0.wait()?;
+    let integrity: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(app.package.path().join("integrity.json"))?)?;
+    let release = integrity["binary"].as_str().unwrap().to_owned();
+    let occupied = std::net::TcpListener::bind("127.0.0.1:0")?;
+    let unused = std::net::TcpListener::bind("127.0.0.1:0")?;
+    let unused_port = unused.local_addr()?.port();
+    drop(unused);
+    let cases = [
+        (
+            "DATABASE_URL",
+            "private invalid database configuration".to_owned(),
+            InitializationStage::Configuration,
+            InitializationReason::Configuration,
+            false,
+        ),
+        (
+            "DATABASE_URL",
+            format!("postgres://private-user:private-password@127.0.0.1:{unused_port}/private-db"),
+            InitializationStage::Database,
+            InitializationReason::Database,
+            false,
+        ),
+        (
+            "BOOK_SMARTZ_ORIGIN",
+            "http://private-reader.example".to_owned(),
+            InitializationStage::Configuration,
+            InitializationReason::Configuration,
+            true,
+        ),
+        (
+            "GOOGLE_TOKEN_ENDPOINT",
+            "file:///private-provider-configuration".to_owned(),
+            InitializationStage::Provider,
+            InitializationReason::Provider,
+            true,
+        ),
+        (
+            "PORT",
+            occupied.local_addr()?.port().to_string(),
+            InitializationStage::Listener,
+            InitializationReason::Unavailable,
+            true,
+        ),
+    ];
+    for (key, value, stage, reason, verified) in cases {
+        let record =
+            rejected_initialization(initialization_command(&app, "serve").env(key, value))?;
+        assert_that!(record.fact.event, eq(EventIdentity::StartupFinished));
+        assert_that!(record.fact.outcome, eq(InitializationOutcome::Failed));
+        assert_that!(record.fact.stage, eq(stage));
+        assert_that!(record.fact.reason, eq(reason));
+        assert_that!(
+            record.fact.release.as_deref(),
+            eq(verified.then_some(release.as_str()))
+        );
+        assert_that!(record.severity, eq(Severity::Error));
+    }
+    let manifest = app.package.path().join("assets/manifest.toml");
+    let original = std::fs::read(&manifest)?;
+    std::fs::write(&manifest, b"private mismatched manifest")?;
+    let package = rejected_initialization(&mut initialization_command(&app, "serve"))?;
+    assert_that!(package.fact.stage, eq(InitializationStage::Package));
+    assert_that!(package.fact.reason, eq(InitializationReason::Package));
+    assert_that!(package.fact.release.is_none(), eq(true));
+    std::fs::write(&manifest, original)?;
+    sqlx::query("DROP TABLE book_smartz_web.sessions")
+        .execute(&app.pool)
+        .await?;
+    let schema = rejected_initialization(&mut initialization_command(&app, "serve"))?;
+    assert_that!(schema.fact.stage, eq(InitializationStage::Schema));
+    assert_that!(schema.fact.reason, eq(InitializationReason::Schema));
+    assert_that!(schema.fact.release.as_deref(), eq(Some(release.as_str())));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn migration_facts_preserve_sessions_and_distinguish_checksum_failure() -> anyhow::Result<()>
+{
+    use crate::diagnostic_events::{
+        EventIdentity, InitializationOutcome, InitializationReason, InitializationRecord,
+        InitializationStage,
+    };
+    let app = Fixture::new().await?;
+    let cookie = app.login("private-migration-reader").await?;
+    let mut instances = Vec::new();
+    for _ in 0..2 {
+        let capture = tempfile::NamedTempFile::new()?;
+        let status = initialization_command(&app, "migrate")
+            .stderr(capture.as_file().try_clone()?)
+            .status()?;
+        assert_that!(status.success(), eq(true));
+        let contents = std::fs::read_to_string(capture.path())?;
+        let records: Vec<InitializationRecord> = contents
+            .lines()
+            .map(serde_json::from_str)
+            .collect::<Result<_, _>>()?;
+        assert_that!(records.len(), eq(1));
+        let record = &records[0];
+        assert_that!(record.fact.event, eq(EventIdentity::MigrationFinished));
+        assert_that!(record.fact.outcome, eq(InitializationOutcome::Succeeded));
+        assert_that!(record.fact.stage, eq(InitializationStage::Complete));
+        assert_that!(record.fact.reason, eq(InitializationReason::None));
+        assert_that!(record.fact.release.is_none(), eq(true));
+        assert_that!(record.severity, eq(Severity::Info));
+        instances.push(record.fact.process_instance);
+    }
+    assert_that!(instances[0] == instances[1], eq(false));
+    assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
+    sqlx::query("UPDATE book_smartz_web._sqlx_migrations SET checksum = decode('00', 'hex') WHERE version = 1")
+        .execute(&app.pool).await?;
+    let failure = rejected_initialization(&mut initialization_command(&app, "migrate"))?;
+    assert_that!(failure.fact.event, eq(EventIdentity::MigrationFinished));
+    assert_that!(failure.fact.outcome, eq(InitializationOutcome::Failed));
+    assert_that!(failure.fact.stage, eq(InitializationStage::Schema));
+    assert_that!(failure.fact.reason, eq(InitializationReason::Schema));
+    assert_that!(failure.fact.release.is_none(), eq(true));
+    assert_that!(failure.severity, eq(Severity::Error));
+    assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn stalled_early_stderr_preserves_failure_exit() -> anyhow::Result<()> {
+    use std::io::Write;
+    let app = Fixture::new().await?;
+    let (mut destination, _reader) = std::os::unix::net::UnixStream::pair()?;
+    destination.set_nonblocking(true)?;
+    loop {
+        match destination.write(&[0; 8192]) {
+            Ok(0) => anyhow::bail!("The controlled destination closed."),
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    destination.set_nonblocking(false)?;
+    let descriptor: std::os::fd::OwnedFd = destination.into();
+    let mut process = crate::test_support::Process(
+        initialization_command(&app, "migrate")
+            .env("DATABASE_URL", "private invalid database configuration")
+            .stderr(std::fs::File::from(descriptor))
+            .spawn()?,
+    );
+    let status = tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            if let Some(status) = process.0.try_wait()? {
+                return Ok::<_, std::io::Error>(status);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    assert_that!(status.success(), eq(false));
+    Ok(())
+}

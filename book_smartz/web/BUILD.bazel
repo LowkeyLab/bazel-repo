@@ -38,6 +38,7 @@ topcoat_rust_binary(
         "diagnostics.rs",
         "feedback.rs",
         "identity.rs",
+        "initialization.rs",
         "main.rs",
         "package.rs",
     ],
