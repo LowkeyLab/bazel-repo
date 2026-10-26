@@ -252,7 +252,7 @@ impl Diagnostics {
                     },
                     &health,
                     &context,
-                )
+                );
             })
             .is_err()
         {
