@@ -85,6 +85,13 @@ struct DeliveryHealth {
     worker_status: WorkerStatus,
 }
 impl DeliveryState {
+    fn discarding(&self) -> bool {
+        self.discard.load(Ordering::Acquire)
+            || self
+                .deadline
+                .get()
+                .is_some_and(|deadline| Instant::now() >= *deadline)
+    }
     fn increment(counter: &AtomicU64) {
         let _ = counter.try_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
             Some(value.saturating_add(1))
@@ -196,12 +203,7 @@ fn worker(
     let _status = WorkerStatusGuard(health);
     let mut reported = Reported::default();
     for record in receiver {
-        if health.discard.load(Ordering::Acquire)
-            || health
-                .deadline
-                .get()
-                .is_some_and(|deadline| Instant::now() >= *deadline)
-        {
+        if health.discarding() {
             continue;
         }
         if let Delivery::DrainBarrier(acknowledge) = record {
@@ -218,6 +220,9 @@ fn deliver(
     context: &LossContext,
     reported: &mut Reported,
 ) {
+    if health.discarding() {
+        return;
+    }
     if destination.write(record).is_err() {
         DeliveryState::increment(&health.destination_failures);
         return;
@@ -241,6 +246,9 @@ fn deliver(
             process_instance: context.process_instance,
         },
     });
+    if health.discarding() {
+        return;
+    }
     if destination.write(&summary).is_ok() {
         reported.queue_drops = current.queue_drops;
         reported.destination_failures = current.destination_failures;
@@ -1524,6 +1532,67 @@ mod tests {
         assert_that!(finished.fact.outcome, eq(ShutdownOutcome::Failed));
         assert_that!(finished.fact.stage, eq(ShutdownStage::RequestDrain));
         assert_that!(finished.fact.reason, eq(ShutdownReason::Listener));
+        Ok(())
+    }
+    struct PausedDestination {
+        entered: mpsc::Sender<()>,
+        resume: mpsc::Receiver<()>,
+        attempts: Vec<Delivery>,
+        first_completed: bool,
+    }
+    impl super::Destination for PausedDestination {
+        fn write(&mut self, record: &Delivery) -> std::io::Result<()> {
+            self.attempts.push(record.clone());
+            if self.attempts.len() == 1 {
+                self.entered.send(()).map_err(std::io::Error::other)?;
+                self.resume
+                    .recv_timeout(Duration::from_secs(2))
+                    .map_err(std::io::Error::other)?;
+                self.first_completed = true;
+            }
+            Ok(())
+        }
+    }
+
+    #[googletest::test]
+    fn resumed_write_cannot_start_a_loss_summary_after_cutoff() -> anyhow::Result<()> {
+        for deadline in [false, true] {
+            let (sender, receiver) = super::channel();
+            let health = sender.health.clone();
+            health
+                .queue_drops
+                .store(1, std::sync::atomic::Ordering::Relaxed);
+            StderrListener(sender.clone()).observe(fact(OperationOutcome::Confirmed, Reason::None));
+            drop(sender);
+            let (entered, writing) = mpsc::channel();
+            let (resume, paused) = mpsc::channel();
+            let worker_health = health.clone();
+            let task = std::thread::spawn(move || {
+                let mut destination = PausedDestination {
+                    entered,
+                    resume: paused,
+                    attempts: Vec::new(),
+                    first_completed: false,
+                };
+                super::worker(receiver, &mut destination, &worker_health, &loss_context());
+                destination
+            });
+            writing.recv_timeout(Duration::from_secs(2))?;
+            if deadline {
+                health.deadline.set(Instant::now()).unwrap();
+            } else {
+                health
+                    .discard
+                    .store(true, std::sync::atomic::Ordering::Release);
+            }
+            resume.send(())?;
+            let destination = task
+                .join()
+                .map_err(|_| anyhow::anyhow!("The controlled destination failed."))?;
+            assert_that!(destination.first_completed, eq(true));
+            assert_that!(destination.attempts.len(), eq(1));
+            assert_that!(health.snapshot().destination_failures, eq(0));
+        }
         Ok(())
     }
 }
