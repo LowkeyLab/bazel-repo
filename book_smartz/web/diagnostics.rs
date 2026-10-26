@@ -119,12 +119,21 @@ fn channel() -> (DeliverySender, mpsc::Receiver<Delivery>) {
 trait Destination {
     fn write(&mut self, record: &Delivery) -> io::Result<()>;
 }
-struct StderrDestination;
-impl Destination for StderrDestination {
+struct StderrDestination<W> {
+    writer: W,
+    needs_boundary: bool,
+}
+impl<W: Write> Destination for StderrDestination<W> {
     fn write(&mut self, record: &Delivery) -> io::Result<()> {
         let mut encoded = serde_json::to_vec(record).map_err(io::Error::other)?;
         encoded.push(b'\n');
-        std::io::stderr().write_all(&encoded)
+        if self.needs_boundary {
+            self.writer.write_all(b"\n")?;
+            self.needs_boundary = false;
+        }
+        let result = self.writer.write_all(&encoded);
+        self.needs_boundary = result.is_err();
+        result
     }
 }
 struct LossContext {
@@ -234,7 +243,17 @@ impl Diagnostics {
         let health = sender.health.clone();
         if std::thread::Builder::new()
             .name("book-smartz-diagnostics".into())
-            .spawn(move || worker(receiver, &mut StderrDestination, &health, &context))
+            .spawn(move || {
+                worker(
+                    receiver,
+                    &mut StderrDestination {
+                        writer: std::io::stderr(),
+                        needs_boundary: false,
+                    },
+                    &health,
+                    &context,
+                )
+            })
             .is_err()
         {
             sender.health.running.store(false, Ordering::Release);
@@ -700,6 +719,82 @@ mod tests {
         StderrListener(sender).observe(fact(OperationOutcome::Confirmed, Reason::None));
         Ok(())
     }
+    struct PrefixFailure {
+        bytes: Vec<u8>,
+        calls: usize,
+        fail_on: usize,
+        error_pending: bool,
+    }
+    impl std::io::Write for PrefixFailure {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.calls += 1;
+            if self.error_pending {
+                self.error_pending = false;
+                return Err(std::io::Error::other("controlled partial output failure"));
+            }
+            let accepted = if self.calls == self.fail_on {
+                self.error_pending = true;
+                bytes.len().min(7)
+            } else {
+                bytes.len()
+            };
+            self.bytes.extend_from_slice(&bytes[..accepted]);
+            Ok(accepted)
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[googletest::test]
+    fn partial_output_failure_preserves_subsequent_record_boundaries() {
+        for (fail_on, summary_failure) in [(1, false), (2, true)] {
+            let (sender, receiver) = super::channel();
+            let health = sender.health.clone();
+            if summary_failure {
+                super::DeliveryState::increment(&health.queue_drops);
+            }
+            let events: [_; 2] =
+                std::array::from_fn(|_| fact(OperationOutcome::Confirmed, Reason::None));
+            let listener = StderrListener(sender);
+            for event in &events {
+                listener.observe(event.clone());
+            }
+            drop(listener);
+            let mut destination = super::StderrDestination {
+                needs_boundary: false,
+                writer: PrefixFailure {
+                    bytes: Vec::new(),
+                    calls: 0,
+                    fail_on,
+                    error_pending: false,
+                },
+            };
+            super::worker(receiver, &mut destination, &health, &loss_context());
+            let output = String::from_utf8(destination.writer.bytes).unwrap();
+            let lines: Vec<_> = output.lines().collect();
+            let fragment = usize::from(summary_failure);
+            assert_that!(
+                serde_json::from_str::<serde_json::Value>(lines[fragment]).is_err(),
+                eq(true)
+            );
+            let recovered: crate::diagnostic_events::OperationRecord =
+                serde_json::from_str(lines[fragment + 1]).unwrap();
+            assert_that!(&recovered.fact, eq(&events[1]));
+            let summary: crate::diagnostic_events::DiagnosticLossRecord =
+                serde_json::from_str(lines[fragment + 2]).unwrap();
+            assert_that!(summary.fact.destination_failures, eq(1));
+            assert_that!(summary.fact.queue_drops, eq(u64::from(summary_failure)));
+            assert_that!(lines.len(), eq(fragment + 3));
+            assert_that!(health.snapshot().destination_failures, eq(1));
+            if summary_failure {
+                let first: crate::diagnostic_events::OperationRecord =
+                    serde_json::from_str(lines[0]).unwrap();
+                assert_that!(&first.fact, eq(&events[0]));
+            }
+        }
+    }
+
     #[derive(Default)]
     struct ScriptDestination {
         decisions: std::collections::VecDeque<bool>,

@@ -160,6 +160,8 @@ The worker retains process-local lifetime counts for queue drops and destination
 A full or closed queue increments `queue_drops` and discards that record.
 A failed output attempt increments `destination_failures`, including a failed summary attempt.
 Failed records never return to the queue.
+After an output failure, the next attempt writes a newline before a fresh record.
+A partial failed record can remain invalid, but it cannot consume the next record boundary.
 Counters saturate at the maximum unsigned 64-bit value and reset with the process.
 Their dimensions contain no reader or action identifiers.
 
