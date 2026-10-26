@@ -307,6 +307,44 @@ mod tests {
         Ok(())
     }
 
+    #[googletest::test]
+    fn storage_failures_preserve_stage_and_remove_private_causes() {
+        use book_smartz_storage::StoreError;
+
+        const PRIVATE_CAUSE: &str = "private-reader-history-and-database-address";
+        for (error, reason) in [
+            (
+                StoreError::Database(sqlx::Error::Protocol(PRIVATE_CAUSE.into())),
+                Reason::Database,
+            ),
+            (
+                StoreError::CorruptHistory(PRIVATE_CAUSE),
+                Reason::CorruptHistory,
+            ),
+            (
+                StoreError::CommitUncertain(sqlx::Error::Protocol(PRIVATE_CAUSE.into())),
+                Reason::PersistenceFailure,
+            ),
+            (StoreError::InvalidComposition, Reason::PersistenceFailure),
+        ] {
+            let (diagnostics, capture) = capture();
+            {
+                let mut operation = diagnostics.operation(OperationKind::RankingRead);
+                operation.stage(Stage::Persistence);
+                operation.storage_failure(&error);
+            }
+            let events = capture.0.lock().unwrap();
+            assert_that!(events.len(), eq(1));
+            let record = super::operation_record(events[0].clone());
+            assert_that!(record.fact.operation, eq(OperationKind::RankingRead));
+            assert_that!(record.fact.stage, eq(Stage::Persistence));
+            assert_that!(record.fact.outcome, eq(OperationOutcome::DependencyFailure));
+            assert_that!(record.fact.reason, eq(reason));
+            assert_that!(record.severity, eq(Severity::Error));
+            assert_that!(&record.fact.release, eq(&"a".repeat(64)));
+        }
+    }
+
     fn fact(outcome: OperationOutcome, reason: Reason) -> OperationFinished {
         OperationFinished {
             event: EventIdentity::OperationFinished,
