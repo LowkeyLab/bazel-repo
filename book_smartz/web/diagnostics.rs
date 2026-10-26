@@ -99,12 +99,23 @@ struct DeliverySender {
     health: Arc<DeliveryState>,
 }
 impl DeliverySender {
-    fn send(&self, record: Delivery) {
-        if let Err(error) = self.sender.try_send(record) {
-            DeliveryState::increment(&self.health.queue_drops);
-            if matches!(error, mpsc::TrySendError::Disconnected(_)) {
+    fn try_send(&self, record: Delivery) -> Result<(), mpsc::TrySendError<Delivery>> {
+        let result = self.sender.try_send(record);
+        match &result {
+            Err(mpsc::TrySendError::Full(_)) => DeliveryState::increment(&self.health.queue_drops),
+            Err(mpsc::TrySendError::Disconnected(_)) => {
                 self.health.running.store(false, Ordering::Release);
             }
+            Ok(()) => {}
+        }
+        result
+    }
+    fn send(&self, record: Delivery) {
+        if matches!(
+            self.try_send(record),
+            Err(mpsc::TrySendError::Disconnected(_))
+        ) {
+            DeliveryState::increment(&self.health.queue_drops);
         }
     }
 }
@@ -267,6 +278,8 @@ impl Diagnostics {
         }
     }
 
+    /// A stopped receiver returns the unsent fact for fallback.
+    /// Saturation counts a drop and does not return the fact.
     pub fn observe_initialization(
         &self,
         fact: InitializationFinished,
@@ -274,11 +287,14 @@ impl Diagnostics {
         if !self.sender.health.running.load(Ordering::Acquire) {
             return Err(fact);
         }
-        self.sender
-            .send(Delivery::Initialization(crate::initialization::record(
-                fact,
-            )));
-        Ok(())
+        match self
+            .sender
+            .try_send(Delivery::Initialization(crate::initialization::record(
+                fact.clone(),
+            ))) {
+            Err(mpsc::TrySendError::Disconnected(_)) => Err(fact),
+            Ok(()) | Err(mpsc::TrySendError::Full(_)) => Ok(()),
+        }
     }
 
     pub fn record(
@@ -477,6 +493,55 @@ mod tests {
                 assert_that!(diagnostics.sender.health.snapshot().queue_drops, eq(1));
             }
         }
+    }
+
+    #[googletest::test]
+    fn disconnected_initialization_returns_the_unsent_fact_for_fallback() {
+        let (diagnostics, _) = capture();
+        let mut startup =
+            crate::initialization::Initialization::new(EventIdentity::StartupFinished);
+        let fact = startup
+            .finish(crate::diagnostic_events::InitializationOutcome::Succeeded)
+            .unwrap();
+        let returned = diagnostics
+            .observe_initialization(fact.clone())
+            .expect_err("The disconnected receiver must return the unsent fact.");
+        assert_that!(&returned, eq(&fact));
+        assert_that!(
+            diagnostics.sender.health.snapshot().worker_status,
+            eq(crate::diagnostic_events::WorkerStatus::Stopped)
+        );
+        assert_that!(diagnostics.sender.health.snapshot().queue_drops, eq(0));
+    }
+
+    #[googletest::test]
+    fn saturated_initialization_is_a_counted_drop_without_fallback() {
+        let (mut diagnostics, _) = capture();
+        let (sender, receiver) = super::channel();
+        diagnostics.sender = sender;
+        for _ in 0..256 {
+            diagnostics
+                .sender
+                .send(Delivery::Operation(super::operation_record(fact(
+                    OperationOutcome::Confirmed,
+                    Reason::None,
+                ))));
+        }
+        let mut startup =
+            crate::initialization::Initialization::new(EventIdentity::StartupFinished);
+        let fact = startup
+            .finish(crate::diagnostic_events::InitializationOutcome::Succeeded)
+            .unwrap();
+        assert_that!(diagnostics.observe_initialization(fact).is_ok(), eq(true));
+        assert_that!(diagnostics.sender.health.snapshot().queue_drops, eq(1));
+        let records: Vec<_> = receiver.try_iter().collect();
+        assert_that!(records.len(), eq(256));
+        assert_that!(
+            records
+                .iter()
+                .all(|record| matches!(record, Delivery::Operation(_))),
+            eq(true)
+        );
     }
 
     #[derive(Default)]

@@ -185,6 +185,7 @@ A blocked worker cannot extend that wait. Output remains best effort.
 Successful serving initialization uses the normal queue.
 A known stopped worker returns the fact before it enters the queue.
 Composition can use the bounded fallback.
+Disconnection during submission also returns the unsent fact.
 An occurrence uses one delivery path. Queue saturation remains a counted drop without a fallback retry.
 Complete output failure or process termination can prevent a record.
 Readiness and shutdown observations remain separate work.
