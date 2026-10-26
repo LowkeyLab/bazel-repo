@@ -25,6 +25,8 @@ impl ProcessInstanceId {
 pub enum EventIdentity {
     OperationFinished,
     DiagnosticLossObserved,
+    StartupFinished,
+    MigrationFinished,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -149,4 +151,53 @@ pub struct DiagnosticLossObserved {
 pub struct DiagnosticLossRecord {
     pub severity: Severity,
     pub fact: DiagnosticLossObserved,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InitializationOutcome {
+    Succeeded,
+    Failed,
+    DeadlineExceeded,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InitializationStage {
+    Configuration,
+    Database,
+    Package,
+    Provider,
+    Schema,
+    Listener,
+    Complete,
+}
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InitializationReason {
+    None,
+    Configuration,
+    Database,
+    Package,
+    Provider,
+    Schema,
+    Unavailable,
+    Timeout,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InitializationFinished {
+    pub event: EventIdentity,
+    pub outcome: InitializationOutcome,
+    pub stage: InitializationStage,
+    pub reason: InitializationReason,
+    pub duration_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release: Option<String>,
+    pub process_instance: ProcessInstanceId,
+}
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct InitializationRecord {
+    pub severity: Severity,
+    pub fact: InitializationFinished,
 }

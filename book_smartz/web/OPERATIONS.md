@@ -52,7 +52,7 @@ The release fingerprint comes from the verified package.
 Elapsed duration uses a monotonic clock and whole milliseconds.
 Listeners receive the closed field allowlist before they select severity or delivery policy.
 
-Each fact permits only event identity, operation kind, outcome, stage,
+Each operation fact permits only event identity, operation kind, outcome, stage,
 bounded reason, duration, release, process-instance ID, operation ID, and optional original-action ID.
 The stderr record contains `fact` and `severity`.
 These catalog, identity, and read operations have no original-action ID.
@@ -145,7 +145,7 @@ Never paste private action evidence into public issues or logs.
 Opaque operation, process, and action identifiers must not become metric dimensions.
 These diagnostics add no metrics, exporter, or operational endpoint.
 
-Delivery retains the 256-record queue. Producers do not wait for output.
+Delivery retains the 256-record queue. Normal queue producers do not wait for output.
 Full or closed destinations can discard records without changing app results.
 The listener owns severity, formatting, and stderr output.
 A missing diagnostic record proves neither failure nor rollback.
@@ -153,6 +153,42 @@ Successful stderr output does not prove platform ingestion.
 Diagnostic records remain advisory. Confirm saved outcomes from authoritative state.
 An operation fact describes an attempt, not a business-activity count.
 Reading or replaying saved state can emit read facts but produces no new business activity.
+
+### Initialization diagnostics
+
+`StartupFinished` describes serving initialization before the first accepted request.
+Success requires package verification, configuration, schema checks, and a bound listener.
+Provider initialization checks configuration. It does not probe Google or Open Library.
+A startup fact does not establish continuous readiness or future serving success.
+
+`MigrationFinished` describes the explicit migration command.
+Its 120-second limit includes connection establishment, migrations, and pool closure.
+The command retains its original success or failure exit status.
+Diagnostic failure cannot change that status.
+
+Initialization facts contain event identity, outcome, stage, bounded reason, monotonic duration, process-instance ID, and available verified release context.
+They contain no operation or original-action ID.
+Outcomes are `succeeded`, `failed`, and `deadline_exceeded`.
+Stages distinguish configuration, database, package, provider, schema, listener, and completion.
+Reasons distinguish configuration, database, package, provider, schema, listener unavailability, and timeout.
+Successful results use `INFO`. Failed results and deadline expiration use `ERROR`.
+A database error during schema work retains that stage and identifies the database cause.
+Reasons never derive from formatted dependency messages.
+
+The process-instance ID starts with command initialization and continues into normal serving records.
+Release context appears only after package verification succeeds.
+The migration command does not require package assets and omits unverified release context.
+
+Early failures and migration completion use a minimal fallback before normal listeners exist.
+The fallback starts a detached output worker and waits at most 250 milliseconds for its result.
+A blocked worker cannot extend that wait. Output remains best effort.
+Successful serving initialization uses the normal queue.
+A known stopped worker returns the fact before it enters the queue.
+Composition can use the bounded fallback.
+Disconnection during submission also returns the unsent fact.
+An occurrence uses one delivery path. Queue saturation remains a counted drop without a fallback retry.
+Complete output failure or process termination can prevent a record.
+Readiness and shutdown observations remain separate work.
 
 ### Diagnostic delivery loss
 
