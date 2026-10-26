@@ -1,7 +1,11 @@
 //! Privacy allowlist at the application boundary; delivery never blocks business work.
 use std::{
-    io::Write,
-    sync::{Arc, mpsc},
+    io::{self, Write},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        mpsc,
+    },
     time::Instant,
 };
 
@@ -9,8 +13,9 @@ use serde::Serialize;
 
 use crate::actions::ActionId;
 use crate::diagnostic_events::{
-    EventIdentity, OperationFinished, OperationId, OperationKind, OperationOutcome,
-    OperationRecord, OriginalActionId, ProcessInstanceId, Reason, Severity, Stage,
+    DiagnosticLossObserved, DiagnosticLossRecord, EventIdentity, OperationFinished, OperationId,
+    OperationKind, OperationOutcome, OperationRecord, OriginalActionId, ProcessInstanceId, Reason,
+    Severity, Stage, WorkerStatus,
 };
 
 /// Listeners receive only the immutable allowlisted fact.
@@ -18,10 +23,10 @@ pub trait OperationListener: Send + Sync {
     fn observe(&self, fact: OperationFinished);
 }
 
-struct StderrListener(mpsc::SyncSender<Delivery>);
+struct StderrListener(DeliverySender);
 impl OperationListener for StderrListener {
     fn observe(&self, fact: OperationFinished) {
-        let _ = self.0.try_send(Delivery::Operation(operation_record(fact)));
+        self.0.send(Delivery::Operation(operation_record(fact)));
     }
 }
 
@@ -49,9 +54,142 @@ const fn operation_record(fact: OperationFinished) -> OperationRecord {
 
 const QUEUE_CAPACITY: usize = 256;
 
+#[derive(Clone, Serialize)]
+#[serde(untagged)]
 enum Delivery {
     Legacy(Fact),
     Operation(OperationRecord),
+    Loss(DiagnosticLossRecord),
+}
+
+#[derive(Default)]
+struct DeliveryState {
+    queue_drops: AtomicU64,
+    destination_failures: AtomicU64,
+    running: AtomicBool,
+}
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DeliveryHealth {
+    queue_drops: u64,
+    destination_failures: u64,
+    worker_status: WorkerStatus,
+}
+impl DeliveryState {
+    fn increment(counter: &AtomicU64) {
+        let _ = counter.try_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+            Some(value.saturating_add(1))
+        });
+    }
+    fn snapshot(&self) -> DeliveryHealth {
+        DeliveryHealth {
+            queue_drops: self.queue_drops.load(Ordering::Relaxed),
+            destination_failures: self.destination_failures.load(Ordering::Relaxed),
+            worker_status: if self.running.load(Ordering::Acquire) {
+                WorkerStatus::Running
+            } else {
+                WorkerStatus::Stopped
+            },
+        }
+    }
+}
+#[derive(Clone)]
+struct DeliverySender {
+    sender: mpsc::SyncSender<Delivery>,
+    health: Arc<DeliveryState>,
+}
+impl DeliverySender {
+    fn send(&self, record: Delivery) {
+        if let Err(error) = self.sender.try_send(record) {
+            DeliveryState::increment(&self.health.queue_drops);
+            if matches!(error, mpsc::TrySendError::Disconnected(_)) {
+                self.health.running.store(false, Ordering::Release);
+            }
+        }
+    }
+}
+fn channel() -> (DeliverySender, mpsc::Receiver<Delivery>) {
+    let (sender, receiver) = mpsc::sync_channel(QUEUE_CAPACITY);
+    let health = Arc::new(DeliveryState {
+        running: AtomicBool::new(true),
+        ..DeliveryState::default()
+    });
+    (DeliverySender { sender, health }, receiver)
+}
+
+trait Destination {
+    fn write(&mut self, record: &Delivery) -> io::Result<()>;
+}
+struct StderrDestination;
+impl Destination for StderrDestination {
+    fn write(&mut self, record: &Delivery) -> io::Result<()> {
+        let mut encoded = serde_json::to_vec(record).map_err(io::Error::other)?;
+        encoded.push(b'\n');
+        std::io::stderr().write_all(&encoded)
+    }
+}
+struct LossContext {
+    release: String,
+    process_instance: ProcessInstanceId,
+}
+#[derive(Default)]
+struct Reported {
+    queue_drops: u64,
+    destination_failures: u64,
+}
+struct WorkerStatusGuard<'a>(&'a DeliveryState);
+impl Drop for WorkerStatusGuard<'_> {
+    fn drop(&mut self) {
+        self.0.running.store(false, Ordering::Release);
+    }
+}
+fn worker(
+    receiver: mpsc::Receiver<Delivery>,
+    destination: &mut impl Destination,
+    health: &DeliveryState,
+    context: &LossContext,
+) {
+    let _status = WorkerStatusGuard(health);
+    let mut reported = Reported::default();
+    for record in receiver {
+        deliver(&record, destination, health, context, &mut reported);
+    }
+}
+fn deliver(
+    record: &Delivery,
+    destination: &mut impl Destination,
+    health: &DeliveryState,
+    context: &LossContext,
+    reported: &mut Reported,
+) {
+    if destination.write(record).is_err() {
+        DeliveryState::increment(&health.destination_failures);
+        return;
+    }
+    let current = health.snapshot();
+    let queue_drops = current.queue_drops.saturating_sub(reported.queue_drops);
+    let destination_failures = current
+        .destination_failures
+        .saturating_sub(reported.destination_failures);
+    if queue_drops == 0 && destination_failures == 0 {
+        return;
+    }
+    let summary = Delivery::Loss(DiagnosticLossRecord {
+        severity: Severity::Warn,
+        fact: DiagnosticLossObserved {
+            event: EventIdentity::DiagnosticLossObserved,
+            queue_drops,
+            destination_failures,
+            worker_status: current.worker_status,
+            release: context.release.clone(),
+            process_instance: context.process_instance,
+        },
+    });
+    if destination.write(&summary).is_ok() {
+        reported.queue_drops = current.queue_drops;
+        reported.destination_failures = current.destination_failures;
+    } else {
+        DeliveryState::increment(&health.destination_failures);
+    }
 }
 
 #[derive(Clone, Copy, Serialize)]
@@ -68,7 +206,7 @@ pub enum Outcome {
     Unconfirmed,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 struct Fact {
     category: Category,
     outcome: Outcome,
@@ -79,7 +217,7 @@ struct Fact {
 }
 
 pub struct Diagnostics {
-    sender: mpsc::SyncSender<Delivery>,
+    sender: DeliverySender,
     release: String,
     process_instance: ProcessInstanceId,
     listener: Arc<dyn OperationListener>,
@@ -87,31 +225,25 @@ pub struct Diagnostics {
 
 impl Diagnostics {
     pub fn start(release: String) -> Self {
-        let (sender, receiver) = mpsc::sync_channel::<Delivery>(QUEUE_CAPACITY);
-        // A blocked or broken diagnostic destination cannot hold a request or
-        // shutdown open. The bounded queue may drop records; history is authoritative.
-        let _ = std::thread::Builder::new()
+        let (sender, receiver) = channel();
+        let process_instance = ProcessInstanceId::fresh();
+        let context = LossContext {
+            release: release.clone(),
+            process_instance,
+        };
+        let health = sender.health.clone();
+        if std::thread::Builder::new()
             .name("book-smartz-diagnostics".into())
-            .spawn(move || {
-                for delivery in receiver {
-                    let record = match delivery {
-                        Delivery::Legacy(fact) => serde_json::to_vec(&fact),
-                        Delivery::Operation(record) => serde_json::to_vec(&record),
-                    };
-                    let Ok(mut record) = record else {
-                        continue;
-                    };
-                    record.push(b'\n');
-                    if std::io::stderr().write_all(&record).is_err() {
-                        break;
-                    }
-                }
-            });
+            .spawn(move || worker(receiver, &mut StderrDestination, &health, &context))
+            .is_err()
+        {
+            sender.health.running.store(false, Ordering::Release);
+        }
         Self {
             listener: Arc::new(StderrListener(sender.clone())),
             sender,
             release,
-            process_instance: ProcessInstanceId::fresh(),
+            process_instance,
         }
     }
 
@@ -122,7 +254,7 @@ impl Diagnostics {
         started: Instant,
         action: Option<ActionId>,
     ) {
-        let _ = self.sender.try_send(Delivery::Legacy(Fact {
+        self.sender.send(Delivery::Legacy(Fact {
             category,
             outcome,
             duration_ms: started.elapsed().as_secs_f64() * 1000.0,
@@ -281,7 +413,7 @@ mod tests {
         }
     }
     fn capture() -> (Diagnostics, Arc<Capture>) {
-        let (sender, _) = mpsc::sync_channel(QUEUE_CAPACITY);
+        let (sender, _) = super::channel();
         let listener = Arc::new(Capture::default());
         (
             Diagnostics {
@@ -532,7 +664,7 @@ mod tests {
             ),
         ] {
             let event = fact(outcome, reason);
-            let (sender, receiver) = mpsc::sync_channel(QUEUE_CAPACITY);
+            let (sender, receiver) = super::channel();
             StderrListener(sender).observe(event.clone());
             let Delivery::Operation(record) = receiver.try_recv().unwrap() else {
                 panic!("The operation listener emitted a legacy record.");
@@ -544,7 +676,7 @@ mod tests {
 
     #[googletest::test]
     fn full_or_closed_destination_never_blocks_a_producer() -> anyhow::Result<()> {
-        let (sender, receiver) = mpsc::sync_channel(QUEUE_CAPACITY);
+        let (sender, receiver) = super::channel();
         let listener = StderrListener(sender);
         let (completed, completion) = mpsc::channel();
         let task = std::thread::spawn(move || {
@@ -563,9 +695,187 @@ mod tests {
                 .all(|record| matches!(record, Delivery::Operation(_))),
             eq(true)
         );
-        let (sender, receiver) = mpsc::sync_channel(QUEUE_CAPACITY);
+        let (sender, receiver) = super::channel();
         drop(receiver);
         StderrListener(sender).observe(fact(OperationOutcome::Confirmed, Reason::None));
         Ok(())
+    }
+    #[derive(Default)]
+    struct ScriptDestination {
+        decisions: std::collections::VecDeque<bool>,
+        attempts: Vec<Delivery>,
+        successes: Vec<Delivery>,
+    }
+    impl super::Destination for ScriptDestination {
+        fn write(&mut self, record: &Delivery) -> std::io::Result<()> {
+            self.attempts.push(record.clone());
+            if !self.decisions.pop_front().unwrap_or(true) {
+                return Err(std::io::Error::other("controlled destination failure"));
+            }
+            self.successes.push(record.clone());
+            Ok(())
+        }
+    }
+    fn loss_context() -> super::LossContext {
+        super::LossContext {
+            release: "c".repeat(64),
+            process_instance: ProcessInstanceId::fresh(),
+        }
+    }
+
+    #[googletest::test]
+    fn failures_remain_pending_until_a_new_record_and_summary_succeed() {
+        let (sender, receiver) = super::channel();
+        let health = sender.health.clone();
+        let events: [_; 3] =
+            std::array::from_fn(|_| fact(OperationOutcome::Confirmed, Reason::None));
+        let listener = StderrListener(sender);
+        for event in &events {
+            listener.observe(event.clone());
+        }
+        drop(listener);
+        let mut destination = ScriptDestination {
+            decisions: [false, true, false, true, true].into(),
+            ..ScriptDestination::default()
+        };
+        let context = loss_context();
+        super::worker(receiver, &mut destination, &health, &context);
+        assert_that!(destination.attempts.len(), eq(5));
+        assert_that!(destination.successes.len(), eq(3));
+        for (index, expected) in [events[1].clone(), events[2].clone()].iter().enumerate() {
+            let Delivery::Operation(record) = &destination.successes[index] else {
+                panic!("The successful operation is absent.")
+            };
+            assert_that!(&record.fact, eq(expected));
+        }
+        let Delivery::Loss(record) = &destination.successes[2] else {
+            panic!("The loss summary is absent.")
+        };
+        assert_that!(record.fact.event, eq(EventIdentity::DiagnosticLossObserved));
+        assert_that!(record.fact.queue_drops, eq(0));
+        assert_that!(record.fact.destination_failures, eq(2));
+        assert_that!(
+            record.fact.worker_status,
+            eq(crate::diagnostic_events::WorkerStatus::Running)
+        );
+        assert_that!(record.severity, eq(Severity::Warn));
+        assert_that!(&record.fact.release, eq(&context.release));
+        assert_that!(record.fact.process_instance, eq(context.process_instance));
+        assert_that!(health.snapshot().destination_failures, eq(2));
+        assert_that!(
+            health.snapshot().worker_status,
+            eq(crate::diagnostic_events::WorkerStatus::Stopped)
+        );
+    }
+
+    #[googletest::test]
+    fn complete_output_failure_does_not_report_recursively_or_retry() {
+        let (sender, receiver) = super::channel();
+        let health = sender.health.clone();
+        let listener = StderrListener(sender);
+        for _ in 0..3 {
+            listener.observe(fact(OperationOutcome::Confirmed, Reason::None));
+        }
+        drop(listener);
+        let mut destination = ScriptDestination {
+            decisions: [false, false, false].into(),
+            ..ScriptDestination::default()
+        };
+        super::worker(receiver, &mut destination, &health, &loss_context());
+        assert_that!(destination.attempts.len(), eq(3));
+        assert_that!(destination.successes.is_empty(), eq(true));
+        assert_that!(health.snapshot().destination_failures, eq(3));
+        assert_that!(health.snapshot().queue_drops, eq(0));
+        assert_that!(
+            health.snapshot().worker_status,
+            eq(crate::diagnostic_events::WorkerStatus::Stopped)
+        );
+    }
+
+    struct DuringSummary {
+        producer: Option<super::DeliverySender>,
+        accepted: OperationFinished,
+        discarded: OperationFinished,
+        records: Vec<Delivery>,
+    }
+    impl super::Destination for DuringSummary {
+        fn write(&mut self, record: &Delivery) -> std::io::Result<()> {
+            if matches!(record, Delivery::Loss(_))
+                && let Some(producer) = self.producer.take()
+            {
+                producer.send(Delivery::Operation(super::operation_record(
+                    self.accepted.clone(),
+                )));
+                producer.send(Delivery::Operation(super::operation_record(
+                    self.discarded.clone(),
+                )));
+            }
+            self.records.push(record.clone());
+            Ok(())
+        }
+    }
+
+    #[googletest::test]
+    fn saturation_and_drops_during_summary_delivery_remain_visible() {
+        let (sender, receiver) = super::channel();
+        let health = sender.health.clone();
+        for _ in 0..256 {
+            sender.send(Delivery::Operation(super::operation_record(fact(
+                OperationOutcome::Confirmed,
+                Reason::None,
+            ))));
+        }
+        let discarded = fact(OperationOutcome::Confirmed, Reason::None);
+        sender.send(Delivery::Operation(super::operation_record(
+            discarded.clone(),
+        )));
+        assert_that!(health.snapshot().queue_drops, eq(1));
+        let mut destination = DuringSummary {
+            producer: Some(sender.clone()),
+            accepted: fact(OperationOutcome::Confirmed, Reason::None),
+            discarded: fact(OperationOutcome::Confirmed, Reason::None),
+            records: Vec::new(),
+        };
+        drop(sender);
+        super::worker(receiver, &mut destination, &health, &loss_context());
+        let operations: Vec<_> = destination
+            .records
+            .iter()
+            .filter_map(|record| {
+                if let Delivery::Operation(record) = record {
+                    Some(&record.fact)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        let summaries: Vec<_> = destination
+            .records
+            .iter()
+            .filter_map(|record| {
+                if let Delivery::Loss(record) = record {
+                    Some(&record.fact)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_that!(operations.len(), eq(257));
+        assert_that!(
+            operations
+                .iter()
+                .any(|record| record.operation_id == discarded.operation_id
+                    || record.operation_id == destination.discarded.operation_id),
+            eq(false)
+        );
+        assert_that!(summaries.len(), eq(2));
+        assert_that!(summaries[0].queue_drops, eq(1));
+        assert_that!(summaries[1].queue_drops, eq(1));
+        assert_that!(health.snapshot().queue_drops, eq(2));
+        assert_that!(health.snapshot().destination_failures, eq(0));
+        assert_that!(
+            health.snapshot().worker_status,
+            eq(crate::diagnostic_events::WorkerStatus::Stopped)
+        );
     }
 }

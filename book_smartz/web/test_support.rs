@@ -241,6 +241,25 @@ impl Fixture {
         )?;
         self.wait().await
     }
+    #[allow(dead_code, reason = "Used by stalled diagnostic acceptance.")]
+    pub async fn stall_diagnostic_delivery(
+        &mut self,
+    ) -> anyhow::Result<std::os::unix::net::UnixStream> {
+        self.process.0.kill()?;
+        self.process.0.wait()?;
+        let (reader, writer) = std::os::unix::net::UnixStream::pair()?;
+        let writer = std::fs::File::from(std::os::fd::OwnedFd::from(writer));
+        self.process = Self::spawn(
+            &self.package,
+            &self.cwd,
+            &self.database,
+            self.port,
+            &self.provider,
+            &writer,
+        )?;
+        self.wait().await?;
+        Ok(reader)
+    }
     #[allow(dead_code, reason = "Used by diagnostic composition acceptance.")]
     pub async fn diagnostic(&self, category: &str, outcome: &str) -> anyhow::Result<Value> {
         tokio::time::timeout(Duration::from_secs(5), async {

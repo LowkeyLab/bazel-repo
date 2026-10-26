@@ -154,6 +154,35 @@ Diagnostic records remain advisory. Confirm saved outcomes from authoritative st
 An operation fact describes an attempt, not a business-activity count.
 Reading or replaying saved state can emit read facts but produces no new business activity.
 
+### Diagnostic delivery loss
+
+The worker retains process-local lifetime counts for queue drops and destination failures.
+A full or closed queue increments `queue_drops` and discards that record.
+A failed output attempt increments `destination_failures`, including a failed summary attempt.
+Failed records never return to the queue.
+Counters saturate at the maximum unsigned 64-bit value and reset with the process.
+Their dimensions contain no reader or action identifiers.
+
+After a new record reaches stderr, the worker can emit a `DiagnosticLossObserved` summary at `WARN` severity.
+The summary reports pending loss since the last successful summary.
+Reported totals advance only after summary output succeeds.
+Loss that occurs during summary delivery remains pending for a later successful record.
+The summary neither restores discarded records nor retries their delivery.
+There is at most one summary attempt per newly delivered record.
+
+Summary fields are event identity, queue drops, destination failures, worker status, release, and process-instance ID.
+A summary has no operation ID, original-action ID, or operation duration.
+The worker status is `running` while its thread remains active and `stopped` after it ends or cannot start.
+A running worker can still wait on blocked output.
+Worker status does not establish destination progress or platform ingestion.
+
+A failed summary does not trigger another output attempt through the failed path.
+Only another successfully delivered record can trigger a new summary with accumulated counts.
+Complete stderr failure can leave no visible indication in the app.
+Process exit can lose buffered records, counters, and pending summaries.
+These counters do not alter readiness or authoritative history.
+They add no endpoint, local control socket, exporter, or maintainer authentication mechanism.
+
 Configure and verify the destination's retention against the seven-day target.
 Record actual access and retention settings during launch. Local code can't
 verify Railway policy. Authoritative app/ranking history remains in

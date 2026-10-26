@@ -24,6 +24,7 @@ impl ProcessInstanceId {
 #[serde(rename_all = "snake_case")]
 pub enum EventIdentity {
     OperationFinished,
+    DiagnosticLossObserved,
 }
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -123,4 +124,29 @@ pub struct OperationFinished {
 pub struct OperationRecord {
     pub severity: Severity,
     pub fact: OperationFinished,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkerStatus {
+    Running,
+    Stopped,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiagnosticLossObserved {
+    pub event: EventIdentity,
+    pub queue_drops: u64,
+    pub destination_failures: u64,
+    pub worker_status: WorkerStatus,
+    pub release: String,
+    pub process_instance: ProcessInstanceId,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DiagnosticLossRecord {
+    pub severity: Severity,
+    pub fact: DiagnosticLossObserved,
 }

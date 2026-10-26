@@ -94,3 +94,16 @@ app events and ranking documents:
 These tests use no database, provider, lock, or retry adapter. Their observations
 can't authorize a retry. Single-action recovery orchestration remains in
 `actions.rs` for the separate follow-up #2386.
+
+## Diagnostic delivery acceptance
+
+Structured worker checks cover full and closed queues, failed output, failed summaries, and later recovery.
+A drop during summary delivery remains pending for the next successful record.
+Failed records do not return as retries.
+Lifetime counts remain available after successful summaries, and worker exit retains the stopped status.
+
+The packaged HTTP stalled-output case uses an unnamed stream only as a controlled stderr destination.
+Ranking requests complete while output remains blocked.
+After capture resumes, structured operation records and loss summaries account for the attempts without duplicate operation IDs.
+This test adapter adds no production access surface.
+These checks do not establish platform ingestion or durable diagnostic delivery.
