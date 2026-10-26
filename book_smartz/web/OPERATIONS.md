@@ -57,21 +57,23 @@ bounded reason, duration, release, process-instance ID, operation ID, and option
 The stderr record contains `fact` and `severity`.
 These catalog, identity, and read operations have no original-action ID.
 Mutations include the existing original-action ID after authorization and offer validation.
+Original-save checks retain the submitted original-action ID after authorization and cross-site request forgery validation.
 The ID does not identify the reader or contain action contents.
 Mutation and original-save paths also retain existing persistence records.
-Separate typed original-save observations remain pending.
+Original-save checks use the same typed boundary.
 
-| Operation kind   | Confirmed meaning                                                    |
-| ---------------- | -------------------------------------------------------------------- |
-| `catalog_search` | The app prepared search results and selections                       |
-| `sign_in_start`  | The app stored the challenge and prepared the redirect               |
-| `sign_in`        | Account and session persistence received a commit acknowledgement    |
-| `sign_out`       | Revocation received an acknowledgement and session cleanup completed |
-| `ranking_read`   | The app loaded saved-ranking data and display metadata               |
-| `add`            | The original Add has complete saved evidence                         |
-| `preference`     | The original preference has complete saved evidence                  |
-| `pause`          | The original Pause has complete saved evidence                       |
-| `resume`         | The original Resume has complete saved evidence                      |
+| Operation kind        | Confirmed meaning                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| `catalog_search`      | The app prepared search results and selections                                             |
+| `sign_in_start`       | The app stored the challenge and prepared the redirect                                     |
+| `sign_in`             | Account and session persistence received a commit acknowledgement                          |
+| `sign_out`            | Revocation received an acknowledgement and session cleanup completed                       |
+| `ranking_read`        | The app loaded saved-ranking data and display metadata                                     |
+| `add`                 | The original Add has complete saved evidence                                               |
+| `preference`          | The original preference has complete saved evidence                                        |
+| `pause`               | The original Pause has complete saved evidence                                             |
+| `resume`              | The original Resume has complete saved evidence                                            |
+| `original_save_check` | The original save received an acknowledgement, or the app verified complete saved evidence |
 
 A confirmed `sign_in_start` does not mean that the reader signed in.
 Each endpoint attempt has its own operation ID.
@@ -83,6 +85,13 @@ A new save requires a commit acknowledgement.
 A duplicate attempt can confirm complete retained evidence with reason `existing_saved`.
 That result does not count as another save.
 Each duplicate attempt has a new operation ID and retains the original-action ID.
+An `original_save_check` with reason `none` confirms a newly acknowledged original save.
+Reason `existing_saved` identifies complete retained evidence without another save.
+Rejected original-save checks with reason `action_rejected` identify an authoritative rejection for the original action.
+An invalid or unknown action uses `invalid_input` instead.
+Unresolved checks retain uncertainty and keep the original-action identity stable.
+Each attempt receives a new operation ID.
+
 Legacy persistence records still describe newly acknowledged effects.
 Mutation terminal facts describe attempts and do not replace authoritative action evidence.
 

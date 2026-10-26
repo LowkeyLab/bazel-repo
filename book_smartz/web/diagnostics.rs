@@ -355,12 +355,13 @@ mod tests {
 
     #[googletest::test]
     #[tokio::test]
-    async fn cancelled_mutation_preserves_uncertain_original_action() -> anyhow::Result<()> {
+    async fn cancelled_operation_preserves_uncertain_original_action() -> anyhow::Result<()> {
         for kind in [
             OperationKind::Add,
             OperationKind::Preference,
             OperationKind::Pause,
             OperationKind::Resume,
+            OperationKind::OriginalSaveCheck,
         ] {
             let (diagnostics, capture) = capture();
             let action = crate::diagnostic_events::OriginalActionId::from(uuid::Uuid::new_v4());

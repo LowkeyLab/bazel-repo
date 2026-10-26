@@ -205,7 +205,7 @@ async fn fact(
     Ok(())
 }
 
-async fn authorize_mutation(
+async fn authorize_action(
     cx: &Cx,
     csrf: &str,
     diagnostic: &mut Operation,
@@ -222,7 +222,7 @@ async fn authorize_mutation(
 pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
     let app: &Application = app_context(cx);
     let mut diagnostic = app.diagnostics.operation(OperationKind::Add);
-    let session = authorize_mutation(cx, &input.csrf, &mut diagnostic).await?;
+    let session = authorize_action(cx, &input.csrf, &mut diagnostic).await?;
     let started = std::time::Instant::now();
     app.catalog
         .verify_offer(
@@ -339,7 +339,7 @@ async fn submit_ranking_command(
         diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
         return Err(forbidden().into());
     }
-    let session = authorize_mutation(cx, &input.csrf, &mut diagnostic).await?;
+    let session = authorize_action(cx, &input.csrf, &mut diagnostic).await?;
     let started = std::time::Instant::now();
     let answer = Preference {
         candidate: input.candidate,
@@ -430,9 +430,13 @@ async fn submit_ranking_command(
 }
 #[page(POST "/recover")]
 pub async fn recover(cx: &Cx, Form(input): Form<RecoveryInput>) -> Result<impl View> {
-    let session = authorize(cx).await?;
-    crate::require_post(cx, &session, &input.csrf)?;
-    finish(cx, &session, input.action, true, None).await
+    let app: &Application = app_context(cx);
+    let mut diagnostic = app.diagnostics.operation(OperationKind::OriginalSaveCheck);
+    let session = authorize_action(cx, &input.csrf, &mut diagnostic).await?;
+    diagnostic.original_action(input.action.0.into());
+    diagnostic.stage(Stage::Persistence);
+    diagnostic.persistence_started();
+    finish(cx, &session, input.action, true, Some(&mut diagnostic)).await
 }
 struct RecoveryActions {
     csrf: String,

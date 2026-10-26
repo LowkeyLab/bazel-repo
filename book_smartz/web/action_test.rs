@@ -88,7 +88,7 @@ fn value<'a>(values: &'a [(String, String)], key: &str) -> &'a str {
     &values.iter().find(|(k, _)| k == key).unwrap().1
 }
 
-async fn mutation_record(
+async fn operation_record(
     app: &Fixture,
     kind: crate::diagnostic_events::OperationKind,
     index: usize,
@@ -109,7 +109,7 @@ async fn mutation_record(
         }
     })
     .await
-    .map_err(|_| anyhow::anyhow!("Typed mutation operation record is absent."))?
+    .map_err(|_| anyhow::anyhow!("Typed operation record is absent."))?
 }
 
 async fn assert_lost_acknowledgement_fact(
@@ -118,7 +118,7 @@ async fn assert_lost_acknowledgement_fact(
     values: &[(String, String)],
 ) -> anyhow::Result<()> {
     use crate::diagnostic_events::{OperationOutcome, OriginalActionId, Reason, Severity, Stage};
-    let record = mutation_record(app, kind, 0).await?;
+    let record = operation_record(app, kind, 0).await?;
     assert_that!(
         record.fact.outcome,
         eq(OperationOutcome::UncertainPersistence)
@@ -159,7 +159,7 @@ async fn add_facts_distinguish_acknowledged_save_from_duplicate_attempt() -> any
             .as_u16(),
         eq(303)
     );
-    let saved = mutation_record(&app, OperationKind::Add, 0).await?;
+    let saved = operation_record(&app, OperationKind::Add, 0).await?;
     assert_that!(saved.fact.outcome, eq(OperationOutcome::Confirmed));
     assert_that!(saved.fact.stage, eq(Stage::Persistence));
     assert_that!(saved.fact.reason, eq(Reason::None));
@@ -180,7 +180,7 @@ async fn add_facts_distinguish_acknowledged_save_from_duplicate_attempt() -> any
             .as_u16(),
         eq(303)
     );
-    let duplicate = mutation_record(&app, OperationKind::Add, 1).await?;
+    let duplicate = operation_record(&app, OperationKind::Add, 1).await?;
     assert_that!(duplicate.fact.outcome, eq(OperationOutcome::Confirmed));
     assert_that!(duplicate.fact.reason, eq(Reason::ExistingSaved));
     assert_that!(
@@ -231,7 +231,7 @@ async fn placement_facts_distinguish_pause_resume_preference_and_rejected_input(
                 .as_u16(),
             eq(403)
         );
-        let rejected = mutation_record(&app, kind, 0).await?;
+        let rejected = operation_record(&app, kind, 0).await?;
         assert_that!(rejected.fact.outcome, eq(OperationOutcome::Rejected));
         assert_that!(rejected.fact.reason, eq(Reason::InvalidInput));
         assert_that!(rejected.fact.original_action_id, eq(None));
@@ -240,7 +240,7 @@ async fn placement_facts_distinguish_pause_resume_preference_and_rejected_input(
             post(&app, &cookie, route, &values).await?.status().as_u16(),
             eq(303)
         );
-        let saved = mutation_record(&app, kind, 1).await?;
+        let saved = operation_record(&app, kind, 1).await?;
         assert_that!(saved.fact.outcome, eq(OperationOutcome::Confirmed));
         assert_that!(saved.fact.reason, eq(Reason::None));
         assert_that!(saved.fact.stage, eq(Stage::Persistence));
@@ -290,7 +290,7 @@ async fn mutation_facts_preserve_known_failures_and_unresolved_original_saves() 
             .as_u16(),
         eq(500)
     );
-    let failed = mutation_record(&app, OperationKind::Add, 0).await?;
+    let failed = operation_record(&app, OperationKind::Add, 0).await?;
     assert_that!(failed.fact.outcome, eq(OperationOutcome::DependencyFailure));
     assert_that!(failed.fact.reason, eq(Reason::Database));
     assert_that!(failed.fact.stage, eq(Stage::Persistence));
@@ -308,7 +308,7 @@ async fn mutation_facts_preserve_known_failures_and_unresolved_original_saves() 
             .as_u16(),
         eq(200)
     );
-    let unresolved = mutation_record(&app, OperationKind::Add, 1).await?;
+    let unresolved = operation_record(&app, OperationKind::Add, 1).await?;
     assert_that!(
         unresolved.fact.outcome,
         eq(OperationOutcome::UncertainPersistence)
@@ -333,7 +333,7 @@ async fn mutation_facts_preserve_known_failures_and_unresolved_original_saves() 
             .as_u16(),
         eq(303)
     );
-    let saved = mutation_record(&app, OperationKind::Add, 2).await?;
+    let saved = operation_record(&app, OperationKind::Add, 2).await?;
     assert_that!(saved.fact.outcome, eq(OperationOutcome::Confirmed));
     assert_that!(saved.fact.reason, eq(Reason::None));
     assert_that!(saved.fact.original_action_id, eq(action));
@@ -355,7 +355,7 @@ async fn mutation_facts_preserve_known_failures_and_unresolved_original_saves() 
             .as_u16(),
         eq(200)
     );
-    let rejected = mutation_record(&app, OperationKind::Add, 3).await?;
+    let rejected = operation_record(&app, OperationKind::Add, 3).await?;
     assert_that!(rejected.fact.outcome, eq(OperationOutcome::Rejected));
     assert_that!(rejected.fact.reason, eq(Reason::ActionRejected));
     assert_that!(rejected.severity, eq(Severity::Info));
@@ -403,7 +403,7 @@ async fn mutation_schema_failure_preserves_history_and_allows_a_restored_control
             response.text().await?.as_str(),
             contains_substring("Checking")
         );
-        let failure = mutation_record(&app, kind, 0).await?;
+        let failure = operation_record(&app, kind, 0).await?;
         assert_that!(
             failure.fact.outcome,
             eq(OperationOutcome::DependencyFailure)
@@ -431,7 +431,7 @@ async fn mutation_schema_failure_preserves_history_and_allows_a_restored_control
             post(&app, &cookie, route, &values).await?.status().as_u16(),
             eq(303)
         );
-        let restored = mutation_record(&app, kind, 1).await?;
+        let restored = operation_record(&app, kind, 1).await?;
         assert_that!(restored.fact.outcome, eq(OperationOutcome::Confirmed));
         assert_that!(restored.fact.reason, eq(Reason::None));
         assert_that!(
@@ -446,6 +446,296 @@ async fn mutation_schema_failure_preserves_history_and_allows_a_restored_control
             store(&app).load_ranking_documents(id).await?.len(),
             eq(ranking.len() + 1)
         );
+    }
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn original_save_check_reports_unresolved_fresh_and_existing_results() -> anyhow::Result<()> {
+    use crate::diagnostic_events::{
+        OperationKind, OperationOutcome, OriginalActionId, Reason, Severity, Stage,
+    };
+    let app = Fixture::new().await?;
+    let cookie = app.login("original-check-reader").await?;
+    let id = reader(&app, "original-check-reader").await?;
+    let values = offer(
+        &app,
+        &cookie,
+        id,
+        work("OL996W", "Private original title"),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    reject_ranking(&app).await?;
+    assert_that!(
+        post(&app, &cookie, "/add", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(200)
+    );
+    let frozen = store(&app).load_application_history(id).await?;
+    assert_that!(frozen.len(), eq(3));
+    assert_that!(store(&app).load_ranking_documents(id).await?.len(), eq(0));
+    let action = Some(OriginalActionId::from(Uuid::parse_str(value(
+        &values, "action",
+    ))?));
+    let recovery = vec![
+        ("csrf".into(), value(&values, "csrf").into()),
+        ("action".into(), value(&values, "action").into()),
+    ];
+    assert_that!(
+        post(&app, &cookie, "/recover", &recovery)
+            .await?
+            .status()
+            .as_u16(),
+        eq(200)
+    );
+    let unresolved = operation_record(&app, OperationKind::OriginalSaveCheck, 0).await?;
+    assert_that!(
+        unresolved.fact.outcome,
+        eq(OperationOutcome::UncertainPersistence)
+    );
+    assert_that!(unresolved.fact.reason, eq(Reason::Database));
+    assert_that!(unresolved.fact.stage, eq(Stage::Persistence));
+    assert_that!(unresolved.fact.original_action_id, eq(action));
+    assert_that!(unresolved.severity, eq(Severity::Error));
+    assert_that!(store(&app).load_application_history(id).await?, eq(&frozen));
+    assert_that!(store(&app).load_ranking_documents(id).await?.len(), eq(0));
+    let blocked = offer(
+        &app,
+        &cookie,
+        id,
+        work("OL997W", "Blocked private title"),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    assert_that!(
+        post(&app, &cookie, "/add", &blocked)
+            .await?
+            .status()
+            .as_u16(),
+        eq(200)
+    );
+    assert_that!(store(&app).load_application_history(id).await?, eq(&frozen));
+    sqlx::query("DROP TRIGGER reject_web_ranking ON book_smartz.ranking_events")
+        .execute(&app.pool)
+        .await?;
+    assert_that!(
+        post(&app, &cookie, "/recover", &recovery)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let fresh = operation_record(&app, OperationKind::OriginalSaveCheck, 1).await?;
+    assert_that!(fresh.fact.outcome, eq(OperationOutcome::Confirmed));
+    assert_that!(fresh.fact.reason, eq(Reason::None));
+    assert_that!(fresh.fact.original_action_id, eq(action));
+    assert_that!(fresh.severity, eq(Severity::Info));
+    let saved = store(&app).load_ranking_documents(id).await?;
+    assert_that!(saved.len(), eq(1));
+    assert_that!(store(&app).load_application_history(id).await?, eq(&frozen));
+    let expected = &frozen.last().unwrap().envelope()["data"]["document"];
+    assert_that!(
+        serde_json::from_str::<Value>(&book_smartz_domain::encode_document(&saved[0])?)?,
+        eq(expected)
+    );
+    assert_that!(
+        post(&app, &cookie, "/recover", &recovery)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let existing = operation_record(&app, OperationKind::OriginalSaveCheck, 2).await?;
+    assert_that!(existing.fact.outcome, eq(OperationOutcome::Confirmed));
+    assert_that!(existing.fact.reason, eq(Reason::ExistingSaved));
+    assert_that!(existing.fact.original_action_id, eq(action));
+    assert_that!(
+        existing.fact.operation_id == fresh.fact.operation_id,
+        eq(false)
+    );
+    assert_that!(
+        fresh.fact.operation_id == unresolved.fact.operation_id,
+        eq(false)
+    );
+    assert_that!(store(&app).load_application_history(id).await?, eq(&frozen));
+    assert_that!(store(&app).load_ranking_documents(id).await?, eq(&saved));
+    assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
+    assert_that!(store(&app).load_application_history(id).await?, eq(&frozen));
+    assert_that!(store(&app).load_ranking_documents(id).await?, eq(&saved));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn original_save_check_reports_existing_rejection_and_missing_action() -> anyhow::Result<()> {
+    use crate::diagnostic_events::{
+        OperationKind, OperationOutcome, OriginalActionId, Reason, Severity,
+    };
+    let app = Fixture::new().await?;
+    let cookie = app.login("rejected-original-reader").await?;
+    let id = reader(&app, "rejected-original-reader").await?;
+    add_work(&app, &cookie, id, "OL990W", "Already ranked").await?;
+    let values = offer(
+        &app,
+        &cookie,
+        id,
+        work("OL990W", "Already ranked"),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    assert_that!(
+        post(&app, &cookie, "/add", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(200)
+    );
+    let history = store(&app).load_application_history(id).await?;
+    let ranking = store(&app).load_ranking_documents(id).await?;
+    let recovery = vec![
+        ("csrf".into(), value(&values, "csrf").into()),
+        ("action".into(), value(&values, "action").into()),
+    ];
+    let mut previous = None;
+    for index in 0..2 {
+        assert_that!(
+            post(&app, &cookie, "/recover", &recovery)
+                .await?
+                .status()
+                .as_u16(),
+            eq(200)
+        );
+        let rejected = operation_record(&app, OperationKind::OriginalSaveCheck, index).await?;
+        assert_that!(rejected.fact.outcome, eq(OperationOutcome::Rejected));
+        assert_that!(rejected.fact.reason, eq(Reason::ActionRejected));
+        assert_that!(rejected.severity, eq(Severity::Info));
+        assert_that!(
+            rejected.fact.original_action_id,
+            eq(Some(OriginalActionId::from(Uuid::parse_str(value(
+                &values, "action"
+            ))?)))
+        );
+        assert_that!(Some(rejected.fact.operation_id) == previous, eq(false));
+        previous = Some(rejected.fact.operation_id);
+    }
+    let missing = vec![
+        ("csrf".into(), value(&values, "csrf").into()),
+        ("action".into(), Uuid::new_v4().to_string()),
+    ];
+    assert_that!(
+        post(&app, &cookie, "/recover", &missing)
+            .await?
+            .status()
+            .as_u16(),
+        eq(403)
+    );
+    let absent = operation_record(&app, OperationKind::OriginalSaveCheck, 2).await?;
+    assert_that!(absent.fact.outcome, eq(OperationOutcome::Rejected));
+    assert_that!(absent.fact.reason, eq(Reason::InvalidInput));
+    assert_that!(
+        store(&app).load_application_history(id).await?,
+        eq(&history)
+    );
+    assert_that!(store(&app).load_ranking_documents(id).await?, eq(&ranking));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn original_save_check_lost_acknowledgement_and_cancellation_preserve_one_original()
+-> anyhow::Result<()> {
+    use crate::diagnostic_events::{OperationKind, OperationOutcome, OriginalActionId, Reason};
+    for cancel in [false, true] {
+        let mut app = Fixture::new().await?;
+        let cookie = app.login("original-check-ack-reader").await?;
+        let id = reader(&app, "original-check-ack-reader").await?;
+        let values = offer(
+            &app,
+            &cookie,
+            id,
+            work("OL989W", "Frozen original"),
+            chrono::Utc::now().timestamp() + 900,
+        )
+        .await?;
+        reject_ranking(&app).await?;
+        assert_that!(
+            post(&app, &cookie, "/add", &values)
+                .await?
+                .status()
+                .as_u16(),
+            eq(200)
+        );
+        let frozen = store(&app).load_application_history(id).await?;
+        sqlx::query("DROP TRIGGER reject_web_ranking ON book_smartz.ranking_events")
+            .execute(&app.pool)
+            .await?;
+        let recovery = vec![
+            ("csrf".into(), value(&values, "csrf").into()),
+            ("action".into(), value(&values, "action").into()),
+        ];
+        let direct = app.database.clone();
+        let proxy = commit_proxy::CommitProxy::new(&app.pool, id).await?;
+        app.database = proxy.database(&direct)?;
+        app.restart().await?;
+        let client = app.client.clone();
+        let target = format!("{}/recover", app.base);
+        let auth = cookie.clone();
+        let body = url::form_urlencoded::Serializer::new(String::new())
+            .extend_pairs(recovery.iter().map(|(k, v)| (k, v)))
+            .finish();
+        let request = tokio::spawn(async move {
+            client
+                .post(target)
+                .header("cookie", auth)
+                .header("origin", "https://reader.example")
+                .header("content-type", "application/x-www-form-urlencoded")
+                .body(body)
+                .send()
+                .await
+        });
+        proxy.commit_reached().await?;
+        let saved = store(&app).load_ranking_documents(id).await?;
+        assert_that!(saved.len(), eq(1));
+        assert_that!(
+            serde_json::from_str::<Value>(&book_smartz_domain::encode_document(&saved[0])?)?,
+            eq(&frozen.last().unwrap().envelope()["data"]["document"])
+        );
+        if cancel {
+            request.abort();
+            app.process.0.kill()?;
+            app.process.0.wait()?;
+            proxy.disconnect();
+        } else {
+            proxy.disconnect();
+            assert_that!(request.await??.status().as_u16(), eq(200));
+            assert_lost_acknowledgement_fact(&app, OperationKind::OriginalSaveCheck, &recovery)
+                .await?;
+        }
+        app.database = direct;
+        app.restart().await?;
+        assert_that!(
+            post(&app, &cookie, "/recover", &recovery)
+                .await?
+                .status()
+                .as_u16(),
+            eq(303)
+        );
+        let existing =
+            operation_record(&app, OperationKind::OriginalSaveCheck, usize::from(!cancel)).await?;
+        assert_that!(existing.fact.outcome, eq(OperationOutcome::Confirmed));
+        assert_that!(existing.fact.reason, eq(Reason::ExistingSaved));
+        assert_that!(
+            existing.fact.original_action_id,
+            eq(Some(OriginalActionId::from(Uuid::parse_str(value(
+                &values, "action"
+            ))?)))
+        );
+        assert_that!(store(&app).load_application_history(id).await?, eq(&frozen));
+        assert_that!(store(&app).load_ranking_documents(id).await?, eq(&saved));
     }
     Ok(())
 }
@@ -1851,6 +2141,23 @@ async fn private_diagnostics_confirm_new_commits_without_replaying_activity() ->
             .as_u16(),
         eq(303)
     );
+    assert_that!(
+        post(&app, &cookie, "/recover", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let checked = operation_record(
+        &app,
+        crate::diagnostic_events::OperationKind::OriginalSaveCheck,
+        0,
+    )
+    .await?;
+    assert_that!(
+        checked.fact.reason,
+        eq(crate::diagnostic_events::Reason::ExistingSaved)
+    );
     assert_that!(read()?.len(), eq(before));
     Ok(())
 }
@@ -1873,6 +2180,13 @@ async fn broken_diagnostic_delivery_preserves_confirmed_outcomes_and_durable_his
     .await?;
     assert_that!(
         post(&app, &cookie, "/add", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    assert_that!(
+        post(&app, &cookie, "/recover", &values)
             .await?
             .status()
             .as_u16(),
