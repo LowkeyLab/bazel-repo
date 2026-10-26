@@ -190,7 +190,7 @@ use_repo(llvm, "llvm-project")
 
 git_override(
     module_name = "rules_rs",
-    commit = "9aae4d2c9d6a2a9ce7f28f905d372887a1dd047b",
+    commit = "9148145dc6e0999041e5968743c04f696e40c72c",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_rs:toolchain_repository_compatibility.patch"],
     remote = "https://github.com/hermeticbuild/rules_rs.git",
