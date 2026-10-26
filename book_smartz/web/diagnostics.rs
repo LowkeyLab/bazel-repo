@@ -10,7 +10,7 @@ use serde::Serialize;
 use crate::actions::ActionId;
 use crate::diagnostic_events::{
     EventIdentity, OperationFinished, OperationId, OperationKind, OperationOutcome,
-    OperationRecord, ProcessInstanceId, Reason, Severity, Stage,
+    OperationRecord, OriginalActionId, ProcessInstanceId, Reason, Severity, Stage,
 };
 
 /// Listeners receive only the immutable allowlisted fact.
@@ -28,7 +28,7 @@ impl OperationListener for StderrListener {
 const fn operation_record(fact: OperationFinished) -> OperationRecord {
     let severity = match (fact.outcome, fact.reason) {
         (
-            OperationOutcome::DependencyFailure,
+            OperationOutcome::DependencyFailure | OperationOutcome::UncertainPersistence,
             Reason::Database
             | Reason::Schema
             | Reason::SelectionPreparation
@@ -36,7 +36,12 @@ const fn operation_record(fact: OperationFinished) -> OperationRecord {
             | Reason::PersistenceFailure
             | Reason::SessionOperation,
         ) => Severity::Error,
-        (OperationOutcome::DependencyFailure | OperationOutcome::Interrupted, _) => Severity::Warn,
+        (
+            OperationOutcome::DependencyFailure
+            | OperationOutcome::Interrupted
+            | OperationOutcome::UncertainPersistence,
+            _,
+        ) => Severity::Warn,
         _ => Severity::Info,
     };
     OperationRecord { severity, fact }
@@ -140,6 +145,8 @@ impl Diagnostics {
             started: Instant::now(),
             stage: Stage::Validation,
             terminal: None,
+            original_action_id: None,
+            persistence_uncertain: false,
         }
     }
 
@@ -160,8 +167,41 @@ pub struct Operation {
     started: Instant,
     stage: Stage,
     terminal: Option<(OperationOutcome, Reason)>,
+    original_action_id: Option<OriginalActionId>,
+    persistence_uncertain: bool,
 }
 impl Operation {
+    pub const fn original_action(&mut self, action: OriginalActionId) {
+        self.original_action_id = Some(action);
+    }
+    pub const fn persistence_started(&mut self) {
+        self.persistence_uncertain = true;
+    }
+    pub fn action_failure(&mut self, error: &anyhow::Error) {
+        if let Some(error) = error.downcast_ref::<book_smartz_storage::StoreError>() {
+            if matches!(error, book_smartz_storage::StoreError::CommitUncertain(_)) {
+                self.persistence_started();
+                self.finish(
+                    OperationOutcome::UncertainPersistence,
+                    Reason::CommitUncertain,
+                );
+            } else {
+                self.storage_failure(error);
+            }
+        } else if let Some(error) = error.downcast_ref::<sqlx::Error>() {
+            self.database_failure(error);
+        } else {
+            self.finish(
+                OperationOutcome::DependencyFailure,
+                Reason::PersistenceFailure,
+            );
+        }
+        if self.persistence_uncertain
+            && let Some((_, reason)) = self.terminal
+        {
+            self.finish(OperationOutcome::UncertainPersistence, reason);
+        }
+    }
     pub const fn stage(&mut self, stage: Stage) {
         self.stage = stage;
     }
@@ -195,9 +235,14 @@ impl Operation {
 }
 impl Drop for Operation {
     fn drop(&mut self) {
-        let (outcome, reason) = self
-            .terminal
-            .unwrap_or((OperationOutcome::Interrupted, Reason::Interrupted));
+        let (outcome, reason) = self.terminal.unwrap_or((
+            if self.persistence_uncertain {
+                OperationOutcome::UncertainPersistence
+            } else {
+                OperationOutcome::Interrupted
+            },
+            Reason::Interrupted,
+        ));
         self.listener.observe(OperationFinished {
             event: EventIdentity::OperationFinished,
             operation: self.kind,
@@ -208,6 +253,7 @@ impl Drop for Operation {
             release: self.release.clone(),
             process_instance: self.process_instance,
             operation_id: self.id,
+            original_action_id: self.original_action_id,
         });
     }
 }
@@ -308,6 +354,45 @@ mod tests {
     }
 
     #[googletest::test]
+    #[tokio::test]
+    async fn cancelled_mutation_preserves_uncertain_original_action() -> anyhow::Result<()> {
+        for kind in [
+            OperationKind::Add,
+            OperationKind::Preference,
+            OperationKind::Pause,
+            OperationKind::Resume,
+        ] {
+            let (diagnostics, capture) = capture();
+            let action = crate::diagnostic_events::OriginalActionId::from(uuid::Uuid::new_v4());
+            let (started, ready) = tokio::sync::oneshot::channel();
+            let task = tokio::spawn(async move {
+                let mut operation = diagnostics.operation(kind);
+                operation.original_action(action);
+                operation.stage(Stage::Persistence);
+                operation.persistence_started();
+                let _ = started.send(());
+                std::future::pending::<()>().await;
+            });
+            ready.await?;
+            task.abort();
+            assert_that!(task.await.unwrap_err().is_cancelled(), eq(true));
+            let events = capture.0.lock().unwrap();
+            assert_that!(events.len(), eq(1));
+            let record = super::operation_record(events[0].clone());
+            assert_that!(record.fact.operation, eq(kind));
+            assert_that!(record.fact.original_action_id, eq(Some(action)));
+            assert_that!(
+                record.fact.outcome,
+                eq(OperationOutcome::UncertainPersistence)
+            );
+            assert_that!(record.fact.reason, eq(Reason::Interrupted));
+            assert_that!(record.fact.stage, eq(Stage::Persistence));
+            assert_that!(record.severity, eq(Severity::Warn));
+        }
+        Ok(())
+    }
+
+    #[googletest::test]
     fn storage_failures_preserve_stage_and_remove_private_causes() {
         use book_smartz_storage::StoreError;
 
@@ -356,6 +441,7 @@ mod tests {
             release: "b".repeat(64),
             process_instance: ProcessInstanceId::fresh(),
             operation_id: OperationId::fresh(),
+            original_action_id: None,
         }
     }
 

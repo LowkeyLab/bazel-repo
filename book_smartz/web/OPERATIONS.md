@@ -53,10 +53,13 @@ Elapsed duration uses a monotonic clock and whole milliseconds.
 Listeners receive the closed field allowlist before they select severity or delivery policy.
 
 Each fact permits only event identity, operation kind, outcome, stage,
-bounded reason, duration, release, process-instance ID, and operation ID.
+bounded reason, duration, release, process-instance ID, operation ID, and optional original-action ID.
 The stderr record contains `fact` and `severity`.
 These catalog, identity, and read operations have no original-action ID.
-Persistence and original-save checks retain their existing records until their separate diagnostic tickets complete.
+Mutations include the existing original-action ID after authorization and offer validation.
+The ID does not identify the reader or contain action contents.
+Mutation and original-save paths also retain existing persistence records.
+Separate typed original-save observations remain pending.
 
 | Operation kind   | Confirmed meaning                                                    |
 | ---------------- | -------------------------------------------------------------------- |
@@ -65,24 +68,46 @@ Persistence and original-save checks retain their existing records until their s
 | `sign_in`        | Account and session persistence received a commit acknowledgement    |
 | `sign_out`       | Revocation received an acknowledgement and session cleanup completed |
 | `ranking_read`   | The app loaded saved-ranking data and display metadata               |
+| `add`            | The original Add has complete saved evidence                         |
+| `preference`     | The original preference has complete saved evidence                  |
+| `pause`          | The original Pause has complete saved evidence                       |
+| `resume`         | The original Resume has complete saved evidence                      |
 
 A confirmed `sign_in_start` does not mean that the reader signed in.
 Each endpoint attempt has its own operation ID.
 OAuth state, session tokens, and reader identities do not supply diagnostic correlation.
+Mutation observation starts after form parsing, before handler validation.
+A rejected form that cannot enter its handler has no mutation fact.
 
-| Outcome or reason                                  | Meaning                                                        | Severity |
-| -------------------------------------------------- | -------------------------------------------------------------- | -------- |
-| Confirmed                                          | The named operation completed                                  | `INFO`   |
-| Identity rejected or invalid input                 | The app rejected the attempt                                   | `INFO`   |
-| Admission limited or provider limited              | The applicable limit rejected the attempt                      | `INFO`   |
-| Timeout, unavailable, malformed, oversized         | The provider operation failed                                  | `WARN`   |
-| Database, schema, or persistence failure           | A storage operation failed                                     | `ERROR`  |
-| Corrupt history                                    | The app could not interpret the stored ranking                 | `ERROR`  |
-| Session operation or selection preparation failure | The named preparation failed                                   | `ERROR`  |
-| Interrupted                                        | Work stopped at its last known stage without a terminal result | `WARN`   |
+A new save requires a commit acknowledgement.
+A duplicate attempt can confirm complete retained evidence with reason `existing_saved`.
+That result does not count as another save.
+Each duplicate attempt has a new operation ID and retains the original-action ID.
+Legacy persistence records still describe newly acknowledged effects.
+Mutation terminal facts describe attempts and do not replace authoritative action evidence.
+
+| Outcome or reason                                  | Meaning                                                         | Severity |
+| -------------------------------------------------- | --------------------------------------------------------------- | -------- |
+| Confirmed                                          | The named operation completed                                   | `INFO`   |
+| Identity rejected or invalid input                 | The app rejected the attempt                                    | `INFO`   |
+| Admission limited or provider limited              | The applicable limit rejected the attempt                       | `INFO`   |
+| Timeout, unavailable, malformed, oversized         | The provider operation failed                                   | `WARN`   |
+| Database, schema, or persistence failure           | A storage operation failed                                      | `ERROR`  |
+| Corrupt history                                    | The app could not interpret the stored ranking                  | `ERROR`  |
+| Session operation or selection preparation failure | The named preparation failed                                    | `ERROR`  |
+| Interrupted                                        | Work stopped at its last known stage without a terminal result  | `WARN`   |
+| Uncertain persistence with commit uncertainty      | The app cannot establish the original save outcome              | `WARN`   |
+| Uncertain persistence with interruption            | Work stopped after persistence could begin                      | `WARN`   |
+| Action rejected or blocked                         | A domain decision or an unresolved action prevents this attempt | `INFO`   |
 
 Stages distinguish authentication, validation, admission, provider access,
 selection preparation, persistence, session work, and session revocation.
+Before persistence can begin, known failures remain dependency failures.
+After an intent can persist, an error or cancellation retains uncertain persistence until complete saved or rejected evidence resolves it.
+A known database, schema, or persistence failure remains `ERROR`, including during unresolved persistence.
+An interrupted attempt reports its last known stage and does not invent a cause.
+Abrupt process termination can prevent any terminal fact.
+
 Missing relation, column, or schema SQLSTATE codes identify schema failures.
 Other database errors retain the bounded database reason.
 The listener never formats dependency messages.

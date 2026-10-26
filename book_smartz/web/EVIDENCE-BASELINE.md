@@ -56,8 +56,15 @@ Each uses a separate reader and independently specified HTTP expectations.
 | `broken_diagnostic_delivery_preserves_confirmed_outcomes_and_durable_history`       | Diagnostic delivery can't alter durable outcomes.                                                 |
 | `initial_intent_ack_loss_reports_checking_before_original_action_recovery`          | Initial-intent acknowledgement loss remains recoverable.                                          |
 
-The diagnostic replay assertion counts business records separately from authentication and read attempts.
-The typed read facts do not represent new saves.
+The diagnostic replay assertion counts business records separately from authentication, read, and mutation attempts.
+Typed attempt facts do not represent new saves.
+
+Structured mutation checks cover acknowledged Add, duplicate attempts, distinct preference/Pause/Resume kinds, and expected rejection.
+Known dependency failures retain their bounded cause.
+An unresolved original save retains uncertainty and its original-action ID.
+The existing PostgreSQL commit-fault cases also assert structured facts after lost acknowledgements.
+Process termination can prevent terminal diagnostics.
+Producer cancellation checks cover uncertainty when a guard can complete cleanup.
 
 The existing HTTP, browser, package, domain, and storage suites remain part of the
 repository acceptance. Controlled identity/catalog providers and local or hosted
