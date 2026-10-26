@@ -393,6 +393,51 @@ mod tests {
     }
 
     #[googletest::test]
+    fn action_failure_facts_distinguish_uncertain_commit_from_known_failures() {
+        const PRIVATE_CAUSE: &str = "private-parser-or-database-cause";
+        for (error, outcome, reason, severity) in [
+            (
+                anyhow::Error::from(book_smartz_storage::StoreError::CommitUncertain(
+                    sqlx::Error::Protocol(PRIVATE_CAUSE.into()),
+                )),
+                OperationOutcome::UncertainPersistence,
+                Reason::CommitUncertain,
+                Severity::Warn,
+            ),
+            (
+                anyhow::Error::from(sqlx::Error::Protocol(PRIVATE_CAUSE.into())),
+                OperationOutcome::DependencyFailure,
+                Reason::Database,
+                Severity::Error,
+            ),
+            (
+                anyhow::anyhow!(PRIVATE_CAUSE),
+                OperationOutcome::DependencyFailure,
+                Reason::PersistenceFailure,
+                Severity::Error,
+            ),
+        ] {
+            let (diagnostics, capture) = capture();
+            let action = crate::diagnostic_events::OriginalActionId::from(uuid::Uuid::new_v4());
+            {
+                let mut operation = diagnostics.operation(OperationKind::Add);
+                operation.original_action(action);
+                operation.stage(Stage::Persistence);
+                operation.action_failure(&error);
+            }
+            let events = capture.0.lock().unwrap();
+            assert_that!(events.len(), eq(1));
+            let record = super::operation_record(events[0].clone());
+            assert_that!(record.fact.outcome, eq(outcome));
+            assert_that!(record.fact.reason, eq(reason));
+            assert_that!(record.fact.stage, eq(Stage::Persistence));
+            assert_that!(record.fact.original_action_id, eq(Some(action)));
+            assert_that!(&record.fact.release, eq(&"a".repeat(64)));
+            assert_that!(record.severity, eq(severity));
+        }
+    }
+
+    #[googletest::test]
     fn storage_failures_preserve_stage_and_remove_private_causes() {
         use book_smartz_storage::StoreError;
 

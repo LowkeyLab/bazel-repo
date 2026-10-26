@@ -365,6 +365,93 @@ async fn mutation_facts_preserve_known_failures_and_unresolved_original_saves() 
 
 #[googletest::test]
 #[tokio::test]
+async fn mutation_schema_failure_preserves_history_and_allows_a_restored_control()
+-> anyhow::Result<()> {
+    use crate::diagnostic_events::{
+        OperationKind, OperationOutcome, OriginalActionId, Reason, Severity, Stage,
+    };
+    let app = Fixture::new().await?;
+    let cookie = app.login("mutation-schema-reader").await?;
+    let id = reader(&app, "mutation-schema-reader").await?;
+    for (route, kind) in [
+        ("/add", OperationKind::Add),
+        ("/answer", OperationKind::Preference),
+    ] {
+        let values = if route == "/add" {
+            offer(
+                &app,
+                &cookie,
+                id,
+                work("OL994W", "One"),
+                chrono::Utc::now().timestamp() + 900,
+            )
+            .await?
+        } else {
+            add_work(&app, &cookie, id, "OL995W", "Candidate").await?;
+            preference(&app, &cookie, "candidate").await?
+        };
+        let history = store(&app).load_application_history(id).await?;
+        let ranking = store(&app).load_ranking_documents(id).await?;
+        sqlx::query(
+            "ALTER TABLE book_smartz.application_events RENAME TO unavailable_diagnostic_events",
+        )
+        .execute(&app.pool)
+        .await?;
+        let response = post(&app, &cookie, route, &values).await?;
+        assert_that!(response.status().as_u16(), eq(200));
+        assert_that!(
+            response.text().await?.as_str(),
+            contains_substring("Checking")
+        );
+        let failure = mutation_record(&app, kind, 0).await?;
+        assert_that!(
+            failure.fact.outcome,
+            eq(OperationOutcome::DependencyFailure)
+        );
+        assert_that!(failure.fact.reason, eq(Reason::Schema));
+        assert_that!(failure.fact.stage, eq(Stage::Persistence));
+        assert_that!(failure.severity, eq(Severity::Error));
+        assert_that!(
+            failure.fact.original_action_id,
+            eq(Some(OriginalActionId::from(Uuid::parse_str(value(
+                &values, "action"
+            ))?)))
+        );
+        sqlx::query(
+            "ALTER TABLE book_smartz.unavailable_diagnostic_events RENAME TO application_events",
+        )
+        .execute(&app.pool)
+        .await?;
+        assert_that!(
+            store(&app).load_application_history(id).await?,
+            eq(&history)
+        );
+        assert_that!(store(&app).load_ranking_documents(id).await?, eq(&ranking));
+        assert_that!(
+            post(&app, &cookie, route, &values).await?.status().as_u16(),
+            eq(303)
+        );
+        let restored = mutation_record(&app, kind, 1).await?;
+        assert_that!(restored.fact.outcome, eq(OperationOutcome::Confirmed));
+        assert_that!(restored.fact.reason, eq(Reason::None));
+        assert_that!(
+            restored.fact.original_action_id,
+            eq(failure.fact.original_action_id)
+        );
+        assert_that!(
+            restored.fact.operation_id == failure.fact.operation_id,
+            eq(false)
+        );
+        assert_that!(
+            store(&app).load_ranking_documents(id).await?.len(),
+            eq(ranking.len() + 1)
+        );
+    }
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
 async fn protected_actions_and_read_only_views_preserve_empty_history() -> anyhow::Result<()> {
     let app = Fixture::new().await?;
     let cookie = app.login("security-reader").await?;
