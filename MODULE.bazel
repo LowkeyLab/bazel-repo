@@ -122,7 +122,7 @@ git_override(
 bazel_dep(name = "bazel_skylib")
 git_override(
     module_name = "bazel_skylib",
-    commit = "b34514a91ae798406b6806ddab330dc18f63bfd4",
+    commit = "5f88ea649f9d4aaf2bec78c0426fc38b3dcc11d7",
     remote = "https://github.com/bazelbuild/bazel-skylib.git",
 )
 
