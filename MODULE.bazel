@@ -108,7 +108,7 @@ use_repo(java_coverage_tools, "remote_java_tools")
 
 git_override(
     module_name = "rules_java",
-    commit = "cd2030164287fdcbfc104036f7aebb788ef48c08",
+    commit = "b873bad1a4954da72626d6c91491d610460fd526",
     remote = "https://github.com/bazelbuild/rules_java.git",
 )
 
