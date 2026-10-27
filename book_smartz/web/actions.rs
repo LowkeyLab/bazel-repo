@@ -1013,7 +1013,7 @@ fn placement_control(
     paused: bool,
 ) -> Result<PlacementControl> {
     let (route, choice, value, label) = if paused {
-        ("/resume", Choice::Resume, "resume", "Resume")
+        ("/resume", Choice::Resume, "resume", "Resume comparisons")
     } else {
         ("/pause", Choice::Pause, "pause", "Pause for now")
     };
@@ -1065,13 +1065,10 @@ async fn comparison_state(app: &Application, reader: ReaderId) -> Result<Option<
             .iter()
             .find(|book| book.id() == id)
             .map(|book| book.work_id().as_str().to_owned());
-        let (title, authors, cover) = displays.get(id.as_uuid()).cloned().unwrap_or_else(|| {
-            (
-                work.clone().unwrap_or_else(|| "Book unavailable".into()),
-                Vec::new(),
-                None,
-            )
-        });
+        let (title, authors, cover) = displays
+            .get(id.as_uuid())
+            .cloned()
+            .unwrap_or_else(|| ("Title unavailable".into(), Vec::new(), None));
         book_smartz_views::BookDisplay {
             title,
             author: if authors.is_empty() {
@@ -1163,21 +1160,19 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
         return Ok(view! {}.boxed());
     };
     let candidate_title = candidate_display.title.clone();
-    let preference_word = if preferences == 1 {
-        "preference"
-    } else {
-        "preferences"
+    let choice_progress = match preferences {
+        0 => "You saved no choices for this book yet.".to_owned(),
+        1 => "You saved 1 choice for this book.".to_owned(),
+        count => format!("You saved {count} choices for this book."),
     };
     Ok(view! {
-        <aside class="comparison" aria-label="Pending placement">
-            <h2 tabindex="-1" data-response-focus="task">"Unfinished comparison"</h2>
+        <aside class="comparison" aria-label="Book comparisons">
+            <h2 tabindex="-1" data-response-focus="task">"Rank this book"</h2>
             <p>
-                "Pending book: "
+                "Book to rank: "
                 (candidate_title.clone())
             </p>
-            <p role="status">
-                (format!("{preferences} {preference_word} saved for this placement."))
-            </p>
+            <p role="status">(choice_progress)</p>
             if let Some((opponent, opponent_display, offer)) = offered {
                 <h3 tabindex="-1" data-comparison-heading="">
                     "Which book do you prefer?"
@@ -1198,9 +1193,9 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
                     <input type="hidden" name="revision" value=(revision.to_string())>
                     <input type="hidden" name="offer" value=(offer)>
                     <fieldset disabled=(disabled)>
-                        <legend>"Choose your preferred book"</legend>
+                        <legend>"Choose the book you prefer"</legend>
                         <div class="comparison-choice">
-                            <p>"Pending book"</p>
+                            <p>"Book to rank"</p>
                             book_smartz_views::book(
                                 display: candidate_display,
                                 compact: false
@@ -1210,7 +1205,7 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
                             </button>
                         </div>
                         <div class="comparison-choice">
-                            <p>"Saved book"</p>
+                            <p>"Book in your ranking"</p>
                             book_smartz_views::book(
                                 display: opponent_display.clone(),
                                 compact: false
@@ -1224,7 +1219,9 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
                 </form>
             } else {
                 book_smartz_views::book(display: candidate_display, compact: false)
-                <p>"Your unfinished comparison is paused."</p>
+                <p>
+                    "You paused the comparisons for this book. Resume when you are ready."
+                </p>
             }
             <form method="post" action=(route) data-ranking-action="">
                 <input type="hidden" name="csrf" value=(&csrf)>

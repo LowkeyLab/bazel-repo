@@ -66,6 +66,7 @@ async fn concurrent_signup_and_changed_email_restore_one_private_ranking_and_pen
     }
     for cookie in [&a, &b] {
         let body = app.ranking(cookie).await?.text().await?;
+        assert_that!(body.as_str(), contains_substring("Title unavailable"));
         let saved = body
             .split("<ol>")
             .nth(1)
@@ -84,7 +85,9 @@ async fn concurrent_signup_and_changed_email_restore_one_private_ranking_and_pen
         );
         assert_that!(
             body.as_str(),
-            contains_substring("Your unfinished comparison is paused.")
+            contains_substring(
+                "You paused the comparisons for this book. Resume when you are ready."
+            )
         );
     }
     let other = app.login("different-account").await?;
