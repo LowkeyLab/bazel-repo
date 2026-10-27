@@ -66,14 +66,14 @@ impl Receipt {
             Source::Fresh => self.placement.as_ref().map_or_else(
                 || {
                     match self.kind {
-                        SaveKind::Add => "Book added. Its placement is unfinished.",
+                        SaveKind::Add => "Book added. Compare it with books in your ranking to find its position.",
                         SaveKind::Preference => "Your preference is saved.",
                         SaveKind::Pause => "Placement paused. Your preferences are saved.",
                         SaveKind::Resume => "Placement resumed. Your preferences are saved.",
                     }
                     .into()
                 },
-                |placement| format!("Saved at position {}.", placement.position),
+                |placement| format!("We saved this book at position {}.", placement.position),
             ),
         }
     }

@@ -55,7 +55,7 @@ pub async fn cover(url: Option<String>, compact: bool) -> Result<impl View> {
                 <object
                     data=(cover)
                     type="image/jpeg"
-                    aria-label="Representative book cover"
+                    aria-label="Example cover for this book"
                 >
                     <img
                         src=(asset!("./cover-placeholder.svg"))

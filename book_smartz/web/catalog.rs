@@ -216,9 +216,9 @@ impl Catalog {
                 more = found.more && page < 1_000_000;
                 if found.works.is_empty() {
                     message = Some(if found.no_matches {
-                        "No matches found."
+                        "We found no matching books. Try another title or author."
                     } else {
-                        "No selectable works returned."
+                        "We found no books you can select on this page. Try another title or author."
                     });
                 }
                 for work in self.cache.retain(found.works).await {
@@ -282,7 +282,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
     let mut diagnostic = app.diagnostics.catalog_search();
     if !valid_text(&input.query, 256) || !(1..=1_000_000).contains(&input.page) {
         diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
-        return Err(bad_request("Enter 1–256 search characters and a valid page").into());
+        return Err(bad_request("Enter a title or author with 1 to 256 characters. Return to your ranking to start a new search.").into());
     }
     let Discovery {
         results,
@@ -305,7 +305,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
             <head>
                 book_smartz_views::assets()
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>"Search · Book Smartz"</title>
+                <title>"Find a book · Book Smartz"</title>
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
                 <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
             </head>
@@ -313,7 +313,9 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
                 book_smartz_views::heading()
                 <main class="library-workspace">
                     <section class="active-task" aria-label="Book ranking workspace">
-                        <h1 tabindex="-1" data-response-focus="task">"Search books"</h1>
+                        <h1 tabindex="-1" data-response-focus="task">
+                            "Find a book to rank"
+                        </h1>
                         <a href="/ranking">"Your saved ranking"</a>
                         if let Some(message) = message {
                             book_smartz_views::feedback(
@@ -337,7 +339,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
                                 name="page"
                                 value=(input.page.to_string())
                             >
-                            <button type="submit">"Retry search"</button>
+                            <button type="submit">"Search books"</button>
                         </form>
                         <ul class="search-results" aria-label="Search results">
                             for (work, token) in results {
@@ -410,9 +412,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
             .await
             .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
     let gate = if blocked {
-        Some(
-            "Finish your unfinished comparison or check your earlier save before adding another book.",
-        )
+        Some("Finish your comparisons or check your earlier save before you add another book.")
     } else {
         None
     };
@@ -427,7 +427,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
             <head>
                 book_smartz_views::assets()
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>"Selected work · Book Smartz"</title>
+                <title>"Selected book · Book Smartz"</title>
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
                 <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
             </head>
@@ -436,13 +436,15 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
                 <main class="library-workspace">
                     <section class="active-task" aria-label="Book ranking workspace">
                         <h1 tabindex="-1" data-response-focus="task">
-                            "Selected work"
+                            "Selected book"
                         </h1>
                         book_smartz_views::book(
                             display: presentation(&work),
                             compact: false
                         )
-                        <p>"This selection expires 15 minutes after search."</p>
+                        <p>
+                            "You can add this book for 15 minutes after your search. After that, search for the book again."
+                        </p>
                         if let Some(message) = gate {
                             book_smartz_views::feedback(
                                 message: message.to_owned(),
@@ -492,7 +494,7 @@ async fn result_card(work: CatalogWork, token: String, csrf: String) -> Result<i
             <form method="post" action="/select">
                 <input type="hidden" name="csrf" value=(csrf)>
                 <input type="hidden" name="selection" value=(token)>
-                <button type="submit">"Select this work"</button>
+                <button type="submit">"Select this book"</button>
             </form>
         </li>
     })

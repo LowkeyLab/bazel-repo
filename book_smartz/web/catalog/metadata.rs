@@ -233,11 +233,11 @@ impl From<Failure> for LookupFailure {
 impl Failure {
     pub(super) const fn message(&self) -> &'static str {
         match self {
-            Self::Limited => "Search rate limit reached. Please retry shortly.",
-            Self::Unavailable => "Search is unavailable. Please retry.",
-            Self::Timeout => "Search timed out. Please retry.",
-            Self::Malformed => "Search returned a malformed response. Please retry.",
-            Self::Oversized => "Search response was too large. Please retry.",
+            Self::Limited => "Search received too many requests. Wait a moment, then search again.",
+            Self::Unavailable => "Search is unavailable. Try again.",
+            Self::Timeout => "Search took too long to respond. Try again.",
+            Self::Malformed => "We could not read the search results. Try again.",
+            Self::Oversized => "The search results were too large to load. Try again.",
         }
     }
 }
