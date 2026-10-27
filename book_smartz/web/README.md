@@ -1,5 +1,7 @@
 # Book Smartz web app
 
+See the [final copy schedule](../COPY.md), [copy acceptance record](../COPY-ACCEPTANCE.md), and [glossary](../GLOSSARY.md).
+
 The web app signs in with Google, persists browser sessions in PostgreSQL,
 and reads the existing private ranking and pending placement. Signed-in readers can
 explicitly search Open Library, page through work-level results, and select a
