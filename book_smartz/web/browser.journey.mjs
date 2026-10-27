@@ -410,6 +410,36 @@ async function journey() {
     await target.setViewportSize(original);
   }
   await recordScene("sign-in");
+  assert.equal(await page.title(), "Book Smartz · Books, ranked, not rated");
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Books, ranked, not rated.", exact: true })
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByText(
+        "Put the books you read in order of preference. Choose between two books at a time to build your private ranking.",
+        { exact: true },
+      )
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByText("After sign-in, find your first book to start your ranking.", {
+        exact: true,
+      })
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByRole("img", { name: "Book Smartz", exact: true })
+      .isVisible(),
+    true,
+  );
   const typography = await page.evaluate(() => ({
     body: getComputedStyle(document.body).fontFamily,
     heading: getComputedStyle(document.querySelector("h1")).fontFamily,
@@ -421,7 +451,11 @@ async function journey() {
   assert.match(typography.heading, /Literata/);
   assert.equal(typography.loaded.includes("Literata"), true);
   assert.equal(typography.loaded.includes("Source Sans 3"), true);
-  const signIn = page.getByRole("link", { name: "Sign in with Google" });
+  const signIn = page.getByRole("link", {
+    name: "Sign in with Google",
+    exact: true,
+  });
+  assert.equal(await signIn.getAttribute("href"), "/auth/google");
   await signIn.focus();
   assert.notEqual(
     await signIn.evaluate((link) => getComputedStyle(link).outlineStyle),
@@ -461,12 +495,51 @@ async function journey() {
   await page.getByRole("link", { name: "Sign in with Google" }).click();
   await page.waitForURL("https://reader.example/ranking");
   await recordScene("empty-library");
+  assert.equal(await page.title(), "Your ranking · Book Smartz");
+  const rankingNavigation = page.getByRole("navigation", {
+    name: "Book ranking",
+    exact: true,
+  });
+  assert.equal(
+    await rankingNavigation
+      .getByRole("link", { name: "Find a book", exact: true })
+      .getAttribute("href"),
+    "/ranking",
+  );
+  assert.equal(
+    await rankingNavigation
+      .getByRole("link", { name: "Your ranking", exact: true })
+      .getAttribute("href"),
+    "/ranking#saved-ranking",
+  );
+  assert.equal(
+    await page
+      .getByRole("region", { name: "Book ranking workspace", exact: true })
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Sign out of this browser", exact: true })
+      .isVisible(),
+    true,
+  );
+  assert.equal(
+    await page.getByText("Your ranking is empty.", { exact: true }).isVisible(),
+    true,
+  );
+  assert.equal(
+    await page
+      .getByText("Find a book you read to start your ranking.", { exact: true })
+      .isVisible(),
+    true,
+  );
   const savedHeading = page.getByRole("heading", {
     name: "Your saved ranking",
     exact: true,
   });
   const taskHeading = page.getByRole("heading", {
-    name: "Find your next book",
+    name: "Find a book to rank",
     exact: true,
   });
   assert.equal(
@@ -586,6 +659,10 @@ async function journey() {
   await addClick;
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(await page.locator("ol li").count(), 1);
+  assert.equal(
+    await page.getByText("Your ranking is empty.", { exact: true }).count(),
+    0,
+  );
   await page
     .getByRole("status")
     .filter({ hasText: "Saved at position 1." })

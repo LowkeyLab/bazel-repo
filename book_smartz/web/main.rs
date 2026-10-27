@@ -375,7 +375,11 @@ async fn home() -> Result<impl View> {
         <html lang="en">
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>"Book Smartz"</title>
+                <title>"Book Smartz · Books, ranked, not rated"</title>
+                <meta
+                    name="description"
+                    content="Rank the books you read. Choose between two books at a time to build your private ranking with Book Smartz."
+                >
                 book_smartz_views::assets()
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
                 <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
@@ -383,11 +387,13 @@ async fn home() -> Result<impl View> {
             <body>
                 book_smartz_views::heading()
                 <main class="sign-in">
-                    <h1 tabindex="-1" data-response-focus="task">"Book Smartz"</h1>
-                    <p>"Your books, in your order."</p>
+                    <h1 tabindex="-1" data-response-focus="task">
+                        "Books, ranked, not rated."
+                    </h1>
                     <p>
-                        "Sign in to build your private ranking. You choose what to save after sign-in."
+                        "Put the books you read in order of preference. Choose between two books at a time to build your private ranking."
                     </p>
+                    <p>"After sign-in, find your first book to start your ranking."</p>
                     <a class="primary-link" href="/auth/google">
                         "Sign in with Google"
                     </a>
@@ -418,7 +424,7 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
             <body>
                 book_smartz_views::heading()
                 <main class="library-workspace">
-                    <section class="active-task" aria-label="Book workspace">
+                    <section class="active-task" aria-label="Book ranking workspace">
                         actions::recovery_controls(
                             reader: session.reader,
                             csrf: session.csrf.clone()
@@ -434,7 +440,7 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                             csrf: session.csrf.clone()
                         )
                         <h1 tabindex="-1" data-response-focus="task">
-                            "Find your next book"
+                            "Find a book to rank"
                         </h1>
                         <form method="post" action="/search">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
@@ -543,10 +549,10 @@ async fn saved_ranking(
             aria-labelledby="saved-ranking-heading"
         >
             <h2 id="saved-ranking-heading">"Your saved ranking"</h2>
-            <p>"Saved positions"</p>
+            <p>"Books in your order of preference"</p>
             if entries.is_empty() {
                 <p>"Your ranking is empty."</p>
-                <p>"Find a book to begin your private ranking."</p>
+                <p>"Find a book you read to start your ranking."</p>
             }
             <ol>
                 for (id, display, completion_action) in entries {
@@ -558,7 +564,9 @@ async fn saved_ranking(
                     </li>
                 }
             </ol>
-            <p>"Pending books receive a position only after placement finishes."</p>
+            <p>
+                "Finish the comparisons for each new book to give it a position in your ranking."
+            </p>
         </section>
     })
 }

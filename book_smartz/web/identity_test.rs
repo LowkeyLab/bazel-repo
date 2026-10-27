@@ -13,6 +13,20 @@ use crate::test_support::Fixture;
 async fn sign_in_restores_the_same_private_account_across_restart_and_email_change()
 -> anyhow::Result<()> {
     let mut app = Fixture::new().await?;
+    let home = app.client.get(format!("{}/", app.base)).send().await?;
+    assert_that!(home.status().as_u16(), eq(200));
+    let home = home.text().await?;
+    for copy in [
+        "Books, ranked, not rated.",
+        "Put the books you read in order of preference. Choose between two books at a time to build your private ranking.",
+        "After sign-in, find your first book to start your ranking.",
+        "<title>Book Smartz · Books, ranked, not rated</title>",
+        "Rank the books you read. Choose between two books at a time to build your private ranking with Book Smartz.",
+        "href=\"/auth/google\"",
+        "Sign in with Google",
+    ] {
+        assert_that!(home.as_str(), contains_substring(copy));
+    }
     let cookie = app.login("reader-one").await?;
     let response = app.ranking(&cookie).await?;
     assert_that!(response.status().as_u16(), eq(200));
@@ -24,10 +38,21 @@ async fn sign_in_restores_the_same_private_account_across_restart_and_email_chan
             .and_then(|v| v.to_str().ok()),
         eq(Some("no-store"))
     );
-    assert_that!(
-        response.text().await?,
-        contains_substring("Your ranking is empty.")
-    );
+    let ranking = response.text().await?;
+    for copy in [
+        "<title>Your ranking · Book Smartz</title>",
+        "aria-label=\"Book ranking\"",
+        "aria-label=\"Book ranking workspace\"",
+        "Find a book to rank",
+        "Your saved ranking",
+        "Books in your order of preference",
+        "Your ranking is empty.",
+        "Find a book you read to start your ranking.",
+        "Finish the comparisons for each new book to give it a position in your ranking.",
+        "Sign out of this browser",
+    ] {
+        assert_that!(ranking.as_str(), contains_substring(copy));
+    }
     app.restart().await?;
     assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
     let login = app.begin().await?;

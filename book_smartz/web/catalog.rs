@@ -312,7 +312,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
             <body>
                 book_smartz_views::heading()
                 <main class="library-workspace">
-                    <section class="active-task" aria-label="Book workspace">
+                    <section class="active-task" aria-label="Book ranking workspace">
                         <h1 tabindex="-1" data-response-focus="task">"Search books"</h1>
                         <a href="/ranking">"Your saved ranking"</a>
                         if let Some(message) = message {
@@ -434,7 +434,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
             <body>
                 book_smartz_views::heading()
                 <main class="library-workspace">
-                    <section class="active-task" aria-label="Book workspace">
+                    <section class="active-task" aria-label="Book ranking workspace">
                         <h1 tabindex="-1" data-response-focus="task">
                             "Selected work"
                         </h1>
