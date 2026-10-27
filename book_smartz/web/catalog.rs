@@ -1,6 +1,4 @@
 //! Bounded live discovery, deployment-shared admission and reader-bound selections.
-use std::time::Duration;
-
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
@@ -15,16 +13,16 @@ use topcoat::{
     view::{View, view},
 };
 
-use book_smartz_domain::ReaderId;
+use book_smartz_domain::{OpenLibraryWorkId, ReaderId};
 
 use crate::diagnostic_events::{OperationOutcome, Reason, Stage};
 use crate::{Application, authorize};
 
 mod metadata;
 
-pub use metadata::CatalogWork;
 pub use metadata::migrate as migrate_cache;
-use metadata::{Cache, Failure, Provider, valid_text};
+use metadata::{Cache, Failure, Provider, admit, valid_text};
+pub use metadata::{CatalogWork, LookupFailure};
 
 pub struct Catalog {
     provider: Provider,
@@ -51,6 +49,22 @@ struct Offer {
     aud: String,
 }
 impl Catalog {
+    /// Looks up metadata without changing a reader's saved state.
+    ///
+    /// # Errors
+    /// Returns a bounded failure when neither cache nor provider supplies usable metadata.
+    #[allow(
+        dead_code,
+        reason = "This application API intentionally has no reader route."
+    )]
+    pub async fn lookup(
+        &self,
+        reader: ReaderId,
+        key: &OpenLibraryWorkId,
+    ) -> std::result::Result<CatalogWork, LookupFailure> {
+        self.cache.lookup(&self.provider, reader, key).await
+    }
+
     pub fn offer(
         &self,
         reader: ReaderId,
@@ -127,15 +141,7 @@ impl Catalog {
         Ok(Self {
             cache: Cache::new(pool),
             signing_key,
-            provider: Provider {
-                endpoint,
-                client: reqwest::Client::builder()
-                    .timeout(Duration::from_secs(5))
-                    .retry(reqwest::retry::never())
-                    .redirect(reqwest::redirect::Policy::none())
-                    .user_agent(format!("Book Smartz ({contact})"))
-                    .build()?,
-            },
+            provider: Provider::new(endpoint, &contact)?,
         })
     }
     fn sign(&self, reader: ReaderId, work: CatalogWork) -> jsonwebtoken::errors::Result<String> {
@@ -261,35 +267,6 @@ struct Discovery {
     results: Vec<(CatalogWork, String)>,
     message: Option<&'static str>,
     more: bool,
-}
-/// Try admission without waiting on another instance. A committed permit is
-/// consumed even on provider failure; uncertain commits never dispatch a request.
-async fn admit(pool: &PgPool, reader: ReaderId) -> std::result::Result<bool, sqlx::Error> {
-    let mut transaction = pool.begin().await?;
-    let locked: bool = sqlx::query_scalar("SELECT pg_try_advisory_xact_lock(706165241, 3)")
-        .fetch_one(&mut *transaction)
-        .await?;
-    if !locked {
-        return Ok(false);
-    }
-    let available: bool = sqlx::query_scalar("SELECT next_search_at <= clock_timestamp() FROM book_smartz_catalog.search_gate WHERE singleton").fetch_one(&mut *transaction).await?;
-    if !available {
-        return Ok(false);
-    }
-    sqlx::query("DELETE FROM book_smartz_catalog.search_admissions WHERE admitted_at <= clock_timestamp() - interval '1 minute'").execute(&mut *transaction).await?;
-    let count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM book_smartz_catalog.search_admissions WHERE reader_id = $1",
-    )
-    .bind(reader.as_uuid())
-    .fetch_one(&mut *transaction)
-    .await?;
-    if count >= 10 {
-        return Ok(false);
-    }
-    sqlx::query("INSERT INTO book_smartz_catalog.search_admissions (reader_id, admitted_at) VALUES ($1, clock_timestamp())").bind(reader.as_uuid()).execute(&mut *transaction).await?;
-    sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at = clock_timestamp() + interval '1 second' WHERE singleton").execute(&mut *transaction).await?;
-    transaction.commit().await?;
-    Ok(true)
 }
 #[derive(Deserialize)]
 pub struct SearchInput {

@@ -306,10 +306,25 @@ Search membership, order, pagination, and admission remain provider-controlled.
 The cache cannot answer a failed search or add a work absent from its response.
 
 The cache retains at most 10,000 works through least-recently-used removal.
-Metadata writes use an independent transaction lock and a 500-millisecond work limit.
+Metadata writes use an independent transaction lock. Cache reads and writes have a 500-millisecond work limit.
 Cache failures preserve valid provider results.
 Successful provider retrieval establishes 24-hour freshness. Last-use time remains separate.
-Known-work lookup and stale refresh fallback remain separate work.
+
+The app uses `Catalog::lookup` to return fresh metadata without a provider request.
+At the exact 24-hour boundary, it attempts one bounded provider lookup.
+Usable stale metadata remains available after refresh failure.
+A missing or unusable entry returns a typed failure when refresh supplies no usable metadata.
+
+Reads and failed refreshes preserve freshness timestamps.
+Refreshes share the existing deployment and reader admission limits.
+The lookup adds no public endpoint or reader flow.
+
+Refresh uses a work-key query through the configured search endpoint.
+[Open Library documents keyed work queries](https://openlibrary.org/help/faq/collections-carousel-examples#query-by-key).
+Its [Search API](https://openlibrary.org/dev/docs/api/search) supplies combined work metadata.
+Response validation requires the requested normalized work identity and existing field and response limits.
+The client retains its identification and five-second deadline.
+Redirects and automatic retries remain off.
 
 The metadata schema has its own versioned migration.
 It has no reader identifiers, search queries, selection tokens, ranking history, or registration dependency.
