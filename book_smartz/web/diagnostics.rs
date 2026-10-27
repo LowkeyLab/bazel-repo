@@ -2,7 +2,7 @@
 use std::{
     io::{self, Write},
     sync::{
-        Arc,
+        Arc, Mutex, OnceLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
         mpsc,
     },
@@ -15,7 +15,9 @@ use crate::actions::ActionId;
 use crate::diagnostic_events::{
     DiagnosticLossObserved, DiagnosticLossRecord, EventIdentity, InitializationFinished,
     InitializationRecord, OperationFinished, OperationId, OperationKind, OperationOutcome,
-    OperationRecord, OriginalActionId, ProcessInstanceId, Reason, Severity, Stage, WorkerStatus,
+    OperationRecord, OriginalActionId, ProcessInstanceId, ReadinessChanged, ReadinessRecord,
+    ReadinessResult, ReadinessState, Reason, Severity, ShutdownFact, ShutdownOutcome,
+    ShutdownReason, ShutdownRecord, ShutdownStage, Stage, WorkerStatus,
 };
 
 /// Listeners receive only the immutable allowlisted fact.
@@ -61,6 +63,10 @@ enum Delivery {
     Operation(OperationRecord),
     Loss(DiagnosticLossRecord),
     Initialization(InitializationRecord),
+    Readiness(ReadinessRecord),
+    Shutdown(ShutdownRecord),
+    #[serde(skip)]
+    DrainBarrier(mpsc::Sender<()>),
 }
 
 #[derive(Default)]
@@ -68,6 +74,9 @@ struct DeliveryState {
     queue_drops: AtomicU64,
     destination_failures: AtomicU64,
     running: AtomicBool,
+    accepting: Mutex<bool>,
+    discard: AtomicBool,
+    deadline: OnceLock<Instant>,
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct DeliveryHealth {
@@ -76,6 +85,13 @@ struct DeliveryHealth {
     worker_status: WorkerStatus,
 }
 impl DeliveryState {
+    fn discarding(&self) -> bool {
+        self.discard.load(Ordering::Acquire)
+            || self
+                .deadline
+                .get()
+                .is_some_and(|deadline| Instant::now() >= *deadline)
+    }
     fn increment(counter: &AtomicU64) {
         let _ = counter.try_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
             Some(value.saturating_add(1))
@@ -100,6 +116,20 @@ struct DeliverySender {
 }
 impl DeliverySender {
     fn try_send(&self, record: Delivery) -> Result<(), mpsc::TrySendError<Delivery>> {
+        let accepting = self
+            .health
+            .accepting
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !*accepting {
+            return Ok(());
+        }
+        // Keep the gate locked until queue submission completes.
+        let result = self.try_send_terminal(record);
+        drop(accepting);
+        result
+    }
+    fn try_send_terminal(&self, record: Delivery) -> Result<(), mpsc::TrySendError<Delivery>> {
         let result = self.sender.try_send(record);
         match &result {
             Err(mpsc::TrySendError::Full(_)) => DeliveryState::increment(&self.health.queue_drops),
@@ -123,6 +153,7 @@ fn channel() -> (DeliverySender, mpsc::Receiver<Delivery>) {
     let (sender, receiver) = mpsc::sync_channel(QUEUE_CAPACITY);
     let health = Arc::new(DeliveryState {
         running: AtomicBool::new(true),
+        accepting: Mutex::new(true),
         ..DeliveryState::default()
     });
     (DeliverySender { sender, health }, receiver)
@@ -172,6 +203,13 @@ fn worker(
     let _status = WorkerStatusGuard(health);
     let mut reported = Reported::default();
     for record in receiver {
+        if health.discarding() {
+            continue;
+        }
+        if let Delivery::DrainBarrier(acknowledge) = record {
+            let _ = acknowledge.send(());
+            continue;
+        }
         deliver(&record, destination, health, context, &mut reported);
     }
 }
@@ -182,6 +220,9 @@ fn deliver(
     context: &LossContext,
     reported: &mut Reported,
 ) {
+    if health.discarding() {
+        return;
+    }
     if destination.write(record).is_err() {
         DeliveryState::increment(&health.destination_failures);
         return;
@@ -205,6 +246,9 @@ fn deliver(
             process_instance: context.process_instance,
         },
     });
+    if health.discarding() {
+        return;
+    }
     if destination.write(&summary).is_ok() {
         reported.queue_drops = current.queue_drops;
         reported.destination_failures = current.destination_failures;
@@ -237,12 +281,20 @@ struct Fact {
     action: Option<String>,
 }
 
+#[derive(Clone, Copy)]
+enum DrainOutcome {
+    Complete,
+    Unavailable,
+    DeadlineExceeded,
+}
+
 #[derive(Clone)]
 pub struct Diagnostics {
     sender: DeliverySender,
     release: String,
     process_instance: ProcessInstanceId,
     listener: Arc<dyn OperationListener>,
+    readiness: Arc<Mutex<Option<ReadinessResult>>>,
 }
 
 impl Diagnostics {
@@ -272,6 +324,7 @@ impl Diagnostics {
         }
         Self {
             listener: Arc::new(StderrListener(sender.clone())),
+            readiness: Arc::new(Mutex::new(None)),
             sender,
             release,
             process_instance,
@@ -295,6 +348,178 @@ impl Diagnostics {
             Err(mpsc::TrySendError::Disconnected(_)) => Err(fact),
             Ok(()) | Err(mpsc::TrySendError::Full(_)) => Ok(()),
         }
+    }
+
+    pub fn begin_shutdown(&self, reason: ShutdownReason) -> Instant {
+        let started = Instant::now();
+        self.shutdown_fact(
+            EventIdentity::ShutdownStarted,
+            ShutdownOutcome::Started,
+            ShutdownStage::RequestDrain,
+            reason,
+            started,
+        );
+        started
+    }
+
+    fn shutdown_fact(
+        &self,
+        event: EventIdentity,
+        outcome: ShutdownOutcome,
+        stage: ShutdownStage,
+        reason: ShutdownReason,
+        started: Instant,
+    ) {
+        let severity = match outcome {
+            ShutdownOutcome::Failed | ShutdownOutcome::DeadlineExceeded => Severity::Error,
+            ShutdownOutcome::Started if reason == ShutdownReason::Listener => Severity::Error,
+            _ => Severity::Info,
+        };
+        let result = self
+            .sender
+            .try_send_terminal(Delivery::Shutdown(ShutdownRecord {
+                severity,
+                fact: ShutdownFact {
+                    event,
+                    outcome,
+                    stage,
+                    reason,
+                    duration_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+                    release: self.release.clone(),
+                    process_instance: self.process_instance,
+                },
+            }));
+        if matches!(result, Err(mpsc::TrySendError::Disconnected(_))) {
+            DeliveryState::increment(&self.sender.health.queue_drops);
+        }
+    }
+
+    fn stop_producers(&self) {
+        *self
+            .sender
+            .health
+            .accepting
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = false;
+    }
+
+    async fn drain_until(&self, deadline: tokio::time::Instant) -> DrainOutcome {
+        if tokio::time::Instant::now() >= deadline {
+            return DrainOutcome::DeadlineExceeded;
+        }
+        let drain = async {
+            let (sender, receiver) = mpsc::channel();
+            let mut barrier = Delivery::DrainBarrier(sender);
+            loop {
+                match self.sender.sender.try_send(barrier) {
+                    Ok(()) => break,
+                    Err(mpsc::TrySendError::Full(returned)) => barrier = returned,
+                    Err(mpsc::TrySendError::Disconnected(_)) => return DrainOutcome::Unavailable,
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+            loop {
+                match receiver.try_recv() {
+                    Ok(()) => return DrainOutcome::Complete,
+                    Err(mpsc::TryRecvError::Disconnected) => return DrainOutcome::Unavailable,
+                    Err(mpsc::TryRecvError::Empty) => {}
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+        };
+        let outcome = tokio::time::timeout_at(deadline, drain)
+            .await
+            .unwrap_or(DrainOutcome::DeadlineExceeded);
+        if tokio::time::Instant::now() >= deadline {
+            DrainOutcome::DeadlineExceeded
+        } else {
+            outcome
+        }
+    }
+
+    /// The caller starts this shared budget after the request drain ends.
+    pub async fn finish_shutdown(
+        &self,
+        started: Instant,
+        reason: ShutdownReason,
+        pool_close: impl std::future::Future<Output = ()>,
+        limit: std::time::Duration,
+    ) -> anyhow::Result<()> {
+        let deadline = tokio::time::Instant::now() + limit;
+        let _ = self.sender.health.deadline.set(deadline.into_std());
+        self.stop_producers();
+        let pool_result = tokio::time::timeout_at(deadline, pool_close).await;
+        let (outcome, stage, reason) = if pool_result.is_err() {
+            (
+                ShutdownOutcome::DeadlineExceeded,
+                ShutdownStage::PoolClosure,
+                ShutdownReason::Timeout,
+            )
+        } else {
+            match self.drain_until(deadline).await {
+                DrainOutcome::DeadlineExceeded => (
+                    ShutdownOutcome::DeadlineExceeded,
+                    ShutdownStage::DiagnosticDrain,
+                    ShutdownReason::Timeout,
+                ),
+                DrainOutcome::Unavailable => (
+                    ShutdownOutcome::Failed,
+                    ShutdownStage::DiagnosticDrain,
+                    ShutdownReason::Unavailable,
+                ),
+                DrainOutcome::Complete if reason == ShutdownReason::Listener => {
+                    (ShutdownOutcome::Failed, ShutdownStage::RequestDrain, reason)
+                }
+                DrainOutcome::Complete => (
+                    ShutdownOutcome::Completed,
+                    ShutdownStage::Complete,
+                    ShutdownReason::None,
+                ),
+            }
+        };
+        self.shutdown_fact(
+            EventIdentity::ShutdownFinished,
+            outcome,
+            stage,
+            reason,
+            started,
+        );
+        if tokio::time::Instant::now() < deadline {
+            let _ = self.drain_until(deadline).await;
+        }
+        // A blocked write can remain in progress. The worker discards later records.
+        self.sender.health.discard.store(true, Ordering::Release);
+        pool_result?;
+        Ok(())
+    }
+
+    pub fn observe_readiness(&self, result: ReadinessResult, started: Instant) {
+        let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        let Ok(mut previous) = self.readiness.lock() else {
+            return;
+        };
+        if previous.as_ref().is_some_and(|previous| {
+            previous.state == result.state && previous.reason == result.reason
+        }) {
+            return;
+        }
+        *previous = Some(result);
+        self.sender.send(Delivery::Readiness(ReadinessRecord {
+            severity: if result.state == ReadinessState::Ready {
+                Severity::Info
+            } else {
+                Severity::Error
+            },
+            fact: ReadinessChanged {
+                event: EventIdentity::ReadinessChanged,
+                state: result.state,
+                stage: result.stage,
+                reason: result.reason,
+                duration_ms,
+                release: self.release.clone(),
+                process_instance: self.process_instance,
+            },
+        }));
     }
 
     pub fn record(
@@ -444,7 +669,7 @@ impl Drop for Operation {
 mod tests {
     use std::{
         sync::{Arc, Mutex, mpsc},
-        time::Duration,
+        time::{Duration, Instant},
     };
 
     use googletest::{assert_that, matchers::eq};
@@ -560,6 +785,7 @@ mod tests {
                 release: "a".repeat(64),
                 process_instance: ProcessInstanceId::fresh(),
                 listener: listener.clone(),
+                readiness: Arc::new(Mutex::new(None)),
             },
             listener,
         )
@@ -1092,5 +1318,281 @@ mod tests {
             health.snapshot().worker_status,
             eq(crate::diagnostic_events::WorkerStatus::Stopped)
         );
+    }
+    #[googletest::test]
+    #[tokio::test]
+    async fn pool_cleanup_deadline_records_failure_after_stopping_producers() -> anyhow::Result<()>
+    {
+        use crate::diagnostic_events::{ShutdownOutcome, ShutdownReason, ShutdownStage};
+        let (mut diagnostics, _) = capture();
+        let (sender, receiver) = super::channel();
+        let operation = StderrListener(sender.clone());
+        diagnostics.sender = sender;
+        let started = diagnostics.begin_shutdown(ShutdownReason::Signal);
+        let result = diagnostics
+            .finish_shutdown(
+                started,
+                ShutdownReason::Signal,
+                async {
+                    operation.observe(fact(OperationOutcome::Confirmed, Reason::None));
+                    std::future::pending::<()>().await;
+                },
+                Duration::from_millis(30),
+            )
+            .await;
+        assert_that!(result.is_err(), eq(true));
+        let records: Vec<_> = receiver.try_iter().collect();
+        assert_that!(records.len(), eq(2));
+        let Delivery::Shutdown(started_record) = &records[0] else {
+            panic!("The shutdown start is absent.");
+        };
+        let Delivery::Shutdown(finished) = &records[1] else {
+            panic!("The shutdown result is absent.");
+        };
+        assert_that!(
+            started_record.fact.event,
+            eq(EventIdentity::ShutdownStarted)
+        );
+        assert_that!(finished.fact.event, eq(EventIdentity::ShutdownFinished));
+        assert_that!(finished.fact.outcome, eq(ShutdownOutcome::DeadlineExceeded));
+        assert_that!(finished.fact.stage, eq(ShutdownStage::PoolClosure));
+        assert_that!(finished.fact.reason, eq(ShutdownReason::Timeout));
+        assert_that!(finished.severity, eq(Severity::Error));
+        assert_that!(
+            finished.fact.process_instance,
+            eq(started_record.fact.process_instance)
+        );
+        Ok(())
+    }
+
+    #[googletest::test]
+    #[tokio::test]
+    async fn pool_closure_and_output_share_one_deadline_and_discard_remaining_records()
+    -> anyhow::Result<()> {
+        use crate::diagnostic_events::ShutdownReason;
+        let (mut diagnostics, _) = capture();
+        let (sender, receiver) = super::channel();
+        diagnostics.sender = sender;
+        let health = diagnostics.sender.health.clone();
+        let started = diagnostics.begin_shutdown(ShutdownReason::Signal);
+        diagnostics
+            .finish_shutdown(
+                started,
+                ShutdownReason::Signal,
+                tokio::time::sleep(Duration::from_millis(220)),
+                Duration::from_millis(250),
+            )
+            .await?;
+        // A second 250-millisecond budget would exceed this bound.
+        assert_that!(started.elapsed() < Duration::from_millis(400), eq(true));
+        assert_that!(started.elapsed() >= Duration::from_millis(250), eq(true));
+        drop(diagnostics);
+        let mut destination = ScriptDestination::default();
+        super::worker(receiver, &mut destination, &health, &loss_context());
+        assert_that!(destination.attempts.is_empty(), eq(true));
+        Ok(())
+    }
+
+    #[googletest::test]
+    fn concurrent_unchanged_readiness_results_emit_one_record() -> anyhow::Result<()> {
+        use crate::diagnostic_events::{
+            ReadinessReason, ReadinessResult, ReadinessStage, ReadinessState,
+        };
+        let (mut diagnostics, _) = capture();
+        let (sender, receiver) = super::channel();
+        diagnostics.sender = sender;
+        let result = ReadinessResult {
+            state: ReadinessState::Ready,
+            stage: ReadinessStage::Complete,
+            reason: ReadinessReason::None,
+        };
+        let tasks: Vec<_> = (0..16)
+            .map(|_| {
+                let diagnostics = diagnostics.clone();
+                std::thread::spawn(move || diagnostics.observe_readiness(result, Instant::now()))
+            })
+            .collect();
+        for task in tasks {
+            task.join()
+                .map_err(|_| anyhow::anyhow!("The readiness producer failed."))?;
+        }
+        let records: Vec<_> = receiver.try_iter().collect();
+        assert_that!(records.len(), eq(1));
+        let Delivery::Readiness(record) = &records[0] else {
+            panic!("The readiness record is absent.");
+        };
+        assert_that!(record.fact.state, eq(ReadinessState::Ready));
+        assert_that!(record.severity, eq(Severity::Info));
+        Ok(())
+    }
+
+    #[googletest::test]
+    fn worker_discards_queued_records_after_the_absolute_deadline() {
+        let (sender, receiver) = super::channel();
+        let health = sender.health.clone();
+        health.deadline.set(Instant::now()).unwrap();
+        StderrListener(sender.clone()).observe(fact(OperationOutcome::Confirmed, Reason::None));
+        StderrListener(sender.clone()).observe(fact(OperationOutcome::Confirmed, Reason::None));
+        drop(sender);
+        let mut destination = ScriptDestination::default();
+        super::worker(receiver, &mut destination, &health, &loss_context());
+        assert_that!(destination.attempts.is_empty(), eq(true));
+    }
+
+    #[googletest::test]
+    #[tokio::test]
+    async fn disconnected_output_during_cleanup_keeps_the_application_result() -> anyhow::Result<()>
+    {
+        use crate::diagnostic_events::ShutdownReason;
+        let (mut diagnostics, _) = capture();
+        let (sender, receiver) = super::channel();
+        diagnostics.sender = sender;
+        drop(receiver);
+        let started = diagnostics.begin_shutdown(ShutdownReason::Signal);
+        diagnostics
+            .finish_shutdown(
+                started,
+                ShutdownReason::Signal,
+                std::future::ready(()),
+                Duration::from_secs(1),
+            )
+            .await?;
+        assert_that!(diagnostics.sender.health.snapshot().queue_drops, eq(2));
+        Ok(())
+    }
+
+    #[googletest::test]
+    #[tokio::test]
+    async fn saturated_shutdown_discards_without_retrying_terminal_records() -> anyhow::Result<()> {
+        use crate::diagnostic_events::ShutdownReason;
+        let (mut diagnostics, _) = capture();
+        let (sender, receiver) = super::channel();
+        diagnostics.sender = sender;
+        let started = diagnostics.begin_shutdown(ShutdownReason::Signal);
+        for _ in 0..255 {
+            diagnostics
+                .sender
+                .send(Delivery::Operation(super::operation_record(fact(
+                    OperationOutcome::Confirmed,
+                    Reason::None,
+                ))));
+        }
+        diagnostics
+            .finish_shutdown(
+                started,
+                ShutdownReason::Signal,
+                std::future::ready(()),
+                Duration::from_millis(30),
+            )
+            .await?;
+        assert_that!(diagnostics.sender.health.snapshot().queue_drops, eq(1));
+        let health = diagnostics.sender.health.clone();
+        drop(diagnostics);
+        let mut destination = ScriptDestination::default();
+        super::worker(receiver, &mut destination, &health, &loss_context());
+        assert_that!(destination.attempts.is_empty(), eq(true));
+        Ok(())
+    }
+
+    #[googletest::test]
+    #[tokio::test]
+    async fn listener_failure_retains_its_failed_cleanup_fact() -> anyhow::Result<()> {
+        use crate::diagnostic_events::{ShutdownOutcome, ShutdownReason, ShutdownStage};
+        let (mut diagnostics, _) = capture();
+        let (sender, receiver) = super::channel();
+        diagnostics.sender = sender;
+        let health = diagnostics.sender.health.clone();
+        let task = std::thread::spawn(move || {
+            let mut destination = ScriptDestination::default();
+            super::worker(receiver, &mut destination, &health, &loss_context());
+            destination
+        });
+        let started = diagnostics.begin_shutdown(ShutdownReason::Listener);
+        diagnostics
+            .finish_shutdown(
+                started,
+                ShutdownReason::Listener,
+                std::future::ready(()),
+                Duration::from_secs(1),
+            )
+            .await?;
+        drop(diagnostics);
+        let destination = task
+            .join()
+            .map_err(|_| anyhow::anyhow!("The diagnostic worker failed."))?;
+        assert_that!(destination.successes.len(), eq(2));
+        let Delivery::Shutdown(started) = &destination.successes[0] else {
+            panic!("The shutdown start is absent.");
+        };
+        let Delivery::Shutdown(finished) = &destination.successes[1] else {
+            panic!("The shutdown result is absent.");
+        };
+        assert_that!(started.severity, eq(Severity::Error));
+        assert_that!(finished.severity, eq(Severity::Error));
+        assert_that!(finished.fact.outcome, eq(ShutdownOutcome::Failed));
+        assert_that!(finished.fact.stage, eq(ShutdownStage::RequestDrain));
+        assert_that!(finished.fact.reason, eq(ShutdownReason::Listener));
+        Ok(())
+    }
+    struct PausedDestination {
+        entered: mpsc::Sender<()>,
+        resume: mpsc::Receiver<()>,
+        attempts: Vec<Delivery>,
+        first_completed: bool,
+    }
+    impl super::Destination for PausedDestination {
+        fn write(&mut self, record: &Delivery) -> std::io::Result<()> {
+            self.attempts.push(record.clone());
+            if self.attempts.len() == 1 {
+                self.entered.send(()).map_err(std::io::Error::other)?;
+                self.resume
+                    .recv_timeout(Duration::from_secs(2))
+                    .map_err(std::io::Error::other)?;
+                self.first_completed = true;
+            }
+            Ok(())
+        }
+    }
+
+    #[googletest::test]
+    fn resumed_write_cannot_start_a_loss_summary_after_cutoff() -> anyhow::Result<()> {
+        for deadline in [false, true] {
+            let (sender, receiver) = super::channel();
+            let health = sender.health.clone();
+            health
+                .queue_drops
+                .store(1, std::sync::atomic::Ordering::Relaxed);
+            StderrListener(sender.clone()).observe(fact(OperationOutcome::Confirmed, Reason::None));
+            drop(sender);
+            let (entered, writing) = mpsc::channel();
+            let (resume, paused) = mpsc::channel();
+            let worker_health = health.clone();
+            let task = std::thread::spawn(move || {
+                let mut destination = PausedDestination {
+                    entered,
+                    resume: paused,
+                    attempts: Vec::new(),
+                    first_completed: false,
+                };
+                super::worker(receiver, &mut destination, &worker_health, &loss_context());
+                destination
+            });
+            writing.recv_timeout(Duration::from_secs(2))?;
+            if deadline {
+                health.deadline.set(Instant::now()).unwrap();
+            } else {
+                health
+                    .discard
+                    .store(true, std::sync::atomic::Ordering::Release);
+            }
+            resume.send(())?;
+            let destination = task
+                .join()
+                .map_err(|_| anyhow::anyhow!("The controlled destination failed."))?;
+            assert_that!(destination.first_completed, eq(true));
+            assert_that!(destination.attempts.len(), eq(1));
+            assert_that!(health.snapshot().destination_failures, eq(0));
+        }
+        Ok(())
     }
 }

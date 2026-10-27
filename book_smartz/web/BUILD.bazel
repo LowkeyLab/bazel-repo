@@ -231,6 +231,7 @@ rust_test(
     name = "package_test",
     size = "medium",
     srcs = [
+        "diagnostic_events.rs",
         "package_test.rs",
         "test_support.rs",
     ],
@@ -264,6 +265,7 @@ rust_test(
         "@crates//:jsonwebtoken",
         "@crates//:regex",
         "@crates//:reqwest",
+        "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:sha2",
         "@crates//:sqlx",

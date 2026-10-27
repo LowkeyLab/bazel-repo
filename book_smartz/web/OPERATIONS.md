@@ -188,7 +188,48 @@ Composition can use the bounded fallback.
 Disconnection during submission also returns the unsent fact.
 An occurrence uses one delivery path. Queue saturation remains a counted drop without a fallback retry.
 Complete output failure or process termination can prevent a record.
-Readiness and shutdown observations remain separate work.
+
+### Observed readiness
+
+`ReadinessChanged` records the first completed readiness probe.
+Later records require a state or reason change.
+Concurrent probes share this transition state.
+Repeated unchanged results produce no additional records.
+
+Each fact contains state, stage, bounded reason, observation duration in milliseconds, release, and process-instance ID.
+States are `ready` and `unavailable`.
+Stages distinguish completion, package integrity, schema, and database checks.
+Reasons distinguish no failure, package integrity, schema, and database failures.
+Ready results use `INFO`. Unavailable results use `ERROR`.
+Reasons derive from typed errors and SQLSTATE classes. They exclude dependency messages.
+
+The route retains the existing package, schema, and database checks.
+Provider outages and diagnostic health do not change readiness dependencies.
+Observed probes do not prove continuous readiness between probes.
+A full queue can discard a transition without a later retry.
+
+### Bounded shutdown
+
+`ShutdownStarted` records shutdown initiation before admission stops.
+It identifies the request-drain stage and a signal or listener failure.
+The server retains its 20-second request drain.
+After that drain, the app stops diagnostic producers.
+Pool closure and diagnostic draining share one five-second deadline.
+The diagnostic worker processes earlier records before the completion record.
+At the deadline, the worker discards remaining records.
+A write already in progress can remain blocked. The process does not wait for that write.
+
+`ShutdownFinished` records observed cleanup completion, failure, or deadline expiration.
+Its fields contain the final stage, bounded reason, total shutdown duration in milliseconds, release, and process-instance ID.
+Stages distinguish request draining, pool closure, diagnostic draining, and completion.
+Reasons distinguish no failure, a signal, listener failure, timeout, and an unavailable diagnostic worker.
+Normal lifecycle records use `INFO`. Cleanup failures and deadline expiration use `ERROR`.
+Listener failure at shutdown initiation also uses `ERROR`.
+
+A pool-closure timeout or serving failure retains a failure exit status.
+Diagnostic failure does not replace the app exit status.
+`ShutdownFinished` proves neither its own delivery nor successful process exit.
+Abrupt termination can omit either shutdown record.
 
 ### Diagnostic delivery loss
 

@@ -374,6 +374,17 @@ async fn ranking_failure_is_observed_after_component_loading_and_survives_broken
     assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(401));
     let fresh = app.login("private-broken-output-reader").await?;
     assert_that!(app.ranking(&fresh).await?.status().as_u16(), eq(200));
+    assert_that!(
+        std::process::Command::new("kill")
+            .args(["-TERM", &app.process.0.id().to_string()])
+            .status()?
+            .success(),
+        eq(true)
+    );
+    assert_that!(
+        wait_for_shutdown(&mut app.process).await?.success(),
+        eq(true)
+    );
     Ok(())
 }
 
@@ -797,5 +808,202 @@ async fn stalled_early_stderr_preserves_failure_exit() -> anyhow::Result<()> {
     })
     .await??;
     assert_that!(status.success(), eq(false));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn readiness_records_first_result_and_changes_without_repeating_probes() -> anyhow::Result<()>
+{
+    use crate::diagnostic_events::{
+        EventIdentity, ReadinessReason, ReadinessRecord, ReadinessState,
+    };
+    async fn records(app: &Fixture, expected: usize) -> anyhow::Result<Vec<ReadinessRecord>> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let data = std::fs::read_to_string(app.diagnostics.path())?;
+                let records: Vec<ReadinessRecord> = data
+                    .lines()
+                    .filter_map(|line| serde_json::from_str(line).ok())
+                    .collect();
+                if records.len() >= expected {
+                    return Ok::<_, anyhow::Error>(records);
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .map_err(|_| anyhow::anyhow!("The readiness transition is absent."))?
+    }
+    async fn probe(app: &Fixture, expected: u16) -> anyhow::Result<()> {
+        tokio::time::timeout(Duration::from_secs(6), async {
+            loop {
+                if app
+                    .client
+                    .get(format!("{}/health/ready", app.base))
+                    .send()
+                    .await?
+                    .status()
+                    .as_u16()
+                    == expected
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            Ok::<_, anyhow::Error>(())
+        })
+        .await??;
+        for _ in 0..8 {
+            assert_that!(
+                app.client
+                    .get(format!("{}/health/ready", app.base))
+                    .send()
+                    .await?
+                    .status()
+                    .as_u16(),
+                eq(expected)
+            );
+        }
+        Ok(())
+    }
+    let app = Fixture::new().await?;
+    let initial = records(&app, 1).await?;
+    assert_that!(initial.len(), eq(1));
+    assert_that!(initial[0].fact.state, eq(ReadinessState::Ready));
+    probe(&app, 200).await?;
+    let manifest = app.package.path().join("assets/manifest.toml");
+    let original = std::fs::read(&manifest)?;
+    std::fs::write(&manifest, b"mismatched readiness fixture")?;
+    probe(&app, 503).await?;
+    sqlx::query("ALTER TABLE book_smartz_web.sessions RENAME TO hidden_sessions")
+        .execute(&app.pool)
+        .await?;
+    std::fs::write(&manifest, original)?;
+    tokio::time::timeout(Duration::from_secs(6), async {
+        loop {
+            let _ = app
+                .client
+                .get(format!("{}/health/ready", app.base))
+                .send()
+                .await?;
+            let contents = std::fs::read_to_string(app.diagnostics.path())?;
+            if contents
+                .lines()
+                .filter_map(|line| serde_json::from_str::<ReadinessRecord>(line).ok())
+                .any(|record| record.fact.reason == ReadinessReason::Schema)
+            {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        Ok::<_, anyhow::Error>(())
+    })
+    .await??;
+    probe(&app, 503).await?;
+    sqlx::query("ALTER TABLE book_smartz_web.hidden_sessions RENAME TO sessions")
+        .execute(&app.pool)
+        .await?;
+    probe(&app, 200).await?;
+    let observed = records(&app, 4).await?;
+    assert_that!(observed.len(), eq(4));
+    for (record, (state, reason, severity)) in observed.iter().zip([
+        (ReadinessState::Ready, ReadinessReason::None, Severity::Info),
+        (
+            ReadinessState::Unavailable,
+            ReadinessReason::Package,
+            Severity::Error,
+        ),
+        (
+            ReadinessState::Unavailable,
+            ReadinessReason::Schema,
+            Severity::Error,
+        ),
+        (ReadinessState::Ready, ReadinessReason::None, Severity::Info),
+    ]) {
+        assert_that!(record.fact.event, eq(EventIdentity::ReadinessChanged));
+        assert_that!(record.fact.state, eq(state));
+        assert_that!(record.fact.reason, eq(reason));
+        assert_that!(record.severity, eq(severity));
+        assert_that!(&record.fact.release, eq(&initial[0].fact.release));
+        assert_that!(
+            record.fact.process_instance,
+            eq(initial[0].fact.process_instance)
+        );
+    }
+    Ok(())
+}
+
+async fn wait_for_shutdown(
+    process: &mut crate::test_support::Process,
+) -> anyhow::Result<std::process::ExitStatus> {
+    tokio::time::timeout(Duration::from_secs(8), async {
+        loop {
+            if let Some(status) = process.0.try_wait()? {
+                return Ok::<_, std::io::Error>(status);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .map_err(|_| anyhow::anyhow!("The process exceeded its cleanup deadline."))?
+    .map_err(Into::into)
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn stalled_shutdown_output_cannot_extend_the_packaged_cleanup_limit() -> anyhow::Result<()> {
+    use std::io::Write;
+    let app = Fixture::new().await?;
+    let socket = std::net::TcpListener::bind("127.0.0.1:0")?;
+    let port = socket.local_addr()?.port();
+    drop(socket);
+    let (mut destination, _reader) = std::os::unix::net::UnixStream::pair()?;
+    destination.set_nonblocking(true)?;
+    loop {
+        match destination.write(&[0; 8192]) {
+            Ok(0) => anyhow::bail!("The controlled destination closed."),
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => break,
+            Err(error) => return Err(error.into()),
+        }
+    }
+    destination.set_nonblocking(false)?;
+    let descriptor: std::os::fd::OwnedFd = destination.into();
+    let mut process = crate::test_support::Process(
+        initialization_command(&app, "serve")
+            .env("PORT", port.to_string())
+            .stderr(std::fs::File::from(descriptor))
+            .spawn()?,
+    );
+    tokio::time::timeout(Duration::from_secs(20), async {
+        loop {
+            if let Ok(response) = app
+                .client
+                .get(format!("http://127.0.0.1:{port}/health/ready"))
+                .send()
+                .await
+                && response.status().as_u16() == 200
+            {
+                break;
+            }
+            if process.0.try_wait()?.is_some() {
+                anyhow::bail!("The packaged process stopped before readiness.");
+            }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+        Ok::<_, anyhow::Error>(())
+    })
+    .await??;
+    let started = std::time::Instant::now();
+    assert_that!(
+        std::process::Command::new("kill")
+            .args(["-TERM", &process.0.id().to_string()])
+            .status()?
+            .success(),
+        eq(true)
+    );
+    assert_that!(wait_for_shutdown(&mut process).await?.success(), eq(true));
+    assert_that!(started.elapsed() >= Duration::from_secs(4), eq(true));
     Ok(())
 }

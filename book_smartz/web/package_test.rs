@@ -1,4 +1,10 @@
 //! Acceptance of the delivered archive and launcher from unrelated directories.
+#[path = "diagnostic_events.rs"]
+#[allow(
+    dead_code,
+    reason = "The packaged application owns event construction."
+)]
+mod diagnostic_events;
 mod test_support;
 use std::{
     fs,
@@ -374,6 +380,25 @@ async fn graceful_shutdown_drains_an_admitted_request_and_preserves_the_session(
         }
     })
     .await?;
+    let during = tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            let records = shutdown_records(&app)?;
+            if !records.is_empty() {
+                return Ok::<_, anyhow::Error>(records);
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await??;
+    assert_that!(during.len(), eq(1));
+    assert_that!(
+        during[0].fact.event,
+        eq(diagnostic_events::EventIdentity::ShutdownStarted)
+    );
+    assert_that!(
+        during[0].fact.stage,
+        eq(diagnostic_events::ShutdownStage::RequestDrain)
+    );
     assert_that!(app.process.0.try_wait()?.is_none(), eq(true));
     lock.commit().await?;
     assert_that!(request.await??.status().as_u16(), eq(200));
@@ -388,6 +413,30 @@ async fn graceful_shutdown_drains_an_admitted_request_and_preserves_the_session(
     .await??;
     assert_that!(status.success(), eq(true));
     assert_that!(start.elapsed() < Duration::from_secs(30), eq(true));
+    let completed = shutdown_records(&app)?;
+    assert_that!(completed.len(), eq(2));
+    assert_that!(
+        completed[1].fact.event,
+        eq(diagnostic_events::EventIdentity::ShutdownFinished)
+    );
+    assert_that!(
+        completed[1].fact.outcome,
+        eq(diagnostic_events::ShutdownOutcome::Completed)
+    );
+    assert_that!(
+        completed[1].fact.stage,
+        eq(diagnostic_events::ShutdownStage::Complete)
+    );
+    assert_that!(
+        completed[1].fact.reason,
+        eq(diagnostic_events::ShutdownReason::None)
+    );
+    assert_that!(completed[1].severity, eq(diagnostic_events::Severity::Info));
+    assert_that!(
+        completed[1].fact.process_instance,
+        eq(completed[0].fact.process_instance)
+    );
+    assert_that!(&completed[1].fact.release, eq(&completed[0].fact.release));
     // Restart the package without another migration or login.
     app.restart_after_exit().await?;
     assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
@@ -441,4 +490,11 @@ async fn serving_connections_have_bounded_pool_and_database_timeouts() -> anyhow
         assert_that!(request.await??.status().as_u16(), eq(200));
     }
     Ok(())
+}
+
+fn shutdown_records(app: &Fixture) -> anyhow::Result<Vec<diagnostic_events::ShutdownRecord>> {
+    Ok(std::fs::read_to_string(app.diagnostics.path())?
+        .lines()
+        .filter_map(|line| serde_json::from_str(line).ok())
+        .collect())
 }
