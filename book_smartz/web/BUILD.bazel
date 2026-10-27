@@ -34,6 +34,7 @@ topcoat_rust_binary(
         "actions.rs",
         "actions/evidence.rs",
         "catalog.rs",
+        "catalog/metadata.rs",
         "diagnostic_events.rs",
         "diagnostics.rs",
         "feedback.rs",
