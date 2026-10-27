@@ -487,7 +487,7 @@ fn outcome<'a>(cx: &'a Cx, message: &str, recovery: Option<RecoveryActions>) -> 
             <body>
                 book_smartz_views::heading()
                 <main class="library-workspace">
-                    <section class="active-task" aria-label="Book workspace">
+                    <section class="active-task" aria-label="Book ranking workspace">
                         <h1 tabindex="-1" data-response-focus="recovery">(title)</h1>
                         book_smartz_views::feedback(
                             message: message,
@@ -569,7 +569,10 @@ async fn finish<'a>(
                     <body>
                         book_smartz_views::heading()
                         <main class="library-workspace">
-                            <section class="active-task" aria-label="Book workspace">
+                            <section
+                                class="active-task"
+                                aria-label="Book ranking workspace"
+                            >
                                 <h1 tabindex="-1" data-response-focus="task">
                                     "Confirm your current ranking"
                                 </h1>

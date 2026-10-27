@@ -36,9 +36,9 @@ pub async fn heading() -> Result<impl View> {
         <header class="library-header">
             <a class="brand" href="/ranking">
                 "Book Smartz"
-                icon(data: feather::BOOK_OPEN, label: "Your private library")
+                icon(data: feather::BOOK_OPEN, label: "Book Smartz")
             </a>
-            <nav aria-label="Library">
+            <nav aria-label="Book ranking">
                 <a href="/ranking">"Find a book"</a>
                 <a href="/ranking#saved-ranking">"Your ranking"</a>
             </nav>
