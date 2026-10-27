@@ -34,6 +34,7 @@ topcoat_rust_binary(
         "actions.rs",
         "actions/evidence.rs",
         "catalog.rs",
+        "catalog/cache.rs",
         "catalog/metadata.rs",
         "diagnostic_events.rs",
         "diagnostics.rs",
@@ -51,6 +52,7 @@ topcoat_rust_binary(
         "actions.sql",
         "identity.sql",
         "catalog.sql",
+        "catalog/cache.sql",
     ],
     crate_name = "book_smartz_web",
     crate_root = "main.rs",
@@ -477,4 +479,41 @@ js_library(
     testonly = True,
     srcs = ["browser.lifecycle.test.mjs"],
     deps = [":browser_lifecycle"],
+)
+
+rust_test(
+    name = "metadata_cache_test",
+    size = "medium",
+    srcs = [
+        "catalog/cache.rs",
+        "catalog/metadata.rs",
+        "metadata_cache_test.rs",
+    ],
+    compile_data = ["catalog/cache.sql"],
+    crate_root = "metadata_cache_test.rs",
+    data = image_data("postgres_18"),
+    env = image_env("postgres_18"),
+    exec_properties = {
+        "test.workload-isolation-type": "firecracker",
+        "test.init-dockerd": "true",
+    },
+    tags = [
+        "requires-docker",
+        "requires-network",
+    ],
+    deps = [
+        "//book_smartz/domain:lib",
+        "//test_images/rust:test_images",
+        "@crates//:anyhow",
+        "@crates//:chrono",
+        "@crates//:googletest",
+        "@crates//:reqwest",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sqlx",
+        "@crates//:testcontainers-modules",
+        "@crates//:tokio",
+        "@crates//:url",
+        "@crates//:wiremock",
+    ],
 )

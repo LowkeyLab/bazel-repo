@@ -139,7 +139,7 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
         InitializationReason::Provider,
     );
     let google = identity::Google::from_environment(&origin)?;
-    let catalog = catalog::Catalog::from_environment()?;
+    let catalog = catalog::Catalog::from_environment(pool.clone())?;
     observation.phase(InitializationStage::Schema, InitializationReason::Schema);
     identity::ready(&pool).await?;
     observation.phase(

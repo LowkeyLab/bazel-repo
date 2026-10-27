@@ -23,10 +23,12 @@ use crate::{Application, authorize};
 mod metadata;
 
 pub use metadata::CatalogWork;
-use metadata::{Failure, Provider, valid_text};
+pub use metadata::migrate as migrate_cache;
+use metadata::{Cache, Failure, Provider, valid_text};
 
 pub struct Catalog {
     provider: Provider,
+    cache: Cache,
     signing_key: Vec<u8>,
 }
 #[derive(Serialize, Deserialize)]
@@ -97,7 +99,7 @@ impl Catalog {
         Ok(())
     }
 
-    pub fn from_environment() -> anyhow::Result<Self> {
+    pub fn from_environment(pool: PgPool) -> anyhow::Result<Self> {
         let endpoint = url::Url::parse(
             &std::env::var("OPEN_LIBRARY_SEARCH_ENDPOINT")
                 .unwrap_or_else(|_| "https://openlibrary.org/search.json".into()),
@@ -123,6 +125,7 @@ impl Catalog {
             "selection key must contain at least 32 bytes"
         );
         Ok(Self {
+            cache: Cache::new(pool),
             signing_key,
             provider: Provider {
                 endpoint,
@@ -212,7 +215,7 @@ impl Catalog {
                         "No selectable works returned."
                     });
                 }
-                for work in found.works {
+                for work in self.cache.retain(found.works).await {
                     let token = match self.sign(reader, work.clone()) {
                         Ok(token) => token,
                         Err(error) => {

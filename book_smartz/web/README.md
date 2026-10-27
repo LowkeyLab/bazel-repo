@@ -77,7 +77,7 @@ Search uses [Open Library's work search endpoint](https://openlibrary.org/dev/do
 with 20 results per page and direct [CoverID images](https://openlibrary.org/dev/docs/api/covers).
 Requests identify Book Smartz and the configured maintainer contact. The app
 limits queries to 256 characters, provider requests to five seconds and responses
-to 1 MiB. Failures offer explicit retry controls. Results have no cache or
+to 1 MiB. Failures offer explicit retry controls. Search pages have no cache or
 automatic retry. Cover failure falls back to the packaged image in the browser.
 
 Catalog admission uses its own migration schema and ledger. The previous release
@@ -297,3 +297,24 @@ Process exit can lose buffered records, counters, and pending summaries.
 The app installs no traces or metrics. The platform collects stderr. Configure its
 private access and retention separately. The app turns off dependency SQL statement logging and avoids raw
 process-error formatting to protect private payloads.
+
+## Shared work metadata
+
+Successful live searches retain validated work metadata in PostgreSQL, including works that no reader registers.
+Fresh provider fields take precedence. Missing optional fields can use retained metadata for the same validated work.
+Search membership, order, pagination, and admission remain provider-controlled.
+The cache cannot answer a failed search or add a work absent from its response.
+
+The cache retains at most 10,000 works through least-recently-used removal.
+Metadata writes use an independent transaction lock and a 500-millisecond work limit.
+Cache failures preserve valid provider results.
+Successful provider retrieval establishes 24-hour freshness. Last-use time remains separate.
+Known-work lookup and stale refresh fallback remain separate work.
+
+The metadata schema has its own versioned migration.
+It has no reader identifiers, search queries, selection tokens, ranking history, or registration dependency.
+Add verifies its signed snapshot locally. Cache removal leaves saved display metadata and ranking history intact.
+
+Run `aspect test //book_smartz/web:metadata_cache_test` for the concrete PostgreSQL cache boundary.
+The existing HTTP suite checks shared search enrichment and signed selections after cache removal.
+Controlled provider checks do not establish live Open Library compatibility.
