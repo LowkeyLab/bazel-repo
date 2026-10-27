@@ -45,6 +45,8 @@ settings aren't capacity measurements.
 
 ## Diagnostics and private evidence
 
+See the [2026-10-27 deployed diagnostics acceptance](DIAGNOSTICS-ACCEPTANCE.md) for the bounded production observations.
+
 Restrict platform logs and database access to the maintainer.
 Observed operations emit typed `OperationFinished` facts.
 The producer captures one opaque operation ID per attempt and one process-instance ID per serving process.
