@@ -5,9 +5,33 @@ use serde::{Deserialize, Serialize};
 
 use book_smartz_domain::OpenLibraryWorkId;
 
+#[path = "admission.rs"]
+mod admission;
+pub(super) use admission::admit;
+
 #[path = "cache.rs"]
 mod cache;
 pub use cache::{Cache, migrate};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum LookupFailure {
+    #[error("metadata lookup admission is unavailable")]
+    AdmissionUnavailable,
+    #[error("metadata lookup is rate limited")]
+    Limited,
+    #[error("metadata lookup is unavailable")]
+    Unavailable,
+    #[error("metadata lookup timed out")]
+    Timeout,
+    #[error("metadata lookup returned invalid metadata")]
+    Malformed,
+    #[error("metadata lookup response exceeded its limit")]
+    Oversized,
+    #[error("work metadata was not found")]
+    NotFound,
+    #[error("work identity exceeds the metadata limit")]
+    InvalidWorkId,
+}
 
 pub(super) struct Provider {
     pub(super) client: reqwest::Client,
@@ -59,6 +83,36 @@ pub(super) fn valid_text(value: &str, maximum: usize) -> bool {
         && !value.chars().any(char::is_control)
 }
 impl Provider {
+    pub(super) fn new(endpoint: url::Url, contact: &str) -> anyhow::Result<Self> {
+        Ok(Self {
+            endpoint,
+            client: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(5))
+                .retry(reqwest::retry::never())
+                .redirect(reqwest::redirect::Policy::none())
+                .user_agent(format!("Book Smartz ({contact})"))
+                .build()?,
+        })
+    }
+
+    async fn lookup(&self, key: &OpenLibraryWorkId) -> Result<CatalogWork, LookupFailure> {
+        let mut page = self
+            .search(&format!("key:(/works/{})", key.as_str()), 1)
+            .await
+            .map_err(LookupFailure::from)?;
+        if page.no_matches && page.works.is_empty() {
+            return Err(LookupFailure::NotFound);
+        }
+        if page.more || page.works.len() != 1 {
+            return Err(LookupFailure::Malformed);
+        }
+        let work = page.works.pop().ok_or(LookupFailure::Malformed)?;
+        if work.work_id != key.as_str() {
+            return Err(LookupFailure::Malformed);
+        }
+        Ok(work)
+    }
+
     pub(super) async fn search(
         &self,
         query: &str,
@@ -164,6 +218,18 @@ pub(super) enum Failure {
     Malformed,
     Oversized,
 }
+impl From<Failure> for LookupFailure {
+    fn from(error: Failure) -> Self {
+        match error {
+            Failure::Limited => Self::Limited,
+            Failure::Unavailable => Self::Unavailable,
+            Failure::Timeout => Self::Timeout,
+            Failure::Malformed => Self::Malformed,
+            Failure::Oversized => Self::Oversized,
+        }
+    }
+}
+
 impl Failure {
     pub(super) const fn message(&self) -> &'static str {
         match self {
