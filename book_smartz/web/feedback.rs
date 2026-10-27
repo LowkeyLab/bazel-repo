@@ -67,9 +67,9 @@ impl Receipt {
                 || {
                     match self.kind {
                         SaveKind::Add => "Book added. Compare it with books in your ranking to find its position.",
-                        SaveKind::Preference => "Your preference is saved.",
-                        SaveKind::Pause => "Placement paused. Your preferences are saved.",
-                        SaveKind::Resume => "Placement resumed. Your preferences are saved.",
+                        SaveKind::Preference => "We saved your choice.",
+                        SaveKind::Pause => "We paused the comparisons for this book and kept your saved choices.",
+                        SaveKind::Resume => "You can continue the comparisons for this book. We kept your saved choices.",
                     }
                     .into()
                 },

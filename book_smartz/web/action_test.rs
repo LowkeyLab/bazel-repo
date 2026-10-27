@@ -1836,7 +1836,15 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
     let mut app = Fixture::new().await?;
     let cookie = app.login("pause-reader").await?;
     let id = reader(&app, "pause-reader").await?;
-    for (work_id, title) in [("OL701W", "One"), ("OL702W", "Two"), ("OL703W", "Three")] {
+    for (work_id, title) in [
+        ("OL701W", "One"),
+        ("OL702W", "Two"),
+        ("OL703W", "Three"),
+        ("OL704W", "Four"),
+        ("OL705W", "Five"),
+        ("OL706W", "Six"),
+        ("OL707W", "Seven"),
+    ] {
         add_work(&app, &cookie, id, work_id, title).await?;
         while app
             .ranking(&cookie)
@@ -1855,7 +1863,11 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
             );
         }
     }
-    add_work(&app, &cookie, id, "OL704W", "Candidate").await?;
+    add_work(&app, &cookie, id, "OL708W", "Candidate").await?;
+    assert_that!(
+        app.ranking(&cookie).await?.text().await?.as_str(),
+        contains_substring("You saved no choices for this book yet.")
+    );
     let answer = preference(&app, &cookie, "opponent").await?;
     assert_that!(
         post(&app, &cookie, "/answer", &answer)
@@ -1877,12 +1889,18 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
         );
     }
     let html = app.ranking(&cookie).await?.text().await?;
-    assert_that!(html.as_str(), contains_substring("comparison is paused"));
+    assert_that!(
+        html.as_str(),
+        contains_substring("You paused the comparisons for this book. Resume when you are ready.")
+    );
     assert_that!(
         html.as_str(),
         not(contains_substring("Which book do you prefer?"))
     );
-    assert_that!(html.as_str(), contains_substring("1 preference saved"));
+    assert_that!(
+        html.as_str(),
+        contains_substring("You saved 1 choice for this book.")
+    );
     app.restart().await?;
     let other = app.login("pause-reader").await?;
     let resume = placement_form(&app.ranking(&other).await?.text().await?, "/resume")?;
@@ -1913,7 +1931,24 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
     );
     assert_that!(
         app.ranking(&other).await?.text().await?.as_str(),
-        contains_substring("1 preference saved")
+        contains_substring("You saved 1 choice for this book.")
+    );
+    let second = preference(&app, &other, "opponent").await?;
+    assert_that!(
+        post(&app, &other, "/answer", &second)
+            .await?
+            .status()
+            .as_u16(),
+        eq(303)
+    );
+    let html = app.ranking(&other).await?.text().await?;
+    assert_that!(
+        html.as_str(),
+        contains_substring("You saved 2 choices for this book.")
+    );
+    assert_that!(
+        html.as_str(),
+        contains_substring("Which book do you prefer?")
     );
     Ok(())
 }
@@ -2045,7 +2080,7 @@ async fn placement_actions_authorize_each_post_and_reconcile_before_expired_sess
     let fresh = app.login("placement-security").await?;
     assert_that!(
         app.ranking(&fresh).await?.text().await?.as_str(),
-        contains_substring("comparison is paused")
+        contains_substring("You paused the comparisons for this book. Resume when you are ready.")
     );
     assert_that!(store(&app).load_ranking_documents(id).await?, eq(&before));
     Ok(())

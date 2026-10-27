@@ -761,9 +761,21 @@ async function journey() {
     0,
   );
   const pendingPlacement = page.getByRole("complementary", {
-    name: "Pending placement",
+    name: "Book comparisons",
     exact: true,
   });
+  for (const label of [
+    "Rank this book",
+    "Book to rank",
+    "Book in your ranking",
+    "Choose the book you prefer",
+    "You saved no choices for this book yet.",
+  ]) {
+    assert.equal(
+      await pendingPlacement.getByText(label, { exact: true }).isVisible(),
+      true,
+    );
+  }
   await pendingPlacement
     .getByText("Fixture Author", { exact: true })
     .first()
@@ -868,7 +880,11 @@ async function journey() {
   await page.getByRole("button", { name: "Check original save" }).click();
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(
-    await page.getByText("Your unfinished comparison is paused.").isVisible(),
+    await page
+      .getByText(
+        "You paused the comparisons for this book. Resume when you are ready.",
+      )
+      .isVisible(),
     true,
   );
   await page.reload();
@@ -882,7 +898,9 @@ async function journey() {
       response.url().endsWith("/resume") &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: "Resume", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Resume comparisons", exact: true })
+    .click();
   assert.equal((await expired).status(), 401);
   const signInRequired = page.getByRole("heading", {
     name: "Sign in to continue",
@@ -907,7 +925,11 @@ async function journey() {
   await page.getByRole("link", { name: "Sign in with Google" }).click();
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(
-    await page.getByText("Your unfinished comparison is paused.").isVisible(),
+    await page
+      .getByText(
+        "You paused the comparisons for this book. Resume when you are ready.",
+      )
+      .isVisible(),
     true,
   );
   const staleSessionResponse = oldResumeTab.waitForResponse(
@@ -916,7 +938,7 @@ async function journey() {
       response.request().method() === "POST",
   );
   await oldResumeTab
-    .getByRole("button", { name: "Resume", exact: true })
+    .getByRole("button", { name: "Resume comparisons", exact: true })
     .click();
   assert.equal((await staleSessionResponse).status(), 403);
   const unavailable = oldResumeTab.getByRole("heading", {
@@ -933,11 +955,16 @@ async function journey() {
   await oldResumeTab.close();
   assert.equal(
     await page
-      .getByText("Your unfinished comparison is paused.", { exact: true })
+      .getByText(
+        "You paused the comparisons for this book. Resume when you are ready.",
+        { exact: true },
+      )
       .isVisible(),
     true,
   );
-  await page.getByRole("button", { name: "Resume", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Resume comparisons", exact: true })
+    .click();
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(await page.locator("ol li").count(), 1);
   await stale.reload();
@@ -974,6 +1001,8 @@ async function journey() {
           status: form.querySelector('[role="status"]').textContent,
           busy: form.getAttribute("aria-busy"),
           saved: document.querySelectorAll("ol li").length,
+          progress: document.querySelector('.comparison > [role="status"]')
+            .textContent,
           focusOffStatus:
             document.activeElement !== form.querySelector('[role="status"]'),
         });
@@ -1009,6 +1038,7 @@ async function journey() {
       status: "Saving…",
       busy: "true",
       saved: 1,
+      progress: "You saved no choices for this book yet.",
       focusOffStatus: true,
     });
     assert.equal(status, 303);
@@ -1190,22 +1220,29 @@ async function journey() {
     .getByRole("button", { name: "Prefer Later book", exact: true })
     .click();
   await page
-    .getByText("1 preference saved for this placement.", { exact: true })
+    .getByText("You saved 1 choice for this book.", { exact: true })
     .waitFor();
+  await page.getByText("We saved your choice.", { exact: true }).waitFor();
   await recordScene("saved-preference-progress");
   await page
     .getByRole("button", { name: "Pause for now", exact: true })
     .click();
   await page
-    .getByText("Placement paused. Your preferences are saved.", { exact: true })
+    .getByText(
+      "We paused the comparisons for this book and kept your saved choices.",
+      { exact: true },
+    )
     .waitFor();
   await page
-    .getByText("Your unfinished comparison is paused.", { exact: true })
+    .getByText(
+      "You paused the comparisons for this book. Resume when you are ready.",
+      { exact: true },
+    )
     .waitFor();
   await recordScene("paused-placement");
   await page.reload();
   await page
-    .getByText("1 preference saved for this placement.", { exact: true })
+    .getByText("You saved 1 choice for this book.", { exact: true })
     .waitFor();
   await page
     .getByRole("button", { name: "Sign out of this browser", exact: true })
@@ -1215,7 +1252,7 @@ async function journey() {
     .click();
   await page.waitForURL("https://reader.example/ranking");
   await page
-    .getByText("1 preference saved for this placement.", { exact: true })
+    .getByText("You saved 1 choice for this book.", { exact: true })
     .waitFor();
   assert.equal(
     await page
@@ -1228,14 +1265,19 @@ async function journey() {
     .getByRole("status");
   assert.equal(await resumeStatus.count(), 1);
   assert.equal(await resumeStatus.textContent(), "");
-  await page.getByRole("button", { name: "Resume", exact: true }).click();
   await page
-    .getByText("Placement resumed. Your preferences are saved.", {
-      exact: true,
-    })
+    .getByRole("button", { name: "Resume comparisons", exact: true })
+    .click();
+  await page
+    .getByText(
+      "You can continue the comparisons for this book. We kept your saved choices.",
+      {
+        exact: true,
+      },
+    )
     .waitFor();
   await page
-    .getByText("1 preference saved for this placement.", { exact: true })
+    .getByText("You saved 1 choice for this book.", { exact: true })
     .waitFor();
   await page.waitForLoadState("domcontentloaded");
   const beforeThirdPlacement = motions.length;
@@ -1374,7 +1416,7 @@ async function journey() {
     .click();
   await page.waitForLoadState("domcontentloaded");
   await page
-    .getByText("1 preference saved for this placement.", { exact: true })
+    .getByText("You saved 1 choice for this book.", { exact: true })
     .waitFor();
   const beforeRecoveredMotion = motions.length;
   await fixture("reject");
@@ -1601,7 +1643,10 @@ async function journey() {
   assert.equal(await nativeReaderPage.locator("ol li").count(), 1);
   assert.equal(
     await nativeReaderPage
-      .getByText("Your unfinished comparison is paused.", { exact: true })
+      .getByText(
+        "You paused the comparisons for this book. Resume when you are ready.",
+        { exact: true },
+      )
       .count(),
     0,
   );
@@ -1625,7 +1670,10 @@ async function journey() {
   );
   assert.equal(
     await nativeReaderPage
-      .getByText("Your unfinished comparison is paused.", { exact: true })
+      .getByText(
+        "You paused the comparisons for this book. Resume when you are ready.",
+        { exact: true },
+      )
       .count(),
     0,
   );
@@ -1643,11 +1691,14 @@ async function journey() {
     .getByText("The original save is confirmed.", { exact: true })
     .waitFor();
   await nativeReaderPage
-    .getByText("Your unfinished comparison is paused.", { exact: true })
+    .getByText(
+      "You paused the comparisons for this book. Resume when you are ready.",
+      { exact: true },
+    )
     .waitFor();
   await recordScene("native-recovered-pause", nativeReaderPage);
   await nativeReaderPage
-    .getByRole("button", { name: "Resume", exact: true })
+    .getByRole("button", { name: "Resume comparisons", exact: true })
     .click();
   const nativePreference = nativeReaderPage.getByRole("button", {
     name: "Prefer Native book",
