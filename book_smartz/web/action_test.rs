@@ -2764,18 +2764,18 @@ async fn display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_rep
     );
     assert_that!(
         response.text().await?.as_str(),
-        contains_substring("Saved at position 1.")
+        contains_substring("We saved this book at position 1.")
     );
     assert_that!(
         app.ranking(&owner).await?.text().await?.as_str(),
-        not(contains_substring("Saved at position"))
+        not(contains_substring("We saved this book at position"))
     );
     let foreign = app.ranking(&format!("{other}; {cookie}")).await?;
     assert_that!(foreign.status().as_u16(), eq(200));
     let foreign = foreign.text().await?;
     assert_that!(
         foreign.as_str(),
-        not(contains_substring("Saved at position"))
+        not(contains_substring("We saved this book at position"))
     );
     assert_that!(
         foreign.as_str(),
@@ -2811,7 +2811,10 @@ async fn display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_rep
             .await?;
         assert_that!(response.status().as_u16(), eq(200));
         let html = response.text().await?;
-        assert_that!(html.as_str(), not(contains_substring("Saved at position")));
+        assert_that!(
+            html.as_str(),
+            not(contains_substring("We saved this book at position"))
+        );
         assert_that!(html.as_str(), contains_substring("Confirmed display book"));
     }
     let replay = post(&app, &owner, "/add", &values).await?;
@@ -2827,6 +2830,70 @@ async fn display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_rep
         html.as_str(),
         contains_substring("This action was already saved.")
     );
-    assert_that!(html.as_str(), not(contains_substring("Saved at position")));
+    assert_that!(
+        html.as_str(),
+        not(contains_substring("We saved this book at position"))
+    );
+    let later = offer(
+        &app,
+        &owner,
+        id,
+        work("OL900W", "Pending display book"),
+        chrono::Utc::now().timestamp() + 900,
+    )
+    .await?;
+    let response = post(&app, &owner, "/add", &later).await?;
+    assert_that!(response.status().as_u16(), eq(303));
+    let pending_cookie = display_cookie(&response)?;
+    let html = app
+        .ranking(&format!(
+            "{owner}; {}",
+            pending_cookie.split(';').next().unwrap()
+        ))
+        .await?
+        .text()
+        .await?;
+    assert_that!(
+        html.as_str(),
+        contains_substring(
+            "Book added. Compare it with books in your ranking to find its position."
+        )
+    );
+    assert_that!(
+        html.as_str(),
+        not(contains_substring("We saved this book at position"))
+    );
+    let saved = html
+        .split("<ol>")
+        .nth(1)
+        .unwrap()
+        .split("</ol>")
+        .next()
+        .unwrap();
+    assert_that!(saved, contains_substring("OL899W"));
+    assert_that!(saved, not(contains_substring("OL900W")));
+    let selected = post(
+        &app,
+        &owner,
+        "/select",
+        &[
+            ("csrf".into(), value(&later, "csrf").into()),
+            ("selection".into(), value(&later, "selection").into()),
+        ],
+    )
+    .await?
+    .text()
+    .await?;
+    assert_that!(
+        selected.as_str(),
+        contains_substring(
+            "Finish your comparisons or check your earlier save before you add another book."
+        )
+    );
+    assert_that!(
+        regex::Regex::new(r"<button[^>]*disabled[^>]*>Add to your ranking</button>")?
+            .is_match(&selected),
+        eq(true)
+    );
     Ok(())
 }

@@ -48,6 +48,47 @@ async fn explicit_search_normalizes_work_results_and_issues_selections() -> anyh
     assert_that!(body.as_str(), contains_substring("1954"));
     assert_that!(body.matches("name=\"selection\"").count(), eq(2));
     assert_that!(body.as_str(), contains_substring("Next page"));
+    for copy in [
+        "<title>Find a book · Book Smartz</title>",
+        "Find a book to rank",
+        "Select this book",
+        "Example cover for this book",
+        "Your saved ranking",
+        "Previous page",
+        "name=\"page\" value=\"2\"",
+        "value=\"Tolkien\"",
+    ] {
+        assert_that!(body.as_str(), contains_substring(copy));
+    }
+    app.provider.reset().await;
+    sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at='-infinity'")
+        .execute(&app.pool)
+        .await?;
+    Mock::given(method("GET"))
+        .and(path("/search.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            json!({"start":0,"numFound":1,"docs":[{"key":"/books/OL1M","title":"Edition"}]}),
+        ))
+        .mount(&app.provider)
+        .await;
+    let body = post(
+        &app,
+        &app.base,
+        &cookie,
+        "search",
+        &[("csrf", &csrf), ("query", "book"), ("page", "1")],
+    )
+    .await?
+    .text()
+    .await?;
+    assert_that!(
+        body.as_str(),
+        contains_substring(
+            "We found no books you can select on this page. Try another title or author."
+        )
+    );
+    assert_that!(body.matches("name=\"selection\"").count(), eq(0));
+    assert_that!(body.as_str(), contains_substring("Your saved ranking"));
     Ok(())
 }
 
@@ -116,10 +157,16 @@ async fn selections_reject_tampering_expiry_wrong_reader_and_invalid_metadata_wi
     )
     .await?;
     assert_that!(response.status().as_u16(), eq(200));
-    assert_that!(
-        response.text().await?.as_str(),
-        contains_substring("Selected work")
-    );
+    let selected = response.text().await?;
+    for copy in [
+        "<title>Selected book · Book Smartz</title>",
+        "Selected book",
+        "You can add this book for 15 minutes after your search. After that, search for the book again.",
+        "Add to your ranking",
+        "Return to your ranking",
+    ] {
+        assert_that!(selected.as_str(), contains_substring(copy));
+    }
     let response = post(
         &app,
         &app.base,
@@ -209,34 +256,40 @@ async fn provider_failures_are_actionable_and_never_hide_saved_state() -> anyhow
     let cases = [
         (
             ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":0,"docs":[]})),
-            "No matches found.",
+            "We found no matching books. Try another title or author.",
         ),
         (
             ResponseTemplate::new(200).set_body_string("not JSON"),
-            "malformed response",
+            "We could not read the search results. Try again.",
         ),
         (
             ResponseTemplate::new(200)
                 .set_body_json(json!({"start":0,"numFound":0,"num_found":1,"docs":[]})),
-            "malformed response",
+            "We could not read the search results. Try again.",
         ),
         (
             ResponseTemplate::new(200).set_body_json(json!({"start":0,"docs":[]})),
-            "malformed response",
+            "We could not read the search results. Try again.",
         ),
         (
             ResponseTemplate::new(200).set_body_string("x".repeat(1_048_577)),
-            "too large",
+            "The search results were too large to load. Try again.",
         ),
-        (ResponseTemplate::new(503), "unavailable"),
-        (ResponseTemplate::new(429), "rate limit"),
+        (
+            ResponseTemplate::new(503),
+            "Search is unavailable. Try again.",
+        ),
+        (
+            ResponseTemplate::new(429),
+            "Search received too many requests. Wait a moment, then search again.",
+        ),
         (
             ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(6)),
-            "timed out",
+            "Search took too long to respond. Try again.",
         ),
         (
             ResponseTemplate::new(302).insert_header("location", "http://127.0.0.1:1/leak"),
-            "unavailable",
+            "Search is unavailable. Try again.",
         ),
     ];
     for (template, message) in cases {
@@ -261,7 +314,7 @@ async fn provider_failures_are_actionable_and_never_hide_saved_state() -> anyhow
         assert_that!(response.status().as_u16(), eq(200));
         let body = response.text().await?;
         assert_that!(body.as_str(), contains_substring(message));
-        assert_that!(body.as_str(), contains_substring("Retry search"));
+        assert_that!(body.as_str(), contains_substring("Search books"));
         assert_that!(body.as_str(), contains_substring("Your saved ranking"));
         assert_that!(body.as_str(), contains_substring("Your ranking is empty."));
         let saved = app.ranking(&cookie).await?.text().await?;
@@ -337,7 +390,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
     .await??;
     assert_that!(
         response.text().await?.as_str(),
-        contains_substring("rate limit")
+        contains_substring("Search received too many requests. Wait a moment, then search again.")
     );
     sqlx::query("SELECT pg_advisory_unlock(706165241,3)")
         .execute(&mut *connection)
@@ -352,7 +405,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
             .text()
             .await?
             .as_str(),
-        contains_substring("No matches found.")
+        contains_substring("We found no matching books. Try another title or author.")
     );
     sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at=clock_timestamp()+interval '1 minute'").execute(&app.pool).await?;
     assert_that!(
@@ -367,7 +420,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
         .text()
         .await?
         .as_str(),
-        contains_substring("rate limit")
+        contains_substring("Search received too many requests. Wait a moment, then search again.")
     );
     assert_that!(app.provider.received_requests().await.unwrap().len(), eq(1));
     // Seed nine more recent admissions: the original reader has used all ten.
@@ -381,7 +434,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
             .text()
             .await?
             .as_str(),
-        contains_substring("rate limit")
+        contains_substring("Search received too many requests. Wait a moment, then search again.")
     );
     assert_that!(
         post(
@@ -395,7 +448,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
         .text()
         .await?
         .as_str(),
-        contains_substring("No matches found.")
+        contains_substring("We found no matching books. Try another title or author.")
     );
     sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at='-infinity'")
         .execute(&app.pool)
@@ -407,7 +460,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
             .text()
             .await?
             .as_str(),
-        contains_substring("No matches found.")
+        contains_substring("We found no matching books. Try another title or author.")
     );
     assert_that!(app.provider.received_requests().await.unwrap().len(), eq(3));
     Ok(())
@@ -484,18 +537,20 @@ async fn catalog_boundaries_require_live_sessions_csrf_origin_and_bounded_querie
         ("book".into(), "0"),
         ("book".into(), "1000001"),
     ] {
+        let response = post(
+            &app,
+            &app.base,
+            &cookie,
+            "search",
+            &[("csrf", &csrf), ("query", &query), ("page", page)],
+        )
+        .await?;
+        assert_that!(response.status().as_u16(), eq(400));
         assert_that!(
-            post(
-                &app,
-                &app.base,
-                &cookie,
-                "search",
-                &[("csrf", &csrf), ("query", &query), ("page", page)]
+            response.text().await?.as_str(),
+            contains_substring(
+                "Enter a title or author with 1 to 256 characters. Return to your ranking to start a new search."
             )
-            .await?
-            .status()
-            .as_u16(),
-            eq(400)
         );
     }
     app.provider.reset().await;
