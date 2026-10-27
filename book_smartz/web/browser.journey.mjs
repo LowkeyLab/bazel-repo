@@ -831,7 +831,10 @@ async function journey() {
   await pause.focus();
   await pause.press("Enter");
   assert.equal(
-    await page.getByRole("status").filter({ hasText: "Checking" }).isVisible(),
+    await page
+      .getByRole("status")
+      .filter({ hasText: "We cannot confirm your save yet." })
+      .isVisible(),
     true,
   );
   const recoveryHeading = page.getByRole("heading", {
@@ -839,6 +842,16 @@ async function journey() {
     exact: true,
   });
   await recoveryHeading.waitFor();
+  assert.equal(
+    await page
+      .getByText(
+        "Check whether we saved your earlier action. This check can finish only that action.",
+        { exact: true },
+      )
+      .isVisible(),
+    true,
+  );
+  assert.equal(await page.title(), "Check your save · Book Smartz");
   await page.waitForLoadState("domcontentloaded");
   assert.equal(
     await recoveryHeading.evaluate(
@@ -1079,7 +1092,7 @@ async function journey() {
       (
         await stale
           .getByRole("heading", {
-            name: "Confirm your current ranking",
+            name: "Review your ranking",
             exact: true,
           })
           .boundingBox()
@@ -1477,7 +1490,7 @@ async function journey() {
         focusOffStatus: document.activeElement !== status,
         success: [...document.querySelectorAll('[role="status"]')].some(
           (status) =>
-            /We saved this book at position|The original save is confirmed/.test(
+            /We saved this book at position|We confirmed the original save/.test(
               status.textContent,
             ),
         ),
@@ -1528,7 +1541,7 @@ async function journey() {
   await page.waitForURL("https://reader.example/ranking");
   await page.waitForLoadState("domcontentloaded");
   await page
-    .getByText("The original save is confirmed.", { exact: true })
+    .getByText("We confirmed the original save.", { exact: true })
     .waitFor();
   const recoveredTitles = await page.locator("ol li a").allTextContents();
   assert.equal(recoveredTitles.length, 6);
@@ -1543,7 +1556,7 @@ async function journey() {
     .getByRole("button", { name: "Check original save", exact: true })
     .click();
   await replayRecovery
-    .getByText("The original save is confirmed.", { exact: true })
+    .getByText("We confirmed the original save.", { exact: true })
     .waitFor();
   assert.deepEqual(
     await replayRecovery.locator("ol li a").allTextContents(),
@@ -1688,7 +1701,7 @@ async function journey() {
     .getByRole("button", { name: "Check original save", exact: true })
     .click();
   await nativeReaderPage
-    .getByText("The original save is confirmed.", { exact: true })
+    .getByText("We confirmed the original save.", { exact: true })
     .waitFor();
   await nativeReaderPage
     .getByText(

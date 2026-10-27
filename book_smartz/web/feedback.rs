@@ -61,8 +61,8 @@ impl Receipt {
     }
     pub fn message(&self) -> String {
         match self.source {
-            Source::Replay => "This action was already saved.".into(),
-            Source::Recovery => "The original save is confirmed.".into(),
+            Source::Replay => "We already saved this action.".into(),
+            Source::Recovery => "We confirmed the original save.".into(),
             Source::Fresh => self.placement.as_ref().map_or_else(
                 || {
                     match self.kind {

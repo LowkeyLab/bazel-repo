@@ -245,7 +245,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
-                "Checking an earlier save. Reload before trying the original action again.",
+                "We cannot confirm your save yet. Return to your ranking to check the original save.",
                 None,
             ));
         }
@@ -277,7 +277,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             diagnostic.finish(OperationOutcome::Rejected, Reason::ActionBlocked);
             return Ok(outcome(
                 cx,
-                "Checking an earlier save. Resolve it before adding another book.",
+                "Check the original save before you add another book.",
                 Some(RecoveryActions::new(&session, actions)),
             ));
         }
@@ -307,7 +307,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
-                "Checking your save. Reload your ranking to recover the original action.",
+                "We cannot confirm your save yet. Check the original save before you try again.",
                 Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
@@ -367,7 +367,7 @@ async fn submit_ranking_command(
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
-                "Checking an earlier save. Reload your ranking.",
+                "We cannot confirm your save yet. Return to your ranking to check the original save.",
                 None,
             ));
         }
@@ -389,7 +389,7 @@ async fn submit_ranking_command(
             diagnostic.finish(OperationOutcome::Rejected, Reason::ActionBlocked);
             return Ok(outcome(
                 cx,
-                "Checking an earlier save. Resolve it before answering another comparison.",
+                "Check the original save before you choose another book.",
                 Some(RecoveryActions::new(&session, actions)),
             ));
         }
@@ -419,7 +419,7 @@ async fn submit_ranking_command(
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
-                "Checking your save. Reload your ranking to recover the original action.",
+                "We cannot confirm your save yet. Check the original save before you try again.",
                 Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
@@ -469,11 +469,6 @@ fn outcome<'a>(cx: &'a Cx, message: &str, recovery: Option<RecoveryActions>) -> 
         |recovery| (recovery.csrf, recovery.actions),
     );
     let known = !actions.is_empty();
-    let title = if known {
-        "Check original save"
-    } else {
-        "Check your saved state"
-    };
     view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -488,14 +483,16 @@ fn outcome<'a>(cx: &'a Cx, message: &str, recovery: Option<RecoveryActions>) -> 
                 book_smartz_views::heading()
                 <main class="library-workspace">
                     <section class="active-task" aria-label="Book ranking workspace">
-                        <h1 tabindex="-1" data-response-focus="recovery">(title)</h1>
+                        <h1 tabindex="-1" data-response-focus="recovery">
+                            "Check original save"
+                        </h1>
                         book_smartz_views::feedback(
                             message: message,
                             kind: book_smartz_views::FeedbackKind::Status
                         )
                         if known {
                             <p>
-                                "Check original save uses retained action evidence. It can finish only the original action."
+                                "Check whether we saved your earlier action. This check can finish only that action."
                             </p>
                         }
                         for action in actions {
@@ -556,7 +553,7 @@ async fn finish<'a>(
                             name="viewport"
                             content="width=device-width, initial-scale=1"
                         >
-                        <title>"Confirm your ranking · Book Smartz"</title>
+                        <title>"Review your ranking · Book Smartz"</title>
                         <link
                             rel="stylesheet"
                             href=(topcoat::asset::asset!("./styles.css"))
@@ -574,7 +571,7 @@ async fn finish<'a>(
                                 aria-label="Book ranking workspace"
                             >
                                 <h1 tabindex="-1" data-response-focus="task">
-                                    "Confirm your current ranking"
+                                    "Review your ranking"
                                 </h1>
                                 book_smartz_views::feedback(
                                     message: reason,
@@ -603,7 +600,7 @@ async fn finish<'a>(
             app.diagnostics.unconfirmed_save(started, action);
             Ok(outcome(
                 cx,
-                "Checking your save. Reload your ranking to recover the original action.",
+                "We cannot confirm your save yet. Check the original save before you try again.",
                 Some(RecoveryActions::new(session, vec![action])),
             ))
         }
@@ -662,7 +659,7 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
                     action,
                     "rejected",
                     Some(&cause),
-                    json!({"reason":"Your ranking changed. Reload and confirm a fresh action."}),
+                    json!({"reason":"Your ranking changed. Review it before you try again."}),
                 )
                 .await?;
                 tx.commit().await?;
@@ -819,7 +816,7 @@ async fn prepare_preference(
         original,
         &cause,
         decision,
-        "Your comparison changed. Reload your ranking and confirm a fresh preference.",
+        "Your comparison changed. Review the current books before you choose again.",
     )
     .await?;
     tx.commit().await?;
@@ -890,11 +887,11 @@ async fn prepare_ranking(
         .iter()
         .any(|e| e.book_id() == book.id())
     {
-        "Already ranked."
+        "This book is already in your ranking."
     } else if tx.ranking().projection().pending().is_some() {
-        "Finish your unfinished comparison before adding another book."
+        "Finish the comparisons for your current book before you add another book."
     } else {
-        "Your ranking changed. Reload and confirm a fresh action."
+        "Your ranking changed. Review it before you try again."
     };
     prepare_decision(tx, reader, original, cause, decision, reason).await
 }
@@ -969,13 +966,13 @@ pub async fn recovery_controls(cx: &Cx, reader: ReaderId, csrf: String) -> Resul
         for action in actions {
             <aside>
                 <p role="status">
-                    "Checking an earlier save. Further ranking changes are blocked."
+                    "We cannot confirm an earlier save yet. Check the original save before you change your ranking."
                 </p>
                 <h2 tabindex="-1" data-response-focus="recovery">
                     "Check original save"
                 </h2>
                 <p>
-                    "Check original save uses retained action evidence. It can finish only the original action."
+                    "Check whether we saved your earlier action. This check can finish only that action."
                 </p>
                 recovery_form(csrf: csrf.clone(), action: action)
             </aside>
