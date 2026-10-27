@@ -5,6 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use book_smartz_domain::OpenLibraryWorkId;
 
+#[path = "cache.rs"]
+mod cache;
+pub use cache::{Cache, migrate};
+
 pub(super) struct Provider {
     pub(super) client: reqwest::Client,
     pub(super) endpoint: url::Url,
@@ -31,13 +35,16 @@ impl CatalogWork {
                 .cover
                 .is_none_or(|cover| cover > 0 && i64::try_from(cover).is_ok())
     }
+    #[must_use]
     pub fn source(&self) -> String {
         format!("https://openlibrary.org/works/{}", self.work_id)
     }
+    #[must_use]
     pub fn cover_url(&self) -> Option<String> {
         self.cover
             .map(|id| format!("https://covers.openlibrary.org/b/id/{id}-M.jpg?default=false"))
     }
+    #[must_use]
     pub fn author_label(&self) -> String {
         if self.authors.is_empty() {
             "Author unavailable".into()

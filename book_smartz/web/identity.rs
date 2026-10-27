@@ -499,6 +499,7 @@ pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
     .await?;
     drop(connection);
     crate::actions::migrate(pool).await?;
+    crate::catalog::migrate_cache(pool).await?;
     Ok(())
 }
 

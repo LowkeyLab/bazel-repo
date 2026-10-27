@@ -581,3 +581,176 @@ async fn readiness_ignores_provider_outages_but_requires_catalog_schema() -> any
     );
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn live_search_metadata_is_shared_without_changing_membership_or_selection_snapshots()
+-> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let cookie = app.login("metadata-reader").await?;
+    let csrf = csrf(&app, &cookie).await?;
+    let (_second, second_base) = app.another_instance().await?;
+    Mock::given(method("GET")).and(path("/search.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":2,"docs":[
+            {"key":"OL43W","title":"Original title","author_name":["Retained author"],"first_publish_year":1954,"cover_i":258_027},
+            {"key":"OL8W","title":"Absent from the next search"}
+        ]}))).mount(&app.provider).await;
+    let values = [
+        ("csrf", csrf.as_str()),
+        ("query", "metadata"),
+        ("page", "1"),
+    ];
+    assert_that!(
+        post(&app, &app.base, &cookie, "search", &values)
+            .await?
+            .status()
+            .as_u16(),
+        eq(200)
+    );
+    app.provider.reset().await;
+    sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at = '-infinity'")
+        .execute(&app.pool)
+        .await?;
+    Mock::given(method("GET"))
+        .and(path("/search.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(
+            json!({"start":0,"numFound":42,"docs":[
+                {"key":"OL7W","title":"First provider result"},
+                {"key":"/works/OL43W","title":"Corrected title"},
+                {"key":"OL43W","title":"Duplicate"},
+                {"key":"OL1M","title":"Invalid edition"}
+            ]}),
+        ))
+        .mount(&app.provider)
+        .await;
+    let body = post(&app, &second_base, &cookie, "search", &values)
+        .await?
+        .text()
+        .await?;
+    assert_that!(body.as_str(), contains_substring("Retained author"));
+    assert_that!(body.as_str(), contains_substring("Corrected title"));
+    assert_that!(body.as_str(), contains_substring("258027-M.jpg"));
+    assert_that!(body.as_str(), contains_substring("1954"));
+    assert_that!(body.as_str(), contains_substring("Next page"));
+    assert_that!(body.contains("Absent from the next search"), eq(false));
+    assert_that!(body.contains("Invalid edition"), eq(false));
+    let first = body
+        .find("First provider result")
+        .ok_or_else(|| anyhow::anyhow!("The first provider result is absent."))?;
+    let second = body
+        .find("Corrected title")
+        .ok_or_else(|| anyhow::anyhow!("The second provider result is absent."))?;
+    assert_that!(first < second, eq(true));
+    let tokens: Vec<_> = regex::Regex::new(r#"name="selection" value="([^"]+)"#)?
+        .captures_iter(&body)
+        .map(|c| c[1].to_owned())
+        .collect();
+    assert_that!(tokens.len(), eq(2));
+    app.provider.reset().await;
+    sqlx::query("UPDATE book_smartz_catalog.search_gate SET next_search_at = '-infinity'")
+        .execute(&app.pool)
+        .await?;
+    Mock::given(method("GET"))
+        .and(path("/search.json"))
+        .respond_with(ResponseTemplate::new(503))
+        .mount(&app.provider)
+        .await;
+    let unavailable = post(&app, &second_base, &cookie, "search", &values)
+        .await?
+        .text()
+        .await?;
+    assert_that!(
+        unavailable.as_str(),
+        contains_substring("Search is unavailable")
+    );
+    assert_that!(unavailable.contains("name=\"selection\""), eq(false));
+    // Cache removal and provider failure must not invalidate the signed snapshot.
+    sqlx::query("TRUNCATE book_smartz_metadata.works")
+        .execute(&app.pool)
+        .await?;
+    app.provider.reset().await;
+    let selected = post(
+        &app,
+        &app.base,
+        &cookie,
+        "select",
+        &[("csrf", &csrf), ("selection", &tokens[1])],
+    )
+    .await?
+    .text()
+    .await?;
+    let field = |name: &str| -> anyhow::Result<String> {
+        Ok(
+            regex::Regex::new(&format!(r#"name="{name}" value="([^"]+)"#))?
+                .captures(&selected)
+                .ok_or_else(|| anyhow::anyhow!("Missing form field"))?[1]
+                .to_owned(),
+        )
+    };
+    let action = field("action")?;
+    let revision = field("revision")?;
+    let offer = field("offer")?;
+    let added = post(
+        &app,
+        &app.base,
+        &cookie,
+        "add",
+        &[
+            ("csrf", &csrf),
+            ("selection", &tokens[1]),
+            ("action", &action),
+            ("revision", &revision),
+            ("offer", &offer),
+        ],
+    )
+    .await?;
+    assert_that!(added.status().as_u16(), eq(303));
+    let ranking = app.ranking(&cookie).await?.text().await?;
+    assert_that!(ranking.as_str(), contains_substring("Corrected title"));
+    assert_that!(ranking.as_str(), contains_substring("Retained author"));
+    assert_that!(app.provider.received_requests().await.unwrap().len(), eq(0));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn a_cache_only_lock_preserves_live_search_sessions_and_ranking_access() -> anyhow::Result<()>
+{
+    let app = Fixture::new().await?;
+    let cookie = app.login("cache-lock-reader").await?;
+    let csrf = csrf(&app, &cookie).await?;
+    Mock::given(method("GET")).and(path("/search.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"start":0,"numFound":1,"docs":[{"key":"OL43W","title":"Provider result","author_name":["Provider author"]}]})))
+        .mount(&app.provider).await;
+    let mut locked = app.pool.begin().await?;
+    sqlx::query("LOCK TABLE book_smartz_metadata.works IN ACCESS EXCLUSIVE MODE")
+        .execute(&mut *locked)
+        .await?;
+    let response = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        post(
+            &app,
+            &app.base,
+            &cookie,
+            "search",
+            &[("csrf", &csrf), ("query", "metadata"), ("page", "1")],
+        ),
+    )
+    .await??;
+    assert_that!(response.status().as_u16(), eq(200));
+    let body = response.text().await?;
+    assert_that!(body.as_str(), contains_substring("Provider result"));
+    assert_that!(body.as_str(), contains_substring("Provider author"));
+    assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
+    assert_that!(
+        app.client
+            .get(format!("{}/health/ready", app.base))
+            .send()
+            .await?
+            .status()
+            .as_u16(),
+        eq(200)
+    );
+    locked.rollback().await?;
+    Ok(())
+}
