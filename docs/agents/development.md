@@ -12,7 +12,7 @@ Identify the applicable project directory before you create directories or chang
    Run Gazelle before formatting or manual `BUILD` edits.
 3. Run `aspect format --scope=all` before you commit or complete the task.
    Use `aspect format` for additional checks of changed files during development.
-4. Identify test targets in the applicable `BUILD.bazel` file.
+4. Resolve focused test labels with the [focused-test guidance](#focused-tests).
    Run applicable tests with `aspect test //path/to/tests`.
    Use `aspect test //...` when the task requires the full suite.
 5. Test locally with the applicable subproject's run commands.
@@ -25,6 +25,13 @@ Documentation-only edits do not require source generation.
 The formatting, test, build, and lint requirements still apply.
 
 ## Focused tests
+
+Read the applicable project's README test instructions before selecting focused tests.
+For Book Smartz web tests, use the [web app test instructions](../../book_smartz/web/README.md).
+Confirm each selected label in the applicable `BUILD.bazel` file.
+A source filename is not an executable Bazel label.
+If the mapping remains unclear, resolve it with `bazel query` before execution.
+For example, `book_smartz/web/catalog_test.rs` belongs to `//book_smartz/web:http_test`.
 
 ```bash
 # Rust suite
