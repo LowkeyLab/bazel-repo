@@ -1,7 +1,8 @@
 //! Test-only GitHub responses and externally recorded comments.
+use std::{fs, io::Write, path::PathBuf};
+
 use anyhow::{Context, Result, ensure};
 use serde_json::{Value, json};
-use std::{fs, io::Write, path::PathBuf};
 fn main() -> Result<()> {
     let path = PathBuf::from(std::env::var_os("REVIEW_REMOTE").context("missing remote fixture")?);
     let mut state: Value = serde_json::from_slice(&fs::read(&path)?)?;

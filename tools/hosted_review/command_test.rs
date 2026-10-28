@@ -1,4 +1,10 @@
 //! Command behavior uses real private files and a controlled gh process.
+use std::{
+    fs,
+    path::PathBuf,
+    process::{Command, Output},
+};
+
 use anyhow::{Context, Result, ensure};
 use googletest::{
     assert_that,
@@ -6,11 +12,6 @@ use googletest::{
 };
 use runfiles::{Runfiles, rlocation};
 use serde_json::{Value, json};
-use std::{
-    fs,
-    path::PathBuf,
-    process::{Command, Output},
-};
 const HEAD: &str = "1111111111111111111111111111111111111111";
 const NEXT: &str = "2222222222222222222222222222222222222222";
 struct Fixture {
