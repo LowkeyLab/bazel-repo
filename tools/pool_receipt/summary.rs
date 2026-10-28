@@ -203,7 +203,7 @@ pub fn interpret(
     result["wrapper_exit"] = json!(expected);
     result["follow_up"] = json!(match expected {
         0 =>
-            "Apply ownership and authority checks before further effects; completion does not transfer an assignment.",
+            "Apply ownership and authority checks before further effects. Completion does not transfer an assignment.",
         2 => "Inspect the rejection receipt. Do not retry until its cause is resolved.",
         _ =>
             "Stop effects. Inspect the recorded operation and assignment. Do not retry uncertain mutations or recover without exact human approval.",
