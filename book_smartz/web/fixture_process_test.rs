@@ -38,6 +38,10 @@ fn held_writer_is_identified_without_disclosing_command_payloads() -> Result<()>
         .env("PRIVATE_FIXTURE_VALUE", payload)
         .stdout(Stdio::null())
         .stderr(Stdio::null());
+    // Keep the runner's child-profile destination after isolating other inputs.
+    if let Some(profile) = std::env::var_os("LLVM_PROFILE_FILE") {
+        command.env("LLVM_PROFILE_FILE", profile);
+    }
     let error = fixture_process::spawn(&mut command, "controlled_writer_spawn")
         .err()
         .context("held writer must prevent execution")?;

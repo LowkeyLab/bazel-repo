@@ -537,7 +537,10 @@ rust_test(
         "fixture_process_test.rs",
     ],
     crate_root = "fixture_process_test.rs",
-    data = [":package"],
+    data = [
+        ":bin",
+        ":package",
+    ],
     env = {"PACKAGE_ARCHIVE": "$(rlocationpath :package)"},
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
