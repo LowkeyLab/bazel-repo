@@ -37,11 +37,6 @@ pkgs.rustPlatform.buildRustPackage (
       substituteInPlace crates/aspect-cli/tests/exec_log_event.rs \
         --replace-fail '"/bin/sleep"' '"${pkgs.coreutils}/bin/sleep"'
 
-      # This warning fixture must produce no log, rather than race its creation.
-      substituteInPlace crates/aspect-cli/tests/exec_log_event.rs \
-        --replace-fail \
-          'Case::new("execlog_beyond_capacity", Fixture::default(), None).with_dead_holder()' \
-          'Case::new("success", Fixture::default(), None).with_dead_holder()'
     '';
 
     cargoBuildFlags = [
