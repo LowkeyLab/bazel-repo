@@ -23,6 +23,7 @@ rust_binary(
         "github.rs",
         "main.rs",
         "store.rs",
+        "wake.rs",
     ],
     crate_root = "main.rs",
     deps = [

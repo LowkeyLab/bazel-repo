@@ -34,10 +34,12 @@ pub struct Head {
 pub struct Github {
     base: String,
     pull_endpoint: String,
+    repository: String,
 }
 impl Github {
     pub fn new(repository: &str, pr: u64) -> Self {
         Self {
+            repository: repository.into(),
             base: format!("repos/{repository}/issues/{pr}"),
             pull_endpoint: format!("repos/{repository}/pulls/{pr}"),
         }
@@ -75,6 +77,24 @@ impl Github {
         }
         Ok(comments)
     }
+    pub fn evidence(&self, head: &str, kind: &str) -> Result<Value> {
+        let endpoint = match kind {
+            "checks" => format!(
+                "repos/{}/commits/{head}/check-runs?per_page=100",
+                self.repository
+            ),
+            "statuses" => format!(
+                "repos/{}/commits/{head}/status?per_page=100",
+                self.repository
+            ),
+            "workflows" => format!(
+                "repos/{}/actions/runs?head_sha={head}&per_page=100",
+                self.repository
+            ),
+            _ => anyhow::bail!("unknown evidence kind"),
+        };
+        Self::read(&endpoint, true)
+    }
     pub fn send(&self, body: &str) -> Result<Comment> {
         let output = Command::new("gh")
             .args([
@@ -100,7 +120,18 @@ impl Github {
 
 /// The bot identity comes from authenticated GitHub response fields, not body text.
 pub fn review(comments: &[Comment], head: &str) -> Result<Review> {
-    let mut result = Review::Missing;
+    let Some(state) = review_state(comments, head)? else {
+        return Ok(Review::Missing);
+    };
+    match state["status"].as_str() {
+        Some("completed") => Ok(Review::Complete),
+        Some("running" | "queued" | "pending" | "in_progress") => Ok(Review::Incomplete),
+        _ => anyhow::bail!("unknown hosted review status"),
+    }
+}
+
+pub fn review_state(comments: &[Comment], head: &str) -> Result<Option<Value>> {
+    let mut result = None;
     let mut latest = None;
     for c in comments {
         if c.user.id != 199_175_422
@@ -126,11 +157,7 @@ pub fn review(comments: &[Comment], head: &str) -> Result<Review> {
         if latest.is_some_and(|previous| previous > (at, c.id)) {
             continue;
         }
-        result = match state.get("status").and_then(Value::as_str) {
-            Some("completed") => Review::Complete,
-            Some("running" | "queued" | "pending" | "in_progress") => Review::Incomplete,
-            _ => anyhow::bail!("unknown hosted review status"),
-        };
+        result = Some(state.clone());
         latest = Some((at, c.id));
     }
     Ok(result)

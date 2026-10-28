@@ -153,13 +153,27 @@ impl Store {
         }
         Ok(state)
     }
+    pub fn read_wake(&self) -> Result<Option<serde_json::Value>> {
+        let path = self.directory.join("wake.json");
+        ensure!(!path.is_symlink(), "wake state cannot be a symlink");
+        if !path.try_exists()? {
+            return Ok(None);
+        }
+        Ok(Some(serde_json::from_reader(File::open(path)?)?))
+    }
+    pub fn save_wake(&self, value: &serde_json::Value) -> Result<()> {
+        self.save_json("wake.json", value)
+    }
     pub fn save(&self, state: &State) -> Result<()> {
+        self.save_json("state.json", state)
+    }
+    fn save_json(&self, name: &str, value: &impl Serialize) -> Result<()> {
         let mut temporary = tempfile::NamedTempFile::new_in(&self.directory)?;
-        serde_json::to_writer_pretty(&mut temporary, state)?;
+        serde_json::to_writer_pretty(&mut temporary, value)?;
         temporary.write_all(b"\n")?;
         temporary.as_file().sync_all()?;
         temporary
-            .persist(self.directory.join("state.json"))
+            .persist(self.directory.join(name))
             .context("cannot persist review state")?;
         File::open(&self.directory)?.sync_all()?;
         Ok(())

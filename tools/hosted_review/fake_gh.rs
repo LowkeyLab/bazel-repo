@@ -21,6 +21,11 @@ fn main() -> Result<()> {
         "controlled read failure"
     );
     let user = json!({"id":42,"login":"reader","type":"User"});
+    let mut reads = state["reads"].as_array().cloned().unwrap_or_default();
+    if !post {
+        reads.push(json!(endpoint));
+    }
+    state["reads"] = json!(reads);
     let mut fail = false;
     let response = if endpoint == "user" {
         user
@@ -29,6 +34,12 @@ fn main() -> Result<()> {
         state["pull_reads"] = json!(reads);
         let changed = reads.is_multiple_of(2);
         json!({"state":if changed && state["close_before_send"] == true { "closed" } else { state["state"].as_str().unwrap_or("open") }, "head":{"sha":if changed { state["head_before_send"].as_str().or_else(|| state["head"].as_str()) } else { state["head"].as_str() }}})
+    } else if endpoint.contains("/check-runs?") {
+        state["checks"].clone()
+    } else if endpoint.contains("/status?") {
+        state["statuses"].clone()
+    } else if endpoint.contains("/actions/runs?") {
+        state["workflows"].clone()
     } else if post {
         let body = args
             .iter()
@@ -88,7 +99,7 @@ fn main() -> Result<()> {
                 .as_str()
                 .or_else(|| state["head"].as_str())
                 .context("missing head")?;
-            comments.push(json!({"id":9,"user":{"id":if state["spoof"] == true { 43 } else { 199_175_422 },"login":"chatgpt-codex-connector[bot]","type":"Bot"},"created_at":"1970-01-01T00:00:01Z","body":format!("<!-- codex-review-state:v1 {} -->", json!({"code_review":{"commit_sha":head,"status":status}}))}));
+            comments.push(json!({"id":9,"user":{"id":if state["spoof"] == true { 43 } else { 199_175_422 },"login":"chatgpt-codex-connector[bot]","type":"Bot"},"created_at":"1970-01-01T00:00:01Z","body":format!("<!-- codex-review-state:v1 {} -->", json!({"code_review":{"commit_sha":head,"status":if state["omit_provider_status"] == true { Value::Null } else { json!(status) },"has_any_findings":state["findings"].as_bool().unwrap_or(false),"has_unresolved_findings":state["findings"].as_bool().unwrap_or(false)}}))}));
         }
         json!([comments])
     } else {
@@ -106,8 +117,12 @@ fn validate_endpoint(endpoint: &str, state: &Value) -> Result<()> {
         return Ok(());
     }
     let repository = state["repository"].as_str().context("missing repository")?;
+    let head = state["head"].as_str().context("missing head")?;
     ensure!(
         [
+            format!("repos/{repository}/commits/{head}/check-runs?per_page=100"),
+            format!("repos/{repository}/commits/{head}/status?per_page=100"),
+            format!("repos/{repository}/actions/runs?head_sha={head}&per_page=100"),
             format!("repos/{repository}/pulls/2775"),
             format!("repos/{repository}/issues/2775/comments"),
             format!("repos/{repository}/issues/2775/comments?per_page=100")

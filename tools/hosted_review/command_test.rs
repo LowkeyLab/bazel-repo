@@ -35,6 +35,39 @@ impl Fixture {
         )?;
         Ok(f)
     }
+    fn wake_fixture() -> Result<Self> {
+        let f = Self::new()?;
+        fs::create_dir(f.directory.path().join("acquisition"))?;
+        fs::write(
+            f.directory
+                .path()
+                .join("acquisition/selected-assignment.json"),
+            serde_json::to_vec(
+                &json!({"assignment_handle":"837e8948-2ec2-4ddd-ac74-da70e07b8f2f", "operation_id":"dad9ec85-1b1b-46db-86b8-7b65de033516", "repository_id":"207f1904-1165-417f-a4f0-399e8498ed22", "worktree_id":"30e88f2f-0dae-452d-97a8-75a93c769771", "state":"active", "path":{"bytes":[47,255],"display":"informational"}}),
+            )?,
+        )?;
+        f.set("provider", json!("running"))?;
+        f.ci("in_progress", &Value::Null)?;
+        Ok(f)
+    }
+    fn ci(&self, status: &str, conclusion: &Value) -> Result<()> {
+        self.set("checks", json!([{"total_count":1,"check_runs":[{"id":1,"name":"test","status":status,"conclusion":conclusion}]}]))?;
+        self.set("workflows", json!([{"total_count":1,"workflow_runs":[{"id":2,"name":"Bazel Tests","status":status,"conclusion":conclusion}]}]))?;
+        self.set("statuses", json!([{"total_count":0,"statuses":[]}]))
+    }
+    fn wake(&self, now: u64, decision: &str, status: &str) -> Result<Value> {
+        let value = self.ok("wake", now, HEAD)?;
+        assert_that!(value["decision"].as_str(), eq(Some(decision)));
+        assert_that!(value["status"].as_str(), eq(Some(status)));
+        let xml = value["heartbeat"].as_str().context("heartbeat")?;
+        assert_that!(
+            xml.contains(&format!("<decision>{decision}</decision>")),
+            eq(true)
+        );
+        assert_that!(xml.starts_with("<heartbeat>\n"), eq(true));
+        assert_that!(xml.ends_with("</heartbeat>"), eq(true));
+        Ok(value)
+    }
     fn remote(&self) -> PathBuf {
         self.directory.path().join("remote.json")
     }
@@ -65,6 +98,15 @@ impl Fixture {
     ) -> Result<Output> {
         self.set("now", json!(now))?;
         let mut command = Command::new(&self.tool);
+        if action == "wake" {
+            command
+                .args([
+                    "--automation-id",
+                    "implement-tickets",
+                    "--assignment-receipt",
+                ])
+                .arg(self.directory.path().join("acquisition"));
+        }
         if action == "track" {
             command.args(["--request-comment", "50"]);
         }
@@ -277,5 +319,196 @@ fn repository_components_do_not_change_the_pull_endpoint() -> Result<()> {
     let result: Value = serde_json::from_slice(&output.stdout)?;
     assert_that!(result["status"].as_str(), eq(Some("requested")));
     assert_that!(f.sends()?, eq(1));
+    Ok(())
+}
+
+#[googletest::test]
+fn scheduled_wakes_remain_quiet_across_restarts_and_running_changes() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", Value::Null)?;
+    f.ok("request", 100, HEAD)?;
+    for now in [101, 102, 103] {
+        f.wake(now, "DONT_NOTIFY", "waiting")?;
+    }
+    f.ci("queued", &Value::Null)?;
+    f.wake(104, "DONT_NOTIFY", "waiting")?;
+    f.ci("completed", &json!("success"))?;
+    f.wake(105, "DONT_NOTIFY", "waiting")?;
+    assert_that!(f.sends()?, eq(1));
+    let saved: Value = serde_json::from_slice(&fs::read(
+        f.directory
+            .path()
+            .join("state/lowkeylab/bazel-repo/2775/wake.json"),
+    )?)?;
+    assert_that!(
+        saved["assignment"]["path"]["bytes"][1].as_u64(),
+        eq(Some(255))
+    );
+    assert_that!(
+        f.directory
+            .path()
+            .join("acquisition/selected-assignment.json")
+            .exists(),
+        eq(true)
+    );
+    Ok(())
+}
+
+#[googletest::test]
+fn one_wake_reads_each_inventory_once_without_a_polling_loop() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", json!("completed"))?;
+    f.wake(100, "DONT_NOTIFY", "waiting")?;
+    let data = f.data()?;
+    let reads = data["reads"].as_array().context("reads")?;
+    assert_that!(reads.len(), eq(5));
+    let unique: std::collections::BTreeSet<_> = reads.iter().map(Value::to_string).collect();
+    assert_that!(unique.len(), eq(5));
+    Ok(())
+}
+
+#[googletest::test]
+fn completion_failure_findings_and_closure_notify_once_per_transition() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", json!("completed"))?;
+    f.wake(100, "DONT_NOTIFY", "waiting")?;
+    f.ci("completed", &json!("failure"))?;
+    f.wake(101, "NOTIFY", "failure")?;
+    f.wake(102, "DONT_NOTIFY", "failure")?;
+    f.ci("completed", &json!("success"))?;
+    f.set("findings", json!(true))?;
+    f.wake(103, "NOTIFY", "review_findings")?;
+    f.wake(104, "DONT_NOTIFY", "review_findings")?;
+    f.set("findings", json!(false))?;
+    f.wake(105, "NOTIFY", "external_work_complete")?;
+    f.wake(106, "DONT_NOTIFY", "external_work_complete")?;
+    f.set("state", json!("closed"))?;
+    f.wake(107, "NOTIFY", "closed")?;
+    f.wake(108, "DONT_NOTIFY", "closed")?;
+    Ok(())
+}
+
+#[googletest::test]
+fn failed_or_incomplete_reads_are_uncertain_and_never_trigger_requests() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", Value::Null)?;
+    f.ok("request", 100, HEAD)?;
+    f.wake(101, "DONT_NOTIFY", "waiting")?;
+    f.set("fail_read", json!(true))?;
+    f.wake(4000, "NOTIFY", "uncertain")?;
+    f.wake(4001, "DONT_NOTIFY", "uncertain")?;
+    f.set("fail_read", json!(false))?;
+    f.set("checks", json!([{"total_count":2,"check_runs":[]}]))?;
+    f.wake(4002, "DONT_NOTIFY", "uncertain")?;
+    assert_that!(f.sends()?, eq(1));
+    f.ci("in_progress", &Value::Null)?;
+    f.set("provider", json!("completed"))?;
+    f.wake(4003, "NOTIFY", "waiting")?;
+    Ok(())
+}
+
+#[googletest::test]
+fn scheduled_timeout_uses_shared_request_history_and_strict_boundary() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", Value::Null)?;
+    f.ok("request", 100, HEAD)?;
+    f.wake(3700, "DONT_NOTIFY", "waiting")?;
+    f.wake(3701, "NOTIFY", "review_requested")?;
+    f.wake(3702, "DONT_NOTIFY", "waiting")?;
+    assert_that!(f.sends()?, eq(2));
+    f.set("send_outcome", json!("lost_without_record"))?;
+    f.wake(7302, "NOTIFY", "uncertain")?;
+    f.wake(7303, "NOTIFY", "action_required")?;
+    f.wake(7304, "DONT_NOTIFY", "action_required")?;
+    assert_that!(f.sends()?, eq(2));
+    Ok(())
+}
+
+#[googletest::test]
+fn changed_head_and_missing_provider_require_inspection_without_releasing_work() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("head", json!(NEXT))?;
+    f.wake(100, "NOTIFY", "head_changed")?;
+    f.wake(101, "DONT_NOTIFY", "head_changed")?;
+    f.set("head", json!(HEAD))?;
+    f.set("provider", Value::Null)?;
+    f.wake(102, "NOTIFY", "action_required")?;
+    assert_that!(f.sends()?, eq(0));
+    Ok(())
+}
+
+#[googletest::test]
+fn incomplete_or_duplicate_pages_do_not_establish_completion() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", json!("completed"))?;
+    f.ci("completed", &json!("success"))?;
+    let record = json!({"id":1,"name":"test","status":"completed","conclusion":"success"});
+    f.set(
+        "checks",
+        json!([{"total_count":2,"check_runs":[record]},{"total_count":2,"check_runs":[record]}]),
+    )?;
+    f.wake(100, "NOTIFY", "uncertain")?;
+    f.set("checks", json!([{"total_count":1,"check_runs":[]}]))?;
+    f.wake(101, "DONT_NOTIFY", "uncertain")?;
+    assert_that!(f.sends()?, eq(0));
+    Ok(())
+}
+
+#[googletest::test]
+fn receipt_changes_and_backwards_time_stop_before_remote_effects() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", json!("completed"))?;
+    f.wake(100, "DONT_NOTIFY", "waiting")?;
+    assert_that!(f.run("wake", 99, HEAD)?.status.success(), eq(false));
+    let path = f
+        .directory
+        .path()
+        .join("acquisition/selected-assignment.json");
+    let mut assignment: Value = serde_json::from_slice(&fs::read(&path)?)?;
+    assignment["assignment_handle"] = json!("92f2c89c-8563-40c0-ac70-1ab05c022af3");
+    fs::write(path, serde_json::to_vec(&assignment)?)?;
+    assert_that!(f.run("wake", 101, HEAD)?.status.success(), eq(false));
+    assert_that!(f.sends()?, eq(0));
+    Ok(())
+}
+
+#[googletest::test]
+fn a_new_reviewed_commit_has_a_separate_completion_transition() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", json!("completed"))?;
+    f.ci("completed", &json!("success"))?;
+    f.wake(100, "NOTIFY", "external_work_complete")?;
+    f.set("head", json!(NEXT))?;
+    let value = f.ok("wake", 101, NEXT)?;
+    assert_that!(value["status"].as_str(), eq(Some("external_work_complete")));
+    assert_that!(value["decision"].as_str(), eq(Some("NOTIFY")));
+    assert_that!(
+        f.ok("wake", 102, NEXT)?["decision"].as_str(),
+        eq(Some("DONT_NOTIFY"))
+    );
+    Ok(())
+}
+
+#[googletest::test]
+fn a_cleared_failure_and_a_later_failure_each_notify_once() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("provider", json!("completed"))?;
+    f.ci("completed", &json!("failure"))?;
+    f.wake(100, "NOTIFY", "failure")?;
+    f.ci("in_progress", &Value::Null)?;
+    f.wake(101, "NOTIFY", "waiting")?;
+    f.wake(102, "DONT_NOTIFY", "waiting")?;
+    f.ci("completed", &json!("failure"))?;
+    f.wake(103, "NOTIFY", "failure")?;
+    Ok(())
+}
+
+#[googletest::test]
+fn malformed_provider_status_cannot_authorize_an_initial_request() -> Result<()> {
+    let f = Fixture::wake_fixture()?;
+    f.set("omit_provider_status", json!(true))?;
+    assert_that!(f.run("request", 100, HEAD)?.status.success(), eq(false));
+    f.wake(101, "NOTIFY", "uncertain")?;
+    assert_that!(f.sends()?, eq(0));
     Ok(())
 }

@@ -1,6 +1,7 @@
 //! Request and poll hosted reviews without duplicate uncertain sends.
 mod github;
 mod store;
+mod wake;
 
 use std::{io::Write, path::PathBuf};
 
@@ -17,6 +18,7 @@ enum Action {
     Request,
     Poll,
     Track,
+    Wake,
 }
 #[derive(Parser)]
 #[command(about = "Request or poll one hosted review for an exact PR head")]
@@ -36,6 +38,11 @@ struct Cli {
     state_dir: Option<PathBuf>,
     #[arg(long, required_if_eq("action", "track"))]
     request_comment: Option<u64>,
+    /// Retain the exact acquisition receipt during scheduled waits.
+    #[arg(long, required_if_eq("action", "wake"))]
+    assignment_receipt: Option<PathBuf>,
+    #[arg(long, required_if_eq("action", "wake"))]
+    automation_id: Option<String>,
 }
 fn state_root(explicit: Option<PathBuf>) -> Result<PathBuf> {
     if let Some(path) = explicit {
@@ -66,19 +73,38 @@ fn execute(mut cli: Cli) -> Result<Value> {
         "repository must be owner/name"
     );
     ensure!(cli.pr > 0, "PR number must be positive");
-    let head = Commit::try_from(cli.head)?;
-    let store = Store::open(&state_root(cli.state_dir)?, &cli.repo, cli.pr)?;
+    let head = Commit::try_from(std::mem::take(&mut cli.head))?;
+    let store = Store::open(&state_root(cli.state_dir.take())?, &cli.repo, cli.pr)?;
     let mut saved = store.read(&cli.repo, cli.pr)?;
     let gh = Github::new(&cli.repo, cli.pr);
+    if matches!(cli.action, Action::Wake) {
+        return wake::run(&cli, head, &store, &mut saved, &gh);
+    }
     let pull = gh.pull()?;
+    let comments = if pull.state == "open" && pull.head.sha == head.as_str() {
+        gh.comments()?
+    } else {
+        Vec::new()
+    };
+    review_action(&cli, head, &store, &mut saved, &gh, &pull, &comments)
+}
+
+fn review_action(
+    cli: &Cli,
+    head: Commit,
+    store: &Store,
+    saved: &mut State,
+    gh: &Github,
+    pull: &github::Pull,
+    comments: &[Comment],
+) -> Result<Value> {
     if pull.state != "open" {
         return Ok(json!({"status":"closed"}));
     }
     if pull.head.sha != head.as_str() {
         return Ok(json!({"status":"head_changed", "head":pull.head.sha}));
     }
-    let comments = gh.comments()?;
-    let status = review(&comments, head.as_str())?;
+    let status = review(comments, head.as_str())?;
     if status == Review::Complete {
         return Ok(json!({"status":"complete", "head":head.as_str()}));
     }
@@ -100,10 +126,10 @@ fn execute(mut cli: Cli) -> Result<Value> {
             cli.request_comment.context("request comment is required")?,
             cli.now,
             head,
-            &comments,
+            comments,
             actor.id,
-            &mut saved,
-            &store,
+            saved,
+            store,
         );
     }
     ensure!(
@@ -112,14 +138,8 @@ fn execute(mut cli: Cli) -> Result<Value> {
     );
     let known_comments: Vec<_> = saved.requests.iter().filter_map(|r| r.comment).collect();
     if let Some(index) = index
-        && let Some(result) = inspect_saved_request(
-            &mut saved,
-            index,
-            actor.id,
-            &comments,
-            &store,
-            &known_comments,
-        )?
+        && let Some(result) =
+            inspect_saved_request(saved, index, actor.id, comments, store, &known_comments)?
     {
         return Ok(result);
     }
@@ -151,7 +171,7 @@ fn execute(mut cli: Cli) -> Result<Value> {
         actor: actor.id,
         comment: None,
     };
-    send_request(&gh, &store, &mut saved, request, initial, &comments)
+    send_request(gh, store, saved, request, initial, comments)
 }
 
 fn inspect_saved_request(

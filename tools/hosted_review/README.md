@@ -31,6 +31,59 @@ Retain that directory across runs. Do not select a replacement directory to bypa
 The command prints one JSON result. A nonzero exit means the observation or effect failed.
 Do not treat an error as evidence that a review needs another request.
 
+## Scheduled wakes
+
+Run one action for each scheduled wake:
+
+```sh
+nix develop --command bazel run //tools/hosted_review -- wake \
+  --repo LowkeyLab/bazel-repo --pr <number> --head <full-commit-sha> \
+  --now "$(date -u +%s)" --state-dir <retained-private-state-directory> \
+  --automation-id <automation-id> \
+  --assignment-receipt <absolute-acquisition-receipt-directory>
+```
+
+The acquisition directory must contain `selected-assignment.json` from `//tools/pool_receipt`.
+The action retains its exact assignment identities and lossless path bytes.
+It also retains the original receipt reference across restarts.
+It does not inspect, release, transfer, or recover an assignment.
+Preserve the original receipt directory and all unfinished work while waiting.
+
+The action reads the PR, provider comments, checks, commit statuses, and workflows once.
+It returns control after one observation. It contains no polling loop or sleep.
+A timeout request uses the existing review policy and durable request history.
+The existing final PR and provider reads still guard an outgoing timeout request.
+A missing or incomplete CI inventory prevents that request during this wake.
+
+The result contains `decision`, `message`, and a complete `heartbeat` XML string.
+Return that XML as the heartbeat response.
+For `DONT_NOTIFY`, emit no progress text outside the XML.
+The result also contains the observation for inspection.
+
+The action remains quiet for pending work and changes between queued and running states.
+It notifies once for a failure, review findings, closure, commit change, or required inspection.
+It also notifies for a timeout request, restored observation, or completed external work.
+Repeated observations of the same condition remain quiet across process restarts.
+A new transition can notify again after a different condition.
+The action saves its decision before returning it. It cannot acknowledge delivery to the maintainer.
+A process failure after persistence can therefore lose a notification rather than repeat it.
+
+Failed reads, malformed responses, and incomplete pages produce an uncertain observation.
+The last successful observation remains available in `wake.json` for diagnosis.
+It does not establish current success after an uncertain read.
+A backwards observation time or changed receipt identity stops the command.
+If persistence fails, inspect the command error. Do not interpret it as a quiet result.
+
+`external_work_complete` means the observed external work finished without reported findings or failed conclusions.
+It does not establish merge acceptance, required CI coverage, or final task completion.
+Run the maintained merge verifier before merging.
+Continue authorized delivery work when it is available.
+Return control when unchanged external work is the only remaining dependency.
+
+The command tests use real private state and separate processes for repeated wakes.
+Controlled GitHub responses cover notification decisions and outgoing timeout requests.
+They do not prove hosted provider behavior.
+
 ## Request rules
 
 The `request` action permits the first request when no review exists for this head.

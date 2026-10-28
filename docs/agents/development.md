@@ -125,3 +125,8 @@ Keep ownership, validation, source reviews, and authorized merge execution in th
 Use the [pool receipt wrapper](../../tools/pool_receipt/README.md) for bounded pool output and complete private command receipts.
 Read lossless path bytes from the selected record before using a checkout path.
 Keep inherited ownership, capacity, and exact recovery approval rules in effect.
+
+For scheduled implementation waits, use the single-observation `wake` action in
+[hosted review polling](../../tools/hosted_review/README.md#scheduled-wakes).
+Return its heartbeat decision when only unchanged external work remains.
+Retain the same state directory and exact acquisition receipt across wakes.
