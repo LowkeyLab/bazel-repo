@@ -2,7 +2,8 @@
 
 Fixture process failures now report their stage, executable identity, and bounded writer observations.
 The original intermittent writer remains unknown.
-The recorded natural probes passed. This change adds diagnostic evidence rather than a lifecycle repair.
+The two bounded natural probes passed. A later full validation reproduced error 26 and retained writer evidence.
+This change adds diagnostic evidence rather than a lifecycle repair.
 
 The [original failed coverage attempt](https://github.com/LowkeyLab/bazel-repo/actions/runs/40560487083/attempts/1)
 reported `Text file busy (os error 26)` in these app tests:
@@ -81,6 +82,11 @@ nix develop --command aspect test //book_smartz/web:fixture_process_test \
 
 The target verifies write-only and read/write descriptors, read-only exclusion, unrelated-file exclusion, private-value exclusion, missing executables, and writer-limit exhaustion.
 It also verifies that both process methods preserve the original error.
+Private filesystem fixtures verify missing process directories, vanished descriptor targets, and enumeration limits.
+They also verify unavailable flags and malformed flags.
+A controlled error input checks identity loss after a failed start.
+These checks use the same observer with a private root path. The normal wrapper supplies `/proc`.
+They do not simulate the kernel execution refusal or prove failure-time descriptor races.
 The `controlled-held-writer.json` test output retains the controlled observation.
 The [initial regression](https://app.buildbuddy.io/invocation/e7af5fcc-7d16-429a-bf2b-e7d6e0c7dbaa) failed because the structured diagnostic was missing.
 The [first instrumented control](https://app.buildbuddy.io/invocation/49ec6bc6-1a37-41d7-bcfb-f410ebd8511b) passed and retained the writer identity.
@@ -108,4 +114,32 @@ The two bounded probes completed eight natural target executions in total.
 The instrumented probe also executed the diagnostic target twice. Both runs passed in 0.1 seconds each.
 Individual test logs, XML results, and controlled observations remain in the invocation artifacts.
 These samples do not establish a performance change or reproduce the original intermittent failure.
-A future natural failure needs its invocation, stage record, executable identity, and writer observation before a lifecycle repair.
+A [later full validation](https://app.buildbuddy.io/invocation/1224ecad-9392-411d-85bc-bed03b9b3d09) failed two HTTP cases during `fixture_migrate`:
+
+```text
+catalog_test::explicit_search_normalizes_work_results_and_issues_selections
+diagnostic_test::catalog_schema_failure_keeps_its_stage_and_safe_reason
+```
+
+Both records identified `book-smartz`, operation `status`, and error 26.
+The first record found no writer across 124 processes and 502 descriptors, with no unreadable entries.
+That post-error snapshot does not establish absence at the failure instant.
+The second record retained this matching writer:
+
+```json
+{
+  "pid": 3057,
+  "fd": 39,
+  "access": "write_only",
+  "device": 65024,
+  "inode": 135161
+}
+```
+
+The reporting test process was PID 462. The second scan marked one entry unreadable and `complete: false`.
+These identifiers describe that worker only. The snapshot did not identify the writer's command or owning operation.
+The controlled tests passed in that validation.
+The app case `placement_actions_authorize_each_post_and_reconcile_before_expired_session_resume` separately reported `application exited exit status: 1`.
+That output did not report error 26. A documentation lint error also failed and required correction.
+The retained failed test output remains evidence even if a later configured validation passes.
+A lifecycle repair still requires evidence of the writer's owning operation and lifetime.

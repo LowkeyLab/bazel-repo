@@ -53,9 +53,9 @@ impl Scan {
     const fn full(&self) -> bool {
         self.descriptors >= MAX_FD_ENTRIES || self.writers.len() >= MAX_WRITERS
     }
-    fn process(&mut self, pid: u32, target: &Metadata) {
+    fn process(&mut self, pid: u32, target: &Metadata, proc_root: &Path) {
         self.processes += 1;
-        let Ok(entries) = fs::read_dir(format!("/proc/{pid}/fd")) else {
+        let Ok(entries) = fs::read_dir(proc_root.join(pid.to_string()).join("fd")) else {
             self.unreadable += 1;
             return;
         };
@@ -79,9 +79,12 @@ impl Scan {
             if metadata.dev() != target.dev() || metadata.ino() != target.ino() {
                 continue;
             }
-            let Some(access) = access(&std::path::PathBuf::from(format!(
-                "/proc/{pid}/fdinfo/{fd}"
-            ))) else {
+            let Some(access) = access(
+                &proc_root
+                    .join(pid.to_string())
+                    .join("fdinfo")
+                    .join(fd.to_string()),
+            ) else {
                 self.unreadable += 1;
                 continue;
             };
@@ -104,11 +107,14 @@ impl Scan {
     }
 }
 fn writers(target: &Metadata) -> Value {
+    writers_in(target, Path::new("/proc"))
+}
+fn writers_in(target: &Metadata, proc_root: &Path) -> Value {
     let mut scan = Scan::default();
     let current = std::process::id();
     // Observe this fixture first. Other visible processes share the remaining budget.
-    scan.process(current, target);
-    if let Ok(entries) = fs::read_dir("/proc") {
+    scan.process(current, target, proc_root);
+    if let Ok(entries) = fs::read_dir(proc_root) {
         for (index, entry) in entries.take(MAX_PROCESS_ENTRIES).enumerate() {
             if scan.full() {
                 scan.limited = true;
@@ -124,7 +130,7 @@ fn writers(target: &Metadata) -> Value {
             if let Ok(pid) = entry.file_name().to_string_lossy().parse::<u32>()
                 && pid != current
             {
-                scan.process(pid, target);
+                scan.process(pid, target, proc_root);
             }
         }
     } else {
@@ -145,5 +151,134 @@ fn access(path: &Path) -> Option<&'static str> {
         1 => Some("write_only"),
         2 => Some("read_write"),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod observation_tests {
+    use std::{fs, os::unix::fs::symlink, process::Command};
+
+    use anyhow::{Context, Result};
+    use googletest::{assert_that, matchers::eq};
+    use serde_json::Value;
+
+    use super::{MAX_FDINFO_BYTES, MAX_PROCESS_ENTRIES, access, observe, writers_in};
+
+    #[googletest::test]
+    fn unavailable_process_files_cannot_claim_a_complete_observation() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let target = root.path().join("executable");
+        fs::write(&target, b"target")?;
+        let metadata = fs::metadata(&target)?;
+        let absent = writers_in(&metadata, &root.path().join("absent"));
+        assert_that!(absent["status"].as_str(), eq(Some("proc_unavailable")));
+        assert_that!(absent["complete"].as_bool(), eq(Some(false)));
+        let empty = writers_in(&metadata, root.path());
+        assert_that!(empty["status"].as_str(), eq(Some("not_observed")));
+        assert_that!(empty["unreadable_entries"].as_u64(), eq(Some(1)));
+        assert_that!(empty["complete"].as_bool(), eq(Some(false)));
+        Ok(())
+    }
+
+    #[googletest::test]
+    fn malformed_and_disappeared_descriptor_inputs_never_become_writers() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let target = root.path().join("executable");
+        fs::write(&target, b"target")?;
+        let process = root.path().join(std::process::id().to_string());
+        let descriptors = process.join("fd");
+        let info = process.join("fdinfo");
+        fs::create_dir_all(&descriptors)?;
+        fs::create_dir(&info)?;
+        // A non-descriptor name, a vanished file, and unavailable flags are distinct inputs.
+        symlink(&target, descriptors.join("not-a-number"))?;
+        symlink(root.path().join("gone"), descriptors.join("3"))?;
+        symlink(&target, descriptors.join("4"))?;
+        symlink(&target, descriptors.join("5"))?;
+        fs::write(info.join("5"), b"flags: invalid")?;
+        let report = writers_in(&fs::metadata(&target)?, root.path());
+        assert_that!(
+            report["writers"].as_array().context("writers")?.len(),
+            eq(0)
+        );
+        assert_that!(report["unreadable_entries"].as_u64(), eq(Some(3)));
+        assert_that!(report["fd_entries_scanned"].as_u64(), eq(Some(4)));
+        assert_that!(report["complete"].as_bool(), eq(Some(false)));
+        Ok(())
+    }
+
+    #[googletest::test]
+    fn directory_budget_prevents_a_complete_claim_without_observed_writers() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let target = root.path().join("executable");
+        fs::write(&target, b"target")?;
+        // Non-process entries consume the same enumeration budget as live /proc entries.
+        for index in 0..MAX_PROCESS_ENTRIES {
+            fs::write(root.path().join(format!("entry-{index}")), b"")?;
+        }
+        let report = writers_in(&fs::metadata(&target)?, root.path());
+        assert_that!(report["status"].as_str(), eq(Some("not_observed")));
+        assert_that!(report["limited"].as_bool(), eq(Some(true)));
+        assert_that!(report["complete"].as_bool(), eq(Some(false)));
+        Ok(())
+    }
+
+    #[googletest::test]
+    fn descriptor_flags_require_valid_octal_access_within_the_read_budget() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let info = root.path().join("fdinfo");
+        for text in ["position: 0", "flags: xyz", "flags: 3"] {
+            fs::write(&info, text)?;
+            assert_that!(access(&info), eq(None));
+        }
+        let beyond_budget = format!(
+            "{}\nflags: 1",
+            "x".repeat(usize::try_from(MAX_FDINFO_BYTES)?)
+        );
+        fs::write(&info, beyond_budget)?;
+        assert_that!(access(&info), eq(None));
+        Ok(())
+    }
+
+    #[googletest::test]
+    fn vanished_executable_identity_preserves_the_original_kernel_error() -> Result<()> {
+        let root = tempfile::tempdir()?;
+        let target = root.path().join("executable");
+        fs::write(&target, b"target")?;
+        // This stub supplies a completed start failure after the path disappears.
+        fn disappeared(command: &mut Command) -> std::io::Result<()> {
+            fs::remove_file(command.get_program())?;
+            Err(std::io::Error::from_raw_os_error(26))
+        }
+        let error = observe(
+            &mut Command::new(&target),
+            "vanished_identity",
+            "spawn",
+            disappeared,
+        )
+        .err()
+        .context("start failure")?;
+        assert_that!(
+            error
+                .downcast_ref::<std::io::Error>()
+                .and_then(std::io::Error::raw_os_error),
+            eq(Some(26))
+        );
+        let message = error.to_string();
+        let report: Value = serde_json::from_str(
+            message
+                .strip_prefix("fixture_process_failure ")
+                .context("diagnostic")?,
+        )?;
+        assert_that!(
+            report["observation"]["status"].as_str(),
+            eq(Some("identity_unavailable"))
+        );
+        assert_that!(report["executable"]["inode"].is_null(), eq(true));
+        assert_that!(
+            message.contains(target.to_str().context("path")?),
+            eq(false)
+        );
+        Ok(())
     }
 }
