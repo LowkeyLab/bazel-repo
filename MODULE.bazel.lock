@@ -4639,7 +4639,7 @@
         {
           "importpath": "golang.org/x/net",
           "sha256": "7bbcec6b6af859939ec01bbe5234e556c867bf80e171abc23ad16c2c8e3951fe",
-          "version": "v0.61.0"
+          "version": "v0.62.0"
         },
         {
           "importpath": "google.golang.org/protobuf",
