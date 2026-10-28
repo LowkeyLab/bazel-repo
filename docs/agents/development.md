@@ -103,3 +103,11 @@ For stale Node.js package dependencies, use the dependency command in this file.
 | `Cargo.lock`           | Rust dependencies                          |
 
 Read the applicable project's `AGENTS.md` for local setup and run commands.
+
+## Hosted review polling
+
+Use the [shared Rust command](../../tools/hosted_review/README.md) to request
+and poll hosted reviews for an exact PR head.
+Retain its private request state across resumed runs.
+An incomplete review needs another request only after more than one hour.
+Keep the current head, review findings, and required CI checks as separate merge gates.
