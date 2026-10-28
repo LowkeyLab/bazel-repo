@@ -157,7 +157,7 @@ git_override(
 bazel_dep(name = "rules_oci")
 git_override(
     module_name = "rules_oci",
-    commit = "522cf5b64e5618ed2e40c05828b6d436f108ef42",
+    commit = "2a51e9c898d8268a94d323bfa7aeee4c10b43ff5",
     remote = "https://github.com/bazel-contrib/rules_oci.git",
 )
 
