@@ -111,3 +111,11 @@ and poll hosted reviews for an exact PR head.
 Retain its private request state across resumed runs.
 An incomplete review needs another request only after more than one hour.
 Keep the current head, review findings, and required CI checks as separate merge gates.
+
+## Merge verification
+
+Before an authorized merge, use the [merge verification command](../../tools/merge_verification/README.md).
+Use its before result for the exact reviewed head and file list.
+After merge, use the same command to verify the merged file contents.
+The reference owns its command examples, evidence format, and acceptance policy.
+Keep ownership, validation, source reviews, and authorized merge execution in the delivery workflow.

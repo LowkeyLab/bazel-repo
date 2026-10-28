@@ -1,0 +1,58 @@
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_test")
+
+rust_binary(
+    name = "merge_verification",
+    srcs = [
+        "github.rs",
+        "main.rs",
+        "verify.rs",
+    ],
+    crate_root = "main.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:uuid",
+    ],
+)
+
+rust_binary(
+    name = "fake_gh",
+    testonly = True,
+    srcs = ["fake_gh.rs"],
+    crate_root = "fake_gh.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "command_test",
+    size = "small",
+    srcs = ["command_test.rs"],
+    crate_root = "command_test.rs",
+    data = [
+        ":fake_gh",
+        ":merge_verification",
+    ],
+    env = {
+        "VERIFICATION_TOOL": "$(rlocationpath :merge_verification)",
+        "VERIFICATION_FAKE_GH": "$(rlocationpath :fake_gh)",
+    },
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = ["README.md"],
+    tags = ["markdown"],
+)
