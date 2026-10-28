@@ -1,10 +1,13 @@
 //! Real PostgreSQL and packaged application with a controlled OIDC provider.
+#[path = "fixture_process.rs"]
+pub mod fixture_process;
 use std::{
     fs,
     process::{Child, Command, Stdio},
     time::Duration,
 };
 
+use anyhow::Context;
 use jsonwebtoken::{Algorithm, EncodingKey, Header, jwk::Jwk};
 use reqwest::{Client, Response};
 use runfiles::{Runfiles, rlocation};
@@ -63,7 +66,11 @@ pub struct Login {
 
 impl Fixture {
     pub async fn new() -> anyhow::Result<Self> {
-        let postgres = test_images::postgres().await.start().await?;
+        let postgres = test_images::postgres()
+            .await
+            .start()
+            .await
+            .context("fixture PostgreSQL startup failed")?;
         let database = format!(
             "postgres://postgres:postgres@{}:{}/postgres",
             postgres.get_host().await?,
@@ -72,13 +79,17 @@ impl Fixture {
         let files = Runfiles::create()?;
         let archive = rlocation!(files, std::env::var("PACKAGE_ARCHIVE")?).unwrap();
         let package = tempfile::tempdir()?;
-        tar::Archive::new(fs::File::open(archive)?).unpack(package.path())?;
+        tar::Archive::new(fs::File::open(archive).context("fixture archive open failed")?)
+            .unpack(package.path())
+            .context("fixture archive extraction failed")?;
         let cwd = tempfile::tempdir()?;
-        let status = Command::new(package.path().join("book-smartz"))
-            .arg("migrate")
-            .env("DATABASE_URL", &database)
-            .current_dir(cwd.path())
-            .status()?;
+        let status = fixture_process::status(
+            Command::new(package.path().join("book-smartz"))
+                .arg("migrate")
+                .env("DATABASE_URL", &database)
+                .current_dir(cwd.path()),
+            "fixture_migrate",
+        )?;
         anyhow::ensure!(status.success(), "migration failed");
         let socket = std::net::TcpListener::bind("127.0.0.1:0")?;
         let port = socket.local_addr()?.port();
@@ -138,7 +149,7 @@ impl Fixture {
         provider: &MockServer,
         diagnostics: &std::fs::File,
     ) -> anyhow::Result<Process> {
-        Ok(Process(
+        Ok(Process(fixture_process::spawn(
             Command::new(package.path().join("book-smartz"))
                 .arg("serve")
                 .env("DATABASE_URL", database)
@@ -163,9 +174,9 @@ impl Fixture {
                 .env("GOOGLE_JWKS_ENDPOINT", format!("{}/keys", provider.uri()))
                 .current_dir(cwd.path())
                 .stdout(Stdio::null())
-                .stderr(diagnostics.try_clone()?)
-                .spawn()?,
-        ))
+                .stderr(diagnostics.try_clone()?),
+            "fixture_serve",
+        )?))
     }
     async fn wait(&mut self) -> anyhow::Result<()> {
         Self::wait_for(&mut self.process, &self.client, &self.base).await

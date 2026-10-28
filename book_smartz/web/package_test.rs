@@ -18,7 +18,7 @@ use googletest::{
     matchers::{contains_substring, eq, ge, not},
 };
 
-use test_support::{Fixture, Process};
+use test_support::{Fixture, Process, fixture_process};
 
 #[googletest::test]
 #[tokio::test]
@@ -104,7 +104,7 @@ async fn packaged_pages_deliver_local_css_fonts_runtime_and_icons() -> anyhow::R
 }
 
 async fn rejected(app: &Fixture, origin: &str) -> anyhow::Result<()> {
-    let mut child = Process(
+    let mut child = Process(fixture_process::spawn(
         Command::new(app.package.path().join("book-smartz"))
             .arg("serve")
             .env("DATABASE_URL", &app.database)
@@ -119,9 +119,9 @@ async fn rejected(app: &Fixture, origin: &str) -> anyhow::Result<()> {
             .env("GOOGLE_CLIENT_ID", "fixture-client")
             .env("GOOGLE_CLIENT_SECRET", "fixture-secret")
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()?,
-    );
+            .stderr(Stdio::null()),
+        "package_rejected_startup",
+    )?);
     let status = tokio::time::timeout(Duration::from_secs(15), async {
         loop {
             if let Some(status) = child.0.try_wait()? {
@@ -185,11 +185,13 @@ async fn launcher_forwards_explicit_migration_and_propagates_failure_without_era
     let launcher =
         runfiles::rlocation!(files, std::env::var("RUN_LAUNCHER")?).context("package launcher")?;
     let run = || {
-        Command::new(&launcher)
-            .arg("migrate")
-            .env("DATABASE_URL", &app.database)
-            .current_dir(app.cwd.path())
-            .status()
+        fixture_process::status(
+            Command::new(&launcher)
+                .arg("migrate")
+                .env("DATABASE_URL", &app.database)
+                .current_dir(app.cwd.path()),
+            "launcher_migrate",
+        )
     };
     assert_that!(run()?.success(), eq(true));
     assert_that!(run()?.success(), eq(true));
@@ -213,14 +215,14 @@ async fn concurrent_fresh_migrations_wait_for_the_schema_lock() -> anyhow::Resul
         .execute(&mut *lock)
         .await?;
     let spawn = || -> anyhow::Result<Process> {
-        Ok(Process(
+        Ok(Process(fixture_process::spawn(
             Command::new(app.package.path().join("book-smartz"))
                 .arg("migrate")
                 .env("DATABASE_URL", &app.database)
                 .current_dir(app.cwd.path())
-                .stdout(Stdio::null())
-                .spawn()?,
-        ))
+                .stdout(Stdio::null()),
+            "package_concurrent_migrate",
+        )?))
     };
     let mut first = spawn()?;
     let mut second = spawn()?;

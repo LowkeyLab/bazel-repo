@@ -136,6 +136,7 @@ rust_test(
         "catalog_test.rs",
         "diagnostic_events.rs",
         "diagnostic_test.rs",
+        "fixture_process.rs",  # keep
         "http_test.rs",
         "identity_diagnostic_test.rs",
         "identity_test.rs",
@@ -189,6 +190,7 @@ rust_test(
         "application_test.rs",
         "commit_proxy.rs",
         "diagnostic_events.rs",
+        "fixture_process.rs",  # keep
         "test_support.rs",
     ],
     compile_data = ["fixtures/public-test-key.pem"],
@@ -237,6 +239,7 @@ rust_test(
     size = "medium",
     srcs = [
         "diagnostic_events.rs",
+        "fixture_process.rs",  # keep
         "package_test.rs",
         "test_support.rs",
     ],
@@ -308,6 +311,7 @@ rust_test(
     size = "medium",
     srcs = [
         "browser_test.rs",
+        "fixture_process.rs",  # keep
         "test_support.rs",
     ],
     compile_data = ["fixtures/public-test-key.pem"],
@@ -521,6 +525,27 @@ rust_test(
         "@crates//:url",
         "@crates//:uuid",
         "@crates//:wiremock",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+rust_test(
+    name = "fixture_process_test",
+    size = "small",
+    srcs = [
+        "fixture_process.rs",
+        "fixture_process_test.rs",
+    ],
+    crate_root = "fixture_process_test.rs",
+    data = [":package"],
+    env = {"PACKAGE_ARCHIVE": "$(rlocationpath :package)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tar",
+        "@crates//:tempfile",
         "@rules_rust//tools/runfiles",
     ],
 )
