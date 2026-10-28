@@ -1,0 +1,57 @@
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_test")
+
+rust_binary(
+    name = "pool_receipt",
+    srcs = [
+        "capture.rs",
+        "main.rs",
+        "summary.rs",
+    ],
+    crate_root = "main.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:clap",
+        "@crates//:rustix",
+        "@crates//:serde_json",
+        "@crates//:uuid",
+    ],
+)
+
+rust_binary(
+    name = "fake_pool",
+    testonly = True,
+    srcs = ["fake_pool.rs"],
+    crate_root = "fake_pool.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "command_test",
+    size = "small",
+    srcs = ["command_test.rs"],
+    crate_root = "command_test.rs",
+    data = [
+        ":fake_pool",
+        ":pool_receipt",
+    ],
+    env = {
+        "POOL_WRAPPER": "$(rlocationpath :pool_receipt)",
+        "POOL_FAKE": "$(rlocationpath :fake_pool)",
+    },
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = ["README.md"],
+    tags = ["markdown"],
+)
