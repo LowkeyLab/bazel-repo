@@ -2,7 +2,7 @@
 use anyhow::Context;
 use googletest::{
     assert_that,
-    matchers::{contains_substring, eq},
+    matchers::{contains_substring, eq, not},
 };
 use serde_json::json;
 
@@ -19,7 +19,7 @@ async fn sign_in_restores_the_same_private_account_across_restart_and_email_chan
     for copy in [
         "Books, ranked, not rated.",
         "Put the books you read in order of preference. Choose between two books at a time to build your private ranking.",
-        "After sign-in, find your first book to start your ranking.",
+        "Find your first book.",
         "<title>Book Smartz · Books, ranked, not rated</title>",
         "Rank the books you read. Choose between two books at a time to build your private ranking with Book Smartz.",
         "href=\"/auth/google\"",
@@ -40,19 +40,27 @@ async fn sign_in_restores_the_same_private_account_across_restart_and_email_chan
     );
     let ranking = response.text().await?;
     for copy in [
-        "<title>Your ranking · Book Smartz</title>",
-        "aria-label=\"Book ranking\"",
-        "aria-label=\"Book ranking workspace\"",
-        "Find a book to rank",
-        "Your saved ranking",
-        "Books in your order of preference",
-        "Your ranking is empty.",
-        "Find a book you read to start your ranking.",
-        "Finish the comparisons for each new book to give it a position in your ranking.",
+        "<title>Your books · Book Smartz</title>",
+        "aria-label=\"Books\"",
+        "aria-label=\"Books workspace\"",
+        "Find a book",
+        "Your books",
+        "You have no books yet.",
+        "Find a book you read.",
         "Sign out of this browser",
     ] {
         assert_that!(ranking.as_str(), contains_substring(copy));
     }
+    assert_that!(
+        ranking.as_str(),
+        not(contains_substring(
+            "Finish the comparisons for each new book"
+        ))
+    );
+    assert_that!(
+        ranking.as_str(),
+        not(contains_substring("Books in your order of preference"))
+    );
     app.restart().await?;
     assert_that!(app.ranking(&cookie).await?.status().as_u16(), eq(200));
     let login = app.begin().await?;

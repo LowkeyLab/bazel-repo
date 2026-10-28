@@ -61,15 +61,15 @@ impl Receipt {
     }
     pub fn message(&self) -> String {
         match self.source {
-            Source::Replay => "We already saved this action.".into(),
-            Source::Recovery => "We confirmed the original save.".into(),
+            Source::Replay => "We already saved this.".into(),
+            Source::Recovery => "We confirmed your save.".into(),
             Source::Fresh => self.placement.as_ref().map_or_else(
                 || {
                     match self.kind {
-                        SaveKind::Add => "Book added. Compare it with books in your ranking to find its position.",
+                        SaveKind::Add => "Book added.",
                         SaveKind::Preference => "We saved your choice.",
-                        SaveKind::Pause => "We paused the comparisons for this book and kept your saved choices.",
-                        SaveKind::Resume => "You can continue the comparisons for this book. We kept your saved choices.",
+                        SaveKind::Pause => "We paused the comparisons.",
+                        SaveKind::Resume => "We resumed the comparisons.",
                     }
                     .into()
                 },

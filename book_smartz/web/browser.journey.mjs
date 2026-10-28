@@ -428,7 +428,7 @@ async function journey() {
   );
   assert.equal(
     await page
-      .getByText("After sign-in, find your first book to start your ranking.", {
+      .getByText("Find your first book.", {
         exact: true,
       })
       .isVisible(),
@@ -495,9 +495,9 @@ async function journey() {
   await page.getByRole("link", { name: "Sign in with Google" }).click();
   await page.waitForURL("https://reader.example/ranking");
   await recordScene("empty-library");
-  assert.equal(await page.title(), "Your ranking · Book Smartz");
+  assert.equal(await page.title(), "Your books · Book Smartz");
   const rankingNavigation = page.getByRole("navigation", {
-    name: "Book ranking",
+    name: "Books",
     exact: true,
   });
   assert.equal(
@@ -508,13 +508,13 @@ async function journey() {
   );
   assert.equal(
     await rankingNavigation
-      .getByRole("link", { name: "Your ranking", exact: true })
+      .getByRole("link", { name: "Your books", exact: true })
       .getAttribute("href"),
     "/ranking#saved-ranking",
   );
   assert.equal(
     await page
-      .getByRole("region", { name: "Book ranking workspace", exact: true })
+      .getByRole("region", { name: "Books workspace", exact: true })
       .isVisible(),
     true,
   );
@@ -525,21 +525,19 @@ async function journey() {
     true,
   );
   assert.equal(
-    await page.getByText("Your ranking is empty.", { exact: true }).isVisible(),
+    await page.getByText("You have no books yet.", { exact: true }).isVisible(),
     true,
   );
   assert.equal(
-    await page
-      .getByText("Find a book you read to start your ranking.", { exact: true })
-      .isVisible(),
+    await page.getByText("Find a book you read.", { exact: true }).isVisible(),
     true,
   );
   const savedHeading = page.getByRole("heading", {
-    name: "Your saved ranking",
+    name: "Your books",
     exact: true,
   });
   const taskHeading = page.getByRole("heading", {
-    name: "Find a book to rank",
+    name: "Find a book",
     exact: true,
   });
   assert.equal(
@@ -558,7 +556,7 @@ async function journey() {
   assert.equal(await page.title(), "Find a book · Book Smartz");
   assert.equal(
     await page
-      .getByRole("heading", { name: "Find a book to rank", exact: true })
+      .getByRole("heading", { name: "Find a book", exact: true })
       .isVisible(),
     true,
   );
@@ -590,7 +588,7 @@ async function journey() {
         { exact: true },
       )
       .isVisible(),
-    true,
+    false,
   );
   await recordScene("selected-work");
   assert.equal(
@@ -655,7 +653,7 @@ async function journey() {
   });
 
   const addClick = page
-    .getByRole("button", { name: "Add to your ranking" })
+    .getByRole("button", { name: "Add to your books" })
     .click({ noWaitAfter: true });
   try {
     const [state, serverStatus] = await Promise.race([
@@ -685,7 +683,7 @@ async function journey() {
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(await page.locator("ol li").count(), 1);
   assert.equal(
-    await page.getByText("Your ranking is empty.", { exact: true }).count(),
+    await page.getByText("You have no books yet.", { exact: true }).count(),
     0,
   );
   await page
@@ -744,16 +742,11 @@ async function journey() {
     .fill("Later book");
   await page.getByRole("button", { name: "Search books", exact: true }).click();
   await page.getByRole("button", { name: "Select this book" }).click();
-  await page.getByRole("button", { name: "Add to your ranking" }).click();
+  await page.getByRole("button", { name: "Add to your books" }).click();
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(await page.locator("ol li").count(), 1);
   assert.equal(
-    await page
-      .getByText(
-        "Book added. Compare it with books in your ranking to find its position.",
-        { exact: true },
-      )
-      .isVisible(),
+    await page.getByText("Book added.", { exact: true }).isVisible(),
     true,
   );
   assert.equal(
@@ -765,11 +758,10 @@ async function journey() {
     exact: true,
   });
   for (const label of [
-    "Rank this book",
-    "Book to rank",
-    "Book in your ranking",
+    "Compare books",
+    "New book",
+    "Your book",
     "Choose the book you prefer",
-    "You saved no choices for this book yet.",
   ]) {
     assert.equal(
       await pendingPlacement.getByText(label, { exact: true }).isVisible(),
@@ -838,7 +830,7 @@ async function journey() {
     true,
   );
   const recoveryHeading = page.getByRole("heading", {
-    name: "Check original save",
+    name: "Check your save",
     exact: true,
   });
   await recoveryHeading.waitFor();
@@ -849,7 +841,7 @@ async function journey() {
         { exact: true },
       )
       .isVisible(),
-    true,
+    false,
   );
   assert.equal(await page.title(), "Check your save · Book Smartz");
   await page.waitForLoadState("domcontentloaded");
@@ -865,7 +857,7 @@ async function journey() {
   );
   assert.equal(
     await page
-      .getByRole("button", { name: "Check original save", exact: true })
+      .getByRole("button", { name: "Check your save", exact: true })
       .count(),
     1,
   );
@@ -876,7 +868,7 @@ async function journey() {
   assert.equal(await checkingStatus.textContent(), "");
   assert.equal(await checkingStatus.getAttribute("aria-live"), "polite");
   await recordScene("uncertain-save");
-  await page.getByRole("link", { name: "Return to your ranking" }).click();
+  await page.getByRole("link", { name: "Return to your books" }).click();
   assert.equal(
     await page
       .getByRole("button", { name: "Pause for now", exact: true })
@@ -890,7 +882,7 @@ async function journey() {
     true,
   );
   await fixture("allow");
-  await page.getByRole("button", { name: "Check original save" }).click();
+  await page.getByRole("button", { name: "Check your save" }).click();
   await page.waitForURL("https://reader.example/ranking");
   assert.equal(
     await page
@@ -1014,7 +1006,7 @@ async function journey() {
           status: form.querySelector('[role="status"]').textContent,
           busy: form.getAttribute("aria-busy"),
           saved: document.querySelectorAll("ol li").length,
-          progress: document.querySelector('.comparison > [role="status"]')
+          question: document.querySelector("[data-comparison-heading]")
             .textContent,
           focusOffStatus:
             document.activeElement !== form.querySelector('[role="status"]'),
@@ -1051,7 +1043,7 @@ async function journey() {
       status: "Saving…",
       busy: "true",
       saved: 1,
-      progress: "You saved no choices for this book yet.",
+      question: "Which book do you prefer?",
       focusOffStatus: true,
     });
     assert.equal(status, 303);
@@ -1086,13 +1078,13 @@ async function journey() {
   assert.equal(
     (
       await stale
-        .getByRole("heading", { name: "Your saved ranking", exact: true })
+        .getByRole("heading", { name: "Your books", exact: true })
         .boundingBox()
     ).x <
       (
         await stale
           .getByRole("heading", {
-            name: "Review your ranking",
+            name: "Review your books",
             exact: true,
           })
           .boundingBox()
@@ -1164,7 +1156,7 @@ async function journey() {
     .getByRole("heading", { name: "Selected book", exact: true })
     .waitFor();
   await recordScene("selected-long-title");
-  await page.getByRole("link", { name: "Return to your ranking" }).click();
+  await page.getByRole("link", { name: "Return to your books" }).click();
   await deliberateSearch("No matches");
   await page
     .getByText("We found no matching books. Try another title or author.", {
@@ -1186,7 +1178,7 @@ async function journey() {
       .click();
     await page.waitForLoadState("domcontentloaded");
     await page
-      .getByRole("button", { name: "Add to your ranking", exact: true })
+      .getByRole("button", { name: "Add to your books", exact: true })
       .click();
     await page.waitForURL("https://reader.example/ranking");
     await page.waitForLoadState("domcontentloaded");
@@ -1232,20 +1224,13 @@ async function journey() {
   await page
     .getByRole("button", { name: "Prefer Later book", exact: true })
     .click();
-  await page
-    .getByText("You saved 1 choice for this book.", { exact: true })
-    .waitFor();
+
   await page.getByText("We saved your choice.", { exact: true }).waitFor();
   await recordScene("saved-preference-progress");
   await page
     .getByRole("button", { name: "Pause for now", exact: true })
     .click();
-  await page
-    .getByText(
-      "We paused the comparisons for this book and kept your saved choices.",
-      { exact: true },
-    )
-    .waitFor();
+  await page.getByText("We paused the comparisons.", { exact: true }).waitFor();
   await page
     .getByText(
       "You paused the comparisons for this book. Resume when you are ready.",
@@ -1255,7 +1240,7 @@ async function journey() {
   await recordScene("paused-placement");
   await page.reload();
   await page
-    .getByText("You saved 1 choice for this book.", { exact: true })
+    .getByRole("button", { name: "Resume comparisons", exact: true })
     .waitFor();
   await page
     .getByRole("button", { name: "Sign out of this browser", exact: true })
@@ -1265,7 +1250,7 @@ async function journey() {
     .click();
   await page.waitForURL("https://reader.example/ranking");
   await page
-    .getByText("You saved 1 choice for this book.", { exact: true })
+    .getByRole("button", { name: "Resume comparisons", exact: true })
     .waitFor();
   assert.equal(
     await page
@@ -1282,15 +1267,12 @@ async function journey() {
     .getByRole("button", { name: "Resume comparisons", exact: true })
     .click();
   await page
-    .getByText(
-      "You can continue the comparisons for this book. We kept your saved choices.",
-      {
-        exact: true,
-      },
-    )
+    .getByText("We resumed the comparisons.", {
+      exact: true,
+    })
     .waitFor();
   await page
-    .getByText("You saved 1 choice for this book.", { exact: true })
+    .getByRole("heading", { name: "Which book do you prefer?", exact: true })
     .waitFor();
   await page.waitForLoadState("domcontentloaded");
   const beforeThirdPlacement = motions.length;
@@ -1428,16 +1410,14 @@ async function journey() {
     .getByRole("button", { name: "Prefer Recovered book", exact: true })
     .click();
   await page.waitForLoadState("domcontentloaded");
-  await page
-    .getByText("You saved 1 choice for this book.", { exact: true })
-    .waitFor();
+  await page.getByText("We saved your choice.", { exact: true }).waitFor();
   const beforeRecoveredMotion = motions.length;
   await fixture("reject");
   await page
     .getByRole("button", { name: "Prefer Recovered book", exact: true })
     .click();
   await page
-    .getByRole("heading", { name: "Check original save", exact: true })
+    .getByRole("heading", { name: "Check your save", exact: true })
     .waitFor();
   await page.waitForLoadState("domcontentloaded");
   await recordScene("unresolved-completion");
@@ -1490,7 +1470,7 @@ async function journey() {
         focusOffStatus: document.activeElement !== status,
         success: [...document.querySelectorAll('[role="status"]')].some(
           (status) =>
-            /We saved this book at position|We confirmed the original save/.test(
+            /We saved this book at position|We confirmed your save/.test(
               status.textContent,
             ),
         ),
@@ -1514,7 +1494,7 @@ async function journey() {
     release: recoveryGate,
   };
   const recoveryClick = page
-    .getByRole("button", { name: "Check original save", exact: true })
+    .getByRole("button", { name: "Check your save", exact: true })
     .click({ noWaitAfter: true });
   try {
     const [state, status] = await Promise.race([
@@ -1540,9 +1520,7 @@ async function journey() {
   await recoveryClick;
   await page.waitForURL("https://reader.example/ranking");
   await page.waitForLoadState("domcontentloaded");
-  await page
-    .getByText("We confirmed the original save.", { exact: true })
-    .waitFor();
+  await page.getByText("We confirmed your save.", { exact: true }).waitFor();
   const recoveredTitles = await page.locator("ol li a").allTextContents();
   assert.equal(recoveredTitles.length, 6);
   assert.equal(recoveredTitles[0], "Recovered book");
@@ -1553,10 +1531,10 @@ async function journey() {
     "Recovery must not replay completion decoration",
   );
   await replayRecovery
-    .getByRole("button", { name: "Check original save", exact: true })
+    .getByRole("button", { name: "Check your save", exact: true })
     .click();
   await replayRecovery
-    .getByText("We confirmed the original save.", { exact: true })
+    .getByText("We confirmed your save.", { exact: true })
     .waitFor();
   assert.deepEqual(
     await replayRecovery.locator("ol li a").allTextContents(),
@@ -1616,7 +1594,7 @@ async function journey() {
   }
   await nativeSelection("Native book");
   await nativeReaderPage
-    .getByRole("button", { name: "Add to your ranking", exact: true })
+    .getByRole("button", { name: "Add to your books", exact: true })
     .click();
   await nativeReaderPage
     .getByText("We saved this book at position 1.", { exact: true })
@@ -1632,7 +1610,7 @@ async function journey() {
     .waitFor();
   await recordScene("native-selected-long-title", nativeReaderPage);
   await nativeReaderPage
-    .getByRole("button", { name: "Add to your ranking", exact: true })
+    .getByRole("button", { name: "Add to your books", exact: true })
     .click();
   await nativeReaderPage
     .getByRole("button", { name: "Prefer Native book", exact: true })
@@ -1644,13 +1622,13 @@ async function journey() {
     .getByRole("button", { name: "Pause for now", exact: true })
     .click();
   await nativeReaderPage
-    .getByRole("heading", { name: "Check original save", exact: true })
+    .getByRole("heading", { name: "Check your save", exact: true })
     .waitFor();
   await recordScene("native-uncertain-save", nativeReaderPage);
   await fixture("allow");
   const beforeNativeReads = nativeRankingRequests;
   await nativeReaderPage
-    .getByRole("link", { name: "Return to your ranking", exact: true })
+    .getByRole("link", { name: "Return to your books", exact: true })
     .click();
   await nativeReaderPage.reload();
   assert.equal(await nativeReaderPage.locator("ol li").count(), 1);
@@ -1698,10 +1676,10 @@ async function journey() {
   );
   await recordScene("native-retained-original-action", nativeReaderPage);
   await nativeReaderPage
-    .getByRole("button", { name: "Check original save", exact: true })
+    .getByRole("button", { name: "Check your save", exact: true })
     .click();
   await nativeReaderPage
-    .getByText("We confirmed the original save.", { exact: true })
+    .getByText("We confirmed your save.", { exact: true })
     .waitFor();
   await nativeReaderPage
     .getByText(

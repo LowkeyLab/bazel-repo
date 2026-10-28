@@ -1,7 +1,7 @@
 //! Catalog acceptance through the real packaged HTTP application.
 use googletest::{
     assert_that,
-    matchers::{contains_substring, eq},
+    matchers::{contains_substring, eq, not},
 };
 use serde_json::json;
 use wiremock::{
@@ -50,10 +50,10 @@ async fn explicit_search_normalizes_work_results_and_issues_selections() -> anyh
     assert_that!(body.as_str(), contains_substring("Next page"));
     for copy in [
         "<title>Find a book · Book Smartz</title>",
-        "Find a book to rank",
+        "Find a book",
         "Select this book",
         "Example cover for this book",
-        "Your saved ranking",
+        "Your books",
         "Previous page",
         "name=\"page\" value=\"2\"",
         "value=\"Tolkien\"",
@@ -88,7 +88,7 @@ async fn explicit_search_normalizes_work_results_and_issues_selections() -> anyh
         )
     );
     assert_that!(body.matches("name=\"selection\"").count(), eq(0));
-    assert_that!(body.as_str(), contains_substring("Your saved ranking"));
+    assert_that!(body.as_str(), contains_substring("Your books"));
     Ok(())
 }
 
@@ -161,12 +161,12 @@ async fn selections_reject_tampering_expiry_wrong_reader_and_invalid_metadata_wi
     for copy in [
         "<title>Selected book · Book Smartz</title>",
         "Selected book",
-        "You can add this book for 15 minutes after your search. After that, search for the book again.",
-        "Add to your ranking",
-        "Return to your ranking",
+        "Add to your books",
+        "Return to your books",
     ] {
         assert_that!(selected.as_str(), contains_substring(copy));
     }
+    assert_that!(selected.as_str(), not(contains_substring("15 minutes")));
     let response = post(
         &app,
         &app.base,
@@ -176,6 +176,10 @@ async fn selections_reject_tampering_expiry_wrong_reader_and_invalid_metadata_wi
     )
     .await?;
     assert_that!(response.status().as_u16(), eq(403));
+    assert_that!(
+        response.text().await?.as_str(),
+        contains_substring("Search for this book again.")
+    );
     let mut forged = token.clone().into_bytes();
     let signature_start = token.rfind('.').unwrap() + 1;
     forged[signature_start] = if forged[signature_start] == b'a' {
@@ -260,20 +264,20 @@ async fn provider_failures_are_actionable_and_never_hide_saved_state() -> anyhow
         ),
         (
             ResponseTemplate::new(200).set_body_string("not JSON"),
-            "We could not read the search results. Try again.",
+            "Search is unavailable. Try again.",
         ),
         (
             ResponseTemplate::new(200)
                 .set_body_json(json!({"start":0,"numFound":0,"num_found":1,"docs":[]})),
-            "We could not read the search results. Try again.",
+            "Search is unavailable. Try again.",
         ),
         (
             ResponseTemplate::new(200).set_body_json(json!({"start":0,"docs":[]})),
-            "We could not read the search results. Try again.",
+            "Search is unavailable. Try again.",
         ),
         (
             ResponseTemplate::new(200).set_body_string("x".repeat(1_048_577)),
-            "The search results were too large to load. Try again.",
+            "Search is unavailable. Try again.",
         ),
         (
             ResponseTemplate::new(503),
@@ -281,11 +285,11 @@ async fn provider_failures_are_actionable_and_never_hide_saved_state() -> anyhow
         ),
         (
             ResponseTemplate::new(429),
-            "Search received too many requests. Wait a moment, then search again.",
+            "Wait a moment, then search again.",
         ),
         (
             ResponseTemplate::new(200).set_delay(std::time::Duration::from_secs(6)),
-            "Search took too long to respond. Try again.",
+            "Search is unavailable. Try again.",
         ),
         (
             ResponseTemplate::new(302).insert_header("location", "http://127.0.0.1:1/leak"),
@@ -315,10 +319,10 @@ async fn provider_failures_are_actionable_and_never_hide_saved_state() -> anyhow
         let body = response.text().await?;
         assert_that!(body.as_str(), contains_substring(message));
         assert_that!(body.as_str(), contains_substring("Search books"));
-        assert_that!(body.as_str(), contains_substring("Your saved ranking"));
-        assert_that!(body.as_str(), contains_substring("Your ranking is empty."));
+        assert_that!(body.as_str(), contains_substring("Your books"));
+        assert_that!(body.as_str(), contains_substring("You have no books yet."));
         let saved = app.ranking(&cookie).await?.text().await?;
-        assert_that!(saved.as_str(), contains_substring("Your ranking is empty."));
+        assert_that!(saved.as_str(), contains_substring("You have no books yet."));
         // Exactly one outgoing request is the budget contract: no automatic retry.
         assert_that!(app.provider.received_requests().await.unwrap().len(), eq(1));
     }
@@ -390,7 +394,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
     .await??;
     assert_that!(
         response.text().await?.as_str(),
-        contains_substring("Search received too many requests. Wait a moment, then search again.")
+        contains_substring("Wait a moment, then search again.")
     );
     sqlx::query("SELECT pg_advisory_unlock(706165241,3)")
         .execute(&mut *connection)
@@ -420,7 +424,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
         .text()
         .await?
         .as_str(),
-        contains_substring("Search received too many requests. Wait a moment, then search again.")
+        contains_substring("Wait a moment, then search again.")
     );
     assert_that!(app.provider.received_requests().await.unwrap().len(), eq(1));
     // Seed nine more recent admissions: the original reader has used all ten.
@@ -434,7 +438,7 @@ async fn search_budgets_are_shared_across_overlapping_instances_and_do_not_queue
             .text()
             .await?
             .as_str(),
-        contains_substring("Search received too many requests. Wait a moment, then search again.")
+        contains_substring("Wait a moment, then search again.")
     );
     assert_that!(
         post(
@@ -549,7 +553,7 @@ async fn catalog_boundaries_require_live_sessions_csrf_origin_and_bounded_querie
         assert_that!(
             response.text().await?.as_str(),
             contains_substring(
-                "Enter a title or author with 1 to 256 characters. Return to your ranking to start a new search."
+                "Enter a title or author with 1 to 256 characters. Return to your books to start a new search."
             )
         );
     }

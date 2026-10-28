@@ -245,7 +245,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
-                "We cannot confirm your save yet. Return to your ranking to check the original save.",
+                "We cannot confirm your save yet. Return to your books to check your save.",
                 None,
             ));
         }
@@ -277,7 +277,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             diagnostic.finish(OperationOutcome::Rejected, Reason::ActionBlocked);
             return Ok(outcome(
                 cx,
-                "Check the original save before you add another book.",
+                "Check your save before you add another book.",
                 Some(RecoveryActions::new(&session, actions)),
             ));
         }
@@ -307,7 +307,7 @@ pub async fn add(cx: &Cx, Form(input): Form<AddInput>) -> Result<impl View> {
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
-                "We cannot confirm your save yet. Check the original save before you try again.",
+                "We cannot confirm your save yet. Check it before you try again.",
                 Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
@@ -367,7 +367,7 @@ async fn submit_ranking_command(
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
-                "We cannot confirm your save yet. Return to your ranking to check the original save.",
+                "We cannot confirm your save yet. Return to your books to check your save.",
                 None,
             ));
         }
@@ -389,7 +389,7 @@ async fn submit_ranking_command(
             diagnostic.finish(OperationOutcome::Rejected, Reason::ActionBlocked);
             return Ok(outcome(
                 cx,
-                "Check the original save before you choose another book.",
+                "Check your save before you choose another book.",
                 Some(RecoveryActions::new(&session, actions)),
             ));
         }
@@ -419,7 +419,7 @@ async fn submit_ranking_command(
             app.diagnostics.unconfirmed_save(started, input.action);
             return Ok(outcome(
                 cx,
-                "We cannot confirm your save yet. Check the original save before you try again.",
+                "We cannot confirm your save yet. Check it before you try again.",
                 Some(RecoveryActions::new(&session, vec![input.action])),
             ));
         }
@@ -456,7 +456,7 @@ async fn recovery_form(csrf: String, action: ActionId) -> Result<impl View> {
         <form method="post" action="/recover" data-ranking-action="">
             <input type="hidden" name="csrf" value=(csrf)>
             <input type="hidden" name="action" value=(action.text())>
-            <button type="submit">"Check original save"</button>
+            <button type="submit">"Check your save"</button>
             book_smartz_views::submission_status()
         </form>
     })
@@ -468,7 +468,6 @@ fn outcome<'a>(cx: &'a Cx, message: &str, recovery: Option<RecoveryActions>) -> 
         || (String::new(), Vec::new()),
         |recovery| (recovery.csrf, recovery.actions),
     );
-    let known = !actions.is_empty();
     view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -482,36 +481,31 @@ fn outcome<'a>(cx: &'a Cx, message: &str, recovery: Option<RecoveryActions>) -> 
             <body>
                 book_smartz_views::heading()
                 <main class="library-workspace">
-                    <section class="active-task" aria-label="Book ranking workspace">
+                    <section class="active-task" aria-label="Books workspace">
                         <h1 tabindex="-1" data-response-focus="recovery">
-                            "Check original save"
+                            "Check your save"
                         </h1>
                         book_smartz_views::feedback(
                             message: message,
                             kind: book_smartz_views::FeedbackKind::Status
                         )
-                        if known {
-                            <p>
-                                "Check whether we saved your earlier action. This check can finish only that action."
-                            </p>
-                        }
                         for action in actions {
                             recovery_form(csrf: csrf.clone(), action: action)
                         }
-                        <a href="/ranking">"Return to your ranking"</a>
+                        <a href="/ranking">"Return to your books"</a>
                     </section>
                     <section
                         class="saved-ranking"
                         aria-labelledby="saved-state-heading"
                     >
-                        <h2 id="saved-state-heading">"Your saved ranking"</h2>
-                        <p>"Read your ranking to see confirmed positions."</p>
-                        <a href="/ranking">"Read saved positions"</a>
+                        <h2 id="saved-state-heading">"Your books"</h2>
+                        <a href="/ranking">"View your books"</a>
                     </section>
                 </main>
             </body>
         </html>
-    }.boxed()
+    }
+    .boxed()
 }
 async fn finish<'a>(
     cx: &'a Cx,
@@ -553,7 +547,7 @@ async fn finish<'a>(
                             name="viewport"
                             content="width=device-width, initial-scale=1"
                         >
-                        <title>"Review your ranking · Book Smartz"</title>
+                        <title>"Review your books · Book Smartz"</title>
                         <link
                             rel="stylesheet"
                             href=(topcoat::asset::asset!("./styles.css"))
@@ -566,19 +560,16 @@ async fn finish<'a>(
                     <body>
                         book_smartz_views::heading()
                         <main class="library-workspace">
-                            <section
-                                class="active-task"
-                                aria-label="Book ranking workspace"
-                            >
+                            <section class="active-task" aria-label="Books workspace">
                                 <h1 tabindex="-1" data-response-focus="task">
-                                    "Review your ranking"
+                                    "Review your books"
                                 </h1>
                                 book_smartz_views::feedback(
                                     message: reason,
                                     kind: book_smartz_views::FeedbackKind::Error
                                 )
                                 comparison(reader: reader, csrf: session.csrf)
-                                <a href="/ranking">"Return to your ranking"</a>
+                                <a href="/ranking">"Return to your books"</a>
                             </section>
                             crate::saved_ranking(
                                 reader: reader,
@@ -600,7 +591,7 @@ async fn finish<'a>(
             app.diagnostics.unconfirmed_save(started, action);
             Ok(outcome(
                 cx,
-                "We cannot confirm your save yet. Check the original save before you try again.",
+                "We cannot confirm your save yet. Check it before you try again.",
                 Some(RecoveryActions::new(session, vec![action])),
             ))
         }
@@ -659,7 +650,7 @@ async fn execute(app: &Application, reader: ReaderId, action: ActionId) -> anyho
                     action,
                     "rejected",
                     Some(&cause),
-                    json!({"reason":"Your ranking changed. Review it before you try again."}),
+                    json!({"reason":"Your books changed. Review them before you try again."}),
                 )
                 .await?;
                 tx.commit().await?;
@@ -887,11 +878,11 @@ async fn prepare_ranking(
         .iter()
         .any(|e| e.book_id() == book.id())
     {
-        "This book is already in your ranking."
+        "You already added this book."
     } else if tx.ranking().projection().pending().is_some() {
         "Finish the comparisons for your current book before you add another book."
     } else {
-        "Your ranking changed. Review it before you try again."
+        "Your books changed. Review them before you try again."
     };
     prepare_decision(tx, reader, original, cause, decision, reason).await
 }
@@ -966,14 +957,9 @@ pub async fn recovery_controls(cx: &Cx, reader: ReaderId, csrf: String) -> Resul
         for action in actions {
             <aside>
                 <p role="status">
-                    "We cannot confirm an earlier save yet. Check the original save before you change your ranking."
+                    "We cannot confirm your save yet. Check it before you change your books."
                 </p>
-                <h2 tabindex="-1" data-response-focus="recovery">
-                    "Check original save"
-                </h2>
-                <p>
-                    "Check whether we saved your earlier action. This check can finish only that action."
-                </p>
+                <h2 tabindex="-1" data-response-focus="recovery">"Check your save"</h2>
                 recovery_form(csrf: csrf.clone(), action: action)
             </aside>
         }
@@ -989,7 +975,6 @@ struct ComparisonState {
     candidate: BookId,
     candidate_display: book_smartz_views::BookDisplay,
     revision: u64,
-    preferences: usize,
     disabled: bool,
     action: ActionId,
     offered: Option<(BookId, book_smartz_views::BookDisplay, String)>,
@@ -1083,17 +1068,6 @@ async fn comparison_state(app: &Application, reader: ReaderId) -> Result<Option<
     };
     let revision = projection.revision();
     let candidate_display = display(candidate);
-    let mut preferences = 0;
-    for event in ranking.history().iter().rev() {
-        match event.kind() {
-            book_smartz_domain::EventKind::PlacementStarted => break,
-            book_smartz_domain::EventKind::ComparisonAnswered {
-                choice: ComparisonChoice::PreferCandidate | ComparisonChoice::PreferOpponent,
-                ..
-            } => preferences += 1,
-            _ => {}
-        }
-    }
     let disabled = checking(app, reader)
         .await
         .map_err(|_| topcoat::Error::msg("Action data unavailable"))?;
@@ -1127,7 +1101,6 @@ async fn comparison_state(app: &Application, reader: ReaderId) -> Result<Option<
         candidate,
         candidate_display,
         revision,
-        preferences,
         disabled,
         action,
         offered,
@@ -1141,7 +1114,6 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
         candidate,
         candidate_display,
         revision,
-        preferences,
         disabled,
         action,
         offered,
@@ -1157,19 +1129,13 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
         return Ok(view! {}.boxed());
     };
     let candidate_title = candidate_display.title.clone();
-    let choice_progress = match preferences {
-        0 => "You saved no choices for this book yet.".to_owned(),
-        1 => "You saved 1 choice for this book.".to_owned(),
-        count => format!("You saved {count} choices for this book."),
-    };
     Ok(view! {
         <aside class="comparison" aria-label="Book comparisons">
-            <h2 tabindex="-1" data-response-focus="task">"Rank this book"</h2>
+            <h2 tabindex="-1" data-response-focus="task">"Compare books"</h2>
             <p>
-                "Book to rank: "
+                "New book: "
                 (candidate_title.clone())
             </p>
-            <p role="status">(choice_progress)</p>
             if let Some((opponent, opponent_display, offer)) = offered {
                 <h3 tabindex="-1" data-comparison-heading="">
                     "Which book do you prefer?"
@@ -1192,7 +1158,7 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
                     <fieldset disabled=(disabled)>
                         <legend>"Choose the book you prefer"</legend>
                         <div class="comparison-choice">
-                            <p>"Book to rank"</p>
+                            <p>"New book"</p>
                             book_smartz_views::book(
                                 display: candidate_display,
                                 compact: false
@@ -1202,7 +1168,7 @@ pub async fn comparison(cx: &Cx, reader: ReaderId, csrf: String) -> Result<impl 
                             </button>
                         </div>
                         <div class="comparison-choice">
-                            <p>"Book in your ranking"</p>
+                            <p>"Your book"</p>
                             book_smartz_views::book(
                                 display: opponent_display.clone(),
                                 compact: false

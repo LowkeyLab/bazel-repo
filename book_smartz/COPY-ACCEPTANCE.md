@@ -1,9 +1,20 @@
 # Book Smartz copy acceptance
 
-## Copy audit
+## Current copy
 
-The combined app at [`9bec81d7e69cf08c8fd0ffbdaa4cf2d911c70bef`](https://github.com/LowkeyLab/bazel-repo/commit/9bec81d7e69cf08c8fd0ffbdaa4cf2d911c70bef) implements all 87 rows of the [final schedule](COPY.md).
-This is a source audit. The completion record in [#2725](https://github.com/LowkeyLab/bazel-repo/issues/2725) supplies the exact tested commit, invocation links, durations, and execution results.
+The [current schedule](COPY.md) removes routine ranking, expiry, saved-choice, and recovery explanations.
+Save confirmations and error messages use short instructions without internal action terminology.
+The collection heading, navigation, and links use “Your books”.
+The collection omits the subtitle about preference order.
+Access errors retain a sign-in or collection link.
+Selection and Add authorization failures instruct the reader to search for the book again.
+The HTTP, app, and browser checks cover these changes through the packaged app.
+They retain checks for saved state, comparison identity, Pause, Resume, and uncertain saves.
+
+## Baseline copy audit
+
+The combined app at [`9bec81d7e69cf08c8fd0ffbdaa4cf2d911c70bef`](https://github.com/LowkeyLab/bazel-repo/commit/9bec81d7e69cf08c8fd0ffbdaa4cf2d911c70bef) implemented all 87 rows of the earlier schedule.
+This baseline is a source audit. The completion record in [#2725](https://github.com/LowkeyLab/bazel-repo/issues/2725) supplies the exact tested commit, invocation links, durations, and execution results.
 
 Eighty-three rows have literal production text. Three rows expand the approved title or position templates from confirmed state.
 The remaining row retains the existing font licence titles, `Literata font license` and `Source Sans 3 font license`.
