@@ -33,14 +33,16 @@ pub struct Head {
 
 pub struct Github {
     base: String,
+    pull_endpoint: String,
 }
 impl Github {
     pub fn new(repository: &str, pr: u64) -> Self {
         Self {
             base: format!("repos/{repository}/issues/{pr}"),
+            pull_endpoint: format!("repos/{repository}/pulls/{pr}"),
         }
     }
-    fn read<T: serde::de::DeserializeOwned>(&self, endpoint: &str, pages: bool) -> Result<T> {
+    fn read<T: serde::de::DeserializeOwned>(endpoint: &str, pages: bool) -> Result<T> {
         let mut command = Command::new("gh");
         command.args(["api", "--hostname", "github.com", endpoint]);
         if pages {
@@ -54,15 +56,15 @@ impl Github {
         );
         serde_json::from_slice(&output.stdout).context("invalid GitHub read response")
     }
-    pub fn actor(&self) -> Result<User> {
-        self.read("user", false)
+    pub fn actor() -> Result<User> {
+        Self::read("user", false)
     }
     pub fn pull(&self) -> Result<Pull> {
-        self.read(&self.base.replace("/issues/", "/pulls/"), false)
+        Self::read(&self.pull_endpoint, false)
     }
     pub fn comments(&self) -> Result<Vec<Comment>> {
         let pages: Vec<Vec<Comment>> =
-            self.read(&format!("{}/comments?per_page=100", self.base), true)?;
+            Self::read(&format!("{}/comments?per_page=100", self.base), true)?;
         let comments: Vec<Comment> = pages.into_iter().flatten().collect();
         for comment in &comments {
             ensure!(
@@ -101,7 +103,7 @@ pub fn review(comments: &[Comment], head: &str) -> Result<Review> {
     let mut result = Review::Missing;
     let mut latest = None;
     for c in comments {
-        if c.user.id != 199175422
+        if c.user.id != 199_175_422
             || c.user.login != "chatgpt-codex-connector[bot]"
             || c.user.kind != "Bot"
         {

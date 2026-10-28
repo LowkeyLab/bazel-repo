@@ -14,6 +14,7 @@ fn main() -> Result<()> {
         "unexpected gh command"
     );
     let endpoint = args.get(3).context("missing endpoint")?;
+    validate_endpoint(endpoint, &state)?;
     let post = args.iter().any(|s| s == "POST");
     ensure!(
         !state["fail_read"].as_bool().unwrap_or(false) || post,
@@ -22,12 +23,12 @@ fn main() -> Result<()> {
     let user = json!({"id":42,"login":"reader","type":"User"});
     let mut fail = false;
     let response = if endpoint == "user" {
-        user.clone()
+        user
     } else if endpoint.contains("/pulls/") {
         let reads = state["pull_reads"].as_u64().unwrap_or(0) + 1;
         state["pull_reads"] = json!(reads);
-        let changed = reads % 2 == 0;
-        json!({"state":if changed && state["close_before_send"] == true { "closed" } else { state["state"].as_str().unwrap_or("open") }, "head":{"sha":if changed { state["head_before_send"].as_str().or(state["head"].as_str()) } else { state["head"].as_str() }}})
+        let changed = reads.is_multiple_of(2);
+        json!({"state":if changed && state["close_before_send"] == true { "closed" } else { state["state"].as_str().unwrap_or("open") }, "head":{"sha":if changed { state["head_before_send"].as_str().or_else(|| state["head"].as_str()) } else { state["head"].as_str() }}})
     } else if post {
         let body = args
             .iter()
@@ -71,26 +72,23 @@ fn main() -> Result<()> {
             .as_array()
             .context("missing comments")?
             .clone();
-        let provider = if state["pull_reads"].as_u64().unwrap_or(0) % 2 == 0
+        let provider = if state["pull_reads"].as_u64().unwrap_or(0).is_multiple_of(2)
             && state["complete_before_send"] == true
         {
             Some("completed")
+        } else if state["pull_reads"].as_u64().unwrap_or(0).is_multiple_of(2)
+            && state["start_before_send"] == true
+        {
+            Some("running")
         } else {
             state["provider"].as_str()
         };
         if let Some(status) = provider {
             let head = state["provider_head"]
                 .as_str()
-                .or(state["head"].as_str())
+                .or_else(|| state["head"].as_str())
                 .context("missing head")?;
-            let status = if state["pull_reads"].as_u64().unwrap_or(0) % 2 == 0
-                && state["complete_before_send"] == true
-            {
-                "completed"
-            } else {
-                status
-            };
-            comments.push(json!({"id":9,"user":{"id":if state["spoof"] == true { 43 } else { 199175422 },"login":"chatgpt-codex-connector[bot]","type":"Bot"},"created_at":"1970-01-01T00:00:01Z","body":format!("<!-- codex-review-state:v1 {} -->", json!({"code_review":{"commit_sha":head,"status":status}}))}));
+            comments.push(json!({"id":9,"user":{"id":if state["spoof"] == true { 43 } else { 199_175_422 },"login":"chatgpt-codex-connector[bot]","type":"Bot"},"created_at":"1970-01-01T00:00:01Z","body":format!("<!-- codex-review-state:v1 {} -->", json!({"code_review":{"commit_sha":head,"status":status}}))}));
         }
         json!([comments])
     } else {
@@ -100,5 +98,23 @@ fn main() -> Result<()> {
     ensure!(!fail, "controlled uncertain send");
     serde_json::to_writer(std::io::stdout().lock(), &response)?;
     std::io::stdout().write_all(b"\n")?;
+    Ok(())
+}
+
+fn validate_endpoint(endpoint: &str, state: &Value) -> Result<()> {
+    if endpoint == "user" {
+        return Ok(());
+    }
+    let repository = state["repository"].as_str().context("missing repository")?;
+    ensure!(
+        [
+            format!("repos/{repository}/pulls/2775"),
+            format!("repos/{repository}/issues/2775/comments"),
+            format!("repos/{repository}/issues/2775/comments?per_page=100")
+        ]
+        .iter()
+        .any(|expected| expected == endpoint),
+        "wrong GitHub endpoint {endpoint}"
+    );
     Ok(())
 }

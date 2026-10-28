@@ -15,6 +15,7 @@ pub enum Decision {
     Request,
 }
 /// Only an authenticated, incomplete review can establish timeout eligibility.
+#[must_use]
 pub fn decide(open: bool, review: Review, last: Option<(u64, bool)>, now: u64) -> Decision {
     if !open {
         return Decision::Closed;

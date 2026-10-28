@@ -8,9 +8,9 @@ use anyhow::{Context, Result, ensure};
 use clap::{Parser, ValueEnum};
 use serde_json::{Value, json};
 
-use github::{Github, review, timestamp};
+use github::{Comment, Github, review, timestamp};
 use policy::{Decision, Review, decide};
-use store::{Commit, Request, RequestId, Store};
+use store::{Commit, Request, RequestId, State, Store};
 
 #[derive(Clone, Copy, ValueEnum)]
 enum Action {
@@ -82,7 +82,7 @@ fn execute(mut cli: Cli) -> Result<Value> {
     if status == Review::Complete {
         return Ok(json!({"status":"complete", "head":head.as_str()}));
     }
-    let actor = gh.actor()?;
+    let actor = Github::actor()?;
     ensure!(actor.id > 0, "invalid authenticated caller identity");
     let index = saved
         .requests
@@ -96,74 +96,32 @@ fn execute(mut cli: Cli) -> Result<Value> {
             status == Review::Incomplete,
             "tracking requires an authenticated incomplete review for this head"
         );
-        let id = cli.request_comment.context("request comment is required")?;
-        let comment = comments
-            .iter()
-            .find(|c| c.id == id)
-            .context("request comment is missing")?;
-        ensure!(
-            comment.user.id == actor.id
-                && comment.body.contains("@codex review")
-                && comment
-                    .body
-                    .contains(&format!("Review commit `{}`.", head.as_str())),
-            "request comment must belong to this caller and explicitly identify this commit"
-        );
-        let at = timestamp(&comment.created_at)?;
-        ensure!(
-            cli.now >= at,
-            "request comment is later than the observation time"
-        );
-        saved.requests.push(Request {
-            id: RequestId::new(),
+        return track_existing(
+            cli.request_comment.context("request comment is required")?,
+            cli.now,
             head,
-            at,
-            actor: actor.id,
-            comment: Some(id),
-        });
-        store.save(&saved)?;
-        return Ok(json!({"status":"tracked", "comment_id":id, "requested_at":at}));
+            &comments,
+            actor.id,
+            &mut saved,
+            &store,
+        );
     }
     ensure!(
         cli.request_comment.is_none(),
         "request-comment is only valid with track"
     );
     let known_comments: Vec<_> = saved.requests.iter().filter_map(|r| r.comment).collect();
-    if let Some(index) = index {
-        let request = &mut saved.requests[index];
-        ensure!(
-            request.actor == actor.id,
-            "authenticated caller differs from saved request owner"
-        );
-        if request.comment.is_none() {
-            let matches: Vec<_> = comments
-                .iter()
-                .filter(|c| c.user.id == request.actor && c.body == request.body())
-                .collect();
-            ensure!(
-                matches.len() <= 1,
-                "multiple comments match one request; inspect remote state"
-            );
-            if let Some(comment) = matches.first() {
-                request.comment = Some(comment.id);
-                request.at = request.at.max(timestamp(&comment.created_at)?);
-                store.save(&saved)?;
-                return Ok(
-                    json!({"status":"reconciled", "request_id":saved.requests[index].id, "comment_id":comment.id}),
-                );
-            }
-        }
-        // An external request has no verified head binding. Do not guess its timeout.
-        if comments.iter().any(|c| {
-            c.user.kind != "Bot"
-                && !known_comments.contains(&c.id)
-                && c.body.contains("@codex review")
-                && timestamp(&c.created_at).is_ok_and(|at| at >= request.at)
-                && Some(c.id) != request.comment
-                && c.body != request.body()
-        }) {
-            return Ok(json!({"status":"external_request", "head":head.as_str()}));
-        }
+    if let Some(index) = index
+        && let Some(result) = inspect_saved_request(
+            &mut saved,
+            index,
+            actor.id,
+            &comments,
+            &store,
+            &known_comments,
+        )?
+    {
+        return Ok(result);
     }
     let last = index.map(|i| (saved.requests[i].at, saved.requests[i].comment.is_some()));
     let decision = decide(true, status, last, cli.now);
@@ -193,9 +151,106 @@ fn execute(mut cli: Cli) -> Result<Value> {
         actor: actor.id,
         comment: None,
     };
+    send_request(&gh, &store, &mut saved, request, initial, &comments)
+}
+
+fn inspect_saved_request(
+    saved: &mut State,
+    index: usize,
+    actor: u64,
+    comments: &[Comment],
+    store: &Store,
+    known_comments: &[u64],
+) -> Result<Option<Value>> {
+    let request = &mut saved.requests[index];
+    ensure!(
+        request.actor == actor,
+        "authenticated caller differs from saved request owner"
+    );
+    if request.comment.is_none() {
+        let matches: Vec<_> = comments
+            .iter()
+            .filter(|c| c.user.id == request.actor && c.body == request.body())
+            .collect();
+        ensure!(
+            matches.len() <= 1,
+            "multiple comments match one request; inspect remote state"
+        );
+        if let Some(comment) = matches.first() {
+            request.comment = Some(comment.id);
+            request.at = request.at.max(timestamp(&comment.created_at)?);
+            store.save(saved)?;
+            return Ok(Some(
+                json!({"status":"reconciled", "request_id":saved.requests[index].id, "comment_id":comment.id}),
+            ));
+        }
+    }
+    // An external request has no verified head binding. Do not guess its timeout.
+    if comments.iter().any(|c| {
+        c.user.kind != "Bot"
+            && !known_comments.contains(&c.id)
+            && c.body.contains("@codex review")
+            && timestamp(&c.created_at).is_ok_and(|at| at >= request.at)
+            && Some(c.id) != request.comment
+            && c.body != request.body()
+    }) {
+        return Ok(Some(
+            json!({"status":"external_request", "head":request.head.as_str()}),
+        ));
+    }
+
+    Ok(None)
+}
+
+fn track_existing(
+    id: u64,
+    now: u64,
+    head: Commit,
+    comments: &[Comment],
+    actor: u64,
+    saved: &mut State,
+    store: &Store,
+) -> Result<Value> {
+    let comment = comments
+        .iter()
+        .find(|c| c.id == id)
+        .context("request comment is missing")?;
+    ensure!(
+        comment.user.id == actor
+            && comment.body.contains("@codex review")
+            && comment
+                .body
+                .contains(&format!("Review commit `{}`.", head.as_str())),
+        "request comment must belong to this caller and explicitly identify this commit"
+    );
+    let at = timestamp(&comment.created_at)?;
+    ensure!(
+        now >= at,
+        "request comment is later than the observation time"
+    );
+    saved.requests.push(Request {
+        id: RequestId::new(),
+        head,
+        at,
+        actor,
+        comment: Some(id),
+    });
+    store.save(saved)?;
+    Ok(json!({"status":"tracked", "comment_id":id, "requested_at":at}))
+}
+
+fn send_request(
+    gh: &Github,
+    store: &Store,
+    saved: &mut State,
+    request: Request,
+    initial: bool,
+    comments: &[Comment],
+) -> Result<Value> {
+    let actor = request.actor;
     let body = request.body();
     saved.requests.push(request);
-    store.save(&saved)?; // Commit intent before the outgoing effect.
+    store.save(saved)?; // Commit intent before the outgoing effect.
     let current = gh.pull()?;
     if current.state != "open"
         || current.head.sha
@@ -213,7 +268,9 @@ fn execute(mut cli: Cli) -> Result<Value> {
     if fresh_review == Review::Complete {
         return Ok(json!({"status":"complete", "head":current.head.sha}));
     }
-    if !initial && fresh_review != Review::Incomplete {
+    if (initial && fresh_review != Review::Missing)
+        || (!initial && fresh_review != Review::Incomplete)
+    {
         return Ok(json!({"status":"provider_unavailable_before_send"}));
     }
     if fresh_comments.iter().any(|c| {
@@ -225,7 +282,7 @@ fn execute(mut cli: Cli) -> Result<Value> {
     }
     let comment = gh.send(&body)?;
     ensure!(
-        comment.id > 0 && comment.user.id == actor.id && comment.body == body,
+        comment.id > 0 && comment.user.id == actor && comment.body == body,
         "review request response is uncertain"
     );
     let request = saved
@@ -235,7 +292,7 @@ fn execute(mut cli: Cli) -> Result<Value> {
     request.comment = Some(comment.id);
     request.at = request.at.max(timestamp(&comment.created_at)?);
     let result = json!({"status":"requested", "head":current.head.sha, "request_id":request.id, "comment_id":comment.id, "requested_at":request.at});
-    store.save(&saved)?;
+    store.save(saved)?;
     Ok(result)
 }
 fn main() -> Result<()> {

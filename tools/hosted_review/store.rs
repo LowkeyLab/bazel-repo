@@ -186,7 +186,7 @@ fn private_directory(path: &Path) -> Result<()> {
 fn check_directory(path: &Path) -> Result<()> {
     let metadata = fs::symlink_metadata(path)?;
     ensure!(
-        metadata.is_dir() && metadata.permissions().mode() & 0o077 == 0,
+        metadata.is_dir() && metadata.permissions().mode().trailing_zeros() >= 6,
         "review state directory must be private"
     );
     Ok(())

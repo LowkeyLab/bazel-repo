@@ -29,7 +29,9 @@ impl Fixture {
         let f = Self { directory, tool };
         fs::write(
             f.remote(),
-            serde_json::to_vec(&json!({"head":HEAD,"state":"open","provider":null,"comments":[]}))?,
+            serde_json::to_vec(
+                &json!({"repository":"lowkeylab/bazel-repo","head":HEAD,"state":"open","provider":null,"comments":[]}),
+            )?,
         )?;
         Ok(f)
     }
@@ -52,6 +54,15 @@ impl Fixture {
             .len())
     }
     fn run(&self, action: &str, now: u64, head: &str) -> Result<Output> {
+        self.run_for_repository(action, now, head, "LowkeyLab/bazel-repo")
+    }
+    fn run_for_repository(
+        &self,
+        action: &str,
+        now: u64,
+        head: &str,
+        repository: &str,
+    ) -> Result<Output> {
         self.set("now", json!(now))?;
         let mut command = Command::new(&self.tool);
         if action == "track" {
@@ -61,7 +72,7 @@ impl Fixture {
             .args([
                 action,
                 "--repo",
-                "LowkeyLab/bazel-repo",
+                repository,
                 "--pr",
                 "2775",
                 "--head",
@@ -241,5 +252,30 @@ fn an_explicit_existing_request_can_be_tracked_without_sending() -> Result<()> {
     f.status("poll", 3700, HEAD, "waiting")?;
     f.status("poll", 3701, HEAD, "requested")?;
     assert_that!(f.sends()?, eq(2));
+    Ok(())
+}
+
+#[googletest::test]
+fn an_automatic_review_start_before_send_prevents_an_initial_request() -> Result<()> {
+    let f = Fixture::new()?;
+    f.set("start_before_send", json!(true))?;
+    f.status("request", 100, HEAD, "provider_unavailable_before_send")?;
+    assert_that!(f.sends()?, eq(0));
+    Ok(())
+}
+
+#[googletest::test]
+fn repository_components_do_not_change_the_pull_endpoint() -> Result<()> {
+    let f = Fixture::new()?;
+    f.set("repository", json!("issues/issues"))?;
+    let output = f.run_for_repository("request", 100, HEAD, "issues/issues")?;
+    ensure!(
+        output.status.success(),
+        "command failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result: Value = serde_json::from_slice(&output.stdout)?;
+    assert_that!(result["status"].as_str(), eq(Some("requested")));
+    assert_that!(f.sends()?, eq(1));
     Ok(())
 }
