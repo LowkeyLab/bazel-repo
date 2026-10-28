@@ -119,3 +119,9 @@ Use its before result for the exact reviewed head and file list.
 After merge, use the same command to verify the merged file contents.
 The reference owns its command examples, evidence format, and acceptance policy.
 Keep ownership, validation, source reviews, and authorized merge execution in the delivery workflow.
+
+## Pool command output
+
+Use the [pool receipt wrapper](../../tools/pool_receipt/README.md) for bounded pool output and complete private command receipts.
+Read lossless path bytes from the selected record before using a checkout path.
+Keep inherited ownership, capacity, and exact recovery approval rules in effect.
