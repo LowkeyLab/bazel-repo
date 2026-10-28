@@ -1,0 +1,78 @@
+load("//tools/coverage:rust.bzl", "rust_binary", "rust_library", "rust_test")
+
+rust_library(
+    name = "policy",
+    srcs = ["policy.rs"],
+    crate_root = "policy.rs",
+)
+
+rust_test(
+    name = "policy_test",
+    size = "small",
+    srcs = ["policy_test.rs"],
+    crate_root = "policy_test.rs",
+    deps = [
+        ":policy",
+        "@crates//:googletest",
+    ],
+)
+
+rust_binary(
+    name = "hosted_review",
+    srcs = [
+        "github.rs",
+        "main.rs",
+        "store.rs",
+    ],
+    crate_root = "main.rs",
+    deps = [
+        ":policy",
+        "@crates//:anyhow",
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@crates//:uuid",
+    ],
+)
+
+rust_binary(
+    name = "fake_gh",
+    testonly = True,
+    srcs = ["fake_gh.rs"],
+    crate_root = "fake_gh.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:chrono",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "command_test",
+    size = "small",
+    srcs = ["command_test.rs"],
+    crate_root = "command_test.rs",
+    data = [
+        ":fake_gh",
+        ":hosted_review",
+    ],
+    env = {
+        "REVIEW_TOOL": "$(rlocationpath :hosted_review)",
+        "REVIEW_FAKE_GH": "$(rlocationpath :fake_gh)",
+    },
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = ["README.md"],
+    tags = ["markdown"],
+)
