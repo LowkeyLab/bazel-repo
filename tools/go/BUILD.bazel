@@ -1,7 +1,9 @@
 load("//tools/go:defs.bzl", "go_coverage_settings", "go_test")
+load("//tools/python:defs.bzl", "py_test")
 
 exports_files([
     "defs.bzl",
+    "linux_bootstrap.patch",
     "required_coverage.patch",
 ])
 
@@ -16,4 +18,16 @@ go_coverage_settings(
     name = "coverage_original_settings",
     build_setting_default = "",
     visibility = ["//visibility:public"],
+)
+
+py_test(
+    name = "bootstrap_test",
+    size = "small",
+    srcs = ["bootstrap_test.py"],
+    args = [
+        "-o",
+        "python_files=bootstrap_test.py",
+    ],
+    data = ["@rules_go//go/private/rules:binary_wrapper.sh"],  # keep
+    env = {"BOOTSTRAP_WRAPPER": "$(rootpath @rules_go//go/private/rules:binary_wrapper.sh)"},
 )
