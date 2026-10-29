@@ -250,3 +250,5 @@ filegroup(
     tags = ["markdown"],
     visibility = ["//tools/lint:__pkg__"],
 )
+
+exports_files(["astro_page_identity.patch"])

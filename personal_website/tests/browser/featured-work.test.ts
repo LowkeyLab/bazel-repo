@@ -2,6 +2,15 @@ import assert from "node:assert/strict";
 import type { Page } from "playwright";
 import { presentation, withPage } from "./harness.js";
 
+async function mountFeaturedWork(page: Page) {
+  await page.evaluate(() =>
+    customElements.whenDefined("featured-work-animation"),
+  );
+  await page.evaluate(() => document.fonts.ready);
+  // Mount uses setTimeout(0). Advance it before waiting with the clock paused.
+  await page.clock.runFor(1);
+}
+
 async function entryStates(
   page: Page,
   root = "featured-work-animation:first-of-type",
@@ -23,7 +32,7 @@ async function entryStates(
 await withPage(
   { route: "/tests/featured-work/", clock: true },
   async (page) => {
-    await page.evaluate(() => document.fonts.ready);
+    await mountFeaturedWork(page);
     const entries = page.locator(
       "featured-work-animation:first-of-type .entry-link",
     );
@@ -150,7 +159,7 @@ await withPage(
 await withPage(
   { route: "/tests/featured-work/", clock: true },
   async (page) => {
-    await page.evaluate(() => document.fonts.ready);
+    await mountFeaturedWork(page);
     await page.clock.runFor(16);
     await page.locator("#empty-featured-heading").scrollIntoViewIfNeeded();
     await page
@@ -179,7 +188,7 @@ await withPage(
 );
 
 await withPage({ route: "/tests/independence/", clock: true }, async (page) => {
-  await page.evaluate(() => document.fonts.ready);
+  await mountFeaturedWork(page);
   const roots = page.locator("featured-work-animation");
   assert.equal(await roots.count(), 2);
   assert.equal(await page.locator("#first-featured-heading").count(), 1);
