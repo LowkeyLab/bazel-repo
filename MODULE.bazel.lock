@@ -262,7 +262,7 @@
     },
     "@@aspect_rules_esbuild+//esbuild:extensions.bzl%esbuild": {
       "general": {
-        "bzlTransitiveDigest": "rjSSJIzSMiL64kmYtmNVAl244/4t3yBHxTRU7e18xBU=",
+        "bzlTransitiveDigest": "i8Lp935hZAQLAI2e3netNfyIUKJpCZ/Mn9B4t7j6AAA=",
         "usagesDigest": "zscLXmeKw3CswJvSNF5UkxkAt00c48BDnmYqvy/Xca4=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_rules_esbuild+,aspect_rules_js aspect_rules_js+",
