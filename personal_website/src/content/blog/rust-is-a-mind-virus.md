@@ -13,15 +13,13 @@ draft: false
 
 Rust and Kotlin are my two favourite programming languages.
 
-I find both expressive and ergonomic. Kotlin, especially, makes it easy to turn an idea into code that looks reasonably close to what I meant. Its extension functions, null handling, and approach to modelling data make it a language I enjoy using.
+Kotlin makes it easy to write code that looks like what I mean. I love its extension functions, null handling, and approach to modelling data. It gives me plenty of reasons to leave Rust alone.
 
-So when I say **Rust has infected my brain**, it has some serious competition.
+But **Rust infected my brain** anyway.
 
-It took about a year for Rust to grow on me. During that year, I learnt some Go, some Haskell, some Zig, and wrote a lot of Kotlin. Eventually I told a friend I was _fully oxidized_.
+Rust took about a year to convince me. During that year, I learnt some Go, Haskell, and Zig. I also wrote a lot of Kotlin. Eventually I told a friend I was _fully oxidized_.
 
-The strange part is that some of my appreciation for Rust developed while I was writing Kotlin.
-
-I'd be using a language I already considered excellent, with a perfectly reasonable implementation in front of me, and think:
+I could write a perfectly reasonable implementation in one of my favourite languages and still think:
 
 <!-- This quotation uses check to mean verify, not select a checkbox. -->
 <!-- vale Google.WordList = NO -->
@@ -32,29 +30,29 @@ I'd be using a language I already considered excellent, with a perfectly reasona
 
 ## The compiler's many questions
 
-At first, I found Rust hard to get into.
+At first, I found Rust difficult to learn.
 
-I'd want to do something simple, and the compiler would have questions. **Who owns this value? How long does that reference need to live? What else might be modifying this?**
+I wanted to do something simple. **Not so fast**, says the compiler. **Who owns this value? How long must this reference remain valid? What else might modify this?**
 
-I understood why the guarantees might be useful. But at the time, it felt like a lot of thinking for a very small amount of code.
+I understood why the guarantees might help. I still resented all that thinking for such a small amount of code.
 
-So I'd go back to Kotlin. Things would feel comfortable again.
+So I returned to Kotlin, where I didn't need to answer these questions.
 
-Until I started noticing the questions Rust was asking.
+Well, I _didn't need to answer them before Rust_.
+
+Unfortunately, I started to ask the same questions there:
 
 - Can I still use this object after that operation?
 - Does my read-only reference point to something another part of the program can change?
-- Can I make this library type participate in an abstraction without wrapping it?
+- Can I use this library type with my abstraction without an adapter?
 
-Kotlin has good answers to many problems. That's what makes the comparison interesting. Rust still gives me tools I find myself missing.
-
-_And once I notice them, I can't stop noticing them._
+I love Kotlin. I also want the compiler to answer these questions for me. Rust made that a reasonable expectation, which is rather inconsiderate of it.
 
 ## Typestate, but better
 
-Suppose I'm modelling a blog post. **Drafts can be edited and published. Published posts can only be read.**
+Suppose I model a blog post. **I can edit and publish drafts. I can only read published posts.**
 
-I can express this nicely in Kotlin with a generic state parameter and extension functions:
+Kotlin handles this nicely with a generic state parameter and extension functions:
 
 ```kotlin
 class Draft
@@ -77,7 +75,7 @@ fun Post<Draft>.publish(): Post<Published> =
     Post<Published>(text)
 ```
 
-I keep the constructor and mutable storage internal to the library module. As a caller outside that module, I use the public API:
+I keep the constructor and mutable storage internal to the library module. Outside that module, I get this public API:
 
 ```kotlin
 val post = draft("Rust is a mind virus")
@@ -89,9 +87,9 @@ published.content()          // Fine
 published.edit("Actually…")  // Compile error
 ```
 
-This is **typestate**: the state is represented in the type, and the available operations follow it. Kotlin checks extension receivers statically, so `edit` doesn't apply to `Post<Published>`. [Kotlin extensions documentation](https://kotlinlang.org/docs/extensions.html)
+This is **typestate**. The type represents the state and determines which operations I can use. Kotlin checks extension receivers statically, so it rejects `edit` on `Post<Published>`. [Kotlin extensions documentation](https://kotlinlang.org/docs/extensions.html)
 
-I can express the same idea in Rust through implementation blocks:
+Rust lets me express the same idea with `impl` blocks:
 
 ```rust
 struct Draft;
@@ -126,11 +124,9 @@ impl<State> Post<State> {
 }
 ```
 
-So far, **I've expressed the important restriction in both languages**. The published type doesn't expose editing through this API.
+Both versions prevent editing through the published type's API. I'm happy with that.
 
-Then I look at what happens to the _original draft_.
-
-In Kotlin:
+Then I try to use the _original draft_ in Kotlin:
 
 ```kotlin
 val post = draft("Rust is a mind virus")
@@ -140,9 +136,9 @@ post.edit("One more change")  // Still allowed
 val another = post.publish() // Also allowed
 ```
 
-If publication means creating a snapshot, that's fine. But if I intend publishing to **end the draft's lifecycle**, I haven't expressed that rule.
+I want publication to **end the draft's lifecycle**, but my types fail to express that rule.
 
-Rust already has the mechanism:
+Rust lets me express this rule:
 
 ```rust
 fn publish(self) -> Post<Published>
@@ -157,17 +153,11 @@ let published = draft.publish();
 draft.edit("One more change".into()); // Compile error: moved
 ```
 
-I receive a published post and lose access to the consumed draft. For this non-`Copy` type, keeping another variable name doesn't give me an independently usable copy either. [Rust by Example](https://doc.rust-lang.org/rust-by-example/scope/move.html)
+I want this guarantee when I finish a builder, commit a transaction, or close a session. In Kotlin, I can track whether the old object is still usable at runtime.
 
-Finishing a builder. Committing a transaction. Closing a session. There are plenty of operations after which **I should no longer be able to use the previous value**.
+**Rust enforces this rule at compile time.**
 
-<!-- The pauses are intentional in this personal essay. -->
-<!-- vale Google.Ellipses = NO -->
-
-_And so it begins ..._
-<!-- vale Google.Ellipses = YES -->
-
-## Read-only starts feeling insufficient
+## Read-only feels insufficient
 
 Kotlin distinguishes read-only collection interfaces from mutable ones:
 
@@ -176,7 +166,7 @@ val names = mutableListOf("Alice", "Bob")
 val view: List<String> = names
 ```
 
-Through `view`, I can't call `add`. But I can still modify the underlying collection through another reference:
+I can't call `add` through `view`. I can still change the same collection through `names`:
 
 ```kotlin
 names.add("Charlie")
@@ -184,13 +174,11 @@ names.add("Charlie")
 println(view) // [Alice, Bob, Charlie]
 ```
 
-The read-only interface tells me **what operations this reference exposes**. It doesn't establish that the collection can't change through another reference. [Kotlin collections documentation](https://kotlinlang.org/docs/collections-overview.html)
+The read-only interface restricts **what I can do through this reference**. Another reference can still change the collection. [Kotlin collections documentation](https://kotlinlang.org/docs/collections-overview.html)
 
-That's useful. Sometimes it's exactly the contract I want.
+I can still modify the collection through `MutableList` while another part of the code iterates over it. With Kotlin's `ArrayList` on the JVM, structural changes during iteration can cause a `ConcurrentModificationException`, just like in Java. Java's [fail-fast iterators](https://docs.oracle.com/en/java/javase/25/docs/api/java.base/java/util/ArrayList.html) detect these changes on a best-effort basis.
 
-But sometimes I want to inspect a collection while knowing that **conflicting mutation can't happen**.
-
-In Rust:
+Rust rejects the conflicting mutation in this example:
 
 ```rust
 let mut names = vec![
@@ -205,9 +193,9 @@ names.push(String::from("Charlie")); // Compile error
 println!("{view:?}");
 ```
 
-Because I use `view` after the attempted mutation, its shared borrow must remain valid across that operation. Rust rejects the conflicting mutable access.
+I use `view` after the attempted mutation, so its shared borrow must remain valid across that operation. Rust rejects the conflicting mutable access.
 
-If I finish using the view first, mutation becomes available again:
+If I finish using the `view` first, mutation becomes available again:
 
 ```rust
 let view = &names;
@@ -216,29 +204,17 @@ println!("{view:?}");
 names.push(String::from("Charlie")); // Fine
 ```
 
-For this ordinary vector, the compiler checks that **shared inspection and exclusive mutation don't overlap**.
-
 In Kotlin, I can take a snapshot, use an [immutable collection](https://github.com/Kotlin/kotlinx.collections.immutable), or coordinate access. I have options.
 
-Rust gives me an extremely efficient option: **lend out access to the existing collection** and have the compiler verify when mutation becomes available again.
+A snapshot copies the collection. I prefer Rust's option: borrow the existing collection and let the compiler enforce the access rules.
 
-At first, the borrow checker felt incredibly particular.
+I don't trust human review to enforce these access rules consistently. I want the compiler to enforce them for me.
 
-Then I'd be reviewing Kotlin code and tracing references to figure out who could change something. I'd start wondering whether I needed a copy, whether an immutable collection would fit better, or whether everyone understood the access convention.
-
-And I'd remember that annoying borrow checker.
-
-<!-- The pauses are intentional in this personal essay. -->
-<!-- vale Google.Ellipses = NO -->
-
-_And I'd start missing it ..._
-<!-- vale Google.Ellipses = YES -->
+Once again, **Rust rejects conflicting access at compile time.**
 
 ## Extension functions make me want traits
 
-Kotlin's extension functions are one of my favourite features.
-
-I can add a convenient operation to an existing type:
+Kotlin's extension functions allow me to add a convenient operation to an existing type:
 
 ```kotlin
 fun String.summary(): String = take(80)
@@ -247,9 +223,9 @@ val text = "A rather long article..."
 println(text.summary())
 ```
 
-The call reads naturally. The operation can live in my app without requiring changes to `String`.
+I don't need to change or own `String` to do this. This is convenient, as you might imagine.
 
-But suppose I want **an abstraction that several types can implement**:
+But then I want **an abstraction that several types can implement**:
 
 ```kotlin
 interface Summarize {
@@ -260,15 +236,13 @@ fun renderPreview(value: Summarize): String =
     value.summary()
 ```
 
-My extension function doesn't make `String` implement that interface:
+My extension function can't make `String` implement that interface:
 
 ```kotlin
 renderPreview(text) // Compile error
 ```
 
-Extensions provide callable operations **without changing the class's implemented interfaces**. [Kotlin extensions documentation](https://kotlinlang.org/docs/extensions.html)
-
-I could write an adapter:
+So I'd have to write an adapter:
 
 ```kotlin
 class TextSummary(
@@ -280,13 +254,9 @@ class TextSummary(
 renderPreview(TextSummary(text))
 ```
 
-<!-- The pauses are intentional in this personal essay. -->
-<!-- vale Google.Ellipses = NO -->
+This is ugly and verbose. I consider verbosity a particularly strong criticism of Kotlin, given how much Java boilerplate the language removes.
 
-But that's not very nice ...
-<!-- vale Google.Ellipses = YES -->
-
-Rust gives me the Haskell (read: ideal) way: **implement my own trait directly for the existing type**.
+Rust's trait system lets me **implement my own trait directly for the existing type**.
 
 ```rust
 trait Summarize {
@@ -311,35 +281,25 @@ let text = String::from("A rather long article...");
 let preview = render_preview(&text);
 ```
 
-**I own the trait, so I can implement it for `String`, even though I don't own `String`.** Rust's orphan rules allow this because the trait is defined in my crate, as described in the [Rust Reference](https://doc.rust-lang.org/reference/items/implementations.html#orphan-rules).
-
-This is powerful when I define an abstraction in my app and want existing library types to fit it. I don't need to carry an adapter around just to make the type satisfy my interface.
-
-Now, whenever I write an adapter, a small voice asks whether a trait implementation could have been enough.
-
-<!-- The pauses are intentional in this personal essay. -->
-<!-- vale Google.Ellipses = NO -->
-
-_And I'd weep ..._
-<!-- vale Google.Ellipses = YES -->
+**I own the trait, so I can implement it for `String`, even though I don't own `String`**, thanks to Rust's [orphan rules](https://doc.rust-lang.org/reference/items/implementations.html#orphan-rules).
 
 ## Carcinization
 
-None of this changes how ergonomic Kotlin is.
+I still love Kotlin, but Rust made me want more from a typed, compiled language.
 
-What changed is **my expectation of how much the language can help me reason about a program**.
+Rust slowly wormed itself into my brain. It slowly coloured my every interaction with other programming languages.
 
-At first, Rust's questions seemed like extra work.
+"Can the compiler verify this?" I ask. "Why not?" I ask. "Can a library enforce this at compile time?" I ask.
 
-Then I realized that **I had to answer the same questions anyway**. The only difference was whether I wanted some help with them.
+And slowly, yet surely, I accepted Rust. Eventually, it was all I could think about. It was all I wanted to write.
 
-That's when I became fully _oxidized_.
+And that's how I became _fully oxidized_.
 
 ---
 
 **P.S. I haven't even talked about performance.**
 
-Rust's performance gives me room to delay optimization and **focus on shipping features**. Counter-intuitively, a programming language famous for being low-level lets me spend less time thinking about performance, and more time building the product.
+Rust's performance gives me room to delay optimization and **focus on shipping features**. I spend less time thinking about performance and more time building the product. I find that rather funny for a language famous for low-level programming.
 
 <!-- vale Google.FirstPerson = YES -->
 <!-- vale Google.We = YES -->
