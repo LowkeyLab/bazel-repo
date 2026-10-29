@@ -9,23 +9,23 @@
     "com.google.j2objc:j2objc-annotations": 2003271689,
     "com.h2database:h2": 1057280578,
     "com.jayway.jsonpath:json-path": -630573646,
-    "io.ktor:ktor-client-content-negotiation-jvm": 92852865,
-    "io.ktor:ktor-client-websockets-jvm": -1140083368,
-    "io.ktor:ktor-serialization-kotlinx-json-jvm": 489466641,
-    "io.ktor:ktor-server-call-id-jvm": -1064395434,
-    "io.ktor:ktor-server-call-logging-jvm": 690942788,
-    "io.ktor:ktor-server-config-yaml-jvm": -265393474,
-    "io.ktor:ktor-server-content-negotiation-jvm": 2065222137,
-    "io.ktor:ktor-server-core-jvm": 447418611,
-    "io.ktor:ktor-server-cors-jvm": -882021631,
-    "io.ktor:ktor-server-di-jvm": -1244893991,
-    "io.ktor:ktor-server-host-common-jvm": -1683696612,
-    "io.ktor:ktor-server-netty-jvm": 1302582862,
-    "io.ktor:ktor-server-sessions-jvm": -277487119,
-    "io.ktor:ktor-server-status-pages-jvm": -1289932419,
-    "io.ktor:ktor-server-test-host-jvm": 2035263202,
-    "io.ktor:ktor-server-thymeleaf-jvm": 779675687,
-    "io.ktor:ktor-server-websockets-jvm": -371656992,
+    "io.ktor:ktor-client-content-negotiation-jvm": -1714601598,
+    "io.ktor:ktor-client-websockets-jvm": 1347429465,
+    "io.ktor:ktor-serialization-kotlinx-json-jvm": -1317987822,
+    "io.ktor:ktor-server-call-id-jvm": 1423117399,
+    "io.ktor:ktor-server-call-logging-jvm": -1116511675,
+    "io.ktor:ktor-server-config-yaml-jvm": -2072847937,
+    "io.ktor:ktor-server-content-negotiation-jvm": 257767674,
+    "io.ktor:ktor-server-core-jvm": -1360035852,
+    "io.ktor:ktor-server-cors-jvm": 1605491202,
+    "io.ktor:ktor-server-di-jvm": 1242618842,
+    "io.ktor:ktor-server-host-common-jvm": 803816221,
+    "io.ktor:ktor-server-netty-jvm": -504871601,
+    "io.ktor:ktor-server-sessions-jvm": -2084941582,
+    "io.ktor:ktor-server-status-pages-jvm": 1197580414,
+    "io.ktor:ktor-server-test-host-jvm": 227808739,
+    "io.ktor:ktor-server-thymeleaf-jvm": -1027778776,
+    "io.ktor:ktor-server-websockets-jvm": 2115855841,
     "org.jetbrains.exposed:exposed-core": 1521326411,
     "org.jetbrains.exposed:exposed-dao": 1378973198,
     "org.jetbrains.exposed:exposed-jdbc": -1689743961,
@@ -81,126 +81,126 @@
     "com.typesafe:config": 163723576,
     "com.typesafe:config:jar:javadoc": 1309560691,
     "com.typesafe:config:jar:sources": 279947534,
-    "io.ktor:ktor-call-id-jvm": -1201748605,
-    "io.ktor:ktor-call-id-jvm:jar:javadoc": 1985711448,
-    "io.ktor:ktor-call-id-jvm:jar:sources": 703417508,
-    "io.ktor:ktor-client-apache5-jvm": 1794410283,
-    "io.ktor:ktor-client-apache5-jvm:jar:javadoc": -1307506784,
-    "io.ktor:ktor-client-apache5-jvm:jar:sources": -1771397436,
-    "io.ktor:ktor-client-cio-jvm": -26671823,
-    "io.ktor:ktor-client-cio-jvm:jar:javadoc": 2107595382,
-    "io.ktor:ktor-client-cio-jvm:jar:sources": 1760457017,
-    "io.ktor:ktor-client-content-negotiation-jvm": -1900801280,
-    "io.ktor:ktor-client-content-negotiation-jvm:jar:javadoc": 458290567,
-    "io.ktor:ktor-client-content-negotiation-jvm:jar:sources": 1650837876,
-    "io.ktor:ktor-client-core-jvm": 1922601899,
-    "io.ktor:ktor-client-core-jvm:jar:javadoc": 1301348882,
-    "io.ktor:ktor-client-core-jvm:jar:sources": -831205761,
-    "io.ktor:ktor-client-websockets-jvm": 887158767,
-    "io.ktor:ktor-client-websockets-jvm:jar:javadoc": 1460343484,
-    "io.ktor:ktor-client-websockets-jvm:jar:sources": -1326141347,
-    "io.ktor:ktor-events-jvm": -1009122907,
-    "io.ktor:ktor-events-jvm:jar:javadoc": 1915055489,
-    "io.ktor:ktor-events-jvm:jar:sources": -768268376,
-    "io.ktor:ktor-http-cio-jvm": 1734942777,
-    "io.ktor:ktor-http-cio-jvm:jar:javadoc": 167718218,
-    "io.ktor:ktor-http-cio-jvm:jar:sources": 1067619602,
-    "io.ktor:ktor-http-jvm": -1136246839,
-    "io.ktor:ktor-http-jvm:jar:javadoc": 423639891,
-    "io.ktor:ktor-http-jvm:jar:sources": -1771095301,
-    "io.ktor:ktor-io-jvm": 649751930,
-    "io.ktor:ktor-io-jvm:jar:javadoc": 1519925158,
-    "io.ktor:ktor-io-jvm:jar:sources": -326340830,
-    "io.ktor:ktor-network-jvm": 730058689,
-    "io.ktor:ktor-network-jvm:jar:javadoc": 1700901807,
-    "io.ktor:ktor-network-jvm:jar:sources": -1624635866,
-    "io.ktor:ktor-network-tls-certificates-jvm": 1584342908,
-    "io.ktor:ktor-network-tls-certificates-jvm:jar:javadoc": -537750373,
-    "io.ktor:ktor-network-tls-certificates-jvm:jar:sources": 1465473672,
-    "io.ktor:ktor-network-tls-jvm": 1603282834,
-    "io.ktor:ktor-network-tls-jvm:jar:javadoc": -1477744986,
-    "io.ktor:ktor-network-tls-jvm:jar:sources": 91641365,
-    "io.ktor:ktor-openapi-schema-jvm": -647829752,
-    "io.ktor:ktor-openapi-schema-jvm:jar:javadoc": -289490035,
-    "io.ktor:ktor-openapi-schema-jvm:jar:sources": -1190496199,
-    "io.ktor:ktor-serialization-jvm": -886975250,
-    "io.ktor:ktor-serialization-jvm:jar:javadoc": 971703438,
-    "io.ktor:ktor-serialization-jvm:jar:sources": -122199554,
-    "io.ktor:ktor-serialization-kotlinx-json-jvm": 732710562,
-    "io.ktor:ktor-serialization-kotlinx-json-jvm:jar:javadoc": 1454578019,
-    "io.ktor:ktor-serialization-kotlinx-json-jvm:jar:sources": 1261133316,
-    "io.ktor:ktor-serialization-kotlinx-jvm": 710975115,
-    "io.ktor:ktor-serialization-kotlinx-jvm:jar:javadoc": 210296028,
-    "io.ktor:ktor-serialization-kotlinx-jvm:jar:sources": 1659066272,
-    "io.ktor:ktor-server-auth-api-key-jvm": -660005283,
-    "io.ktor:ktor-server-auth-api-key-jvm:jar:javadoc": -439041973,
-    "io.ktor:ktor-server-auth-api-key-jvm:jar:sources": 1119929724,
-    "io.ktor:ktor-server-auth-jvm": 319248304,
-    "io.ktor:ktor-server-auth-jvm:jar:javadoc": 743397729,
-    "io.ktor:ktor-server-auth-jvm:jar:sources": -1253870919,
-    "io.ktor:ktor-server-call-id-jvm": 900672994,
-    "io.ktor:ktor-server-call-id-jvm:jar:javadoc": -163615853,
-    "io.ktor:ktor-server-call-id-jvm:jar:sources": 467042681,
-    "io.ktor:ktor-server-call-logging-jvm": -1513540782,
-    "io.ktor:ktor-server-call-logging-jvm:jar:javadoc": -1015152680,
-    "io.ktor:ktor-server-call-logging-jvm:jar:sources": -667469746,
-    "io.ktor:ktor-server-config-yaml-jvm": 1965429526,
-    "io.ktor:ktor-server-config-yaml-jvm:jar:javadoc": 324177762,
-    "io.ktor:ktor-server-config-yaml-jvm:jar:sources": 166257359,
-    "io.ktor:ktor-server-content-negotiation-jvm": -85221237,
-    "io.ktor:ktor-server-content-negotiation-jvm:jar:javadoc": -2026944508,
-    "io.ktor:ktor-server-content-negotiation-jvm:jar:sources": 1526639033,
-    "io.ktor:ktor-server-core-jvm": 2097825189,
-    "io.ktor:ktor-server-core-jvm:jar:javadoc": -708392405,
-    "io.ktor:ktor-server-core-jvm:jar:sources": 1233014005,
-    "io.ktor:ktor-server-cors-jvm": -605600822,
-    "io.ktor:ktor-server-cors-jvm:jar:javadoc": -767647231,
-    "io.ktor:ktor-server-cors-jvm:jar:sources": -834209645,
-    "io.ktor:ktor-server-csrf-jvm": -714232148,
-    "io.ktor:ktor-server-csrf-jvm:jar:javadoc": -2040984903,
-    "io.ktor:ktor-server-csrf-jvm:jar:sources": 1654267358,
-    "io.ktor:ktor-server-di-jvm": -665835958,
-    "io.ktor:ktor-server-di-jvm:jar:javadoc": -266392871,
-    "io.ktor:ktor-server-di-jvm:jar:sources": 354623929,
-    "io.ktor:ktor-server-host-common-jvm": 364212885,
-    "io.ktor:ktor-server-host-common-jvm:jar:javadoc": 1460343484,
-    "io.ktor:ktor-server-host-common-jvm:jar:sources": -976278439,
-    "io.ktor:ktor-server-netty-jvm": -1688665084,
-    "io.ktor:ktor-server-netty-jvm:jar:javadoc": 821516780,
-    "io.ktor:ktor-server-netty-jvm:jar:sources": 1807114755,
-    "io.ktor:ktor-server-routing-openapi-jvm": -605505333,
-    "io.ktor:ktor-server-routing-openapi-jvm:jar:javadoc": -1476697015,
-    "io.ktor:ktor-server-routing-openapi-jvm:jar:sources": 1622379294,
-    "io.ktor:ktor-server-sessions-jvm": 1206665483,
-    "io.ktor:ktor-server-sessions-jvm:jar:javadoc": -926894110,
-    "io.ktor:ktor-server-sessions-jvm:jar:sources": 2109446247,
-    "io.ktor:ktor-server-status-pages-jvm": -1675575043,
-    "io.ktor:ktor-server-status-pages-jvm:jar:javadoc": 634392373,
-    "io.ktor:ktor-server-status-pages-jvm:jar:sources": 735374469,
-    "io.ktor:ktor-server-test-host-jvm": 1388936409,
-    "io.ktor:ktor-server-test-host-jvm:jar:javadoc": -1395409601,
-    "io.ktor:ktor-server-test-host-jvm:jar:sources": 999837823,
-    "io.ktor:ktor-server-thymeleaf-jvm": 1858258248,
-    "io.ktor:ktor-server-thymeleaf-jvm:jar:javadoc": -1887180904,
-    "io.ktor:ktor-server-thymeleaf-jvm:jar:sources": 674849114,
-    "io.ktor:ktor-server-websockets-jvm": -386963728,
-    "io.ktor:ktor-server-websockets-jvm:jar:javadoc": -337132545,
-    "io.ktor:ktor-server-websockets-jvm:jar:sources": 933916040,
-    "io.ktor:ktor-sse-jvm": 267876770,
-    "io.ktor:ktor-sse-jvm:jar:javadoc": 902237163,
-    "io.ktor:ktor-sse-jvm:jar:sources": 2041103496,
-    "io.ktor:ktor-test-dispatcher-jvm": -836958343,
-    "io.ktor:ktor-test-dispatcher-jvm:jar:javadoc": -839023543,
-    "io.ktor:ktor-test-dispatcher-jvm:jar:sources": -1393868235,
-    "io.ktor:ktor-utils-jvm": 1742285647,
-    "io.ktor:ktor-utils-jvm:jar:javadoc": -354076120,
-    "io.ktor:ktor-utils-jvm:jar:sources": -1895585695,
-    "io.ktor:ktor-websocket-serialization-jvm": 1540442315,
-    "io.ktor:ktor-websocket-serialization-jvm:jar:javadoc": -1352409789,
-    "io.ktor:ktor-websocket-serialization-jvm:jar:sources": 544678107,
-    "io.ktor:ktor-websockets-jvm": -2006142642,
-    "io.ktor:ktor-websockets-jvm:jar:javadoc": -160559405,
-    "io.ktor:ktor-websockets-jvm:jar:sources": -1657973092,
+    "io.ktor:ktor-call-id-jvm": 92554270,
+    "io.ktor:ktor-call-id-jvm:jar:javadoc": -1197439242,
+    "io.ktor:ktor-call-id-jvm:jar:sources": 821669,
+    "io.ktor:ktor-client-apache5-jvm": 498520106,
+    "io.ktor:ktor-client-apache5-jvm:jar:javadoc": -1926117759,
+    "io.ktor:ktor-client-apache5-jvm:jar:sources": 662164443,
+    "io.ktor:ktor-client-cio-jvm": 149216889,
+    "io.ktor:ktor-client-cio-jvm:jar:javadoc": -2136411128,
+    "io.ktor:ktor-client-cio-jvm:jar:sources": -1710318149,
+    "io.ktor:ktor-client-content-negotiation-jvm": -580917355,
+    "io.ktor:ktor-client-content-negotiation-jvm:jar:javadoc": 365002717,
+    "io.ktor:ktor-client-content-negotiation-jvm:jar:sources": 948242037,
+    "io.ktor:ktor-client-core-jvm": -725938764,
+    "io.ktor:ktor-client-core-jvm:jar:javadoc": 1484989627,
+    "io.ktor:ktor-client-core-jvm:jar:sources": 1009477516,
+    "io.ktor:ktor-client-websockets-jvm": -557143728,
+    "io.ktor:ktor-client-websockets-jvm:jar:javadoc": 757747645,
+    "io.ktor:ktor-client-websockets-jvm:jar:sources": -2028737186,
+    "io.ktor:ktor-events-jvm": 699365200,
+    "io.ktor:ktor-events-jvm:jar:javadoc": -76164408,
+    "io.ktor:ktor-events-jvm:jar:sources": -1470864215,
+    "io.ktor:ktor-http-cio-jvm": 1665863295,
+    "io.ktor:ktor-http-cio-jvm:jar:javadoc": 1830007181,
+    "io.ktor:ktor-http-cio-jvm:jar:sources": -99190740,
+    "io.ktor:ktor-http-jvm": 233410214,
+    "io.ktor:ktor-http-jvm:jar:javadoc": -1372881158,
+    "io.ktor:ktor-http-jvm:jar:sources": 351056258,
+    "io.ktor:ktor-io-jvm": 1524690279,
+    "io.ktor:ktor-io-jvm:jar:javadoc": 2011882918,
+    "io.ktor:ktor-io-jvm:jar:sources": 860012813,
+    "io.ktor:ktor-network-jvm": 1299066253,
+    "io.ktor:ktor-network-jvm:jar:javadoc": -2077804828,
+    "io.ktor:ktor-network-jvm:jar:sources": 530796025,
+    "io.ktor:ktor-network-tls-certificates-jvm": 1076660919,
+    "io.ktor:ktor-network-tls-certificates-jvm:jar:javadoc": 1257573155,
+    "io.ktor:ktor-network-tls-certificates-jvm:jar:sources": 762877833,
+    "io.ktor:ktor-network-tls-jvm": -493162111,
+    "io.ktor:ktor-network-tls-jvm:jar:javadoc": -1592336504,
+    "io.ktor:ktor-network-tls-jvm:jar:sources": 1793188163,
+    "io.ktor:ktor-openapi-schema-jvm": 1094508942,
+    "io.ktor:ktor-openapi-schema-jvm:jar:javadoc": 1665917630,
+    "io.ktor:ktor-openapi-schema-jvm:jar:sources": -21964516,
+    "io.ktor:ktor-serialization-jvm": 256287683,
+    "io.ktor:ktor-serialization-jvm:jar:javadoc": -917986954,
+    "io.ktor:ktor-serialization-jvm:jar:sources": -824795393,
+    "io.ktor:ktor-serialization-kotlinx-json-jvm": 1506121291,
+    "io.ktor:ktor-serialization-kotlinx-json-jvm:jar:javadoc": 1999273094,
+    "io.ktor:ktor-serialization-kotlinx-json-jvm:jar:sources": 558537477,
+    "io.ktor:ktor-serialization-kotlinx-jvm": -1696383859,
+    "io.ktor:ktor-serialization-kotlinx-jvm:jar:javadoc": 1863561613,
+    "io.ktor:ktor-serialization-kotlinx-jvm:jar:sources": 956470433,
+    "io.ktor:ktor-server-auth-api-key-jvm": -425291524,
+    "io.ktor:ktor-server-auth-api-key-jvm:jar:javadoc": 598432496,
+    "io.ktor:ktor-server-auth-api-key-jvm:jar:sources": 417333885,
+    "io.ktor:ktor-server-auth-jvm": -460969009,
+    "io.ktor:ktor-server-auth-jvm:jar:javadoc": -1061004514,
+    "io.ktor:ktor-server-auth-jvm:jar:sources": -1956466758,
+    "io.ktor:ktor-server-call-id-jvm": 104516051,
+    "io.ktor:ktor-server-call-id-jvm:jar:javadoc": 299631599,
+    "io.ktor:ktor-server-call-id-jvm:jar:sources": -235553158,
+    "io.ktor:ktor-server-call-logging-jvm": -947774783,
+    "io.ktor:ktor-server-call-logging-jvm:jar:javadoc": 1885674888,
+    "io.ktor:ktor-server-call-logging-jvm:jar:sources": -1572037451,
+    "io.ktor:ktor-server-config-yaml-jvm": 1656458335,
+    "io.ktor:ktor-server-config-yaml-jvm:jar:javadoc": 377427442,
+    "io.ktor:ktor-server-config-yaml-jvm:jar:sources": 229660940,
+    "io.ktor:ktor-server-content-negotiation-jvm": -162046671,
+    "io.ktor:ktor-server-content-negotiation-jvm:jar:javadoc": -1094056922,
+    "io.ktor:ktor-server-content-negotiation-jvm:jar:sources": 824043194,
+    "io.ktor:ktor-server-core-jvm": -632100145,
+    "io.ktor:ktor-server-core-jvm:jar:javadoc": 1008091981,
+    "io.ktor:ktor-server-core-jvm:jar:sources": 1749171684,
+    "io.ktor:ktor-server-cors-jvm": 1191239031,
+    "io.ktor:ktor-server-cors-jvm:jar:javadoc": -1980159376,
+    "io.ktor:ktor-server-cors-jvm:jar:sources": -1536805484,
+    "io.ktor:ktor-server-csrf-jvm": 1810122301,
+    "io.ktor:ktor-server-csrf-jvm:jar:javadoc": -1792764169,
+    "io.ktor:ktor-server-csrf-jvm:jar:sources": 951671519,
+    "io.ktor:ktor-server-di-jvm": 1264761863,
+    "io.ktor:ktor-server-di-jvm:jar:javadoc": 2026880158,
+    "io.ktor:ktor-server-di-jvm:jar:sources": -347971910,
+    "io.ktor:ktor-server-host-common-jvm": 1374722318,
+    "io.ktor:ktor-server-host-common-jvm:jar:javadoc": 757747645,
+    "io.ktor:ktor-server-host-common-jvm:jar:sources": -1678874278,
+    "io.ktor:ktor-server-netty-jvm": -926214363,
+    "io.ktor:ktor-server-netty-jvm:jar:javadoc": -1069569028,
+    "io.ktor:ktor-server-netty-jvm:jar:sources": 1168479392,
+    "io.ktor:ktor-server-routing-openapi-jvm": 273450836,
+    "io.ktor:ktor-server-routing-openapi-jvm:jar:javadoc": 840942464,
+    "io.ktor:ktor-server-routing-openapi-jvm:jar:sources": 919783455,
+    "io.ktor:ktor-server-sessions-jvm": 1129920048,
+    "io.ktor:ktor-server-sessions-jvm:jar:javadoc": 2014343443,
+    "io.ktor:ktor-server-sessions-jvm:jar:sources": 110883721,
+    "io.ktor:ktor-server-status-pages-jvm": 1688367908,
+    "io.ktor:ktor-server-status-pages-jvm:jar:javadoc": -522002501,
+    "io.ktor:ktor-server-status-pages-jvm:jar:sources": 32778630,
+    "io.ktor:ktor-server-test-host-jvm": -333667171,
+    "io.ktor:ktor-server-test-host-jvm:jar:javadoc": 1805799159,
+    "io.ktor:ktor-server-test-host-jvm:jar:sources": -1233877035,
+    "io.ktor:ktor-server-thymeleaf-jvm": 416589222,
+    "io.ktor:ktor-server-thymeleaf-jvm:jar:javadoc": -244458835,
+    "io.ktor:ktor-server-thymeleaf-jvm:jar:sources": -27746725,
+    "io.ktor:ktor-server-websockets-jvm": -1364599699,
+    "io.ktor:ktor-server-websockets-jvm:jar:javadoc": -1307254074,
+    "io.ktor:ktor-server-websockets-jvm:jar:sources": -900349398,
+    "io.ktor:ktor-sse-jvm": 1578827511,
+    "io.ktor:ktor-sse-jvm:jar:javadoc": 136203891,
+    "io.ktor:ktor-sse-jvm:jar:sources": 1338507657,
+    "io.ktor:ktor-test-dispatcher-jvm": 2109863893,
+    "io.ktor:ktor-test-dispatcher-jvm:jar:javadoc": 2107137781,
+    "io.ktor:ktor-test-dispatcher-jvm:jar:sources": -2096464074,
+    "io.ktor:ktor-utils-jvm": -995249694,
+    "io.ktor:ktor-utils-jvm:jar:javadoc": -1722937842,
+    "io.ktor:ktor-utils-jvm:jar:sources": -1765324866,
+    "io.ktor:ktor-websocket-serialization-jvm": 336647791,
+    "io.ktor:ktor-websocket-serialization-jvm:jar:javadoc": 39945381,
+    "io.ktor:ktor-websocket-serialization-jvm:jar:sources": -157917732,
+    "io.ktor:ktor-websockets-jvm": -534628520,
+    "io.ktor:ktor-websockets-jvm:jar:javadoc": 1268191789,
+    "io.ktor:ktor-websockets-jvm:jar:sources": -1192752882,
     "io.netty:netty-buffer": -294787265,
     "io.netty:netty-buffer:jar:javadoc": 1887892379,
     "io.netty:netty-buffer:jar:sources": 215136008,
@@ -560,323 +560,323 @@
     },
     "io.ktor:ktor-call-id-jvm": {
       "shasums": {
-        "jar": "c6f42a514a32f26fad67722a1f0f94382550ea4f789577aaff98cef8453a0a11",
-        "javadoc": "7763d4bff8de5f8bb45c860f88ca4d8a7fddae24b6c76dff4151f766001970ae",
+        "jar": "ec87ec286120d8f0cd2a07ea6df79f477aaf331ad67d3025c1c67fe4b594ca55",
+        "javadoc": "f317f86bbe91647ef257e7bf6e7c280381027f95f38cb8d0a41e6dd9b053aa7b",
         "sources": "982493df09a66dda4e16267265ee4774be1cda2e732aee4855ef6aaa4934786e"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-client-apache5-jvm": {
       "shasums": {
-        "jar": "bfacc3fe75bef5d3e1e42e336b455ba970f6baa825ca4c7653c4de8bfeeb124c",
-        "javadoc": "f137633db43fbd1feb2495c8f08a8830a97caea81506cd437a34ec44f0242d36",
-        "sources": "770bffedefdd4dccce8172c759d8065a70d9377170f765b100590f93321de9ea"
+        "jar": "6e4c9a13324121e9e8eb579b99a4dae93f9e5f1c1367e4e7fc67991a97943e5a",
+        "javadoc": "1a5dc85560c27d7cffa442a989336c7462617d6ba1cd50a6bd43d12d01ee004d",
+        "sources": "e792cdfe13816db0b964d41847207bb26a4dff7ce694f257200a5a311d2d80af"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-client-cio-jvm": {
       "shasums": {
-        "jar": "a12b3d94e140cc235a9b77f37f6946deee5e4d32cb8afa7b64b29746412c1dd0",
-        "javadoc": "5da46ba7fcccf3d990ede017fb8599fb2a3a84cc773a69b22b7ece0bcfc62c2b",
-        "sources": "1b8f6aad71e30b2713451c13121152c4f54c8dbf191ae30e67eac55c73a6a9bf"
+        "jar": "6f2b3194e8fbb28250b84e8868b1064731b54f1a950379b2a1c6d83c59e1d018",
+        "javadoc": "c2705a2ae374ae09e6f918e07ef4857583ba26872bc6e6a652c5b5d7fe83a546",
+        "sources": "b349a1bb0d921d324628f64153274b46ffded1bba8d2275fe323774795121ee2"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-client-content-negotiation-jvm": {
       "shasums": {
-        "jar": "3498b42539eba4088360d9be2bec1bdcec0a86b066428b1d9efba53e9378a622",
-        "javadoc": "eb510fa8ac149eb3f0b8287a20bb27780178cac75a8447333b5b312677aef639",
+        "jar": "ea973ec7fbd2fa4132f06a00dbe6d350b6dfe85c78fc9e6c594fc324ffa9a80e",
+        "javadoc": "bf936d01c4e8585d02cc65299d2026662954993b3004bdb7a31db7afde88ae87",
         "sources": "251c39e83d282f5286ef182955ba959f82e2559d06a6f5530776425b8b69ce83"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-client-core-jvm": {
       "shasums": {
-        "jar": "7dc9a3c76bf43f672e8331aad1ecb06864f69f464ab1517c24ed8a38c86f812f",
-        "javadoc": "7a8b414db6bd161ed98e6c74e8908232229e8176dfeb6663c2226d6c7bcf0678",
-        "sources": "8e91d53b5afb3303723ded53ad8ab46cf3f514ae23c97f6ae57df33852911acb"
+        "jar": "3a288b4d75a52d3b2460765067c2fc035bcd18ffcaa0a2296f4b9983cd2f041f",
+        "javadoc": "76a61420e674f6a4a32a3573f2102f7f22543dfc75f4d106eb2b13399676196d",
+        "sources": "3b93880823f30d533ff48b6dfaee134f4db3839d9c2c7ced01c1aacba426acf0"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-client-websockets-jvm": {
       "shasums": {
-        "jar": "c3cd2393228e78f2262de1809da02653572dc814f17dbe9be5ad67a3c0aff5f9",
+        "jar": "59a6aaa3cf20c17e98114571fa0a73078de1d78d93049b482c9542031f2851f9",
         "javadoc": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3",
         "sources": "75d7ca238e3c1dd7fcc8929934521558abe14de2c3643766b9354b61fb8af5b6"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-events-jvm": {
       "shasums": {
-        "jar": "d3962f4a4244102d1ef8b84b21429ffc26be3512b5f1f96c607265ca1cec5c0b",
-        "javadoc": "2fb5d9546ecf32dc046e9d6af8bb53d69db1ec42c588a335e82d5c7c436dacd1",
+        "jar": "9759d0e39dcb8682479c5303625180b90b9cff94d70a5caf78081ba33f78d154",
+        "javadoc": "ee537f111df3157c3a9c30e10960760e02bf8bb5f495c1d28c21d5f1fc1d4e5c",
         "sources": "8a554c4345b158c71b845e459891118b6bc099a2a3c918771528dfb7c9dc2648"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-http-cio-jvm": {
       "shasums": {
-        "jar": "4cabe83cb367e0a807f849f2d4313b9de563cffcec0d262844a783d51a47738d",
-        "javadoc": "704e12e681b0034432589506d69ae6a21ba0446febbe38eeabfb49f2864011b5",
-        "sources": "3f10094e3f145428d39135c8e6459a9705327bed4590702a303705da9489d349"
+        "jar": "cef2c4f69393eea3937bf3deeca4622a048951b76f38f699ea1d706ef5f5d3b7",
+        "javadoc": "c0df015401a2b6eed9375bd4b4b0c87bfc4d21e616411d18518941f9a75420d8",
+        "sources": "105a2a37cfe121d5acba6baaac9c9234d0bcd858b2e8a0fcd567176b912280bb"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-http-jvm": {
       "shasums": {
-        "jar": "2a14cb160436b134c10793727aeed3055ae7014ff170c79ffbcd90b26dd90de2",
-        "javadoc": "183e2f7277c2d1455ee7aa27c12d00ae03345530024ac7298667766b742adfd0",
-        "sources": "26cf3238d2251c29d8a25ddb9f65b11e65f5d8e3e9d2c5f5727b1d1094cec70e"
+        "jar": "77bcd2f92be9c226c2434bcda04c95edc5d407fc3d1b3774a6401b8d95b7f671",
+        "javadoc": "c2e8e54bfe032e30da48f5501a950fa936a0f5d23a3fd2479e5e7cca9c42c32a",
+        "sources": "1203e7a1cc77cd6808b9eb4f77f286f7a902496a13829843d596fe9f12c58abc"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-io-jvm": {
       "shasums": {
-        "jar": "7426ad1759833460507ee7065f17085410dc7b32081a1daee8c91cf6f40e257c",
-        "javadoc": "bcba6416eb2c6113c643f0558e66df7aefaf3f8ece37de2cba2d22697b0f3098",
-        "sources": "b854b38a21d954af7adf833f93f7e4f7a75e448f6a576bfbd4e401843dc08ca5"
+        "jar": "94934d96b37c38f17dd7dfaaf9c50cd9c0255bea5ae60fd4cd2476838bd525d8",
+        "javadoc": "0f72b0488d47d2987d643f3d00b3843a7dca797d18ebbe7cefbb74b9ea131339",
+        "sources": "11d78590620e512fbafcc09a6f155982348d20b5e92f538b6a86d13156029e40"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-network-jvm": {
       "shasums": {
-        "jar": "746a751146d61865f51d6dd56b18e3e0fa68b36587561ee123ff7ce730d8c590",
-        "javadoc": "8e05372845c0e6d41bc53e1bf7d29cecb5fe0dab7db16f061b070594de7bf81e",
-        "sources": "2f30a33ac5721c2fcaa5e9aec3523120816092695a62baaee58dd57fdc3a2c18"
+        "jar": "3d1c8dba07e2d8939015fdb8436e2d28f3c7465e578ab938f9ff67cba5a4f535",
+        "javadoc": "d9060a3219a56c6696de0a8cdac92cb5d152f4aa3e33c46852a9d2084015b4d4",
+        "sources": "bd254bf8905fec4f4cda71e6d9f45b45a981e199eaff4abecb509526e12abf85"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-network-tls-certificates-jvm": {
       "shasums": {
-        "jar": "67bfadd70bdacbaa1fa1dcb848762b528db9f2681a830fb4cadaec035e80468b",
-        "javadoc": "601673d470c3f4070651ca6c9652c2359509007e657a1bccdb42bf5cc1f23f97",
+        "jar": "90a2d77d100fb14cebf9acc6938f0a504fdd977acdf82ac1f9993dc8037df242",
+        "javadoc": "d32e72b86a9e3d64e9bc034377d2f751c95a45a7ad8763a4a04304820d34b911",
         "sources": "87e11a7d024f735dfc24f4053ecc223989609be231e1d564386be669f2d5e969"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-network-tls-jvm": {
       "shasums": {
-        "jar": "09ed94b6783aacd3bb7d19ce606230153762bf68d399cbff0474299a00407a41",
-        "javadoc": "8fe4fb2d4ca654e3aa0889d70a0d00961e7b4721e86c0f0b0e0bff4215a0e9be",
-        "sources": "847c74d8941302025496ec8ad29861046e23ffd297ec59d4ce7dbb632c57c3fa"
+        "jar": "6491dfadbcd02cbe05660b42d841305044ad1a92d31f229037d2fe32a23550f8",
+        "javadoc": "61e7082de00406ee9ce2debe638d41f4393672f072b8ae48b28b3856bc365244",
+        "sources": "4986af88df50738eca3ef972f1ea8cb5c8c7bdf6e3c56e256d15db9ef0a02261"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-openapi-schema-jvm": {
       "shasums": {
-        "jar": "b5a290b3e9ceb9a1b485bcb4813d1dacec28f7e88353f317080b9dddb2a9c9d1",
-        "javadoc": "6a266bb86d4be180bf7bf7d2792fdfac3c6f77dfd30e365e1f9d1442bbe28a4d",
-        "sources": "10a258aa5918552c5642bf15d6176308be85105e70fdc3d76775e5144790d6f1"
+        "jar": "6d543198b0454dbe6d6d671f2c6a5c41a4bbd377d73e17018add3a05ae45037f",
+        "javadoc": "3b0074bc00d88e36b5ba062314d3d5ffe3c604c27464492c1cb95499c4332495",
+        "sources": "bdedeaed7719b3b988a9f6e2c4de6855b7e2b8902ae2c5117cb3eee4b73ac73e"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-serialization-jvm": {
       "shasums": {
-        "jar": "d67f46cf64f8c97a2e14d4d5c0c1a4be315c8bc128bcc58370c0716363c258db",
-        "javadoc": "e53ae1c143282424a192776582ab8983fe0a5ad468054d1a2392654199e87764",
+        "jar": "c453ea5c53456c10b0cca4c86477190885042cfd92c68596bd36e34832da4e57",
+        "javadoc": "8dc620281d765aef1ee746d3317ba0cc8ff4b2bff8e3ea428942035d4ad946d5",
         "sources": "59c8654bff6c1dd039ce1cb57b5b33d01ffe1af6603fac19b3fb74a8dad3d058"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-serialization-kotlinx-json-jvm": {
       "shasums": {
-        "jar": "d93f7e1bf838dba0d5b2a1553f0e0b3579f9e28fa6f98c4a3340307699c3d96f",
-        "javadoc": "37df06e8b9ddc03f4f688d78c1e8d2b8756dc8e200d0cd11a44a899177fe10ab",
+        "jar": "73e2709659bf80e6e2a4d4ecc5208f4d8acf8dcd8c14266768bf255ead75b233",
+        "javadoc": "2a81ad81afbe6f4fbd9b73b0c9373390ca5bab38741f1c1bbcd85a60ee94a2d4",
         "sources": "008fd753708e3a41cf47c9db09530236b06b8a753f75e050cc34fdaae38c2716"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-serialization-kotlinx-jvm": {
       "shasums": {
-        "jar": "bb5ca77c4a22ef9c606a4412e1d813a754c398b7bdbd543c5b9441f16e6bcdd7",
-        "javadoc": "a174fdd48b03cbbd219b27fd20ec9c14aa60488d7ebe94be1bf762089eb992e5",
+        "jar": "6a163fad390ba4bc93ecfde2b570708065f904fe2ad24dd43784335e06418b44",
+        "javadoc": "939ffbcb03f0cc0489052400a9524b5d7d73e23136f93474934f176c26b5cd6b",
         "sources": "6b05e51a8fd75094167dbb73eec8462cffb1da215592828e40ca131e4d251221"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-auth-api-key-jvm": {
       "shasums": {
-        "jar": "abf0242d45ec333930d86bece02a20602c505506a78bdeb9563bf77a12d67682",
-        "javadoc": "96f836e47ad8b82b825f0f8e7db1e089b08bbac409d681226d4c57fe22c2bf6e",
+        "jar": "347d322b33adaad6dce55d1fa3ce2c18e1aba1f2b999df5c9ac92433031c12b9",
+        "javadoc": "5f40e52626154537bcddc9bae46036ca81cd2f5605686fcca95b1c1e4f9ad94a",
         "sources": "bcdce066ea33c5cf4a592196a929d4f1c000ac95b631644d53b9eff53875046d"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-auth-jvm": {
       "shasums": {
-        "jar": "2a84859846efb7ffc22d0faf39022e0e6dab8930f581044a0dfe2e2f7a0433e5",
-        "javadoc": "1c6523ad3a3d4b604056c6c83600b51fc6f9c897ca301e054bd64a175c947340",
+        "jar": "47dab95a14ee9afe5e5235d9dd150da16f2457a3e04c697eab7bc05f08cc7008",
+        "javadoc": "1d2bcc34657fbd8df7b4d3873a9c905ac5c26c18c7de6a95812d2b9c77603f71",
         "sources": "a1643b1a083bd1a5ab4395999947ebb4ce15a459840b7ef6e808320573fb98b5"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-call-id-jvm": {
       "shasums": {
-        "jar": "65ae2faefde13a47be68acad38fa1792c5ba682f44959fab6344218e64ed18d4",
-        "javadoc": "36ab18b006b9b11c789defc941f4852e5b59c0974d8d476db6da4faf12a6f30f",
+        "jar": "bba95711d5a1ae963cb11c211e31b98a16817d5b2a25de83d380ad8b5c8196bf",
+        "javadoc": "db87795e9c44d2e633fe1a75022fe877317842542cfdeb1b999a511740cefff1",
         "sources": "9aa26776d951112e59c6c2378aa2be4fbd1eb6c106b1bcef65d3e7f3ed39c0bc"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-call-logging-jvm": {
       "shasums": {
-        "jar": "2c24bbca3cdb61e887d8850b9f227cc38192eabce9f130e54dfaecdb61609c30",
-        "javadoc": "3a9d7f3d8ac7f68541a5535f02a6c1555bbe584056cea4c9946a17480e28e704",
-        "sources": "6129b05d9fed50327a47b59e80ba21abcbca75053d5efbce1131d755f9cf93b4"
+        "jar": "17eea8847b35416bad440bacfc35f69f3bcc22df47ed256d00821376081d7081",
+        "javadoc": "6484185bd637adf8d7bcea6f7593d8d7b4185ae148053a7f8395fba364e315a0",
+        "sources": "706b64db1cac2fab5719a5e48b3ec3a3d90b8ebf72e70ddd0bb86bd6e374f64e"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-config-yaml-jvm": {
       "shasums": {
-        "jar": "f0577c2c52fa85301faef2f3bcfaac2e38a3f066acbfcaf9598d602eae89dce0",
-        "javadoc": "9631f1e3a5452050189ada144d72b4301221831555621c75dea403961e7878b0",
-        "sources": "c1839188372b8bf9044d426a35815c13262ff372a79e25e9274f29a9cefe5e23"
+        "jar": "b2ec2b5508528389745f6f5fc0521e40eb2b9988336cbf1cdfc9785e17730186",
+        "javadoc": "7a6506c930737e432d022af2bf02a7c2f5a1c12d7bf1e06c4701952dedafe8ce",
+        "sources": "b6fe96060b7456a2cc8644106f2e7f25e21d376d4161198c8138998eaa9d6980"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-content-negotiation-jvm": {
       "shasums": {
-        "jar": "b0a2d3b38abacd5783833d76e75b2961293e5835cacda221d765df89ed829413",
-        "javadoc": "55c7ae295fb6e90dcbeda62e65e2d84b39032a82b1d852929fb02c462f19ec30",
+        "jar": "63e2acbad0421791d4301cc5eacd96f498c9bbc3e57793da1665a5ab52e156db",
+        "javadoc": "47ca0c3b0b5a000f702f47fe6e35d5307fb4b3c4c11a5946420ce78da84bf315",
         "sources": "393c76c68f43ddb98bcbae474c13e4924d6954869fbd01e216db747ce7b7d675"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-core-jvm": {
       "shasums": {
-        "jar": "2838b5d739cb659947ab11b0b220581ad077da8adf62a0248e30c0cdbb93192e",
-        "javadoc": "3b2543f96b75058e6ff8356d9e403f0cafadef65544bf76de230ab8a24fc0c74",
-        "sources": "426bd8e6e80a5ded84796663223d7dd42a928bb3719dc7ee5d5887d6bef4b70b"
+        "jar": "273c891aab65cb5548734209b28d7e4220b5369b012ec4a56057103ed83ec272",
+        "javadoc": "42aaf89bfff687604e32587772676666657993579bbd2c3d1e5951de6f65da73",
+        "sources": "aa5372df8f7e47f3808654f4df514d8683451448034056fcca4de688370dd55f"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-cors-jvm": {
       "shasums": {
-        "jar": "a125d6769d9e129979d90a5e03a7650250e1e0fbb27d243a577fef3294dffc25",
-        "javadoc": "fbd31b442b2dd6b862a6cead2652b2d9f18d8b2479b5bb3c856d0fe43f61c83c",
+        "jar": "e020a30fcfc8c183507684e492fdbfe472e3d1cad0b7790bf7ca0148a36fbe9c",
+        "javadoc": "251a9bf0d9476c1dfa1c8a5399ddc65dbda6ef6c1a30485e87fed143d9308d81",
         "sources": "45c80e3db73c0bef200220d850667f2768fe2e617cd1492ed9bcb89ebfce789d"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-csrf-jvm": {
       "shasums": {
-        "jar": "046881c4366502131fe694e0d50602c03b0aa688881b71ef43dc04d14e1a0ee0",
-        "javadoc": "a0dda1cfeba21725fdb2c8845edc7da5036fc4a7a4ae891ba9f02fa22daf9e1a",
+        "jar": "36a2a61da203eec8bff46626c166ece773841c3b8fa1cc0039fa1a9ec8a82260",
+        "javadoc": "991b211aa51062083c655d00687b881fb0e89602eef6779e77d40dfa2e3d723d",
         "sources": "19dd8af58fe143b3857f9dfbaee630eb150306b3fb9fc302cd9a951093530449"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-di-jvm": {
       "shasums": {
-        "jar": "f1db5f9914ce21e8c770d401ccb4efd2ee7f7f9bc5d997eba6d6da6688616e2b",
-        "javadoc": "d7ebbaba79882d760a31916f278aba9c9b8ef3ac4c726a665d52f9f22c2f20b0",
+        "jar": "73a1ff38c9d613b610f5617c50d9fe24f1a4a4862d464f34831d69587188c6f7",
+        "javadoc": "629e703734e5d3394050007c67fe6f773bfeeb7f007aa39efe6ff17cec91cd6b",
         "sources": "3016c59dc6346eca86bd06ae5bf1ffcd5800b1aa43881e896cf8cabc9b6f8937"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-host-common-jvm": {
       "shasums": {
-        "jar": "2403fd02c4a5eb67cc73a39234cf5c4b599dbd0f90aa0181bb5cf4f615697f92",
+        "jar": "e23c287d83d377decd8b08c142c8e846814b7b45029833c17d311226116e9c0e",
         "javadoc": "c6deada2fac53b8ea6523dbda77597b128006674616f140f04df23264c6d1aa3",
         "sources": "8f1b77aa660fed1302454fd2a303ab07ab29a5d52029c98850cedff554c454f0"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-netty-jvm": {
       "shasums": {
-        "jar": "44a4fc7d43e3794b618510d468d8c703049bf219a88adf4011cc878f9e7af413",
-        "javadoc": "8c2c25cb83fa09886d59208fdc92dd08bde02ac2491a36e8826f79260324e9fd",
-        "sources": "5f6aed129e38e9ebd9c7e9005d8faf19f4d7dbdb960f294a9ea98da655dfbadd"
+        "jar": "da3bdf81fc86f6129570132c04c2de565b963c8d748eaa8c42d295f79428bb49",
+        "javadoc": "24d35b10f1d55e74a96bea479fc04766beaa1ef85c32cafe9e0ecafd73d406dc",
+        "sources": "0f0d6e7910342cbf8bb7f9cecf5fe6a2b872a74c74bc10bb9c60819864031585"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-routing-openapi-jvm": {
       "shasums": {
-        "jar": "dab7e4ab162a8b6128da624618af95ae698ddfbe76c23fd03d65c4910d6eea71",
-        "javadoc": "0391690752b074539a8083afcbe2ed6c2fd7090879ecf151d00ec402800da279",
+        "jar": "b752c0dc144bd5921f7d6edf095fdbc7ecb0b1cf4e774f7e10a64e879c6b2d76",
+        "javadoc": "fe7ec422567e0733c16680ff3006850a65de0835826a1ad583ae45f3a4a0f7d4",
         "sources": "70e0484fade076cbb82a10b6cd914623a6e445632b354b36c64433afeeb89523"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-sessions-jvm": {
       "shasums": {
-        "jar": "f4be10d67f8180e73641c685fe200fb9d78878496ccb5d012ff33481bc128809",
-        "javadoc": "ffd770803826aaeb5416dbafb13e64b6d0fe6d80a7b140071a5c055119e83b9a",
-        "sources": "0bfee7cdb6db6a11d62b7a36515cd2f1fb7f03406a95deb3787fc1d6f6881482"
+        "jar": "ae04912ad16034c9fc83469cc2bdbe3b9b4d21c92e42deb835b95784e19f3594",
+        "javadoc": "8e9e324b828b99d7e21b186b32995507c16b1864a2592c666ec1b8051375aaf3",
+        "sources": "deb605aac4202fabcb083fe6b19aa0b5c087d5b943a4270f0db0bf083ce82112"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-status-pages-jvm": {
       "shasums": {
-        "jar": "e5821159069d3a7d7f777f0a8fe82225acab5404e748849c45045443c0b18037",
-        "javadoc": "5862f1945fd8b46ee47292a411383e64d00a1e88fc6ba368631a8f45e1d6a56e",
+        "jar": "43c425237efb6a0c1c07e9f14fe4e2905544be5f1b32fe8e912a03fbd9c62962",
+        "javadoc": "0f226b1dae5368dde116e2c012e27377678c5bcba51cb8fc1b423eb5d7c95c40",
         "sources": "29cac07778fe00483f1a35d5ae1dd433a29ba9e43eec507f7bbe530a1498a1b6"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-test-host-jvm": {
       "shasums": {
-        "jar": "7230176e5ab404d0fc1d7026c5ce5fa320e26e749665e22bdbf045c53ce35cc2",
-        "javadoc": "15492983f6fcabc57af744fec26cc6def59aafad5edd04f12c2bbc4f9afa3884",
-        "sources": "a0d703668ee8f2b040f790a7cfd1a3141538a9bf608f7c642a0b9c74de30a221"
+        "jar": "608ce4457e16c3344fdbca5e599ebbff67811f640837fb4e0346f659ac9f9b4b",
+        "javadoc": "34b35d0966b498e3d97d446744c515851d738fbe6e37d532a31f00a538550bc1",
+        "sources": "db6056c5e5a2049faaa2f14150c32b5a02f4a9305fa9a43540d07aee7e99ee33"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-thymeleaf-jvm": {
       "shasums": {
-        "jar": "938054ef554804d6f36a7822c709191cffd7f252f4723742040ee4c327c45e79",
-        "javadoc": "fe507e1a87e51e6370556879c3a790c5331cba7d9895dffb46ded568f74cb6cb",
+        "jar": "047fcf50d3b68e7c1a43ba967c115d0f2f2925d65c9bc9d3e295bcbd7ab28fe2",
+        "javadoc": "a3e21e1a1a2eb394318c8431be1e2bcdf70164bd6249810847c10465dd722e27",
         "sources": "7850b17eef24ecaccc31c74d31f5308c0921b60b69f419c999ed317f2eaca006"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-server-websockets-jvm": {
       "shasums": {
-        "jar": "228336824cde03f02374b0a2d23a243470051d58d11cf9d235ebdcf126ef22d9",
-        "javadoc": "76132dffd90df26dc34e1b28e6ccc775abdef1486a06a787a25ef22a656fd49a",
-        "sources": "711e33d09d7459fa64d641fde5dcb1d05867e1007e9f19be483f7866961663e6"
+        "jar": "58d843a1dde40f39082446a95aba014c2afe6970f91670cb57ea40a18f61d9eb",
+        "javadoc": "1abd63757a0685a8cbbdbe38df2e9b30afbcc1628e2451c11af84eec3404ea12",
+        "sources": "bb1dd9335ca7cbb77a4aee0bb3ac1a7c533ad1b7cdddfb6e18eee0e45793aeac"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-sse-jvm": {
       "shasums": {
-        "jar": "9fcb5074b74d14b9f18ace4ee9acd6263176ae01b4e8e5c8f72b6aa978c279ea",
-        "javadoc": "709e0d777716e218a20ae2d89e213ca9b61068c76f684714d7af0185108d005b",
+        "jar": "365f54d957081de3a7c4d17937a9ece27ad8cc3140ae35a5e8159ea019508445",
+        "javadoc": "b877ddfc3b240f3d3a9fbc87d9682de9b89a41fe419baeb8baa7ccb1fcf5d995",
         "sources": "18244ff2fe2bf8217f00328aa76164ef03932d37e19b221f2c30ad877d5bd13e"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-test-dispatcher-jvm": {
       "shasums": {
-        "jar": "fcb6bfeaae8ee63295012bc9188777af8146314b6505dc72bb942aca758e08b4",
-        "javadoc": "5417f02bfc5012142f2a320c90884ae481655d1260afcd94aead2c7e3faaf0e1",
+        "jar": "9beb3ca21153b8057f367ff8ac2aa6502e942360bef21ec6b5578abd83e363a5",
+        "javadoc": "1ffff1d15f9f4e7b4fbfb28772085de3caa22ffd3fa58e68583eb8e4951e221d",
         "sources": "034cb86855aa996bc787a83924e6956337414884f45f8390b0316233e3fd6cfb"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-utils-jvm": {
       "shasums": {
-        "jar": "05698e23c0539c7042676a98557e3358e77e19efa9fa4fc2145f20ad8721aefc",
-        "javadoc": "d0246aaaecf78f4666002505f27f7643c1cb481782791b72f6ccc4a7c6e6ad20",
-        "sources": "3526f42b3c66c131c7758256179c33f1cfba73f46042d6474ca3713958270a0b"
+        "jar": "0df228f4d134facd49218a5a309fb20a16ff53759dbcdf52714b7129572beafc",
+        "javadoc": "60bc7eff926ffde3ddd507c8e96d1dc1fb54dbfa2d27f267b667bd59c2eab230",
+        "sources": "8148a93a9992f1b362d85751f79409897e0ef5e0aa79c0e79cd997b4d64ab3d4"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-websocket-serialization-jvm": {
       "shasums": {
-        "jar": "c87fe370c17868dc8c101947452bf8a8622363cf4d83a342334666bb46fe627b",
-        "javadoc": "fbe7bf8e191785773a414d64bba165eb14871f969e8326a8d9a6a255b882e2c5",
+        "jar": "d8dd32ed720cd6f940ef5df74a9f081a42c6c537e6b0a3762bc79f68730d868e",
+        "javadoc": "2d91273e902a23c0ad6810a6e0eeae1feceef3a118985a4ad4a49e0580f14b43",
         "sources": "028ea4fb0b1bf9e3bfadc977ee7e1fa71faffe93f4df70edb2e040394249f538"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.ktor:ktor-websockets-jvm": {
       "shasums": {
-        "jar": "3ef8b5d544dc7f9bd041a245bb8c2ff6647d0fd1e111a65b7be54977476a5464",
-        "javadoc": "1678e457e7436816795a711d5e1b0a7362cb59edbb7335b3f27139090997d15f",
-        "sources": "67dc3f4a49dbee6d6af6140d2089f4a98e70328db701a5b991fb81a14bccb51a"
+        "jar": "58a3b887d3f220bfcf1e6405386409dbc8eccc5072ff9bb1e75c70cf6388fb2d",
+        "javadoc": "a4eee7bb6cfc0048cb3c512078e3a801167844dba1bd07f22b73fd52cd87cf57",
+        "sources": "43d9daeb4986b09606bdbada32f0332b1e8f2e2d26c3c57cf427fce9f262f1c3"
       },
-      "version": "3.6.0"
+      "version": "3.6.1"
     },
     "io.netty:netty-buffer": {
       "shasums": {
