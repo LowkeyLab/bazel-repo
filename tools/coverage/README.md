@@ -110,8 +110,8 @@ The table gives reconciliation statuses for eligible sources.
 | Configured remote |      352 |       68 |             134 |                    4 |
 
 Local acceptance selects five test targets for Python, Go, Rust, JVM, and Angular.
-Local browser and website runs still fail assertions.
-These failures remain local restrictions.
+The historical local browser and website runs at that revision failed assertions.
+The later Rust migration record below supplies the repaired complete-selection evidence.
 The configured remote run passes their existing tests.
 The 19 Astro originals retain attribution limits in both reports.
 Their coverage remains unknown.
@@ -550,5 +550,9 @@ The `javascript_command_test` Rust parent also executes that suite so `LLVM` can
 collect the child command's profiles. The [local acceptance record](rust-migration-acceptance.md)
 retains the results for [#2636](https://github.com/LowkeyLab/bazel-repo/issues/2636).
 The [native Node correction record](native-node-attribution.md) documents the approved attribution fix and its measured counts.
-Complete acceptance remains blocked by the later Angular child assertion.
-Browser and Astro restrictions remain explicit in the migration record.
+The [Angular correction record](angular-child-attribution.md) documents the passing selected Node and Angular membership suite.
+The native Node and Angular corrections restore the required child counts.
+The complete local website selection and separate report checks passed after the approved repairs in #2828 and #2829.
+The migration record retains the exact source revisions, commands, private evidence locations, and artifact audit.
+All 19 Astro originals retain explicit unknown-coverage limits.
+Browser profiles do not establish build-time template coverage.
