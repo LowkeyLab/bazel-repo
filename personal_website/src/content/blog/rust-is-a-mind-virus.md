@@ -36,9 +36,9 @@ I wanted to do something simple. **Not so fast**, says the compiler. **Who owns 
 
 I understood why the guarantees might help. I still resented all that thinking for such a small amount of code.
 
-So I went back to Kotlin, where I didn't have to answer these questions before.
+So I returned to Kotlin, where I didn't need to answer these questions.
 
-Well, I _didn't_.
+Well, I _didn't need to answer them before Rust_.
 
 Unfortunately, I started to ask the same questions there:
 
