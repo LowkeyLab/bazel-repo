@@ -115,7 +115,7 @@ git_override(
 bazel_dep(name = "rules_kotlin")
 git_override(
     module_name = "rules_kotlin",
-    commit = "f4951dc884eb425b7a5e38d79e9ec66ceb7c9a61",
+    commit = "cf3e4759242f4440fb102c4dea0f17f8844a8296",
     remote = "https://github.com/bazel-contrib/rules_kotlin.git",
 )
 
