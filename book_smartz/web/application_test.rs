@@ -102,7 +102,7 @@ async fn concurrent_signup_and_changed_email_restore_one_private_ranking_and_pen
         .send()
         .await?;
     let body = response.text().await?;
-    assert_that!(body, contains_substring("Your ranking is empty."));
+    assert_that!(body, contains_substring("You have no books yet."));
     assert_that!(body, not(contains_substring("OL111W")));
     let login = app.begin().await?;
     let mut claims = Fixture::claims(&login, "same-account");
@@ -212,7 +212,7 @@ async fn first_add_is_saved_once_and_restored_with_display_metadata() -> anyhow:
     assert_that!(body.as_str(), contains_substring("J. R. R. Tolkien"));
     assert_that!(
         body.as_str(),
-        not(contains_substring("Your ranking is empty."))
+        not(contains_substring("You have no books yet."))
     );
     Ok(())
 }

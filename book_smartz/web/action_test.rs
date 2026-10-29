@@ -272,8 +272,8 @@ async fn placement_facts_distinguish_pause_resume_preference_and_rejected_input(
         let history = store(&app).load_application_history(id).await?;
         let ranking = store(&app).load_ranking_documents(id).await?;
         for (endpoint, message) in [
-            (route, "We already saved this action."),
-            ("/recover", "We confirmed the original save."),
+            (route, "We already saved this."),
+            ("/recover", "We confirmed your save."),
         ] {
             let response = post(&app, &cookie, endpoint, &values).await?;
             assert_that!(response.status().as_u16(), eq(303));
@@ -438,15 +438,15 @@ async fn mutation_schema_failure_preserves_history_and_allows_a_restored_control
         assert_that!(
             html.as_str(),
             contains_substring(
-                "We cannot confirm your save yet. Return to your ranking to check the original save."
+                "We cannot confirm your save yet. Return to your books to check your save."
             )
         );
-        assert_that!(html.as_str(), contains_substring("Check original save"));
+        assert_that!(html.as_str(), contains_substring("Check your save"));
         assert_that!(
             html.as_str(),
             not(contains_substring("action=\"/recover\""))
         );
-        assert_that!(html.as_str(), contains_substring("Return to your ranking"));
+        assert_that!(html.as_str(), contains_substring("Return to your books"));
         let failure = operation_record(&app, kind, 0).await?;
         assert_that!(
             failure.fact.outcome,
@@ -574,10 +574,7 @@ async fn original_save_check_reports_unresolved_fresh_and_existing_results() -> 
         .await?
         .text()
         .await?;
-    assert_that!(
-        html.as_str(),
-        contains_substring("We confirmed the original save.")
-    );
+    assert_that!(html.as_str(), contains_substring("We confirmed your save."));
     assert_that!(
         html.as_str(),
         not(contains_substring("We saved this book at position"))
@@ -914,15 +911,15 @@ async fn concurrent_registration_converges_and_rejected_start_retains_metadata()
     let rejected = post(&app, &a, "/add", &stale).await?.text().await?;
     assert_that!(
         rejected.as_str(),
-        contains_substring("Your ranking changed. Review it before you try again.")
+        contains_substring("Your books changed. Review them before you try again.")
     );
     assert_that!(
         rejected.as_str(),
-        contains_substring("<title>Review your ranking · Book Smartz</title>")
+        contains_substring("<title>Review your books · Book Smartz</title>")
     );
     assert_that!(
         rejected.as_str(),
-        contains_substring(">Review your ranking</h1>")
+        contains_substring(">Review your books</h1>")
     );
     assert_that!(
         store(&app)
@@ -948,7 +945,7 @@ async fn concurrent_registration_converges_and_rejected_start_retains_metadata()
             .text()
             .await?
             .as_str(),
-        contains_substring("This book is already in your ranking.")
+        contains_substring("You already added this book.")
     );
     let body = app.ranking(&a).await?.text().await?;
     assert_that!(body.as_str(), contains_substring("Refreshed title"));
@@ -980,8 +977,8 @@ async fn concurrent_registration_converges_and_rejected_start_retains_metadata()
     assert_that!(
         reasons,
         eq(&vec![
-            "Your ranking changed. Review it before you try again.".to_owned(),
-            "This book is already in your ranking.".to_owned()
+            "Your books changed. Review them before you try again.".to_owned(),
+            "You already added this book.".to_owned()
         ])
     );
     Ok(())
@@ -1004,9 +1001,7 @@ async fn failed_save_blocks_new_actions_and_recovers_frozen_expired_intent_after
     let response = post(&app, &cookie, "/add", &values).await?;
     assert_that!(
         response.text().await?.as_str(),
-        contains_substring(
-            "We cannot confirm your save yet. Check the original save before you try again."
-        )
+        contains_substring("We cannot confirm your save yet. Check it before you try again.")
     );
     let diagnostic = app.diagnostic("checking", "unconfirmed").await?;
     assert_that!(
@@ -1039,13 +1034,13 @@ async fn failed_save_blocks_new_actions_and_recovers_frozen_expired_intent_after
             .text()
             .await?
             .as_str(),
-        contains_substring("Check the original save before you add another book.")
+        contains_substring("Check your save before you add another book.")
     );
     assert_that!(store(&app).load_application_history(id).await?, eq(&before));
     app.restart().await?;
     assert_that!(
         app.ranking(&cookie).await?.text().await?.as_str(),
-        contains_substring("Check original save")
+        contains_substring("Check your save")
     );
     sqlx::query("DROP TRIGGER reject_web_ranking ON book_smartz.ranking_events")
         .execute(&app.pool)
@@ -1106,7 +1101,7 @@ async fn matching_event_identity_with_different_contents_stays_checking() -> any
             .text()
             .await?
             .as_str(),
-        contains_substring("Check the original save before")
+        contains_substring("Check it before")
     );
     let history = store(&app).load_application_history(id).await?;
     let original = &history[0].envelope()["data"];
@@ -1141,7 +1136,7 @@ async fn matching_event_identity_with_different_contents_stays_checking() -> any
             .text()
             .await?
             .as_str(),
-        contains_substring("Check the original save before")
+        contains_substring("Check it before")
     );
     assert_that!(
         store(&app).load_application_history(id).await?,
@@ -1150,7 +1145,7 @@ async fn matching_event_identity_with_different_contents_stays_checking() -> any
     assert_that!(
         app.ranking(&cookie).await?.text().await?.as_str(),
         contains_substring(
-            "We cannot confirm an earlier save yet. Check the original save before you change your ranking."
+            "We cannot confirm your save yet. Check it before you change your books."
         )
     );
     Ok(())
@@ -1208,7 +1203,7 @@ async fn real_lost_commit_acknowledgement_and_cancelled_process_recover_one_orig
             proxy.disconnect();
             assert_that!(
                 request.await??.text().await?.as_str(),
-                contains_substring("Check the original save before")
+                contains_substring("Check it before")
             );
             assert_lost_acknowledgement_fact(
                 &app,
@@ -1293,7 +1288,7 @@ async fn in_flight_absent_ranking_stays_checking_until_original_action_is_recove
     assert_that!(
         response.text().await?.as_str(),
         contains_substring(
-            "We cannot confirm an earlier save yet. Check the original save before you change your ranking."
+            "We cannot confirm your save yet. Check it before you change your books."
         )
     );
     app.process.0.kill()?;
@@ -1316,7 +1311,7 @@ async fn in_flight_absent_ranking_stays_checking_until_original_action_is_recove
             .text()
             .await?
             .as_str(),
-        contains_substring("Check the original save before")
+        contains_substring("Check your save before")
     );
     assert_that!(store(&app).load_application_history(id).await?, eq(&before));
     let recovery = vec![
@@ -1756,9 +1751,7 @@ async fn uncertain_preference_blocks_answers_and_restores_original_after_restart
             .text()
             .await?
             .as_str(),
-        contains_substring(
-            "We cannot confirm your save yet. Check the original save before you try again."
-        )
+        contains_substring("We cannot confirm your save yet. Check it before you try again.")
     );
     let history = store(&app).load_application_history(id).await?;
     assert_that!(
@@ -1767,7 +1760,7 @@ async fn uncertain_preference_blocks_answers_and_restores_original_after_restart
             .text()
             .await?
             .as_str(),
-        contains_substring("Check the original save before you choose another book.")
+        contains_substring("Check your save before you choose another book.")
     );
     assert_that!(
         store(&app).load_application_history(id).await?,
@@ -1776,7 +1769,7 @@ async fn uncertain_preference_blocks_answers_and_restores_original_after_restart
     app.provider.reset().await;
     app.restart().await?;
     let body = app.ranking(&cookie).await?.text().await?;
-    assert_that!(body.as_str(), contains_substring("Check original save"));
+    assert_that!(body.as_str(), contains_substring("Check your save"));
     assert_that!(body.as_str(), contains_substring("disabled"));
     sqlx::query("DROP TRIGGER reject_web_ranking ON book_smartz.ranking_events")
         .execute(&app.pool)
@@ -1866,7 +1859,7 @@ async fn real_ranking_commit_ack_loss_and_cancellation_preserve_frozen_commands(
             proxy.disconnect();
             assert_that!(
                 request.await??.text().await?.as_str(),
-                contains_substring("Check the original save before")
+                contains_substring("Check it before")
             );
             assert_lost_acknowledgement_fact(
                 &app,
@@ -1955,7 +1948,9 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
     add_work(&app, &cookie, id, "OL708W", "Candidate").await?;
     assert_that!(
         app.ranking(&cookie).await?.text().await?.as_str(),
-        contains_substring("You saved no choices for this book yet.")
+        not(contains_substring(
+            "You saved no choices for this book yet."
+        ))
     );
     let answer = preference(&app, &cookie, "opponent").await?;
     assert_that!(
@@ -1988,7 +1983,7 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
     );
     assert_that!(
         html.as_str(),
-        contains_substring("You saved 1 choice for this book.")
+        not(contains_substring("You saved 1 choice for this book."))
     );
     app.restart().await?;
     let other = app.login("pause-reader").await?;
@@ -2020,7 +2015,7 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
     );
     assert_that!(
         app.ranking(&other).await?.text().await?.as_str(),
-        contains_substring("You saved 1 choice for this book.")
+        not(contains_substring("You saved 1 choice for this book."))
     );
     let second = preference(&app, &other, "opponent").await?;
     assert_that!(
@@ -2033,7 +2028,7 @@ async fn pause_resume_retains_the_unanswered_pair_after_preference_and_restart()
     let html = app.ranking(&other).await?.text().await?;
     assert_that!(
         html.as_str(),
-        contains_substring("You saved 2 choices for this book.")
+        not(contains_substring("You saved 2 choices for this book."))
     );
     assert_that!(
         html.as_str(),
@@ -2115,7 +2110,7 @@ async fn placement_actions_authorize_each_post_and_reconcile_before_expired_sess
                 .text()
                 .await?
                 .as_str(),
-            contains_substring("Check the original save before")
+            contains_substring("Check it before")
         );
         let history = store(&app).load_application_history(id).await?;
         let html = app.ranking(&cookie).await?.text().await?;
@@ -2127,7 +2122,7 @@ async fn placement_actions_authorize_each_post_and_reconcile_before_expired_sess
                 .text()
                 .await?
                 .as_str(),
-            contains_substring("Check the original save before")
+            contains_substring("Check your save before")
         );
         assert_that!(
             store(&app).load_application_history(id).await?,
@@ -2402,7 +2397,7 @@ async fn initial_intent_ack_loss_reports_checking_before_original_action_recover
         proxy.disconnect();
         assert_that!(
             request.await??.text().await?.as_str(),
-            contains_substring("Check the original save before")
+            contains_substring("Check it before")
         );
         assert_lost_acknowledgement_fact(
             &app,
@@ -2527,7 +2522,7 @@ async fn evidence_controls_preserve_intent_order_duplicates_and_payload_identity
     assert_that!(
         html.as_str(),
         contains_substring(
-            "We cannot confirm an earlier save yet. Check the original save before you change your ranking."
+            "We cannot confirm your save yet. Check it before you change your books."
         )
     );
     // Enumeration uses the payload identity; recovery requires a correlated intent.
@@ -2552,7 +2547,7 @@ async fn evidence_controls_preserve_intent_order_duplicates_and_payload_identity
             .text()
             .await?
             .as_str(),
-        contains_substring("Check the original save before")
+        contains_substring("Check your save before")
     );
     assert_that!(store(&app).load_application_history(id).await?, eq(&before));
     assert_that!(store(&app).load_ranking_documents(id).await?.len(), eq(0));
@@ -2619,7 +2614,7 @@ async fn evidence_recovery_preserves_validation_scope_first_facts_and_terminal_p
         let prepared = json!({"document":document});
         let missing = json!({"document":{}});
         let invalid = json!({"document":{"id":"invalid-uuid"}});
-        let rejected = json!({"reason":"Your ranking changed. Reload and confirm a fresh action."});
+        let rejected = json!({"reason":"Your books changed. Reload and confirm a fresh action."});
         let malformed = json!({"reason":false});
         let mut facts = vec![(action, "add.intent", intent.clone())];
         let (ranking_status, recovery_status, message, controls) = match name {
@@ -2638,7 +2633,7 @@ async fn evidence_recovery_preserves_validation_scope_first_facts_and_terminal_p
                 (
                     200,
                     200,
-                    Some("Your ranking changed. Reload and confirm a fresh action."),
+                    Some("Your books changed. Reload and confirm a fresh action."),
                     0,
                 )
             }
@@ -2665,9 +2660,7 @@ async fn evidence_recovery_preserves_validation_scope_first_facts_and_terminal_p
                 (
                     500,
                     200,
-                    Some(
-                        "We cannot confirm your save yet. Check the original save before you try again.",
-                    ),
+                    Some("We cannot confirm your save yet. Check it before you try again."),
                     0,
                 )
             }
@@ -2687,9 +2680,7 @@ async fn evidence_recovery_preserves_validation_scope_first_facts_and_terminal_p
                 (
                     500,
                     200,
-                    Some(
-                        "We cannot confirm your save yet. Check the original save before you try again.",
-                    ),
+                    Some("We cannot confirm your save yet. Check it before you try again."),
                     0,
                 )
             }
@@ -2702,7 +2693,7 @@ async fn evidence_recovery_preserves_validation_scope_first_facts_and_terminal_p
                 (
                     500,
                     200,
-                    Some("Your ranking changed. Reload and confirm a fresh action."),
+                    Some("Your books changed. Reload and confirm a fresh action."),
                     0,
                 )
             }
@@ -2711,9 +2702,7 @@ async fn evidence_recovery_preserves_validation_scope_first_facts_and_terminal_p
                 (
                     500,
                     200,
-                    Some(
-                        "We cannot confirm your save yet. Check the original save before you try again.",
-                    ),
+                    Some("We cannot confirm your save yet. Check it before you try again."),
                     0,
                 )
             }
@@ -2722,9 +2711,7 @@ async fn evidence_recovery_preserves_validation_scope_first_facts_and_terminal_p
                 (
                     500,
                     200,
-                    Some(
-                        "We cannot confirm your save yet. Check the original save before you try again.",
-                    ),
+                    Some("We cannot confirm your save yet. Check it before you try again."),
                     0,
                 )
             }
@@ -2864,7 +2851,7 @@ async fn evidence_first_preparation_requires_the_complete_envelope_including_opt
             assert_that!(
                 response.text().await?.as_str(),
                 contains_substring(
-                    "We cannot confirm your save yet. Check the original save before you try again."
+                    "We cannot confirm your save yet. Check it before you try again."
                 )
             );
         }
@@ -2926,7 +2913,7 @@ async fn display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_rep
     );
     assert_that!(
         foreign.as_str(),
-        contains_substring("Your ranking is empty.")
+        contains_substring("You have no books yet.")
     );
     let mut tampered = token.as_bytes().to_vec();
     let signature = token.rfind('.').unwrap() + 1;
@@ -2973,10 +2960,7 @@ async fn display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_rep
         .await?
         .text()
         .await?;
-    assert_that!(
-        html.as_str(),
-        contains_substring("We already saved this action.")
-    );
+    assert_that!(html.as_str(), contains_substring("We already saved this."));
     assert_that!(
         html.as_str(),
         not(contains_substring("We saved this book at position"))
@@ -3000,12 +2984,7 @@ async fn display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_rep
         .await?
         .text()
         .await?;
-    assert_that!(
-        html.as_str(),
-        contains_substring(
-            "Book added. Compare it with books in your ranking to find its position."
-        )
-    );
+    assert_that!(html.as_str(), contains_substring("Book added."));
     assert_that!(
         html.as_str(),
         not(contains_substring("We saved this book at position"))
@@ -3038,7 +3017,7 @@ async fn display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_rep
         )
     );
     assert_that!(
-        regex::Regex::new(r"<button[^>]*disabled[^>]*>Add to your ranking</button>")?
+        regex::Regex::new(r"<button[^>]*disabled[^>]*>Add to your books</button>")?
             .is_match(&selected),
         eq(true)
     );

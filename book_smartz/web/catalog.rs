@@ -282,7 +282,7 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
     let mut diagnostic = app.diagnostics.catalog_search();
     if !valid_text(&input.query, 256) || !(1..=1_000_000).contains(&input.page) {
         diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput);
-        return Err(bad_request("Enter a title or author with 1 to 256 characters. Return to your ranking to start a new search.").into());
+        return Err(bad_request("Enter a title or author with 1 to 256 characters. Return to your books to start a new search.").into());
     }
     let Discovery {
         results,
@@ -312,11 +312,9 @@ pub async fn search(cx: &Cx, Form(input): Form<SearchInput>) -> Result<impl View
             <body>
                 book_smartz_views::heading()
                 <main class="library-workspace">
-                    <section class="active-task" aria-label="Book ranking workspace">
-                        <h1 tabindex="-1" data-response-focus="task">
-                            "Find a book to rank"
-                        </h1>
-                        <a href="/ranking">"Your saved ranking"</a>
+                    <section class="active-task" aria-label="Books workspace">
+                        <h1 tabindex="-1" data-response-focus="task">"Find a book"</h1>
+                        <a href="/ranking">"Your books"</a>
                         if let Some(message) = message {
                             book_smartz_views::feedback(
                                 message: message.to_owned(),
@@ -434,7 +432,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
             <body>
                 book_smartz_views::heading()
                 <main class="library-workspace">
-                    <section class="active-task" aria-label="Book ranking workspace">
+                    <section class="active-task" aria-label="Books workspace">
                         <h1 tabindex="-1" data-response-focus="task">
                             "Selected book"
                         </h1>
@@ -442,9 +440,6 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
                             display: presentation(&work),
                             compact: false
                         )
-                        <p>
-                            "You can add this book for 15 minutes after your search. After that, search for the book again."
-                        </p>
                         if let Some(message) = gate {
                             book_smartz_views::feedback(
                                 message: message.to_owned(),
@@ -466,11 +461,11 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
                             >
                             <input type="hidden" name="offer" value=(offer)>
                             <button type="submit" disabled=(blocked)>
-                                "Add to your ranking"
+                                "Add to your books"
                             </button>
                             book_smartz_views::submission_status()
                         </form>
-                        <a href="/ranking">"Return to your ranking"</a>
+                        <a href="/ranking">"Return to your books"</a>
                     </section>
                     crate::saved_ranking(
                         reader: session.reader,

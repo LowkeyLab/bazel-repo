@@ -233,11 +233,10 @@ impl From<Failure> for LookupFailure {
 impl Failure {
     pub(super) const fn message(&self) -> &'static str {
         match self {
-            Self::Limited => "Search received too many requests. Wait a moment, then search again.",
-            Self::Unavailable => "Search is unavailable. Try again.",
-            Self::Timeout => "Search took too long to respond. Try again.",
-            Self::Malformed => "We could not read the search results. Try again.",
-            Self::Oversized => "The search results were too large to load. Try again.",
+            Self::Limited => "Wait a moment, then search again.",
+            Self::Unavailable | Self::Timeout | Self::Malformed | Self::Oversized => {
+                "Search is unavailable. Try again."
+            }
         }
     }
 }

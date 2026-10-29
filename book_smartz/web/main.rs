@@ -393,7 +393,7 @@ async fn home() -> Result<impl View> {
                     <p>
                         "Put the books you read in order of preference. Choose between two books at a time to build your private ranking."
                     </p>
-                    <p>"After sign-in, find your first book to start your ranking."</p>
+                    <p>"Find your first book."</p>
                     <a class="primary-link" href="/auth/google">
                         "Sign in with Google"
                     </a>
@@ -415,7 +415,7 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
         <html lang="en">
             <head>
                 <meta name="viewport" content="width=device-width, initial-scale=1">
-                <title>"Your ranking · Book Smartz"</title>
+                <title>"Your books · Book Smartz"</title>
                 book_smartz_views::assets()
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
                 <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
@@ -424,7 +424,7 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
             <body>
                 book_smartz_views::heading()
                 <main class="library-workspace">
-                    <section class="active-task" aria-label="Book ranking workspace">
+                    <section class="active-task" aria-label="Books workspace">
                         actions::recovery_controls(
                             reader: session.reader,
                             csrf: session.csrf.clone()
@@ -439,9 +439,7 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                             reader: session.reader,
                             csrf: session.csrf.clone()
                         )
-                        <h1 tabindex="-1" data-response-focus="task">
-                            "Find a book to rank"
-                        </h1>
+                        <h1 tabindex="-1" data-response-focus="task">"Find a book"</h1>
                         <form method="post" action="/search">
                             <input type="hidden" name="csrf" value=(&session.csrf)>
                             <label>
@@ -548,11 +546,10 @@ async fn saved_ranking(
             id="saved-ranking"
             aria-labelledby="saved-ranking-heading"
         >
-            <h2 id="saved-ranking-heading">"Your saved ranking"</h2>
-            <p>"Books in your order of preference"</p>
+            <h2 id="saved-ranking-heading">"Your books"</h2>
             if entries.is_empty() {
-                <p>"Your ranking is empty."</p>
-                <p>"Find a book you read to start your ranking."</p>
+                <p>"You have no books yet."</p>
+                <p>"Find a book you read."</p>
             }
             <ol>
                 for (id, display, completion_action) in entries {
@@ -564,9 +561,6 @@ async fn saved_ranking(
                     </li>
                 }
             </ol>
-            <p>
-                "Finish the comparisons for each new book to give it a position in your ranking."
-            </p>
         </section>
     })
 }
@@ -621,9 +615,11 @@ fn access_error(cx: &Cx, status: topcoat::router::StatusCode) -> topcoat::view::
         "Action unavailable"
     };
     let message = if sign_in {
-        "Sign in to view your private ranking. Then choose the action you want to submit."
+        "Sign in to view your books."
+    } else if matches!(request::uri(cx).path(), "/select" | "/add") {
+        "Search for this book again."
     } else {
-        "Return to your ranking. Review the current state before you submit another action."
+        "Return to your books and review them before you try again."
     };
     view! {
         <!DOCTYPE html>
@@ -648,7 +644,7 @@ fn access_error(cx: &Cx, status: topcoat::router::StatusCode) -> topcoat::view::
                             "Sign in with Google"
                         </a>
                     } else {
-                        <a href="/ranking">"Return to your ranking"</a>
+                        <a href="/ranking">"Return to your books"</a>
                     }
                 </main>
             </body>

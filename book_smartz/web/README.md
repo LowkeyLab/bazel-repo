@@ -123,7 +123,7 @@ blank author/cover fields preserve previously saved data. Rankings use retained
 metadata and local fallback for older identities without provider requests.
 
 An interrupted or unacknowledged action stays checking and blocks new ranking
-actions. Reload exposes **Check original save**, an authorized, origin and cross-site request forgery protected
+actions. Reload exposes **Check your save**, an authorized, origin and cross-site request forgery protected
 POST. Recovery first reconciles the original event identity and full envelope.
 A missing read is inconclusive. Execution of an unresolved original command
 acquires the same reader-stream lock as storage commands, preserves all frozen
@@ -138,8 +138,8 @@ results don't establish deployment or live-provider readiness.
 ## Preference comparisons
 
 The main workspace shows the pending candidate and either-book preference controls.
-Saved ranks stay beside it on desktop and below it on small screens. Progress counts
-saved preferences without predicting a comparison total. The Add control waits until the reader completes the placement and confirms any
+Saved ranks stay beside it on desktop and below it on small screens.
+The app omits routine saved-choice counts. The Add control waits until the reader completes the placement and confirms any
 uncertain save. The server independently enforces this gate.
 New preference actions accept only candidate/opponent answers, preserving historical Skip replay.
 Pause and Resume each require an independently authorized POST with session-bound
@@ -229,7 +229,7 @@ Full-page screenshots and `motion-evidence.json` remain in the Bazel test output
 Use `--test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=<tested-commit>` to identify the
 commit in both evidence files. Final acceptance must force fresh test execution.
 The native journey disables JavaScript and checks first Add, comparison,
-uncertainty, read/reload/sign-in without recovery, explicit Check original save,
+uncertainty, read/reload/sign-in without recovery, explicit Check your save,
 Resume, and keyboard completion. Fixture controls remain outside production routes.
 A failed remote cover exposes one accessible placeholder and retains its catalog URL.
 
