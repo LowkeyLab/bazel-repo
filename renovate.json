@@ -20,6 +20,12 @@
       "groupName": "Topcoat"
     },
     {
+      "description": "Update Juniper and its Axum integration together",
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["juniper", "juniper_axum"],
+      "groupName": "Juniper"
+    },
+    {
       "matchManagers": ["bazel-module"],
       "matchDatasources": ["maven"],
       "postUpgradeTasks": {
