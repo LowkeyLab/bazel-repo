@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Private profile prototype · Book Smartz</title>
+    <!-- Three throwaway layouts at ?variant=A, B, or C. No real authentication or persistence. -->
+    <style>
+      @font-face {
+        font-family: Literata;
+        src: url("fonts/literata.ttf");
+        font-display: swap;
+      }
+      @font-face {
+        font-family: "Source Sans 3";
+        src: url("fonts/source-sans-3.ttf");
+        font-display: swap;
+      }
+      :root {
+        color-scheme: light;
+        --library: #f1f5fb;
+        --paper: #fff;
+        --ink: #18243a;
+        --action: #315bc7;
+        --confirmation: #216b52;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--library);
+        color: var(--ink);
+        font:
+          1.0625rem/1.5 "Source Sans 3",
+          sans-serif;
+      }
+      h1,
+      h2,
+      .name {
+        font-family: Literata, Georgia, serif;
+        font-weight: 550;
+        line-height: 1.25;
+      }
+      h1 {
+        font-size: clamp(1.8rem, 4vw, 2.7rem);
+        margin: 0 0 1rem;
+      }
+      h2 {
+        font-size: 1.4rem;
+        margin: 0 0 1.25rem;
+      }
+      p {
+        margin: 0 0 1rem;
+      }
+      a {
+        color: var(--action);
+        text-underline-offset: 4px;
+      }
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1rem 2rem;
+        padding: 1.25rem max(1rem, calc((100vw - 76rem) / 2));
+        background: var(--paper);
+        border-bottom: 1px solid #cbd5e1;
+      }
+      .brand {
+        color: var(--ink);
+        font:
+          1.4rem Literata,
+          Georgia,
+          serif;
+        text-decoration: none;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+      nav a[aria-current] {
+        color: var(--ink);
+        font-weight: 650;
+      }
+      main {
+        width: min(70rem, calc(100% - 2rem));
+        margin: 2.5rem auto 8rem;
+      }
+      .private-note {
+        margin-bottom: 1.75rem;
+      }
+      .profile {
+        background: var(--paper);
+        min-width: 0;
+      }
+      .bookplate {
+        border-top: 5px solid var(--action);
+        padding: 2rem;
+      }
+      .name {
+        font-size: clamp(1.8rem, 4vw, 3rem);
+        margin-bottom: 1rem;
+      }
+      .name,
+      .biography,
+      #status {
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+      }
+      .biography {
+        max-width: 65ch;
+      }
+      .count {
+        display: inline-block;
+        margin-top: 0.5rem;
+      }
+      .editor {
+        padding: 2rem;
+        border-top: 1px solid #cbd5e1;
+      }
+      .field {
+        margin-bottom: 1.4rem;
+        min-width: 0;
+      }
+      label {
+        display: block;
+        font-weight: 650;
+      }
+      input,
+      textarea,
+      button,
+      select {
+        font: inherit;
+        border-radius: 0.375rem;
+      }
+      input,
+      textarea,
+      select {
+        background: var(--paper);
+        color: var(--ink);
+        border: 1px solid #58657b;
+        padding: 0.65rem 0.75rem;
+      }
+      input,
+      textarea {
+        display: block;
+        width: 100%;
+        margin: 0.5rem 0;
+        min-width: 0;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 8rem;
+      }
+      .hint {
+        font-size: 0.95rem;
+        color: #475569;
+      }
+      button {
+        border: 1px solid var(--action);
+        padding: 0.65rem 1rem;
+        background: var(--action);
+        color: var(--paper);
+        cursor: pointer;
+        min-height: 44px;
+      }
+      button.secondary {
+        background: var(--paper);
+        color: var(--action);
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.6;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      :focus-visible {
+        outline: 3px solid var(--action);
+        outline-offset: 4px;
+      }
+      [aria-invalid="true"] {
+        border: 2px solid #a02a2a;
+      }
+      .error {
+        color: #a02a2a;
+      }
+      .status {
+        margin: 1rem 0;
+        padding: 1rem;
+        background: var(--paper);
+        border-left: 4px solid var(--action);
+      }
+      .status.confirmed {
+        border-color: var(--confirmation);
+        color: var(--confirmation);
+      }
+      .status:empty {
+        display: none;
+      }
+      .recovery {
+        margin: 1rem 0;
+      }
+      .variant-a .profile {
+        max-width: 44rem;
+        margin-inline: auto;
+      }
+      .variant-a .bookplate,
+      .variant-a .editor {
+        padding: clamp(1.25rem, 4vw, 3rem);
+      }
+      .variant-b .bookplate {
+        padding: 2rem 3rem;
+        border-left: 8px solid var(--action);
+        border-top: 0;
+      }
+      .variant-b .fields {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr;
+        gap: 2.5rem;
+      }
+      .variant-c .bookplate {
+        background: var(--action);
+        color: var(--paper);
+        padding: 3rem;
+      }
+      .variant-c .bookplate a {
+        color: var(--paper);
+      }
+      .variant-c .editor {
+        max-width: 46rem;
+        margin-inline: auto;
+        border-top: 0;
+      }
+      .demo {
+        margin: 2rem 0;
+        border: 1px dashed #58657b;
+        padding: 1.25rem;
+      }
+      .demo summary {
+        cursor: pointer;
+        font-weight: 650;
+      }
+      .demo-controls {
+        display: flex;
+        align-items: end;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+      .demo-controls label {
+        font-weight: 400;
+      }
+      .demo-controls select {
+        display: block;
+        max-width: 100%;
+      }
+      .state {
+        margin-top: 1rem;
+        overflow-wrap: anywhere;
+      }
+      .switcher {
+        position: fixed;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+        background: var(--ink);
+        color: var(--paper);
+        padding: 0.5rem;
+        border-radius: 0.6rem;
+        max-width: calc(100% - 2rem);
+        box-shadow: 0 3px 15px #18243a33;
+      }
+      .switcher button {
+        background: var(--ink);
+        border-color: #cbd5e1;
+      }
+      .switcher output {
+        min-width: 12rem;
+        text-align: center;
+        font-size: 0.95rem;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @media (max-width: 600px) {
+        main {
+          margin-top: 1.5rem;
+        }
+        .variant-b .fields {
+          display: block;
+        }
+        .bookplate,
+        .editor,
+        .variant-b .bookplate,
+        .variant-c .bookplate {
+          padding: 1.25rem;
+        }
+        header {
+          gap: 0.75rem;
+        }
+        .switcher {
+          gap: 0.35rem;
+        }
+        .switcher output {
+          min-width: 0;
+          width: 11rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="#" data-demo-link>Book Smartz</a>
+      <nav aria-label="Books">
+        <a href="#" data-demo-link>Find a book</a>
+        <a href="#" data-demo-link>Your books</a>
+        <a href="#" aria-current="page">Your profile</a>
+      </nav>
+      <button id="sign-out" class="secondary" type="button">
+        Sign out of this browser
+      </button>
+    </header>
+    <main class="variant-a" id="main">
+      <h1>Your profile</h1>
+      <p class="private-note">Only you can see your profile.</p>
+      <div
+        id="status"
+        class="status"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        tabindex="-1"
+      ></div>
+      <div class="recovery" id="recovery" hidden>
+        <button type="button" id="check-save">Check your save</button>
+        <button type="button" id="sign-in" hidden>Sign in with Google</button>
+      </div>
+      <article class="profile" aria-label="Your saved profile" id="profile">
+        <section class="bookplate" aria-label="Saved profile">
+          <h2 class="name" id="saved-name"></h2>
+          <p class="biography" id="saved-bio"></p>
+          <a class="count" id="count" href="#" data-demo-link></a>
+        </section>
+        <form class="editor" id="editor" novalidate>
+          <h2>Edit your profile</h2>
+          <div class="fields">
+            <div class="field">
+              <label for="display-name">Display name</label>
+              <p class="hint" id="name-hint">Optional</p>
+              <input
+                id="display-name"
+                name="displayName"
+                autocomplete="nickname"
+                aria-describedby="name-hint"
+              />
+            </div>
+            <div class="field">
+              <label for="biography">Biography</label>
+              <textarea
+                id="biography"
+                name="biography"
+                rows="4"
+                aria-describedby="bio-hint bio-error"
+              ></textarea>
+              <p id="bio-hint" class="hint">
+                Optional. <span id="bio-count">0</span> of 500 characters.
+              </p>
+              <p id="bio-error" class="error" hidden>
+                Use 500 characters or fewer.
+              </p>
+            </div>
+          </div>
+          <div class="actions">
+            <button type="submit" id="save">Save changes</button>
+            <button type="button" class="secondary" id="discard">
+              Discard changes
+            </button>
+          </div>
+        </form>
+      </article>
+      <details class="demo" open>
+        <summary>Prototype controls</summary>
+        <p>
+          Compare layouts and save states. All readers and saves are simulated.
+          This page does not change your account.
+        </p>
+        <div class="demo-controls">
+          <label
+            >Example profile
+            <select id="sample">
+              <option value="imported">Imported Google name</option>
+              <option value="empty">Empty fields and no ranked books</option>
+              <option value="long">Long name and biography</option>
+              <option value="unicode">Non-Latin name</option>
+              <option value="invalid">Biography exceeds 500 characters</option>
+            </select>
+          </label>
+          <button type="button" class="secondary" id="load">
+            Load example
+          </button>
+          <label
+            >Next save result
+            <select id="outcome">
+              <option value="success">Confirmed save</option>
+              <option value="failure">Rejected save</option>
+              <option value="uncertain">Unconfirmed save</option>
+              <option value="conflict">Another browser saved first</option>
+              <option value="expired">Expired session</option>
+            </select>
+          </label>
+        </div>
+        <p class="state" id="state"></p>
+        <p class="hint">
+          Conflict simulates a reload. Sign-in simulates a return to the same
+          tab for the same reader.
+        </p>
+        <p class="hint">
+          The draft exists only in memory. Closing or reloading this prototype
+          clears it. Fonts use adjacent repository files.
+        </p>
+      </details>
+    </main>
+    <div class="switcher" aria-label="Prototype layouts">
+      <button type="button" id="previous" aria-label="Previous layout">
+        ←
+      </button>
+      <output id="variant-label" aria-live="polite"></output>
+      <button type="button" id="next" aria-label="Next layout">→</button>
+    </div>
+    <script>
+      const byId = (id) => document.getElementById(id);
+      const names = [
+        "A · Centered bookplate",
+        "B · Wide editing columns",
+        "C · Full-width bookplate",
+      ];
+      const keys = ["A", "B", "C"];
+      let variant = Math.max(
+        0,
+        keys.indexOf(new URL(location.href).searchParams.get("variant")),
+      );
+      let saved = {
+        name: "Alex Morgan",
+        bio: "Books for long train journeys.",
+        count: 12,
+      };
+      let phase = "ready";
+      let pending = null;
+      let generation = 0;
+      const nameField = byId("display-name");
+      const bioField = byId("biography");
+      const draft = () => ({ name: nameField.value, bio: bioField.value });
+      const dirty = () =>
+        nameField.value !== saved.name || bioField.value !== saved.bio;
+      function message(text, confirmed = false) {
+        byId("status").textContent = text;
+        byId("status").classList.toggle("confirmed", confirmed);
+      }
+      function renderSaved() {
+        byId("saved-name").textContent = saved.name || "Your profile";
+        byId("saved-bio").textContent = saved.bio;
+        byId("saved-bio").hidden = !saved.bio;
+        byId("count").textContent =
+          `${saved.count} ranked ${saved.count === 1 ? "book" : "books"} · Your books`;
+      }
+      function restoreFields() {
+        nameField.value = saved.name;
+        bioField.value = saved.bio;
+        byId("bio-error").hidden = true;
+        bioField.removeAttribute("aria-invalid");
+      }
+      function render() {
+        const locked = phase !== "ready";
+        nameField.disabled = locked;
+        bioField.disabled = locked;
+        byId("save").disabled = locked || !dirty();
+        byId("discard").disabled = locked || !dirty();
+        byId("save").textContent =
+          phase === "saving" ? "Saving…" : "Save changes";
+        byId("editor").setAttribute("aria-busy", String(phase === "saving"));
+        byId("bio-count").textContent = Array.from(bioField.value).length;
+        byId("recovery").hidden =
+          phase !== "expired" &&
+          phase !== "uncertain" &&
+          phase !== "signed-out";
+        byId("check-save").hidden = phase !== "uncertain";
+        byId("sign-in").hidden = phase !== "expired" && phase !== "signed-out";
+        byId("profile").hidden = phase === "signed-out";
+        byId("state").textContent =
+          `State: ${phase}. Unsaved changes: ${dirty() ? "yes" : "no"}. Saved rank count: ${saved.count}.`;
+      }
+      function applyVariant(next, writeUrl = true) {
+        variant = (next + keys.length) % keys.length;
+        byId("main").className = `variant-${keys[variant].toLowerCase()}`;
+        byId("variant-label").textContent = names[variant];
+        if (writeUrl) {
+          const url = new URL(location.href);
+          url.searchParams.set("variant", keys[variant]);
+          history.replaceState(null, "", url);
+        }
+      }
+      byId("previous").onclick = () => applyVariant(variant - 1);
+      byId("next").onclick = () => applyVariant(variant + 1);
+      document.addEventListener("keydown", (event) => {
+        if (
+          event.target.closest(
+            "input, textarea, select, button, [contenteditable]",
+          )
+        )
+          return;
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+          event.preventDefault();
+          applyVariant(variant + (event.key === "ArrowRight" ? 1 : -1));
+        }
+      });
+      byId("editor").oninput = () => {
+        if (
+          !byId("bio-error").hidden &&
+          Array.from(bioField.value).length <= 500
+        ) {
+          byId("bio-error").hidden = true;
+          bioField.removeAttribute("aria-invalid");
+        }
+        if (phase === "ready") message("");
+        render();
+      };
+      byId("discard").onclick = () => {
+        restoreFields();
+        message("Changes discarded.");
+        render();
+        nameField.focus();
+      };
+      byId("editor").onsubmit = (event) => {
+        event.preventDefault();
+        if (phase !== "ready" || !dirty()) return;
+        if (Array.from(bioField.value).length > 500) {
+          byId("bio-error").hidden = false;
+          bioField.setAttribute("aria-invalid", "true");
+          message("Review your biography.");
+          bioField.focus();
+          return;
+        }
+        const submitted = draft();
+        const outcome = byId("outcome").value;
+        const ticket = ++generation;
+        phase = "saving";
+        message("Saving…");
+        render();
+        setTimeout(() => {
+          if (ticket !== generation) return;
+          phase = "ready";
+          if (outcome === "success") {
+            saved = { ...saved, ...submitted };
+            restoreFields();
+            message("Profile saved.", true);
+          } else if (outcome === "failure") {
+            message("We could not save your profile. Try again.");
+          } else if (outcome === "conflict") {
+            saved = {
+              name: "Alex Morgan",
+              bio: "Updated in another browser.",
+              count: saved.count,
+            };
+            restoreFields();
+            message(
+              "Your profile changed in another browser. We reloaded it and discarded your unsaved changes.",
+            );
+          } else if (outcome === "expired") {
+            phase = "expired";
+            message("Sign in again to save your changes.");
+          } else {
+            phase = "uncertain";
+            pending = submitted;
+            message(
+              "We cannot confirm your save yet. Check it before you try again.",
+            );
+          }
+          renderSaved();
+          render();
+          byId("status").focus();
+        }, 1000);
+      };
+      byId("check-save").onclick = () => {
+        // This example resolves the simulated uncertain save as confirmed.
+        saved = { ...saved, ...pending };
+        pending = null;
+        phase = "ready";
+        restoreFields();
+        renderSaved();
+        message("We confirmed your save.", true);
+        render();
+        byId("status").focus();
+      };
+      byId("sign-in").onclick = () => {
+        if (phase === "signed-out") restoreFields();
+        phase = "ready";
+        message("You signed in. Review your changes before you save.");
+        render();
+        nameField.focus();
+      };
+      byId("sign-out").onclick = () => {
+        generation++;
+        nameField.value = "";
+        bioField.value = "";
+        pending = null;
+        phase = "signed-out";
+        message("You signed out. We cleared your unsaved changes.");
+        render();
+        byId("sign-in").focus();
+      };
+      byId("load").onclick = () => {
+        generation++;
+        phase = "ready";
+        pending = null;
+        const sample = byId("sample").value;
+        saved = {
+          name: "Alex Morgan",
+          bio: "Books for long train journeys.",
+          count: 12,
+        };
+        if (sample === "empty") saved = { name: "", bio: "", count: 0 };
+        if (sample === "long")
+          saved = {
+            name: "Alexandra".repeat(20),
+            bio: "Books, memory, and the places between. "
+              .repeat(13)
+              .slice(0, 500),
+            count: 1234,
+          };
+        if (sample === "unicode")
+          saved = {
+            name: "山田 はるか 📚",
+            bio: "旅の途中で読む本。\nStories for the journey.",
+            count: 1,
+          };
+        restoreFields();
+        if (sample === "invalid") bioField.value = "A".repeat(501);
+        renderSaved();
+        message("Example loaded. Earlier prototype changes were discarded.");
+        render();
+      };
+      document.querySelectorAll("[data-demo-link]").forEach((link) => {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          message("This link is a prototype. Your books remain unchanged.");
+        });
+      });
+      applyVariant(variant, false);
+      restoreFields();
+      renderSaved();
+      render();
+    </script>
+  </body>
+</html>
