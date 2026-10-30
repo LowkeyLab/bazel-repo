@@ -1332,7 +1332,7 @@ dependencies = [
  "glob",
  "hex",
  "indoc",
- "itertools",
+ "itertools 0.14.0",
  "normpath",
  "once_cell",
  "pathdiff",
@@ -1615,6 +1615,19 @@ dependencies = [
  "rustversion",
  "ryu",
  "static_assertions",
+]
+
+[[package]]
+name = "compact_str"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "79fcda08c33bb58b97008b2cdada6622500e949e060f5913361763121abd2416"
+dependencies = [
+ "castaway",
+ "cfg-if",
+ "itoa",
+ "static_assertions",
+ "zmij",
 ]
 
 [[package]]
@@ -4188,6 +4201,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b4baf93f58d4425749ca49a51c50ebab072c5df6994d08fed93541c331481dc"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4363,14 +4385,35 @@ dependencies = [
  "arcstr",
  "async-trait",
  "auto_enums",
- "chrono",
- "compact_str",
+ "compact_str 0.9.1",
  "derive_more",
  "fnv",
  "futures",
  "indexmap 2.14.2",
- "itertools",
- "juniper_codegen",
+ "itertools 0.14.0",
+ "juniper_codegen 0.17.0",
+ "ref-cast",
+ "serde",
+ "static_assertions",
+]
+
+[[package]]
+name = "juniper"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "571c64a26767dad86fe8271719cc43dd503a55607813c9ec3db5134bb2137270"
+dependencies = [
+ "arcstr",
+ "async-trait",
+ "auto_enums",
+ "chrono",
+ "compact_str 0.10.0",
+ "derive_more",
+ "fnv",
+ "futures",
+ "indexmap 2.14.2",
+ "itertools 0.15.0",
+ "juniper_codegen 0.18.0",
  "ref-cast",
  "serde",
  "static_assertions",
@@ -4385,7 +4428,7 @@ checksum = "d749d056510f6d762ceca1ae6bb53d50fd77019e5be65fe4bf2eca305a18b8ba"
 dependencies = [
  "axum",
  "bytes",
- "juniper",
+ "juniper 0.17.2",
  "juniper_graphql_ws",
  "serde",
  "serde_json",
@@ -4405,13 +4448,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "juniper_codegen"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efe73f508ada06adcf00ef6b149d93fe5aad0413def8865840230fb0d64196a0"
+dependencies = [
+ "derive_more",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+ "url",
+]
+
+[[package]]
 name = "juniper_graphql_ws"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02f74a1d6d28f29edd4e72db014229efef9b3c3baa5cdf64ebc76b82ee146fa5"
 dependencies = [
  "derive_more",
- "juniper",
+ "juniper 0.17.2",
  "juniper_subscriptions",
  "serde",
  "tokio",
@@ -4424,7 +4480,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0aeaaedf8fe890b09a712224de8bf509477194fdeb35a39c32d8ada8ac754972"
 dependencies = [
  "futures",
- "juniper",
+ "juniper 0.17.2",
 ]
 
 [[package]]
@@ -5437,7 +5493,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b570b25f7617e43d59005d0990ccb79e950a423952cea19671b7a876da390adf"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -6199,7 +6255,7 @@ dependencies = [
  "derive-where",
  "derive_more",
  "futures-util",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "mac_address",
  "ouroboros",
@@ -6261,7 +6317,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "91fa8c81c20fc8cfe78d22d9a2721ca5ef151dc4a8a7b372de218aaba33733fa"
 dependencies = [
  "heck 0.5.0",
- "itertools",
+ "itertools 0.14.0",
  "pluralizer",
  "proc-macro2",
  "quote",
@@ -7173,7 +7229,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
  "windows-sys 0.61.2",
@@ -7217,7 +7273,7 @@ dependencies = [
  "ferroid",
  "futures",
  "http",
- "itertools",
+ "itertools 0.14.0",
  "log",
  "memchr",
  "parse-display",
@@ -9024,7 +9080,7 @@ dependencies = [
  "googletest",
  "insta",
  "jsonwebtoken",
- "juniper",
+ "juniper 0.18.0",
  "juniper_axum",
  "mockall",
  "opentelemetry-appender-tracing",
