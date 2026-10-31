@@ -11,7 +11,7 @@ tool (
 require (
 	github.com/bazelbuild/rules_go v0.65.0
 	github.com/gin-contrib/cors v1.7.9
-	github.com/gin-contrib/slog v1.2.3
+	github.com/gin-contrib/slog v1.2.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.20.1
