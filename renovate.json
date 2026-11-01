@@ -26,6 +26,12 @@
       "groupName": "Juniper"
     },
     {
+      "description": "Update Astro and its Bazel patch keys together",
+      "matchManagers": ["npm", "custom.regex"],
+      "matchPackageNames": ["astro"],
+      "groupName": "Astro"
+    },
+    {
       "matchManagers": ["bazel-module"],
       "matchDatasources": ["maven"],
       "postUpgradeTasks": {
@@ -160,6 +166,13 @@
     }
   ],
   "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^MODULE\\.bazel$/"],
+      "matchStrings": ["\"astro@(?<currentValue>\\d+\\.\\d+\\.\\d+)\":"],
+      "datasourceTemplate": "npm",
+      "depNameTemplate": "astro"
+    },
     {
       "customType": "regex",
       "managerFilePatterns": ["/^MODULE\\.bazel$/"],
