@@ -1,4 +1,5 @@
 //! Private profile reads use the stored session and authoritative ranking projection.
+use serde::Deserialize;
 use sqlx::{
     PgPool, SqlSafeStr,
     migrate::{Migration, MigrationType, Migrator},
@@ -6,9 +7,14 @@ use sqlx::{
 use topcoat::{
     Result,
     context::{Cx, app_context},
-    router::{error::service_unavailable, page},
+    router::{
+        content::Form,
+        error::{forbidden, service_unavailable},
+        page,
+    },
     view::{View, view},
 };
+use uuid::Uuid;
 
 use book_smartz_storage::OperationContext;
 
@@ -21,10 +27,7 @@ mod text;
 pub use offers::Offers;
 use offers::{Offer, SaveId};
 use saves::Outcome;
-use serde::Deserialize;
 use text::{Errors, Text};
-use topcoat::router::{content::Form, error::forbidden};
-use uuid::Uuid;
 
 struct Editor {
     draft: Option<Text>,

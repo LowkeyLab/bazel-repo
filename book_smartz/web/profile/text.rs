@@ -48,8 +48,9 @@ impl Text {
 
 #[cfg(test)]
 mod tests {
-    use super::Text;
     use googletest::{assert_that, matchers::eq};
+
+    use super::Text;
     #[googletest::test]
     fn optional_text_normalizes_whitespace_and_preserves_paragraphs() {
         let empty = Text::validate("\u{0085}\t\n ", "\r\n\u{2003}").unwrap();
