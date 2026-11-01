@@ -4614,8 +4614,8 @@
         },
         {
           "importpath": "github.com/jackc/pgx/v5",
-          "sha256": "5bb85082d4aef07908c0ea914a1603ab40454968a95bf569cd89eb0c4df03d74",
-          "version": "v5.11.0"
+          "sha256": "87910b34ffe509e2bab3e82b717e3c4b1d3853831f9735c397b8b2ee61ff35f5",
+          "version": "v5.12.0"
         },
         {
           "importpath": "github.com/stretchr/testify",
