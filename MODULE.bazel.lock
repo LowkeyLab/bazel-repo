@@ -4589,8 +4589,8 @@
         },
         {
           "importpath": "github.com/gin-contrib/slog",
-          "sha256": "6f4f9e3f5a8576bf524890ef30dbe2d8a8b27f5db4611039503b601e55296aec",
-          "version": "v1.2.3"
+          "sha256": "96dcdeadf0752f57d5e00594c5d32c5840df65a43fa56e71c3cb1f9c1e58764f",
+          "version": "v1.2.4"
         },
         {
           "importpath": "github.com/gin-gonic/gin",
