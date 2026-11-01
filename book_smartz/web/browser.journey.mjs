@@ -511,10 +511,63 @@ async function journey() {
     0,
     "Authentication must not submit an earlier action",
   );
+  await authenticationPage
+    .getByRole("link", { name: "Your profile", exact: true })
+    .click();
+  assert.equal(await authenticationPage.title(), "Your profile · Book Smartz");
+  assert.equal(
+    await authenticationPage
+      .getByRole("link", { name: "0 ranked books", exact: true })
+      .isVisible(),
+    true,
+  );
   await authentication.close();
   await page.getByRole("link", { name: "Sign in with Google" }).click();
   await page.waitForURL("https://reader.example/ranking");
   await recordScene("empty-library");
+  const profileNavigation = page.getByRole("link", {
+    name: "Your profile",
+    exact: true,
+  });
+  await profileNavigation.focus();
+  assert.notEqual(
+    await profileNavigation.evaluate(
+      (link) => getComputedStyle(link).outlineStyle,
+    ),
+    "none",
+  );
+  await page.keyboard.press("Enter");
+  await page.waitForURL("https://reader.example/profile");
+  assert.equal(await page.title(), "Your profile · Book Smartz");
+  assert.equal(
+    await page
+      .getByRole("link", { name: "Your profile", exact: true })
+      .getAttribute("aria-current"),
+    "page",
+  );
+  await recordScene("empty-profile");
+  await fixture("profile-text");
+  await page.reload();
+  assert.equal(
+    await page.locator(".profile-name").textContent(),
+    "N".repeat(100),
+  );
+  assert.equal(
+    await page.locator(".profile-biography").textContent(),
+    "First paragraph.\n\n<b>Plain text</b> " + "B".repeat(260),
+  );
+  assert.equal(await page.locator(".profile-biography b").count(), 0);
+  assert.equal(
+    await page
+      .locator(".profile-biography")
+      .evaluate((element) => getComputedStyle(element).whiteSpace),
+    "pre-wrap",
+  );
+  await page.getByRole("link", { name: "0 ranked books", exact: true }).focus();
+  await recordScene("saved-profile-long-text");
+  await page.keyboard.press("Enter");
+  await page.waitForURL("https://reader.example/ranking#saved-ranking");
+  await page.goto("https://reader.example/ranking");
   assert.equal(await page.title(), "Your books · Book Smartz");
   const rankingNavigation = page.getByRole("navigation", {
     name: "Books",

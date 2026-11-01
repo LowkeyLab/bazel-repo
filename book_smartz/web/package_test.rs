@@ -500,3 +500,99 @@ fn shutdown_records(app: &Fixture) -> anyhow::Result<Vec<diagnostic_events::Shut
         .filter_map(|line| serde_json::from_str(line).ok())
         .collect())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn profile_upgrade_preserves_existing_ledgers_sessions_and_saved_ranking()
+-> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("profile-upgrade-reader").await?;
+    let reader: uuid::Uuid = sqlx::query_scalar(
+        "SELECT reader_id FROM book_smartz_web.accounts WHERE subject = 'profile-upgrade-reader'",
+    )
+    .fetch_one(&app.pool)
+    .await?;
+    let store =
+        book_smartz_storage::Store::new(app.pool.clone(), book_smartz_storage::tracing_observer());
+    let book = book_smartz_domain::Book::new(
+        book_smartz_domain::BookId::new(uuid::Uuid::new_v4()),
+        book_smartz_domain::OpenLibraryWorkId::try_from("OL111W")?,
+    );
+    store
+        .register_book(&book, book_smartz_storage::OperationContext::default())
+        .await?;
+    store
+        .execute(
+            book_smartz_domain::ReaderId::new(reader),
+            book_smartz_domain::CommandContext {
+                expected_revision: 0,
+                event_id: book_smartz_domain::EventId::new(uuid::Uuid::new_v4()),
+                time: chrono::Utc::now(),
+            },
+            book_smartz_domain::Command::Start { book_id: book.id() },
+            book_smartz_storage::OperationContext::default(),
+        )
+        .await?;
+    let ledgers = "SELECT 'ranking', version, checksum FROM book_smartz._sqlx_migrations UNION ALL SELECT 'identity', version, checksum FROM book_smartz_web._sqlx_migrations UNION ALL SELECT 'catalog', version, checksum FROM book_smartz_catalog._sqlx_migrations ORDER BY 1, 2";
+    let before: Vec<(String, i64, Vec<u8>)> = sqlx::query_as(ledgers).fetch_all(&app.pool).await?;
+    sqlx::query("DROP SCHEMA book_smartz_profiles CASCADE")
+        .execute(&app.pool)
+        .await?;
+    assert_that!(
+        app.client
+            .get(format!("{}/health/ready", app.base))
+            .send()
+            .await?
+            .status()
+            .as_u16(),
+        eq(503)
+    );
+    assert_that!(
+        app.client
+            .get(format!("{}/profile", app.base))
+            .header("cookie", &cookie)
+            .send()
+            .await?
+            .status()
+            .as_u16(),
+        eq(500)
+    );
+    let schema_exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'book_smartz_profiles')",
+    )
+    .fetch_one(&app.pool)
+    .await?;
+    assert_that!(schema_exists, eq(false));
+    app.process.0.kill()?;
+    app.process.0.wait()?;
+    rejected(&app, "https://reader.example")
+        .await
+        .context("startup must reject a missing profile schema")?;
+    let migrate = || {
+        fixture_process::status(
+            Command::new(app.package.path().join("book-smartz"))
+                .arg("migrate")
+                .env("DATABASE_URL", &app.database)
+                .current_dir(app.cwd.path()),
+            "profile_upgrade_migrate",
+        )
+    };
+    assert_that!(migrate()?.success(), eq(true));
+    assert_that!(migrate()?.success(), eq(true));
+    let after: Vec<(String, i64, Vec<u8>)> = sqlx::query_as(ledgers).fetch_all(&app.pool).await?;
+    assert_that!(after, eq(&before));
+    app.restart().await?;
+    let response = app
+        .client
+        .get(format!("{}/profile", app.base))
+        .header("cookie", &cookie)
+        .send()
+        .await?;
+    assert_that!(response.status().as_u16(), eq(200));
+    assert_that!(response.text().await?, contains_substring("1 ranked book"));
+    assert_that!(
+        app.ranking(&cookie).await?.text().await?,
+        contains_substring("OL111W")
+    );
+    Ok(())
+}

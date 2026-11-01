@@ -38,6 +38,7 @@ mod feedback;
 mod identity;
 mod initialization;
 mod package;
+mod profile;
 
 use crate::diagnostic_events::{
     EventIdentity, InitializationOutcome, InitializationReason, InitializationStage, OperationKind,
@@ -160,6 +161,7 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
     let startup_delivery = diagnostics.clone();
     let router = module_router!()
         .page(ranking)
+        .page(profile::show)
         .page(catalog::search)
         .page(catalog::select)
         .page(actions::add)

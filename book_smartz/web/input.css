@@ -3,6 +3,7 @@
 @source "./actions.rs";
 @source "./catalog.rs";
 @source "./views.rs";
+@source "./profile.rs";
 @theme {
   --color-library: #f1f5fb;
   --color-paper: #ffffff;
@@ -350,4 +351,25 @@
 }
 [data-submitting="true"] button:disabled {
   cursor: wait;
+}
+
+@layer components {
+  .profile-workspace {
+    max-width: 70rem;
+  }
+  .profile-bookplate {
+    max-width: 44rem;
+    margin: 1.75rem auto;
+    padding: clamp(1.25rem, 4vw, 2rem);
+    background: var(--color-paper);
+    border-top: 5px solid var(--color-action);
+  }
+  .profile-name {
+    font-size: clamp(1.8rem, 4vw, 3rem);
+    overflow-wrap: anywhere;
+  }
+  .profile-biography {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
 }

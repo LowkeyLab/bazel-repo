@@ -225,3 +225,231 @@ mod action_test;
     reason = "The packaged application owns event construction."
 )]
 mod diagnostic_events;
+
+#[googletest::test]
+#[tokio::test]
+async fn private_profile_uses_the_current_session_and_saved_ranking() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let profile = || app.client.get(format!("{}/profile", app.base));
+    assert_that!(profile().send().await?.status().as_u16(), eq(401));
+    let cookie = app.login("profile-reader").await?;
+    let response = profile().header("cookie", &cookie).send().await?;
+    assert_that!(response.status().as_u16(), eq(200));
+    assert_that!(
+        response.headers()["cache-control"].to_str()?,
+        contains_substring("no-store")
+    );
+    let body = response.text().await?;
+    assert_that!(body.as_str(), contains_substring("Your profile"));
+    assert_that!(
+        body.as_str(),
+        contains_substring("Only you can see your profile.")
+    );
+    assert_that!(body.as_str(), contains_substring("0 ranked books"));
+    assert_that!(
+        body.as_str(),
+        contains_substring("href=\"/ranking#saved-ranking\"")
+    );
+    let reader: Uuid = sqlx::query_scalar(
+        "SELECT reader_id FROM book_smartz_web.accounts WHERE subject = 'profile-reader'",
+    )
+    .fetch_one(&app.pool)
+    .await?;
+    let store = Store::new(app.pool.clone(), tracing_observer());
+    let book = Book::new(
+        BookId::new(Uuid::new_v4()),
+        OpenLibraryWorkId::try_from("OL111W")?,
+    );
+    store
+        .register_book(&book, OperationContext::default())
+        .await?;
+    assert_that!(
+        profile()
+            .header("cookie", &cookie)
+            .send()
+            .await?
+            .text()
+            .await?,
+        contains_substring("0 ranked books")
+    );
+    store
+        .execute(
+            ReaderId::new(reader),
+            CommandContext {
+                expected_revision: 0,
+                event_id: EventId::new(Uuid::new_v4()),
+                time: chrono::Utc::now(),
+            },
+            Command::Start { book_id: book.id() },
+            OperationContext::default(),
+        )
+        .await?;
+    assert_that!(
+        profile()
+            .header("cookie", &cookie)
+            .send()
+            .await?
+            .text()
+            .await?,
+        contains_substring("1 ranked book")
+    );
+    let pending = Book::new(
+        BookId::new(Uuid::new_v4()),
+        OpenLibraryWorkId::try_from("OL222W")?,
+    );
+    store
+        .register_book(&pending, OperationContext::default())
+        .await?;
+    for (revision, command, expected) in [
+        (
+            1,
+            Command::Start {
+                book_id: pending.id(),
+            },
+            "1 ranked book",
+        ),
+        (2, Command::Pause, "1 ranked book"),
+        (3, Command::Resume, "1 ranked book"),
+        (
+            4,
+            Command::Answer {
+                opponent: book.id(),
+                choice: book_smartz_domain::ComparisonChoice::PreferOpponent,
+            },
+            "2 ranked books",
+        ),
+    ] {
+        store
+            .execute(
+                ReaderId::new(reader),
+                CommandContext {
+                    expected_revision: revision,
+                    event_id: EventId::new(Uuid::new_v4()),
+                    time: chrono::Utc::now(),
+                },
+                command,
+                OperationContext::default(),
+            )
+            .await?;
+        assert_that!(
+            profile()
+                .header("cookie", &cookie)
+                .send()
+                .await?
+                .text()
+                .await?,
+            contains_substring(expected)
+        );
+    }
+    let other = app.login("other-profile-reader").await?;
+    assert_that!(
+        app.client
+            .get(format!("{}/profile?reader_id={reader}", app.base))
+            .header("cookie", &other)
+            .send()
+            .await?
+            .text()
+            .await?,
+        contains_substring("0 ranked books")
+    );
+    sqlx::query("UPDATE book_smartz_web.sessions SET expires_at = now() - interval '1 second' WHERE reader_id = $1").bind(reader).execute(&app.pool).await?;
+    assert_that!(
+        profile()
+            .header("cookie", &cookie)
+            .send()
+            .await?
+            .status()
+            .as_u16(),
+        eq(401)
+    );
+    sqlx::query("DELETE FROM book_smartz_web.sessions")
+        .execute(&app.pool)
+        .await?;
+    assert_that!(
+        profile()
+            .header("cookie", &other)
+            .send()
+            .await?
+            .status()
+            .as_u16(),
+        eq(401)
+    );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn private_profile_escapes_saved_text_and_never_turns_read_failure_into_zero()
+-> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("profile-text-reader").await?;
+    let reader: Uuid = sqlx::query_scalar(
+        "SELECT reader_id FROM book_smartz_web.accounts WHERE subject = 'profile-text-reader'",
+    )
+    .fetch_one(&app.pool)
+    .await?;
+    sqlx::query("INSERT INTO book_smartz_profiles.profiles (reader_id, display_name, biography) VALUES ($1, $2, $3)")
+        .bind(reader).bind("<script>private name</script>").bind("First paragraph.\n\nSecond & <b>plain</b>.").execute(&app.pool).await?;
+    app.restart().await?;
+    let body = app
+        .client
+        .get(format!("{}/profile", app.base))
+        .header("cookie", &cookie)
+        .send()
+        .await?
+        .text()
+        .await?;
+    assert_that!(
+        body.as_str(),
+        contains_substring("&lt;script&gt;private name&lt;/script&gt;")
+    );
+    assert_that!(
+        body.as_str(),
+        contains_substring("First paragraph.\n\nSecond &amp; &lt;b&gt;plain&lt;/b&gt;.")
+    );
+    assert_that!(
+        body.as_str(),
+        not(contains_substring("<script>private name"))
+    );
+    let other = app.login("profile-text-other").await?;
+    let other_body = app
+        .client
+        .get(format!("{}/profile?reader_id={reader}", app.base))
+        .header("cookie", &other)
+        .send()
+        .await?
+        .text()
+        .await?;
+    assert_that!(other_body, not(contains_substring("private name")));
+    sqlx::query("ALTER TABLE book_smartz.ranking_events RENAME TO unavailable_ranking_events")
+        .execute(&app.pool)
+        .await?;
+    let response = app
+        .client
+        .get(format!("{}/profile", app.base))
+        .header("cookie", &cookie)
+        .send()
+        .await?;
+    assert_that!(response.status().as_u16(), eq(503));
+    assert_that!(
+        response.text().await?,
+        not(contains_substring("0 ranked books"))
+    );
+    sqlx::query("ALTER TABLE book_smartz.unavailable_ranking_events RENAME TO ranking_events")
+        .execute(&app.pool)
+        .await?;
+    assert_that!(
+        app.client
+            .get(format!("{}/profile", app.base))
+            .header("cookie", &cookie)
+            .send()
+            .await?
+            .status()
+            .as_u16(),
+        eq(200)
+    );
+    let diagnostics = std::fs::read_to_string(app.diagnostics.path())?;
+    assert_that!(diagnostics, not(contains_substring("private name")));
+    assert_that!(diagnostics, not(contains_substring("First paragraph")));
+    Ok(())
+}
