@@ -562,6 +562,38 @@ async fn preparation_uncertainty_and_inflight_checks_cannot_admit_a_late_duplica
         .find(|(key, _)| key == "command")
         .unwrap()
         .1 = "check".into();
+    // Search admission must not wait for the profile writer's account-row lock.
+    wiremock::Mock::given(wiremock::matchers::method("GET"))
+        .and(wiremock::matchers::path("/search.json"))
+        .respond_with(
+            wiremock::ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!({"start": 0, "numFound": 0, "docs": []})),
+        )
+        .mount(&app.provider)
+        .await;
+    let search_body = url::form_urlencoded::Serializer::new(String::new())
+        .extend_pairs([
+            ("csrf", field(&fresh, "csrf")?.as_str()),
+            ("query", "independent search"),
+            ("page", "1"),
+        ])
+        .finish();
+    let search = tokio::time::timeout(Duration::from_secs(3), async {
+        app.client
+            .post(format!("{}/search", app.base))
+            .header("cookie", &cookie)
+            .header("origin", "https://reader.example")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(search_body)
+            .send()
+            .await?
+            .text()
+            .await
+            .map_err(anyhow::Error::from)
+    })
+    .await
+    .map_err(|error| anyhow::anyhow!("search waited for an active profile save: {error}"))??;
+    assert_that!(search, contains_substring("We found no matching books."));
     // The check must remain unresolved while the real writer retains the account lock.
     let client = app.client.clone();
     let target = format!("{}/profile/edit", app.base);
@@ -647,6 +679,62 @@ async fn ranking_uncertainty_does_not_block_an_independent_profile_save() -> any
     assert_that!(
         app.ranking(&cookie).await?.text().await?,
         contains_substring("Check your save")
+    );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn failed_check_retry_retains_the_drafts_original_revision() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let cookie = app.login("profile-check-stale-draft").await?;
+    let stale = page(&app, &cookie).await?;
+    let other = page(&app, &cookie).await?;
+    let saved = post(
+        &app,
+        &cookie,
+        &values(&other, "Other tab name", "Other tab biography", "save")?,
+    )
+    .await?
+    .text()
+    .await?;
+    assert_that!(
+        saved,
+        contains_substring("Your profile changes were saved.")
+    );
+    // The first tab's request never arrived. Its explicit check records failure.
+    let checked = post(
+        &app,
+        &cookie,
+        &values(&stale, "Old draft", "Old biography", "check")?,
+    )
+    .await?
+    .text()
+    .await?;
+    assert_that!(
+        checked.as_str(),
+        contains_substring("Your profile changes were not saved.")
+    );
+    assert_that!(checked.as_str(), contains_substring("value=\"Old draft\""));
+    let retry = post(
+        &app,
+        &cookie,
+        &values(&checked, "Old draft", "Old biography", "save")?,
+    )
+    .await?
+    .text()
+    .await?;
+    assert_that!(
+        retry.as_str(),
+        contains_substring("discarded your local edits")
+    );
+    assert_that!(
+        retry.as_str(),
+        contains_substring("value=\"Other tab name\"")
+    );
+    assert_that!(
+        page(&app, &cookie).await?,
+        contains_substring("Other tab biography")
     );
     Ok(())
 }

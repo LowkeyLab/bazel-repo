@@ -137,22 +137,25 @@ pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<impl View> {
         Outcome::Saved if checking.is_some_and(|original| original.id != offer.id) => {
             editor = Editor::fresh(
                 "Another edit changed your profile. We reloaded the saved profile and discarded your local edits.",
-            )
+            );
         }
         Outcome::Saved => {
             editor = Editor::fresh(if input.command == "check" {
                 "We confirmed your profile save."
             } else {
                 "Your profile changes were saved."
-            })
+            });
         }
         Outcome::Conflict => {
             editor = Editor::fresh(
                 "Another edit changed your profile. We reloaded the saved profile and discarded your local edits.",
-            )
+            );
         }
         Outcome::Failed => {
-            editor.offer = None;
+            editor.offer = Some(Offer {
+                id: SaveId(Uuid::new_v4()),
+                revision: offer.revision,
+            });
             editor.checking = None;
             editor.message = "Your profile changes were not saved. Review them and try again.";
         }
@@ -176,7 +179,7 @@ async fn render(cx: &Cx, editor: Editor) -> Result<impl View> {
     let app: &Application = app_context(cx);
     let (saved, revision) = saves::current(&app.pool, session.reader).await?;
     let draft = editor.draft.unwrap_or_else(|| saved.clone());
-    let offer = editor.offer.unwrap_or(Offer {
+    let offer = editor.offer.unwrap_or_else(|| Offer {
         id: SaveId(Uuid::new_v4()),
         revision,
     });
@@ -267,7 +270,7 @@ async fn render(cx: &Cx, editor: Editor) -> Result<impl View> {
                             aria-invalid=(errors.biography.map(|_| "true"))
                             aria-describedby="profile-biography-hint profile-biography-error"
                         >
-                            (draft.biography)
+                            (format!("\n{}", draft.biography))
                         </textarea>
                         <p
                             class="field-error"
