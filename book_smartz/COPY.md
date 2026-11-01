@@ -187,3 +187,9 @@ Keep accessible names consistent with visible actions.
 <!-- vale Google.Ellipses = YES -->
 <!-- vale Google.We = YES -->
 <!-- vale Google.WordList = YES -->
+
+## Browser requirements
+
+Book Smartz requires JavaScript. With JavaScript off, pages display:
+
+> Enable JavaScript to use Book Smartz

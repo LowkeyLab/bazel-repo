@@ -461,14 +461,32 @@ async function journey() {
     await signIn.evaluate((link) => getComputedStyle(link).outlineStyle),
     "none",
   );
-  const native = await browser.newContext({
+  const disabledJavaScript = await browser.newContext({
     javaScriptEnabled: false,
     ignoreHTTPSErrors: true,
     viewport: { width: 320, height: 900 },
   });
-  const nativePage = await native.newPage();
-  let nativeActions = 0;
-  nativePage.on("request", (request) => {
+  const noticePage = await disabledJavaScript.newPage();
+  await noticePage.goto("https://reader.example/");
+  await noticePage
+    .getByText("Enable JavaScript to use Book Smartz", { exact: true })
+    .waitFor();
+  await recordScene("javascript-required", noticePage);
+  await disabledJavaScript.close();
+  assert.equal(
+    await page
+      .getByText("Enable JavaScript to use Book Smartz", { exact: true })
+      .isVisible(),
+    false,
+  );
+  const authentication = await browser.newContext({
+    javaScriptEnabled: true,
+    ignoreHTTPSErrors: true,
+    viewport: { width: 320, height: 900 },
+  });
+  const authenticationPage = await authentication.newPage();
+  let authenticationActions = 0;
+  authenticationPage.on("request", (request) => {
     if (
       request.method() === "POST" &&
       [
@@ -481,17 +499,19 @@ async function journey() {
         "/recover",
       ].includes(new URL(request.url()).pathname)
     )
-      nativeActions++;
+      authenticationActions++;
   });
-  await nativePage.goto("https://reader.example/");
-  await nativePage.getByRole("link", { name: "Sign in with Google" }).click();
-  await nativePage.waitForURL("https://reader.example/ranking");
+  await authenticationPage.goto("https://reader.example/");
+  await authenticationPage
+    .getByRole("link", { name: "Sign in with Google" })
+    .click();
+  await authenticationPage.waitForURL("https://reader.example/ranking");
   assert.equal(
-    nativeActions,
+    authenticationActions,
     0,
     "Authentication must not submit an earlier action",
   );
-  await native.close();
+  await authentication.close();
   await page.getByRole("link", { name: "Sign in with Google" }).click();
   await page.waitForURL("https://reader.example/ranking");
   await recordScene("empty-library");
@@ -1548,92 +1568,92 @@ async function journey() {
   );
   await replayRecovery.close();
   await fixture("native-reader");
-  const nativeJourney = await browser.newContext({
-    javaScriptEnabled: false,
+  const recoveryJourney = await browser.newContext({
+    javaScriptEnabled: true,
     ignoreHTTPSErrors: true,
     viewport: { width: 320, height: 900 },
   });
-  await nativeJourney.route("https://covers.openlibrary.org/**", (route) =>
+  await recoveryJourney.route("https://covers.openlibrary.org/**", (route) =>
     route.abort(),
   );
-  const nativeReaderPage = await nativeJourney.newPage();
-  nativeReaderPage.setDefaultTimeout(10000);
-  nativeReaderPage.setDefaultNavigationTimeout(10000);
-  let nativeRankingRequests = 0;
-  nativeReaderPage.on("request", (request) => {
+  const recoveryReaderPage = await recoveryJourney.newPage();
+  recoveryReaderPage.setDefaultTimeout(10000);
+  recoveryReaderPage.setDefaultNavigationTimeout(10000);
+  let recoveryRankingRequests = 0;
+  recoveryReaderPage.on("request", (request) => {
     if (
       request.method() === "POST" &&
       ["/add", "/answer", "/pause", "/resume", "/recover"].includes(
         new URL(request.url()).pathname,
       )
     )
-      nativeRankingRequests++;
+      recoveryRankingRequests++;
   });
-  await nativeReaderPage.goto("https://reader.example/");
-  await nativeReaderPage
+  await recoveryReaderPage.goto("https://reader.example/");
+  await recoveryReaderPage
     .getByRole("link", { name: "Sign in with Google", exact: true })
     .click();
-  await nativeReaderPage.waitForURL("https://reader.example/ranking");
-  assert.equal(await nativeReaderPage.locator("ol li").count(), 0);
-  assert.equal(nativeRankingRequests, 0);
-  await recordScene("native-empty-ranking", nativeReaderPage);
-  async function nativeSelection(query) {
-    await nativeReaderPage
+  await recoveryReaderPage.waitForURL("https://reader.example/ranking");
+  assert.equal(await recoveryReaderPage.locator("ol li").count(), 0);
+  assert.equal(recoveryRankingRequests, 0);
+  await recordScene("recovery-empty-ranking", recoveryReaderPage);
+  async function recoverySelection(query) {
+    await recoveryReaderPage
       .getByRole("textbox", { name: "Title or author" })
       .fill(query);
-    await nativeReaderPage.waitForTimeout(1100);
-    await nativeReaderPage
+    await recoveryReaderPage.waitForTimeout(1100);
+    await recoveryReaderPage
       .getByRole("button", { name: "Search books", exact: true })
       .click();
-    await nativeReaderPage
+    await recoveryReaderPage
       .getByRole("button", { name: "Select this book", exact: true })
       .click();
-    await nativeReaderPage
+    await recoveryReaderPage
       .getByRole("heading", { name: "Selected book", exact: true })
       .waitFor();
   }
-  await nativeSelection("Native book");
-  await nativeReaderPage
+  await recoverySelection("Native book");
+  await recoveryReaderPage
     .getByRole("button", { name: "Add to your books", exact: true })
     .click();
-  await nativeReaderPage
+  await recoveryReaderPage
     .getByText("We saved this book at position 1.", { exact: true })
     .waitFor();
   assert.deepEqual(
-    await nativeReaderPage.locator("ol li a").allTextContents(),
+    await recoveryReaderPage.locator("ol li a").allTextContents(),
     ["Native book"],
   );
-  await recordScene("native-first-placement", nativeReaderPage);
-  await nativeSelection("Long title");
-  await nativeReaderPage
+  await recordScene("recovery-first-placement", recoveryReaderPage);
+  await recoverySelection("Long title");
+  await recoveryReaderPage
     .getByText("Author unavailable", { exact: true })
     .waitFor();
-  await recordScene("native-selected-long-title", nativeReaderPage);
-  await nativeReaderPage
+  await recordScene("recovery-selected-long-title", recoveryReaderPage);
+  await recoveryReaderPage
     .getByRole("button", { name: "Add to your books", exact: true })
     .click();
-  await nativeReaderPage
+  await recoveryReaderPage
     .getByRole("button", { name: "Prefer Native book", exact: true })
     .waitFor();
-  assert.equal(await nativeReaderPage.locator("ol li").count(), 1);
-  await recordScene("native-long-comparison", nativeReaderPage);
+  assert.equal(await recoveryReaderPage.locator("ol li").count(), 1);
+  await recordScene("recovery-long-comparison", recoveryReaderPage);
   await fixture("reject");
-  await nativeReaderPage
+  await recoveryReaderPage
     .getByRole("button", { name: "Pause for now", exact: true })
     .click();
-  await nativeReaderPage
+  await recoveryReaderPage
     .getByRole("heading", { name: "Check your save", exact: true })
     .waitFor();
-  await recordScene("native-uncertain-save", nativeReaderPage);
+  await recordScene("recovery-uncertain-save", recoveryReaderPage);
   await fixture("allow");
-  const beforeNativeReads = nativeRankingRequests;
-  await nativeReaderPage
+  const beforeRecoveryReads = recoveryRankingRequests;
+  await recoveryReaderPage
     .getByRole("link", { name: "Return to your books", exact: true })
     .click();
-  await nativeReaderPage.reload();
-  assert.equal(await nativeReaderPage.locator("ol li").count(), 1);
+  await recoveryReaderPage.reload();
+  assert.equal(await recoveryReaderPage.locator("ol li").count(), 1);
   assert.equal(
-    await nativeReaderPage
+    await recoveryReaderPage
       .getByText(
         "You paused the comparisons for this book. Resume when you are ready.",
         { exact: true },
@@ -1642,25 +1662,25 @@ async function journey() {
     0,
   );
   assert.equal(
-    await nativeReaderPage
+    await recoveryReaderPage
       .getByRole("button", { name: "Pause for now", exact: true })
       .isDisabled(),
     true,
   );
-  await nativeReaderPage
+  await recoveryReaderPage
     .getByRole("button", { name: "Sign out of this browser", exact: true })
     .click();
-  await nativeReaderPage
+  await recoveryReaderPage
     .getByRole("link", { name: "Sign in with Google", exact: true })
     .click();
-  await nativeReaderPage.waitForURL("https://reader.example/ranking");
+  await recoveryReaderPage.waitForURL("https://reader.example/ranking");
   assert.equal(
-    nativeRankingRequests,
-    beforeNativeReads,
+    recoveryRankingRequests,
+    beforeRecoveryReads,
     "Read, reload, and sign-in must not retry a ranking action",
   );
   assert.equal(
-    await nativeReaderPage
+    await recoveryReaderPage
       .getByText(
         "You paused the comparisons for this book. Resume when you are ready.",
         { exact: true },
@@ -1669,65 +1689,65 @@ async function journey() {
     0,
   );
   assert.equal(
-    await nativeReaderPage
+    await recoveryReaderPage
       .getByRole("button", { name: "Pause for now", exact: true })
       .isDisabled(),
     true,
   );
-  await recordScene("native-retained-original-action", nativeReaderPage);
-  await nativeReaderPage
+  await recordScene("recovery-retained-original-action", recoveryReaderPage);
+  await recoveryReaderPage
     .getByRole("button", { name: "Check your save", exact: true })
     .click();
-  await nativeReaderPage
+  await recoveryReaderPage
     .getByText("We confirmed your save.", { exact: true })
     .waitFor();
-  await nativeReaderPage
+  await recoveryReaderPage
     .getByText(
       "You paused the comparisons for this book. Resume when you are ready.",
       { exact: true },
     )
     .waitFor();
-  await recordScene("native-recovered-pause", nativeReaderPage);
-  await nativeReaderPage
+  await recordScene("recovery-recovered-pause", recoveryReaderPage);
+  await recoveryReaderPage
     .getByRole("button", { name: "Resume comparisons", exact: true })
     .click();
-  const nativePreference = nativeReaderPage.getByRole("button", {
+  const recoveryPreference = recoveryReaderPage.getByRole("button", {
     name: "Prefer Native book",
     exact: true,
   });
-  await nativePreference.waitFor();
+  await recoveryPreference.waitFor();
   for (
     let step = 0;
     step < 30 &&
-    !(await nativePreference.evaluate(
+    !(await recoveryPreference.evaluate(
       (button) => document.activeElement === button,
     ));
     step++
   )
-    await nativeReaderPage.keyboard.press("Tab");
+    await recoveryReaderPage.keyboard.press("Tab");
   assert.equal(
-    await nativePreference.evaluate(
+    await recoveryPreference.evaluate(
       (button) =>
         document.activeElement === button &&
         getComputedStyle(button).outlineStyle !== "none",
     ),
     true,
   );
-  const nativeFinish = nativeReaderPage.waitForNavigation();
-  await nativeReaderPage.keyboard.press("Enter");
-  await nativeFinish;
-  await nativeReaderPage
+  const recoveryFinish = recoveryReaderPage.waitForNavigation();
+  await recoveryReaderPage.keyboard.press("Enter");
+  await recoveryFinish;
+  await recoveryReaderPage
     .getByText("We saved this book at position 2.", { exact: true })
     .waitFor();
-  const nativeTitles = await nativeReaderPage
+  const recoveryTitles = await recoveryReaderPage
     .locator("ol li a")
     .allTextContents();
-  assert.equal(nativeTitles.length, 2);
-  assert.equal(nativeTitles[0], "Native book");
-  assert.match(nativeTitles[1], /^A long title/);
-  assert.equal(nativeRankingRequests, beforeNativeReads + 3);
-  await recordScene("native-completed-placement", nativeReaderPage);
-  await nativeJourney.close();
+  assert.equal(recoveryTitles.length, 2);
+  assert.equal(recoveryTitles[0], "Native book");
+  assert.match(recoveryTitles[1], /^A long title/);
+  assert.equal(recoveryRankingRequests, beforeRecoveryReads + 3);
+  await recordScene("recovery-completed-placement", recoveryReaderPage);
+  await recoveryJourney.close();
   if (evidence)
     writeFileSync(
       join(evidence, "motion-evidence.json"),
@@ -1744,7 +1764,7 @@ async function journey() {
     );
   console.log("Browser version:", browser.version());
   console.log(
-    "Browser assertions passed: native and enhanced reader actions, explicit recovery, held responses, motion, contrast, and responsive layout.",
+    "Browser assertions passed: JavaScript reader actions, disabled-JavaScript notice, explicit recovery, held responses, motion, contrast, and responsive layout.",
   );
   lifecycle.record("assertions", "complete");
 }

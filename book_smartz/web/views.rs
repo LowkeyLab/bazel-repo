@@ -43,6 +43,9 @@ pub async fn heading() -> Result<impl View> {
                 <a href="/ranking#saved-ranking">"Your books"</a>
             </nav>
         </header>
+        <noscript>
+            <p class="javascript-required">"Enable JavaScript to use Book Smartz"</p>
+        </noscript>
     })
 }
 #[component]

@@ -21,16 +21,16 @@ The remaining row retains the existing font licence titles, `Literata font licen
 The book summary combines its approved prefix with the catalog title. Both choice buttons name their respective books.
 Only a fresh completed receipt supplies a position. Replay and recovery retain their distinct messages.
 
-| Schedule                                                                   | Rows | Production location                                                                                    | Existing acceptance boundary                                                                               |
-| -------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| [Home page](COPY.md#home-page)                                             | 7    | [main.rs](web/main.rs)                                                                                 | Chromium sign-in entrypoint and approved headline, explanation, and sign-in action                         |
-| [Navigation and ranking](COPY.md#navigation-and-ranking)                   | 15   | [main.rs](web/main.rs), [views.rs](web/views.rs), [catalog.rs](web/catalog.rs)                         | Chromium empty and populated rankings, accessible navigation, and browser sign-out                         |
-| [Search and book selection](COPY.md#search-and-book-selection)             | 22   | [catalog.rs](web/catalog.rs)                                                                           | Packaged HTTP catalog scenarios and Chromium search, selection, pagination, expiry, and provider failures  |
-| [Comparisons](COPY.md#comparisons)                                         | 15   | [actions.rs](web/actions.rs)                                                                           | Packaged app zero, one, and multiple choices, Pause/Resume, restart, and pending-versus-ranked state       |
-| [Saving and confirmed results](COPY.md#saving-and-confirmed-results)       | 8    | [feedback.rs](web/feedback.rs), [submitting.js](web/submitting.js)                                     | Held Chromium responses and packaged feedback scenarios across Add, choice, Pause, and Resume              |
-| [Uncertain saves and recovery](COPY.md#uncertain-saves-and-recovery)       | 9    | [actions.rs](web/actions.rs)                                                                           | Packaged failure and restart scenarios, return-only guidance, native Chromium recovery, and response focus |
-| [Rejected or changed actions](COPY.md#rejected-or-changed-actions)         | 6    | [actions.rs](web/actions.rs)                                                                           | Future rejection facts, exact historical reasons, stale comparison feedback, and preserved histories       |
-| [Book metadata and accessibility](COPY.md#book-metadata-and-accessibility) | 5    | [actions.rs](web/actions.rs), [views.rs](web/views.rs), [catalog/metadata.rs](web/catalog/metadata.rs) | Chromium long titles, missing metadata, controlled cover failure, accessible names, and local font assets  |
+| Schedule                                                                   | Rows | Production location                                                                                    | Existing acceptance boundary                                                                              |
+| -------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| [Home page](COPY.md#home-page)                                             | 7    | [main.rs](web/main.rs)                                                                                 | Chromium sign-in entrypoint and approved headline, explanation, and sign-in action                        |
+| [Navigation and ranking](COPY.md#navigation-and-ranking)                   | 15   | [main.rs](web/main.rs), [views.rs](web/views.rs), [catalog.rs](web/catalog.rs)                         | Chromium empty and populated rankings, accessible navigation, and browser sign-out                        |
+| [Search and book selection](COPY.md#search-and-book-selection)             | 22   | [catalog.rs](web/catalog.rs)                                                                           | Packaged HTTP catalog scenarios and Chromium search, selection, pagination, expiry, and provider failures |
+| [Comparisons](COPY.md#comparisons)                                         | 15   | [actions.rs](web/actions.rs)                                                                           | Packaged app zero, one, and multiple choices, Pause/Resume, restart, and pending-versus-ranked state      |
+| [Saving and confirmed results](COPY.md#saving-and-confirmed-results)       | 8    | [feedback.rs](web/feedback.rs), [submitting.js](web/submitting.js)                                     | Held Chromium responses and packaged feedback scenarios across Add, choice, Pause, and Resume             |
+| [Uncertain saves and recovery](COPY.md#uncertain-saves-and-recovery)       | 9    | [actions.rs](web/actions.rs)                                                                           | Packaged failure and restart scenarios, return-only guidance, Chromium recovery, and response focus       |
+| [Rejected or changed actions](COPY.md#rejected-or-changed-actions)         | 6    | [actions.rs](web/actions.rs)                                                                           | Future rejection facts, exact historical reasons, stale comparison feedback, and preserved histories      |
+| [Book metadata and accessibility](COPY.md#book-metadata-and-accessibility) | 5    | [actions.rs](web/actions.rs), [views.rs](web/views.rs), [catalog/metadata.rs](web/catalog/metadata.rs) | Chromium long titles, missing metadata, controlled cover failure, accessible names, and local font assets |
 
 Historical rejection facts retain their recorded reasons. New rejection facts use the approved wording.
 Existing contracts cover action identity, signed forms, expected revisions, reader authorization, Origin validation, and cross-site request forgery protection.
@@ -56,11 +56,12 @@ The existing HTTP and app scenarios use the delivered package, real PostgreSQL, 
 Controlled Google and Open Library endpoints supply provider responses.
 The browser journey covers sign-in, search, selection, Add, comparisons, Pause, Resume, rejection, replay, and recovery.
 Add includes the first book and later books.
-It also checks keyboard operation, response focus, accessible names, status announcements, and native forms without JavaScript.
+It also checks keyboard operation, response focus, accessible names, and status announcements with JavaScript enabled.
+Book Smartz requires JavaScript. A separate browser test covers the enable-JavaScript notice with JavaScript off.
 Held responses distinguish submission from confirmation. State assertions retain original identities, frozen effects, saved choices, and unfinished books.
 
 The browser records scenes at 320, 390, and 1440 pixels. Existing assertions verify visible control bounds and computed contrast.
-Inspect the longer-copy, uncertainty, rejection, and native comparison screenshots.
+Inspect the longer-copy, uncertainty, rejection, and recovery comparison screenshots.
 `browser-evidence.json` and `motion-evidence.json` identify the tested commit and Chromium version.
 Motion checks cover reduced motion and the rules for a fresh confirmed position highlight.
 Package checks verify delivered asset integrity, local fonts, runtime files, and launch from unrelated directories.

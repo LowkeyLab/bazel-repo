@@ -13,7 +13,9 @@ Pause for now preserves the unfinished comparison. Resume restores it after relo
 The Comparison desk places saved positions beside the active task on desktop.
 Phone layouts place the active task before saved positions. The app uses local
 `Literata` and Source Sans 3 fonts. See [font licenses](fonts/README.md).
-Native forms work without JavaScript. JavaScript announces Saving… during submission
+Book Smartz requires JavaScript. Features do not need to work with JavaScript off.
+Pages display “Enable JavaScript to use Book Smartz” with JavaScript off.
+Existing forms remain in use. JavaScript announces Saving… during submission
 and preserves the chosen submitter value. The server controls saved positions and
 completion eligibility. Only pointer input can decorate a fresh confirmed placement.
 The opacity transition takes 160 ms. Reduced motion shows the final highlight immediately.
@@ -228,9 +230,10 @@ separate review.
 Full-page screenshots and `motion-evidence.json` remain in the Bazel test outputs.
 Use `--test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=<tested-commit>` to identify the
 commit in both evidence files. Final acceptance must force fresh test execution.
-The native journey disables JavaScript and checks first Add, comparison,
+The recovery journey uses JavaScript and checks first Add, comparison,
 uncertainty, read/reload/sign-in without recovery, explicit Check your save,
-Resume, and keyboard completion. Fixture controls remain outside production routes.
+Resume, and keyboard completion. A separate browser test disables JavaScript only to
+verify the enable-JavaScript notice. Fixture controls remain outside production routes.
 A failed remote cover exposes one accessible placeholder and retains its catalog URL.
 
 The browser target uses the [pinned combined worker](../../tools/book_smartz_browser_worker/README.md)
