@@ -48,10 +48,12 @@ async fn locked(
 ) -> Result<Transaction<'static, Postgres>, sqlx::Error> {
     let mut tx = pool.begin().await?;
     // This account-row lock also coordinates future Google imports. Ranking uses its own stream lock.
-    sqlx::query("SELECT reader_id FROM book_smartz_web.accounts WHERE reader_id=$1 FOR UPDATE")
-        .bind(reader.as_uuid())
-        .fetch_one(&mut *tx)
-        .await?;
+    sqlx::query(
+        "SELECT reader_id FROM book_smartz_web.accounts WHERE reader_id=$1 FOR NO KEY UPDATE",
+    )
+    .bind(reader.as_uuid())
+    .fetch_one(&mut *tx)
+    .await?;
     Ok(tx)
 }
 async fn find(

@@ -12,7 +12,7 @@ pub struct Errors {
     pub biography: Option<&'static str>,
 }
 impl Errors {
-    pub fn any(self) -> bool {
+    pub const fn any(self) -> bool {
         self.name.is_some() || self.biography.is_some()
     }
 }

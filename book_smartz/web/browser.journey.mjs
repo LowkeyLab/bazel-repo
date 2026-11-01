@@ -603,6 +603,43 @@ async function journey() {
   assert.equal(await page.locator(".profile-name script").count(), 0);
   assert.equal(await profileName().inputValue(), markupName);
   assert.equal(await profileName().getAttribute("onfocus"), null);
+  for (const biography of [
+    "\nFirst paragraph",
+    "\n\nFirst paragraph\n\nSecond paragraph\n",
+  ]) {
+    await profileBio().fill(biography);
+    await profileSave().click();
+    await page
+      .getByText("Your profile changes were saved.", { exact: true })
+      .waitFor();
+    assert.equal(await profileBio().inputValue(), biography);
+    await page.reload();
+    assert.equal(await profileBio().inputValue(), biography);
+    await profileName().fill("Name-only edit");
+    await profileSave().click();
+    await page
+      .getByText("Your profile changes were saved.", { exact: true })
+      .waitFor();
+    assert.equal(await profileBio().inputValue(), biography);
+    assert.equal(
+      await page.locator(".profile-biography").textContent(),
+      biography,
+    );
+    await profileName().fill("x".repeat(101));
+    await page.evaluate(() => {
+      const form = document.querySelector("[data-profile-form]");
+      const command = document.createElement("input");
+      command.type = "hidden";
+      command.name = "command";
+      command.value = "save";
+      form.append(command);
+      form.submit();
+    });
+    await page.waitForURL("https://reader.example/profile/edit");
+    await page.locator('[aria-invalid="true"]').waitFor();
+    assert.equal(await profileBio().inputValue(), biography);
+    await page.goto("https://reader.example/profile");
+  }
   await profileName().fill("e\u0301".repeat(100));
   await profileBio().fill("👍🏽".repeat(500));
   await profileSave().click();

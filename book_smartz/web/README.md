@@ -366,7 +366,7 @@ Biographies retain paragraph breaks and permit up to 500 extended grapheme clust
 The browser and server apply this visible-character rule after normalization.
 Validation errors preserve entered text. A conflicting revision reloads the latest profile and reports discarded local edits.
 
-Every editor POST requires the stored session, exact canonical Origin, session-bound CSRF token, and a signed reader-bound submission.
+Every editor POST requires the stored session, exact canonical Origin, session-bound cross-site request forgery token, and a signed reader-bound submission.
 The submission identifies its expected profile revision. It contains no profile text.
 Use **Save changes**, **Discard changes**, and **Check your save** explicitly.
 A transport failure preserves the current editor and requires **Check your save** before another save.
