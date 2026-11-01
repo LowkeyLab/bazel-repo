@@ -409,11 +409,11 @@ npm.npm_translate_lock(
     npmrc = "//:.npmrc",
     patch_args = {
         "@vitest/coverage-v8@5.0.5": ["-p1"],
-        "astro@7.4.2": ["-p1"],
+        "astro@7.4.4": ["-p1"],
     },
     patches = {
         "@vitest/coverage-v8@5.0.5": ["//tools/coverage:vitest_subprocess.patch"],
-        "astro@7.4.2": ["//personal_website:astro_page_identity.patch"],
+        "astro@7.4.4": ["//personal_website:astro_page_identity.patch"],
     },
     pnpm_lock = "//:pnpm-lock.yaml",
 )
