@@ -4584,8 +4584,8 @@
         },
         {
           "importpath": "github.com/gin-contrib/cors",
-          "sha256": "fa6ce627c75021c62d15f6285e59243e0c48486f520a48e4da662189f2c36854",
-          "version": "v1.7.9"
+          "sha256": "ea79b5dc4729e3f4e85d03e069a3d3a37b8028a1991aa935e3e6913b4415abfb",
+          "version": "v1.7.10"
         },
         {
           "importpath": "github.com/gin-contrib/slog",
