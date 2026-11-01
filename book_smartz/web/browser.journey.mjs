@@ -64,6 +64,11 @@ const transport = httpsServer(
         if (held) {
           held.arrived(response.statusCode);
           await held.release;
+          if (held.drop) {
+            response.resume();
+            outgoing.destroy();
+            return;
+          }
         }
         outgoing.writeHead(response.statusCode, response.headers);
         response.pipe(outgoing);
@@ -268,7 +273,7 @@ async function journey() {
         });
       }
       const adjacent = background(element.chain.slice(0, -1));
-      if (["BUTTON", "INPUT"].includes(element.tag)) {
+      if (["BUTTON", "INPUT", "TEXTAREA"].includes(element.tag)) {
         const foreground = blend(rgba(element.border), adjacent);
         measurements.push({
           kind: "control boundary",
@@ -312,7 +317,7 @@ async function journey() {
       const appearance = await target.evaluate(() =>
         [
           ...document.querySelectorAll(
-            'h1,h2,h3,p,a,label,legend,button,input:not([type="hidden"])',
+            'h1,h2,h3,p,a,label,legend,button,textarea,input:not([type="hidden"])',
           ),
         ].map((element) => {
           const style = getComputedStyle(element);
@@ -342,7 +347,7 @@ async function journey() {
               ""
             ).trim(),
             control: element.matches(
-              'a[href],button,input:not([type="hidden"])',
+              'a[href],button,textarea,input:not([type="hidden"])',
             ),
             visible: element.checkVisibility({
               checkOpacity: true,
@@ -565,6 +570,179 @@ async function journey() {
   );
   await page.getByRole("link", { name: "0 ranked books", exact: true }).focus();
   await recordScene("saved-profile-long-text");
+  // Profile form feedback and recovery use the real delivered endpoint.
+  const profileName = () =>
+    page.getByRole("textbox", { name: "Display name", exact: true });
+  const profileBio = () =>
+    page.getByRole("textbox", { name: "Biography", exact: true });
+  const profileSave = () =>
+    page.getByRole("button", { name: "Save changes", exact: true });
+  const profileStatus = () => page.locator("[data-profile-message]");
+  const requestCount = mutationRequests.get("/profile/edit") || 0;
+  await profileName().fill("👩‍👩‍👧‍👦".repeat(101));
+  await profileSave().click();
+  assert.match(
+    await page.locator("#profile-name-error").textContent(),
+    /100 visible characters/,
+  );
+  assert.equal(
+    await profileName().evaluate(
+      (element) => document.activeElement === element,
+    ),
+    true,
+  );
+  assert.equal(mutationRequests.get("/profile/edit") || 0, requestCount);
+  await recordScene("profile-name-validation");
+  const markupName = '<script>plain</script>" onfocus="window.profileXss=1';
+  await profileName().fill(markupName);
+  await profileSave().click();
+  await page
+    .getByText("Your profile changes were saved.", { exact: true })
+    .waitFor();
+  assert.equal(await page.locator(".profile-name").textContent(), markupName);
+  assert.equal(await page.locator(".profile-name script").count(), 0);
+  assert.equal(await profileName().inputValue(), markupName);
+  assert.equal(await profileName().getAttribute("onfocus"), null);
+  await profileName().fill("e\u0301".repeat(100));
+  await profileBio().fill("👍🏽".repeat(500));
+  await profileSave().click();
+  await page
+    .getByText("Your profile changes were saved.", { exact: true })
+    .waitFor();
+  assert.equal(
+    await page.locator(".profile-name").textContent(),
+    "e\u0301".repeat(100),
+  );
+  await profileBio().fill("👍🏽".repeat(501));
+  await profileSave().click();
+  assert.match(
+    await page.locator("#profile-biography-error").textContent(),
+    /500 visible characters/,
+  );
+  assert.equal(
+    await profileBio().evaluate(
+      (element) => document.activeElement === element,
+    ),
+    true,
+  );
+  await page
+    .getByRole("button", { name: "Discard changes", exact: true })
+    .click();
+  await page
+    .getByText(
+      "We restored your confirmed profile. Your local edits were discarded.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(await profileBio().inputValue(), "👍🏽".repeat(500));
+  await fixture("profile-reject");
+  await profileName().fill("Draft after failure");
+  await profileBio().fill("Retain this paragraph.\n\nRetain this one too.");
+  await profileSave().click();
+  await page
+    .getByText(
+      "Your profile changes were not saved. Review them and try again.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(await profileName().inputValue(), "Draft after failure");
+  await recordScene("profile-definite-failure");
+  await fixture("profile-allow");
+  await profileSave().click();
+  await page
+    .getByText("Your profile changes were saved.", { exact: true })
+    .waitFor();
+  const staleProfile = await context.newPage();
+  await staleProfile.goto("https://reader.example/profile");
+  await profileName().fill("Newer browser name");
+  await profileSave().click();
+  await page
+    .getByText("Your profile changes were saved.", { exact: true })
+    .waitFor();
+  await staleProfile
+    .getByRole("textbox", { name: "Display name", exact: true })
+    .fill("Stale browser name");
+  await staleProfile
+    .getByRole("button", { name: "Save changes", exact: true })
+    .click();
+  await staleProfile
+    .getByText(
+      "Another edit changed your profile. We reloaded the saved profile and discarded your local edits.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(
+    await staleProfile
+      .getByRole("textbox", { name: "Display name", exact: true })
+      .inputValue(),
+    "Newer browser name",
+  );
+  await recordScene("profile-conflicting-edit", staleProfile);
+  await staleProfile.close();
+  let releaseProfile;
+  const heldProfile = new Promise((resolve) => {
+    releaseProfile = resolve;
+  });
+  let arrivedProfile, rejectedProfile;
+  const profileResponse = new Promise((resolve, reject) => {
+    arrivedProfile = resolve;
+    rejectedProfile = reject;
+  });
+  heldResponse = {
+    path: "/profile/edit",
+    arrived: arrivedProfile,
+    failed: rejectedProfile,
+    release: heldProfile,
+    drop: true,
+  };
+  try {
+    await profileName().fill("Draft after lost response");
+    await profileBio().fill("The original profile submission.");
+    await profileSave().click();
+    assert.equal(await profileResponse, 200);
+    assert.equal(await profileStatus().textContent(), "Saving…");
+    assert.equal(await profileSave().isDisabled(), true);
+    assert.equal(
+      await page.locator(".profile-name").textContent(),
+      "Newer browser name",
+    );
+    releaseProfile();
+    await page
+      .getByRole("button", { name: "Check your save", exact: true })
+      .waitFor();
+  } finally {
+    releaseProfile();
+    heldResponse = null;
+  }
+  assert.equal(await profileName().inputValue(), "Draft after lost response");
+  assert.equal(await profileSave().isDisabled(), true);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Discard changes", exact: true })
+      .isDisabled(),
+    true,
+  );
+  await recordScene("profile-unconfirmed-save");
+  await page
+    .getByRole("button", { name: "Check your save", exact: true })
+    .click();
+  await page
+    .getByText("We confirmed your profile save.", { exact: true })
+    .waitFor();
+  assert.equal(
+    await page.locator(".profile-name").textContent(),
+    "Draft after lost response",
+  );
+  await recordScene("profile-confirmed-save");
+  await profileName().fill("  ");
+  await profileBio().fill("\n\t ");
+  await profileSave().click();
+  await page
+    .getByText("Your profile changes were saved.", { exact: true })
+    .waitFor();
+  assert.equal(await page.locator(".profile-name").count(), 0);
+  assert.equal(await page.locator(".profile-biography").count(), 0);
+  await page.getByRole("link", { name: "0 ranked books", exact: true }).focus();
   await page.keyboard.press("Enter");
   await page.waitForURL("https://reader.example/ranking#saved-ranking");
   await page.goto("https://reader.example/ranking");

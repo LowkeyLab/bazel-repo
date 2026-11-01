@@ -42,6 +42,17 @@ impl CommitProxy {
         )
         .await
     }
+    pub async fn profile_saved(direct: &PgPool, reader: ReaderId) -> anyhow::Result<Self> {
+        Self::watch(direct,reader,"SELECT count(*) FROM book_smartz_profile_saves.submissions WHERE reader_id=$1 AND outcome='saved'").await
+    }
+    pub async fn profile_prepared(direct: &PgPool, reader: ReaderId) -> anyhow::Result<Self> {
+        Self::watch(
+            direct,
+            reader,
+            "SELECT count(*) FROM book_smartz_profile_saves.submissions WHERE reader_id=$1",
+        )
+        .await
+    }
     async fn watch(
         direct: &PgPool,
         reader: ReaderId,
