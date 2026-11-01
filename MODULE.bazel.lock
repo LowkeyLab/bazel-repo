@@ -5095,7 +5095,7 @@
         {
           "importpath": "github.com/jackc/puddle/v2",
           "sha256": "b2be8f437fdf5c550522c8bca62194c2c1afb221b29bbf984db0599d33c55224",
-          "version": "v2.2.2"
+          "version": "v2.2.3"
         },
         {
           "importpath": "github.com/jbenet/go-context",
