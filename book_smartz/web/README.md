@@ -338,3 +338,22 @@ Add verifies its signed snapshot locally. Cache removal leaves saved display met
 Run `aspect test //book_smartz/web:metadata_cache_test` for the concrete PostgreSQL cache boundary.
 The existing HTTP suite checks shared search enrichment and signed selections after cache removal.
 Controlled provider checks do not establish live Open Library compatibility.
+
+## Private profile reads
+
+**Your profile** opens `/profile` for the reader from the current stored session.
+The centered bookplate shows saved display text and a link to **Your books**.
+The count includes saved ranking entries. It excludes registered books and unfinished placements.
+A failed ranking read returns an unavailable response.
+
+Explicit migration adds `book_smartz_profiles` with its own ledger.
+The existing identity, catalog, and ranking ledgers retain their versions and checksums.
+Startup and readiness require the profile schema. Ordinary requests never create it.
+Profile reads do not change ranking history or create profile rows.
+Editing, Google name import, and draft recovery belong to later profile tickets.
+
+The app suite checks stored-session access, reader isolation, escaped text,
+count transitions, restart, and ranking-read failure.
+The package suite checks upgrade, repeated migration, existing data, and schema rejection.
+The browser journey checks profile navigation, focus, paragraphs, and long text at
+320, 390, and 1440 pixels through the delivered package.

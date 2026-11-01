@@ -31,7 +31,8 @@ pub struct BookDisplay {
 }
 iconify::include!("feather");
 #[component]
-pub async fn heading() -> Result<impl View> {
+pub async fn heading(cx: &topcoat::context::Cx) -> Result<impl View> {
+    let is_profile = topcoat::router::request::uri(cx).path() == "/profile";
     Ok(view! {
         <header class="library-header">
             <a class="brand" href="/ranking">
@@ -41,6 +42,9 @@ pub async fn heading() -> Result<impl View> {
             <nav aria-label="Books">
                 <a href="/ranking">"Find a book"</a>
                 <a href="/ranking#saved-ranking">"Your books"</a>
+                <a href="/profile" aria-current=(is_profile.then_some("page"))>
+                    "Your profile"
+                </a>
             </nav>
         </header>
         <noscript>
