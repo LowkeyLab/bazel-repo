@@ -401,7 +401,9 @@ async fn private_profile_escapes_saved_text_and_never_turns_read_failure_into_ze
         .await?;
     assert_that!(
         body.as_str(),
-        contains_substring("&lt;script&gt;private name&lt;/script&gt;")
+        contains_substring(
+            "<h2 class=\"profile-name\">&lt;script&gt;private name&lt;/script&gt;</h2>"
+        )
     );
     assert_that!(
         body.as_str(),
@@ -409,7 +411,9 @@ async fn private_profile_escapes_saved_text_and_never_turns_read_failure_into_ze
     );
     assert_that!(
         body.as_str(),
-        not(contains_substring("<script>private name"))
+        not(contains_substring(
+            "<h2 class=\"profile-name\"><script>private name"
+        ))
     );
     let other = app.login("profile-text-other").await?;
     let other_body = app
@@ -453,3 +457,77 @@ async fn private_profile_escapes_saved_text_and_never_turns_read_failure_into_ze
     assert_that!(diagnostics, not(contains_substring("First paragraph")));
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn profile_changes_save_once_and_survive_restart() -> anyhow::Result<()> {
+    let mut app = Fixture::new().await?;
+    let cookie = app.login("profile-save-reader").await?;
+    let page = app
+        .client
+        .get(format!("{}/profile", app.base))
+        .header("cookie", &cookie)
+        .send()
+        .await?
+        .text()
+        .await?;
+    assert_that!(page.as_str(), contains_substring("Save changes"));
+    let field = |body: &str, name: &str| -> anyhow::Result<String> {
+        Ok(
+            regex::Regex::new(&format!(r#"name="{name}" value="([^"]+)"#))?
+                .captures(body)
+                .ok_or_else(|| anyhow::anyhow!("missing profile field {name}"))?[1]
+                .to_owned(),
+        )
+    };
+    let csrf = field(&page, "csrf")?;
+    let offer = field(&page, "offer")?;
+    let client = app.client.clone();
+    let base = app.base.clone();
+    let post = |offer: String, name: &str| {
+        client
+            .post(format!("{base}/profile/edit"))
+            .header("cookie", &cookie)
+            .header("origin", "https://reader.example")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(
+                url::form_urlencoded::Serializer::new(String::new())
+                    .extend_pairs([
+                        ("csrf", csrf.clone()),
+                        ("offer", offer),
+                        ("name", name.to_owned()),
+                        ("biography", "First paragraph.\n\nSecond paragraph.".into()),
+                        ("command", "save".into()),
+                    ])
+                    .finish(),
+            )
+            .send()
+    };
+    let (first, duplicate) = tokio::join!(
+        post(offer.clone(), "  Reader  "),
+        post(offer.clone(), "  Reader  ")
+    );
+    for response in [first?, duplicate?] {
+        assert_that!(response.status().as_u16(), eq(200));
+        assert_that!(
+            response.text().await?,
+            contains_substring("Your profile changes were saved.")
+        );
+    }
+    app.restart().await?;
+    let current = app
+        .client
+        .get(format!("{}/profile", app.base))
+        .header("cookie", &cookie)
+        .send()
+        .await?
+        .text()
+        .await?;
+    assert_that!(
+        current.as_str(),
+        contains_substring("class=\"profile-name\">Reader</h2>")
+    );
+    Ok(())
+}
+
+mod profile_save_test;
