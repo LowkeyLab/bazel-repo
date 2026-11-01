@@ -350,10 +350,42 @@ Explicit migration adds `book_smartz_profiles` with its own ledger.
 The existing identity, catalog, and ranking ledgers retain their versions and checksums.
 Startup and readiness require the profile schema. Ordinary requests never create it.
 Profile reads do not change ranking history or create profile rows.
-Editing, Google name import, and draft recovery belong to later profile tickets.
+Google name import and session-expiry draft recovery belong to later profile tickets.
 
 The app suite checks stored-session access, reader isolation, escaped text,
 count transitions, restart, and ranking-read failure.
 The package suite checks upgrade, repeated migration, existing data, and schema rejection.
 The browser journey checks profile navigation, focus, paragraphs, and long text at
 320, 390, and 1440 pixels through the delivered package.
+
+## Profile edits and save checks
+
+The editor keeps entered text separate from confirmed profile values.
+Both fields are optional. Names use one line and up to 100 extended grapheme clusters.
+Biographies retain paragraph breaks and permit up to 500 extended grapheme clusters.
+The browser and server apply this visible-character rule after normalization.
+Validation errors preserve entered text. A conflicting revision reloads the latest profile and reports discarded local edits.
+
+Every editor POST requires the stored session, exact canonical Origin, session-bound CSRF token, and a signed reader-bound submission.
+The submission identifies its expected profile revision. It contains no profile text.
+Use **Save changes**, **Discard changes**, and **Check your save** explicitly.
+A transport failure preserves the current editor and requires **Check your save** before another save.
+The browser shows **Saving…** during submission and prevents duplicate submissions.
+
+`book_smartz_profile_saves` has its own explicit migration and evidence ledger.
+The original profile ledger retains version 1 for older versions of the profile page.
+Preparation retains normalized text before the profile update. An account-row lock coordinates profile writers and save checks.
+The profile update, new revision, completed import attempt, and saved outcome commit together.
+Unknown outcomes retain their submission and block another profile save.
+Checks acquire that same lock before they establish failure. A retained rejection prevents a late writer from applying that submission.
+Current field equality alone never confirms the original submission.
+
+Profile evidence remains separate from ranking Original actions, revisions, and history.
+Ranking actions remain available during profile uncertainty. Profile editing remains available during ranking uncertainty.
+The later Google import must use the same account-row coordination and preserve a completed import attempt.
+The app uses the existing selection key to sign profile submissions with a separate audience.
+Key rotation requires a fresh profile page to obtain new signatures. Retained database evidence remains available.
+
+App checks use real PostgreSQL commit-acknowledgment loss, process interruption, concurrent writers, and definite SQL rejection.
+Chromium checks validation focus, retained drafts, conflicting tabs, a lost HTTP response, and explicit save checks.
+These checks use the delivered package and controlled identity responses. Live-provider and deployment acceptance remain separate.

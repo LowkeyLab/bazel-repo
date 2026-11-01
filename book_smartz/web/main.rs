@@ -60,6 +60,7 @@ struct Application {
     google: identity::Google,
     catalog: catalog::Catalog,
     feedback: feedback::Feedback,
+    profile_offers: profile::Offers,
     diagnostics: diagnostics::Diagnostics,
     integrity: package::IntegrityMonitor,
 }
@@ -148,6 +149,7 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
         InitializationReason::Configuration,
     );
     let feedback = feedback::Feedback::from_environment()?;
+    let profile_offers = profile::Offers::from_environment()?;
     let host = environment_or_default("HOST", "127.0.0.1")?;
     let port = environment_or_default("PORT", "3000")?.parse::<u16>()?;
     observation.phase(
@@ -162,6 +164,7 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
     let router = module_router!()
         .page(ranking)
         .page(profile::show)
+        .page(profile::edit)
         .page(catalog::search)
         .page(catalog::select)
         .page(actions::add)
@@ -192,6 +195,7 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
             google,
             catalog,
             feedback,
+            profile_offers,
             diagnostics,
             integrity,
         })
