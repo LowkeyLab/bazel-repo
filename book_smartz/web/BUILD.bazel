@@ -52,7 +52,7 @@ topcoat_rust_binary(
     asset_inputs = [
         ":styles",
         ":submitting_script",
-        "profile.js",
+        ":profile_script",
     ],
     compile_data = [
         "actions.sql",
@@ -372,6 +372,28 @@ rust_test(
         "@crates//:wiremock",
         "@rules_rust//tools/runfiles",
     ],
+)
+
+js_library(
+    name = "profile_script",
+    srcs = ["profile.js"],
+)
+
+js_library(
+    name = "profile_tests",
+    testonly = True,
+    srcs = ["profile.test.mjs"],
+    deps = [
+        ":profile_script",
+        "//:node_modules/jsdom",
+    ],
+)
+
+js_test(
+    name = "profile_script_test",
+    size = "small",
+    data = [":profile_tests"],
+    entry_point = "profile.test.mjs",
 )
 
 js_library(
