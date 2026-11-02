@@ -488,6 +488,7 @@ async fn profile_changes_save_once_and_survive_restart() -> anyhow::Result<()> {
     };
     let csrf = field(&page, "csrf")?;
     let offer = field(&page, "offer")?;
+    let context = field(&page, "context")?;
     let client = app.client.clone();
     let base = app.base.clone();
     let post = |offer: String, name: &str| {
@@ -501,6 +502,7 @@ async fn profile_changes_save_once_and_survive_restart() -> anyhow::Result<()> {
                     .extend_pairs([
                         ("csrf", csrf.clone()),
                         ("offer", offer),
+                        ("context", context.clone()),
                         ("name", name.to_owned()),
                         ("biography", "First paragraph.\n\nSecond paragraph.".into()),
                         ("command", "save".into()),
@@ -538,3 +540,5 @@ async fn profile_changes_save_once_and_survive_restart() -> anyhow::Result<()> {
 
 mod profile_import_test;
 mod profile_save_test;
+
+mod profile_recovery_test;

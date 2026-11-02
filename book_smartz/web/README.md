@@ -404,3 +404,31 @@ Import and session persistence share the identity transaction and account-row co
 The import initializes text without advancing the manual-save revision, so an already-open draft can explicitly replace imported text.
 A confirmed manual save completes the import attempt and advances that revision. Later sign-ins preserve the saved choice, including an empty name.
 An uncertain commit does not produce a successful sign-in redirect. Later sign-ins retain a committed import instead of repeating it.
+
+## Profile recovery after session expiry
+
+A profile form includes a private recovery reference bound to its signed offer and cross-site request forgery token.
+The reference permits draft retention when the session or its browser cookie expires. It cannot authorize a profile save.
+The server still requires the canonical Origin and the original form values before retaining a draft.
+
+The recovery link associates that draft with the existing OAuth challenge. The callback returns the same reader to profile recovery.
+A different reader receives no draft. An ordinary profile read does not restore text retained only for another tab's sign-in.
+
+Sign-in never submits the retained text. An unresolved submission retains its original **Check your save** correlation.
+A definite outcome permits another explicit save. Sign-out removes this browser's retained drafts without deleting authoritative save evidence.
+
+A separate secure HttpOnly session cookie groups these references across ordinary sign-in. It supplies no authentication or draft selection authority.
+
+Restoration and save preparation use the same account-row lock. Restoration records a terminal rejection for an original submission that did not enter preparation.
+The reader must select `Check your save` for an original submission that already entered preparation. Otherwise, the restored form receives a new submission identity.
+A renewed session in another tab does not prevent draft retention from an older form.
+Sign-out removes drafts for all readers in this browser and revokes the current session in one transaction.
+
+Unfilled form contexts remain available for 720 hours after their original session expires.
+Draft capture and restoration each renew a 720-hour retention period. Expired contexts cannot capture or restore text.
+Login-return mappings expire after one hour. Profile rendering and sign-in each remove up to 256 expired mappings and 256 expired contexts.
+These limits use elapsed hours. Cleanup does not delete authoritative save evidence.
+
+The separate profile-recovery migrations preserve existing migration ledgers. Startup readiness checks require their schema.
+The approved native-form requirement in [#2920](https://github.com/LowkeyLab/bazel-repo/issues/2920) controls this profile journey.
+It supersedes the general JavaScript requirement for this journey. Enhanced and native forms use the same server recovery path.

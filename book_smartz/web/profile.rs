@@ -12,7 +12,7 @@ use topcoat::{
         error::{forbidden, service_unavailable},
         page,
     },
-    view::{View, view},
+    view::{BoxView, ViewExt, view},
 };
 use uuid::Uuid;
 
@@ -22,6 +22,7 @@ use book_smartz_storage::OperationContext;
 use crate::{Application, authorize};
 
 mod offers;
+pub mod recovery;
 mod saves;
 mod text;
 
@@ -50,6 +51,7 @@ pub async fn import_name(
 }
 
 struct Editor {
+    recovery: Option<recovery::DraftId>,
     draft: Option<Text>,
     offer: Option<Offer>,
     checking: Option<Offer>,
@@ -59,6 +61,7 @@ struct Editor {
 impl Editor {
     fn fresh(message: &'static str) -> Self {
         Self {
+            recovery: None,
             draft: None,
             offer: None,
             checking: None,
@@ -67,15 +70,29 @@ impl Editor {
         }
     }
 }
+#[derive(Deserialize)]
+pub struct Query {
+    recovery: Option<recovery::DraftId>,
+}
 #[page("/profile")]
-pub async fn show(cx: &Cx) -> Result<impl View> {
+pub async fn show(cx: &Cx, Form(query): Form<Query>) -> Result<BoxView<'_>> {
     let session = authorize(cx).await?;
     let app: &Application = app_context(cx);
-    let mut editor = Editor::fresh("");
+    let mut editor = if let Some(id) = query.recovery {
+        recovery::restore(&app.pool, session.reader, id, app).await?
+    } else {
+        Editor::fresh("")
+    };
     if let Some(pending) = saves::pending(&app.pool, session.reader).await? {
-        editor.draft = pending.text;
-        editor.offer = Some(pending.offer);
-        editor.checking = Some(pending.offer);
+        if editor.draft.is_none() {
+            editor.draft = pending.text;
+        }
+        if editor.offer.is_none() {
+            editor.offer = Some(pending.offer);
+        }
+        if editor.checking.is_none() {
+            editor.checking = Some(pending.offer);
+        }
         editor.message =
             "We cannot confirm your profile save yet. Check your save before you try again.";
     }
@@ -83,6 +100,8 @@ pub async fn show(cx: &Cx) -> Result<impl View> {
 }
 #[derive(Deserialize)]
 pub struct Input {
+    context: Option<recovery::DraftId>,
+    recovery: Option<recovery::DraftId>,
     csrf: String,
     offer: String,
     checking: Option<String>,
@@ -91,7 +110,10 @@ pub struct Input {
     command: String,
 }
 #[page(POST "/profile/edit")]
-pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<impl View> {
+pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<BoxView<'_>> {
+    if let Some(response) = recovery::expired(cx, &input).await? {
+        return Ok(response);
+    }
     let session = authorize(cx).await?;
     crate::require_post(cx, &session, &input.csrf)?;
     let app: &Application = app_context(cx);
@@ -110,6 +132,7 @@ pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<impl View> {
         biography: input.biography,
     };
     let mut editor = Editor {
+        recovery: input.recovery,
         draft: Some(raw.clone()),
         offer: Some(offer),
         checking,
@@ -126,6 +149,9 @@ pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<impl View> {
                 editor.checking = Some(pending.offer);
                 editor.message = "Check your save before discarding these changes.";
                 return render(cx, editor).await;
+            }
+            if let Some(id) = input.recovery {
+                recovery::clear_draft(&app.pool, session.reader, id).await?;
             }
             return render(
                 cx,
@@ -153,6 +179,11 @@ pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<impl View> {
         }
         _ => return Err(forbidden().into()),
     };
+    if matches!(&outcome, Outcome::Saved | Outcome::Conflict)
+        && let Some(id) = input.recovery
+    {
+        recovery::clear_draft(&app.pool, session.reader, id).await?;
+    }
     match outcome {
         Outcome::Saved if checking.is_some_and(|original| original.id != offer.id) => {
             editor = Editor::fresh(
@@ -193,7 +224,7 @@ pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<impl View> {
     }
     render(cx, editor).await
 }
-async fn render(cx: &Cx, editor: Editor) -> Result<impl View> {
+async fn render(cx: &Cx, editor: Editor) -> Result<BoxView<'_>> {
     let __cx = cx;
     let session = authorize(cx).await?;
     let app: &Application = app_context(cx);
@@ -208,6 +239,7 @@ async fn render(cx: &Cx, editor: Editor) -> Result<impl View> {
         .checking
         .map(|offer| app.profile_offers.sign(session.reader, offer))
         .transpose()?;
+    let context = recovery::prepare(cx, &session, &offer).await?;
     let blocked = checking.is_some();
     let errors = editor.errors;
     let ranking = app
@@ -255,6 +287,10 @@ async fn render(cx: &Cx, editor: Editor) -> Result<impl View> {
                         <h2>"Edit your profile"</h2>
                         <input type="hidden" name="csrf" value=(session.csrf.clone())>
                         <input type="hidden" name="offer" value=(offer)>
+                        <input type="hidden" name="context" value=(context.to_string())>
+                        if let Some(id) = editor.recovery {
+                            <input type="hidden" name="recovery" value=(id.to_string())>
+                        }
                         if let Some(checking) = checking {
                             <input type="hidden" name="checking" value=(checking)>
                         }
@@ -338,7 +374,8 @@ async fn render(cx: &Cx, editor: Editor) -> Result<impl View> {
                 </main>
             </body>
         </html>
-    })
+    }
+    .boxed())
 }
 
 pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
@@ -366,11 +403,13 @@ pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
     .await?;
     drop(connection);
     saves::migrate(pool).await?;
+    recovery::migrate(pool).await?;
     Ok(())
 }
 
 pub async fn ready(pool: &PgPool) -> anyhow::Result<()> {
     saves::ready(pool).await?;
+    recovery::ready(pool).await?;
     let version: i64 = sqlx::query_scalar(
         "SELECT max(version) FROM book_smartz_profiles._sqlx_migrations WHERE success",
     )

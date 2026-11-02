@@ -287,9 +287,12 @@ impl Fixture {
         .await?
     }
     pub async fn begin(&self) -> anyhow::Result<Login> {
+        self.begin_at("/auth/google").await
+    }
+    pub async fn begin_at(&self, path: &str) -> anyhow::Result<Login> {
         let response = self
             .client
-            .get(format!("{}/auth/google", self.base))
+            .get(format!("{}{path}", self.base))
             .send()
             .await?;
         anyhow::ensure!(

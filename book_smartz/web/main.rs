@@ -584,11 +584,19 @@ async fn logout(cx: &Cx, Form(input): Form<Logout>) -> Result<()> {
     require_post(cx, &session, &input.csrf)
         .inspect_err(|_| diagnostic.finish(OperationOutcome::Rejected, Reason::InvalidInput))?;
     diagnostic.stage(Stage::SessionRevocation);
-    sqlx::query("DELETE FROM book_smartz_web.sessions WHERE token_hash = $1")
-        .bind(session.hash.as_slice())
-        .execute(&db.pool)
-        .await
-        .inspect_err(|error| diagnostic.database_failure(error))?;
+    let result = async {
+        let mut tx = db.pool.begin().await?;
+        sqlx::query("DELETE FROM book_smartz_web.sessions WHERE token_hash = $1")
+            .bind(session.hash.as_slice())
+            .execute(&mut *tx)
+            .await?;
+        profile::recovery::clear_session(&mut tx, cx, session.reader, session.hash.as_slice())
+            .await?;
+        tx.commit().await
+    }
+    .await;
+    result.inspect_err(|error| diagnostic.database_failure(error))?;
+    profile::recovery::forget_browser(cx);
     diagnostic.stage(Stage::Session);
     session::stop(cx).await.inspect_err(|_| {
         diagnostic.finish(
@@ -601,12 +609,16 @@ async fn logout(cx: &Cx, Form(input): Form<Logout>) -> Result<()> {
 }
 
 fn require_post(cx: &Cx, session: &BrowserSession, csrf: &str) -> Result<()> {
+    require_origin(cx)?;
+    if csrf != session.csrf {
+        return Err(forbidden().into());
+    }
+    Ok(())
+}
+fn require_origin(cx: &Cx) -> Result<()> {
     let db: &Application = app_context(cx);
     let origins: Vec<_> = request::headers(cx).get_all("origin").iter().collect();
-    if origins.len() != 1
-        || origins[0].to_str().ok() != Some(db.origin.as_str())
-        || csrf != session.csrf
-    {
+    if origins.len() != 1 || origins[0].to_str().ok() != Some(db.origin.as_str()) {
         return Err(forbidden().into());
     }
     Ok(())

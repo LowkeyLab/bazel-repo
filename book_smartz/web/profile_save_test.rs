@@ -28,12 +28,14 @@ pub fn values(body: &str, name: &str, biography: &str, command: &str) -> anyhow:
         ("biography".into(), biography.into()),
         ("command".into(), command.into()),
     ];
-    if let Ok(checking) = field(body, "checking") {
-        fields.push(("checking".into(), checking));
+    for key in ["checking", "context", "recovery"] {
+        if let Ok(value) = field(body, key) {
+            fields.push((key.into(), value));
+        }
     }
     Ok(fields)
 }
-fn encoded(values: &Values) -> String {
+pub fn encoded(values: &[(String, String)]) -> String {
     url::form_urlencoded::Serializer::new(String::new())
         .extend_pairs(values)
         .finish()
@@ -216,12 +218,12 @@ async fn each_profile_post_requires_session_origin_csrf_and_reader_bound_offer()
             eq(403)
         );
     }
-    assert_that!(post(&app, "", &fields).await?.status().as_u16(), eq(401));
+    assert_that!(post(&app, "", &fields).await?.status().as_u16(), eq(200));
     let id = reader(&app, "profile-security").await?;
     sqlx::query("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second' WHERE reader_id=$1").bind(id.as_uuid()).execute(&app.pool).await?;
     assert_that!(
         post(&app, &cookie, &fields).await?.status().as_u16(),
-        eq(401)
+        eq(200)
     );
     let count: i64 =
         sqlx::query_scalar("SELECT count(*) FROM book_smartz_profile_saves.submissions")
