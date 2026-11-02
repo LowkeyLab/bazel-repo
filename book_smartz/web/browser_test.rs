@@ -128,6 +128,8 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
                     let sql = match line.as_str() {
                         "fixture:reject" => Some("CREATE FUNCTION browser_reject() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'controlled failure'; END $$; CREATE TRIGGER browser_reject BEFORE INSERT ON book_smartz.ranking_events FOR EACH ROW EXECUTE FUNCTION browser_reject()"),
                         "fixture:allow" => Some("DROP TRIGGER browser_reject ON book_smartz.ranking_events; DROP FUNCTION browser_reject()"),
+                        "fixture:profile-reject" => Some("CREATE FUNCTION browser_profile_reject() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'controlled profile failure'; END $$; CREATE TRIGGER browser_profile_reject BEFORE INSERT OR UPDATE ON book_smartz_profiles.profiles FOR EACH ROW EXECUTE FUNCTION browser_profile_reject()"),
+                        "fixture:profile-allow" => Some("DROP TRIGGER browser_profile_reject ON book_smartz_profiles.profiles; DROP FUNCTION browser_profile_reject()"),
                         "fixture:profile-text" => Some("INSERT INTO book_smartz_profiles.profiles (reader_id, display_name, biography) SELECT reader_id, repeat('N',100), 'First paragraph.' || chr(10) || chr(10) || '<b>Plain text</b> ' || repeat('B',260) FROM book_smartz_web.accounts WHERE subject = 'browser-reader' ON CONFLICT (reader_id) DO UPDATE SET display_name = EXCLUDED.display_name, biography = EXCLUDED.biography"),
                         "fixture:expire" => Some("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second'"),
                         _ => None,

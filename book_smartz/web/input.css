@@ -373,3 +373,41 @@
     overflow-wrap: anywhere;
   }
 }
+
+@layer components {
+  .profile-editor {
+    max-width: 44rem;
+    margin: 1.75rem auto;
+    padding: clamp(1.25rem, 4vw, 2rem);
+    background: var(--color-paper);
+    border-top: 1px solid #cbd5e1;
+  }
+  .profile-editor textarea {
+    display: block;
+    width: 100%;
+    min-height: 8rem;
+    resize: vertical;
+    font: inherit;
+    color: var(--color-ink);
+    background: var(--color-paper);
+    border: 1px solid #58657b;
+    border-radius: var(--radius-control);
+    padding: 0.65rem 0.75rem;
+    margin-block: 0.5rem 1rem;
+  }
+  .profile-editor textarea:focus-visible {
+    outline: 3px solid var(--color-action);
+    outline-offset: 4px;
+  }
+  .profile-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .field-error {
+    color: #a02a2a;
+  }
+  .profile-editor [aria-invalid="true"] {
+    border: 2px solid #a02a2a;
+  }
+}

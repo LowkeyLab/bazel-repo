@@ -535,6 +535,9 @@ async fn profile_upgrade_preserves_existing_ledgers_sessions_and_saved_ranking()
         .await?;
     let ledgers = "SELECT 'ranking', version, checksum FROM book_smartz._sqlx_migrations UNION ALL SELECT 'identity', version, checksum FROM book_smartz_web._sqlx_migrations UNION ALL SELECT 'catalog', version, checksum FROM book_smartz_catalog._sqlx_migrations ORDER BY 1, 2";
     let before: Vec<(String, i64, Vec<u8>)> = sqlx::query_as(ledgers).fetch_all(&app.pool).await?;
+    sqlx::query("DROP SCHEMA book_smartz_profile_saves CASCADE")
+        .execute(&app.pool)
+        .await?;
     sqlx::query("DROP SCHEMA book_smartz_profiles CASCADE")
         .execute(&app.pool)
         .await?;

@@ -29,7 +29,7 @@ fn field(html: &str, name: &str) -> anyhow::Result<String> {
             .to_owned(),
     )
 }
-async fn post(
+pub async fn post(
     app: &Fixture,
     cookie: &str,
     route: &str,
@@ -58,7 +58,7 @@ fn display_cookie(response: &reqwest::Response) -> anyhow::Result<String> {
         .ok_or_else(|| anyhow::anyhow!("Missing confirmed display cookie"))?
         .to_owned())
 }
-async fn offer(
+pub async fn offer(
     app: &Fixture,
     cookie: &str,
     reader: ReaderId,
@@ -91,7 +91,7 @@ async fn offer(
         ("offer".into(), field(&html, "offer")?),
     ])
 }
-fn work(id: &str, title: &str) -> Value {
+pub fn work(id: &str, title: &str) -> Value {
     json!({"work_id":id,"title":title,"authors":["Saved Author"],"cover":123,"year":null})
 }
 fn value<'a>(values: &'a [(String, String)], key: &str) -> &'a str {
@@ -984,7 +984,7 @@ async fn concurrent_registration_converges_and_rejected_start_retains_metadata()
     Ok(())
 }
 
-async fn reject_ranking(app: &Fixture) -> anyhow::Result<()> {
+pub async fn reject_ranking(app: &Fixture) -> anyhow::Result<()> {
     sqlx::raw_sql("CREATE FUNCTION reject_web_ranking() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'fixture failure'; END $$; CREATE TRIGGER reject_web_ranking BEFORE INSERT ON book_smartz.ranking_events FOR EACH ROW EXECUTE FUNCTION reject_web_ranking();").execute(&app.pool).await?;
     Ok(())
 }
@@ -1152,7 +1152,7 @@ async fn matching_event_identity_with_different_contents_stays_checking() -> any
 }
 
 #[path = "commit_proxy.rs"]
-mod commit_proxy;
+pub mod commit_proxy;
 
 #[googletest::test]
 #[tokio::test]
