@@ -1,0 +1,11 @@
+{
+  "commit": "3446db7c2254cb81c558aafbf76cf21008d05451",
+  "old_binary_overlap": "passed",
+  "old_schema_upgrade": "passed",
+  "original_ledgers": "unchanged",
+  "previous_archive_sha256": "3a766c86cccea8cae87ac9b44b4e4ae72357cf67980891c32e213fb4f6e4f68e",
+  "profile_preservation": "passed",
+  "ranking_history": "unchanged",
+  "repeated_migration": "passed",
+  "session_continuity": "passed"
+}
