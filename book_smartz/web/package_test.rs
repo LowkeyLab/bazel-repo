@@ -574,17 +574,8 @@ async fn profile_upgrade_preserves_existing_ledgers_sessions_and_saved_ranking()
     rejected(&app, "https://reader.example")
         .await
         .context("startup must reject a missing profile schema")?;
-    let migrate = || {
-        fixture_process::status(
-            Command::new(app.package.path().join("book-smartz"))
-                .arg("migrate")
-                .env("DATABASE_URL", &app.database)
-                .current_dir(app.cwd.path()),
-            "profile_upgrade_migrate",
-        )
-    };
-    assert_that!(migrate()?.success(), eq(true));
-    assert_that!(migrate()?.success(), eq(true));
+    migrate_package(&app, "profile_upgrade_migrate")?;
+    migrate_package(&app, "profile_upgrade_migrate")?;
     let after: Vec<(String, i64, Vec<u8>)> = sqlx::query_as(ledgers).fetch_all(&app.pool).await?;
     assert_that!(after, eq(&before));
     app.restart().await?;
@@ -629,7 +620,7 @@ async fn previous_binary_preserves_the_upgraded_profile_sessions_and_ranking() -
     sqlx::raw_sql("DROP SCHEMA book_smartz_profile_recovery CASCADE; DROP SCHEMA book_smartz_profile_saves CASCADE; DROP SCHEMA book_smartz_profiles CASCADE")
         .execute(&app.pool).await?;
     let current_package = std::mem::replace(&mut app.package, previous_package);
-    compatibility_migrate(&app)?;
+    migrate_package(&app, "profile_compatibility_migrate")?;
     app.restart_after_exit().await?;
     let cookie = app.login("profile-compatibility-reader").await?;
     assert_that!(
@@ -683,8 +674,8 @@ async fn previous_binary_preserves_the_upgraded_profile_sessions_and_ranking() -
     app.process.0.kill()?;
     app.process.0.wait()?;
     let previous_package = std::mem::replace(&mut app.package, current_package);
-    compatibility_migrate(&app)?;
-    compatibility_migrate(&app)?;
+    migrate_package(&app, "profile_compatibility_migrate")?;
+    migrate_package(&app, "profile_compatibility_migrate")?;
     app.restart_after_exit().await?;
     let profile = app
         .client
@@ -748,7 +739,7 @@ async fn previous_binary_preserves_the_upgraded_profile_sessions_and_ranking() -
     let old_cookie = app.login("profile-compatibility-reader").await?;
     app.process.0.kill()?;
     app.process.0.wait()?;
-    compatibility_migrate(&app)?;
+    migrate_package(&app, "profile_compatibility_migrate")?;
     let previous_package = std::mem::replace(&mut app.package, current_package);
     app.restart_after_exit().await?;
     drop(previous_package);
@@ -792,13 +783,13 @@ async fn previous_binary_preserves_the_upgraded_profile_sessions_and_ranking() -
     Ok(())
 }
 
-fn compatibility_migrate(app: &Fixture) -> anyhow::Result<()> {
+fn migrate_package(app: &Fixture, stage: &'static str) -> anyhow::Result<()> {
     let status = fixture_process::status(
         Command::new(app.package.path().join("book-smartz"))
             .arg("migrate")
             .env("DATABASE_URL", &app.database)
             .current_dir(app.cwd.path()),
-        "profile_compatibility_migrate",
+        stage,
     )?;
     assert_that!(status.success(), eq(true));
     Ok(())
