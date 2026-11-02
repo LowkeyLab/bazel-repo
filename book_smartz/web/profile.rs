@@ -1,7 +1,7 @@
 //! Private profile reads use the stored session and authoritative ranking projection.
 use serde::Deserialize;
 use sqlx::{
-    PgPool, SqlSafeStr,
+    PgPool, Postgres, SqlSafeStr, Transaction,
     migrate::{Migration, MigrationType, Migrator},
 };
 use topcoat::{
@@ -16,6 +16,7 @@ use topcoat::{
 };
 use uuid::Uuid;
 
+use book_smartz_domain::ReaderId;
 use book_smartz_storage::OperationContext;
 
 use crate::{Application, authorize};
@@ -28,6 +29,21 @@ pub use offers::Offers;
 use offers::{Offer, SaveId};
 use saves::Outcome;
 use text::{Errors, Text};
+
+/// The caller holds the account-row lock from identity creation or lookup.
+/// Initial import preserves the manual-save revision so an open draft can override it.
+pub async fn import_name(
+    transaction: &mut Transaction<'_, Postgres>,
+    reader: ReaderId,
+    name: Option<&str>,
+) -> std::result::Result<(), sqlx::Error> {
+    let name = Text::validate(name.unwrap_or_default(), "")
+        .unwrap_or_default()
+        .name;
+    sqlx::query("INSERT INTO book_smartz_profiles.profiles (reader_id,display_name,import_attempted) VALUES ($1,$2,true) ON CONFLICT (reader_id) DO UPDATE SET display_name=EXCLUDED.display_name,import_attempted=true WHERE NOT book_smartz_profiles.profiles.import_attempted")
+        .bind(reader.as_uuid()).bind(name).execute(&mut **transaction).await?;
+    Ok(())
+}
 
 struct Editor {
     draft: Option<Text>,

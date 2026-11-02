@@ -389,3 +389,16 @@ Key rotation requires a fresh profile page to obtain new signatures. Retained da
 App checks use real PostgreSQL commit-acknowledgment loss, process interruption, concurrent writers, and definite SQL rejection.
 Chromium checks validation focus, retained drafts, conflicting tabs, a lost HTTP response, and explicit save checks.
 These checks use the delivered package and controlled identity responses. Live-provider and deployment acceptance remain separate.
+
+## One-time Google name import
+
+Sign-in requests `openid profile` and imports the optional name from the validated ID token.
+[Google documents this name claim as optional](https://developers.google.com/identity/openid-connect/openid-connect).
+The first successful sign-in completes the attempt for both new and existing readers.
+Missing, malformed, blank, multiline, and over-limit names leave the name empty. Import never truncates or automatically retries.
+The existing normalization and 100-extended-grapheme-cluster limit apply. Biography text remains unchanged.
+
+Import and session persistence share the identity transaction and account-row coordination.
+The import initializes text without advancing the manual-save revision, so an already-open draft can explicitly replace imported text.
+A confirmed manual save completes the import attempt and advances that revision. Later sign-ins preserve the saved choice, including an empty name.
+An uncertain commit does not produce a successful sign-in redirect. Later sign-ins retain a committed import instead of repeating it.

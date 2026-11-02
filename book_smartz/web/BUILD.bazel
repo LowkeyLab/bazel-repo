@@ -200,6 +200,7 @@ rust_test(
         "commit_proxy.rs",
         "diagnostic_events.rs",
         "fixture_process.rs",  # keep
+        "profile_import_test.rs",
         "profile_save_test.rs",
         "test_support.rs",
     ],

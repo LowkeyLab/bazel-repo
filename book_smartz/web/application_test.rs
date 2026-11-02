@@ -388,8 +388,14 @@ async fn private_profile_escapes_saved_text_and_never_turns_read_failure_into_ze
     )
     .fetch_one(&app.pool)
     .await?;
-    sqlx::query("INSERT INTO book_smartz_profiles.profiles (reader_id, display_name, biography) VALUES ($1, $2, $3)")
-        .bind(reader).bind("<script>private name</script>").bind("First paragraph.\n\nSecond & <b>plain</b>.").execute(&app.pool).await?;
+    sqlx::query(
+        "UPDATE book_smartz_profiles.profiles SET display_name=$2, biography=$3 WHERE reader_id=$1",
+    )
+    .bind(reader)
+    .bind("<script>private name</script>")
+    .bind("First paragraph.\n\nSecond & <b>plain</b>.")
+    .execute(&app.pool)
+    .await?;
     app.restart().await?;
     let body = app
         .client
@@ -530,4 +536,5 @@ async fn profile_changes_save_once_and_survive_restart() -> anyhow::Result<()> {
     Ok(())
 }
 
+mod profile_import_test;
 mod profile_save_test;

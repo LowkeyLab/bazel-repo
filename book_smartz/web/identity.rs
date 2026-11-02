@@ -22,6 +22,8 @@ use topcoat::{
 };
 use uuid::Uuid;
 
+use book_smartz_domain::ReaderId;
+
 use crate::Application;
 use crate::diagnostic_events::{OperationKind, OperationOutcome, Reason, Stage};
 
@@ -317,6 +319,8 @@ struct Claims {
     nonce: String,
     aud: serde_json::Value,
     azp: Option<String>,
+    #[serde(default)]
+    name: serde_json::Value,
 }
 #[derive(Deserialize)]
 pub struct Callback {
@@ -362,7 +366,7 @@ pub async fn login(cx: &Cx) -> Result<()> {
         ("response_type", "code"),
         ("client_id", app.google.client_id.as_str()),
         ("redirect_uri", app.google.redirect.as_str()),
-        ("scope", "openid"),
+        ("scope", "openid profile"),
         ("state", state.encode().as_str()),
         ("nonce", nonce.as_str()),
         ("code_challenge", challenge.as_str()),
@@ -441,6 +445,7 @@ pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
     let mut transaction = app.pool.begin().await?;
     let reader: Uuid = sqlx::query_scalar("INSERT INTO book_smartz_web.accounts (issuer, subject, reader_id) VALUES ($1, $2, $3) ON CONFLICT (issuer, subject) DO UPDATE SET subject = EXCLUDED.subject RETURNING reader_id")
         .bind(ISSUER).bind(claims.sub).bind(Uuid::new_v4()).fetch_one(&mut *transaction).await?;
+    crate::profile::import_name(&mut transaction, ReaderId::new(reader), claims.name.as_str()).await?;
     let expires: chrono::DateTime<chrono::Utc> = issued.expires_at.into();
     sqlx::query("INSERT INTO book_smartz_web.sessions (token_hash, reader_id, csrf, expires_at) VALUES ($1, $2, $3, $4)")
         .bind(issued.token_hash.as_slice()).bind(reader).bind(csrf).bind(expires).execute(&mut *transaction).await?;

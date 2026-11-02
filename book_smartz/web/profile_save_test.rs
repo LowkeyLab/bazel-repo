@@ -20,7 +20,7 @@ fn field(body: &str, name: &str) -> anyhow::Result<String> {
             .to_owned(),
     )
 }
-fn values(body: &str, name: &str, biography: &str, command: &str) -> anyhow::Result<Values> {
+pub fn values(body: &str, name: &str, biography: &str, command: &str) -> anyhow::Result<Values> {
     let mut fields = vec![
         ("csrf".into(), field(body, "csrf")?),
         ("offer".into(), field(body, "offer")?),
@@ -38,7 +38,7 @@ fn encoded(values: &Values) -> String {
         .extend_pairs(values)
         .finish()
 }
-async fn page(app: &Fixture, cookie: &str) -> anyhow::Result<String> {
+pub async fn page(app: &Fixture, cookie: &str) -> anyhow::Result<String> {
     Ok(app
         .client
         .get(format!("{}/profile", app.base))
@@ -49,7 +49,7 @@ async fn page(app: &Fixture, cookie: &str) -> anyhow::Result<String> {
         .text()
         .await?)
 }
-async fn post(app: &Fixture, cookie: &str, values: &Values) -> anyhow::Result<Response> {
+pub async fn post(app: &Fixture, cookie: &str, values: &Values) -> anyhow::Result<Response> {
     Ok(app
         .client
         .post(format!("{}/profile/edit", app.base))
@@ -505,12 +505,10 @@ async fn preparation_uncertainty_and_inflight_checks_cannot_admit_a_late_duplica
         late,
         contains_substring("Your profile changes were not saved.")
     );
-    let count: i64 =
-        sqlx::query_scalar("SELECT count(*) FROM book_smartz_profiles.profiles WHERE reader_id=$1")
-            .bind(id.as_uuid())
-            .fetch_one(&app.pool)
-            .await?;
-    assert_that!(count, eq(0));
+    assert_that!(
+        page(&app, &cookie).await?,
+        not(contains_substring("Prepared name"))
+    );
     let never_sent = page(&app, &cookie).await?;
     let never_fields = values(
         &never_sent,
