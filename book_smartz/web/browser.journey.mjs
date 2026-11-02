@@ -760,6 +760,29 @@ async function journey() {
     true,
   );
   await recordScene("profile-unconfirmed-save");
+  await fixture("expire");
+  await page
+    .getByRole("button", { name: "Check your save", exact: true })
+    .click();
+  await page
+    .getByRole("heading", {
+      name: "Sign in to restore your profile draft",
+      exact: true,
+    })
+    .waitFor();
+  const beforeProfileSignIn = mutationRequests.get("/profile/edit") || 0;
+  await page
+    .getByRole("link", { name: "Sign in with Google", exact: true })
+    .click();
+  await page.waitForURL(/\/profile\?recovery=/);
+  assert.equal(
+    mutationRequests.get("/profile/edit") || 0,
+    beforeProfileSignIn,
+    "Sign-in must not check or save automatically",
+  );
+  assert.equal(await profileSave().isDisabled(), true);
+  assert.equal(await profileName().inputValue(), "Draft after lost response");
+  await recordScene("profile-expired-unconfirmed-save");
   await page
     .getByRole("button", { name: "Check your save", exact: true })
     .click();
@@ -771,6 +794,159 @@ async function journey() {
     "Draft after lost response",
   );
   await recordScene("profile-confirmed-save");
+  // Each navigation retains its own draft without using a shared browser cookie.
+  for (const javaScriptEnabled of [true, false]) {
+    const recoveryContext = await browser.newContext({
+      javaScriptEnabled,
+      ignoreHTTPSErrors: true,
+      viewport: { width: 390, height: 844 },
+    });
+    const recoveryPage = await recoveryContext.newPage();
+    recoveryPage.setDefaultTimeout(10000);
+    let profilePosts = 0;
+    recoveryPage.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/profile/edit"
+      )
+        profilePosts++;
+    });
+    await recoveryPage.goto("https://reader.example/");
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL("https://reader.example/ranking");
+    await recoveryPage.goto("https://reader.example/profile");
+    await recoveryPage
+      .getByRole("textbox", { name: "Display name", exact: true })
+      .fill("Recovered browser draft");
+    await recoveryPage
+      .getByRole("textbox", { name: "Biography", exact: true })
+      .fill("This draft needs an explicit save.");
+    await fixture("expire");
+    await recoveryContext.clearCookies();
+    await recoveryPage
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await recoveryPage
+      .getByRole("heading", {
+        name: "Sign in to restore your profile draft",
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(profilePosts, 1);
+    await recordScene(
+      `profile-expired-${javaScriptEnabled ? "enhanced" : "native"}`,
+      recoveryPage,
+    );
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL(/\/profile\?recovery=/);
+    assert.equal(
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .inputValue(),
+      "Recovered browser draft",
+    );
+    assert.equal(
+      await recoveryPage
+        .getByRole("textbox", { name: "Biography", exact: true })
+        .inputValue(),
+      "This draft needs an explicit save.",
+    );
+    assert.equal(profilePosts, 1, "Sign-in must not submit a profile save");
+    await recordScene(
+      `profile-restored-${javaScriptEnabled ? "enhanced" : "native"}`,
+      recoveryPage,
+    );
+    await recoveryPage
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await recoveryPage
+      .getByText("Your profile changes were saved.", { exact: true })
+      .waitFor();
+    assert.equal(profilePosts, 2);
+    await recoveryPage
+      .getByRole("textbox", { name: "Display name", exact: true })
+      .fill("Draft removed on sign-out");
+    await fixture("expire");
+    await recoveryPage
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await recoveryPage
+      .getByRole("heading", {
+        name: "Sign in to restore your profile draft",
+        exact: true,
+      })
+      .waitFor();
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL(/\/profile\?recovery=/);
+    const removedDraftUrl = recoveryPage.url();
+    await recoveryPage
+      .getByRole("button", { name: "Sign out of this browser", exact: true })
+      .click();
+    await recoveryPage.waitForURL("https://reader.example/");
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL("https://reader.example/ranking");
+    const removed = await recoveryPage.goto(removedDraftUrl);
+    assert.equal(removed.status(), 403);
+    assert.equal(
+      await recoveryPage
+        .getByText("Draft removed on sign-out", { exact: true })
+        .count(),
+      0,
+    );
+    await recoveryPage.goto("https://reader.example/profile");
+    await recoveryPage
+      .getByRole("textbox", { name: "Display name", exact: true })
+      .fill("Previous account draft");
+    await fixture("expire");
+    await recoveryPage
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await recoveryPage
+      .getByRole("heading", {
+        name: "Sign in to restore your profile draft",
+        exact: true,
+      })
+      .waitFor();
+    const privateLink = await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .getAttribute("href");
+    const privateReference = new URL(
+      privateLink,
+      "https://reader.example",
+    ).searchParams.get("profile");
+    await fixture("native-reader");
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL("https://reader.example/ranking");
+    await recoveryPage.goto("https://reader.example/profile");
+    assert.notEqual(
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .inputValue(),
+      "Previous account draft",
+    );
+    const denied = await recoveryPage.goto(
+      `https://reader.example/profile?recovery=${privateReference}`,
+    );
+    assert.equal(denied.status(), 403);
+    await fixture("browser-reader");
+    await recoveryContext.close();
+  }
+  await page.goto("https://reader.example/");
+  await page
+    .getByRole("link", { name: "Sign in with Google", exact: true })
+    .click();
+  await page.waitForURL("https://reader.example/ranking");
+  await page.goto("https://reader.example/profile");
   await profileName().fill("  ");
   await profileBio().fill("\n\t ");
   await profileSave().click();

@@ -70,6 +70,10 @@ pub async fn pending(pool: &PgPool, reader: ReaderId) -> Result<Option<Attempt>,
         .bind(reader.as_uuid()).fetch_optional(pool).await?;
     Ok(row.map(attempt))
 }
+pub async fn submitted(pool: &PgPool, reader: ReaderId, offer: Offer) -> Result<bool, sqlx::Error> {
+    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM book_smartz_profile_saves.submissions WHERE reader_id=$1 AND submission_id=$2)")
+        .bind(reader.as_uuid()).bind(offer.id.0).fetch_one(pool).await
+}
 pub async fn current(pool: &PgPool, reader: ReaderId) -> Result<(Text, i64), sqlx::Error> {
     let row: Option<(String,String,i64)> = sqlx::query_as("SELECT display_name,biography,revision FROM book_smartz_profiles.profiles WHERE reader_id=$1")
         .bind(reader.as_uuid()).fetch_optional(pool).await?;

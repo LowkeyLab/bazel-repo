@@ -538,3 +538,5 @@ async fn profile_changes_save_once_and_survive_restart() -> anyhow::Result<()> {
 
 mod profile_import_test;
 mod profile_save_test;
+
+mod profile_recovery_test;

@@ -328,8 +328,12 @@ pub struct Callback {
     state: String,
 }
 
+#[derive(Deserialize)]
+pub struct LoginInput {
+    profile: Option<Uuid>,
+}
 #[route(GET "/auth/google")]
-pub async fn login(cx: &Cx) -> Result<()> {
+pub async fn login(cx: &Cx, Form(input): Form<LoginInput>) -> Result<()> {
     let app: &Application = app_context(cx);
     let mut diagnostic = app.diagnostics.operation(OperationKind::SignInStart);
     diagnostic.stage(Stage::Persistence);
@@ -346,6 +350,7 @@ pub async fn login(cx: &Cx) -> Result<()> {
         .await?;
     sqlx::query("INSERT INTO book_smartz_web.login_challenges (state_hash, nonce, verifier, expires_at) VALUES ($1, $2, $3, now() + interval '10 minutes')")
         .bind(state.hash().as_slice()).bind(&nonce).bind(&verifier).execute(&mut *transaction).await?;
+    if let Some(draft)=input.profile {crate::profile::recovery::remember(&mut transaction,state.hash().as_slice(),draft).await?;}
     transaction.commit().await?;
         Ok::<(), sqlx::Error>(())
     }.await.inspect_err(|error| diagnostic.database_failure(error))?;
@@ -441,7 +446,7 @@ pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
     })?;
     let csrf = Token::random().encode();
     diagnostic.stage(Stage::Persistence);
-    async {
+    let destination=async {
     let mut transaction = app.pool.begin().await?;
     let reader: Uuid = sqlx::query_scalar("INSERT INTO book_smartz_web.accounts (issuer, subject, reader_id) VALUES ($1, $2, $3) ON CONFLICT (issuer, subject) DO UPDATE SET subject = EXCLUDED.subject RETURNING reader_id")
         .bind(ISSUER).bind(claims.sub).bind(Uuid::new_v4()).fetch_one(&mut *transaction).await?;
@@ -449,8 +454,9 @@ pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
     let expires: chrono::DateTime<chrono::Utc> = issued.expires_at.into();
     sqlx::query("INSERT INTO book_smartz_web.sessions (token_hash, reader_id, csrf, expires_at) VALUES ($1, $2, $3, $4)")
         .bind(issued.token_hash.as_slice()).bind(reader).bind(csrf).bind(expires).execute(&mut *transaction).await?;
+    let destination=crate::profile::recovery::destination(&mut transaction,state.hash().as_slice(),reader,issued.token_hash.as_slice()).await?;
     transaction.commit().await?;
-        Ok::<(), sqlx::Error>(())
+        Ok::<_, sqlx::Error>(destination)
     }.await.inspect_err(|error| diagnostic.database_failure(error))?;
     diagnostic.finish(OperationOutcome::Confirmed, Reason::None);
     cookies(cx).remove(
@@ -459,7 +465,15 @@ pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
             .secure(true)
             .build(),
     );
-    Err(see_other("/ranking").into())
+    if let Some((_, browser)) = &destination {
+        crate::profile::recovery::remember_browser(cx, *browser);
+    }
+    Err(see_other(
+        destination
+            .as_ref()
+            .map_or("/ranking", |(path, _)| path.as_str()),
+    )
+    .into())
 }
 
 pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {
