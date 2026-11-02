@@ -304,6 +304,7 @@ async fn render(cx: &Cx, editor: Editor) -> Result<BoxView<'_>> {
                             autocomplete="nickname"
                             value=(draft.name)
                             readonly=(blocked)
+                            autofocus=(errors.name.is_some())
                             aria-invalid=(errors.name.map(|_| "true"))
                             aria-describedby="profile-name-hint profile-name-error"
                         >
@@ -323,6 +324,8 @@ async fn render(cx: &Cx, editor: Editor) -> Result<BoxView<'_>> {
                             name="biography"
                             rows="6"
                             readonly=(blocked)
+                            autofocus=(errors.name.is_none()
+                                && errors.biography.is_some())
                             aria-invalid=(errors.biography.map(|_| "true"))
                             aria-describedby="profile-biography-hint profile-biography-error"
                         >

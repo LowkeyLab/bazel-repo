@@ -761,3 +761,100 @@ async fn retention_grace_renews_without_removing_authoritative_save_evidence() -
     );
     Ok(())
 }
+
+#[googletest::test]
+#[tokio::test]
+async fn profile_requests_keep_text_claims_and_tokens_out_of_routine_diagnostics()
+-> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let subject = "ProfilePrivacySubjectSentinel";
+    let login = app.begin().await?;
+    let mut claims = Fixture::claims(&login, subject);
+    claims["name"] = serde_json::json!("ProviderNamePrivacySentinel");
+    let key =
+        jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("fixtures/public-test-key.pem"))?;
+    let mut header = jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256);
+    header.kid = Some("fixture".into());
+    let token = jsonwebtoken::encode(&header, &claims, &key)?;
+    let response = app.finish_token(&login, &token).await?;
+    assert_that!(response.status().as_u16(), eq(303));
+    let session = cookie(&response)?;
+    let before = page(&app, &session).await?;
+    let fields = values(
+        &before,
+        "DisplayNamePrivacySentinel",
+        "BiographyPrivacySentinel",
+        "save",
+    )?;
+    let saved = post(&app, &session, &fields).await?.text().await?;
+    assert_that!(
+        saved.as_str(),
+        contains_substring("Your profile changes were saved.")
+    );
+    sqlx::query("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second'")
+        .execute(&app.pool)
+        .await?;
+    let retained = post(
+        &app,
+        "",
+        &values(
+            &saved,
+            "DraftNamePrivacySentinel",
+            "DraftBiographyPrivacySentinel",
+            "save",
+        )?,
+    )
+    .await?
+    .text()
+    .await?;
+    let link = sign_in_link(&retained)?;
+    let (renewed, destination) = resume(&app, &link, subject).await?;
+    let restored = get(&app, &renewed, &destination).await?.text().await?;
+    assert_that!(
+        restored.as_str(),
+        contains_substring("DraftNamePrivacySentinel")
+    );
+    let mut output = std::fs::File::open(app.diagnostics.path())?;
+    drop(app);
+    let mut contents = String::new();
+    std::io::Read::read_to_string(&mut output, &mut contents)?;
+    let records: Vec<serde_json::Value> = contents
+        .lines()
+        .map(serde_json::from_str)
+        .collect::<Result<_, _>>()?;
+    assert_that!(
+        records
+            .iter()
+            .any(|record| record["fact"]["operation"] == "sign_in"),
+        eq(true)
+    );
+    let session_secret = session.split_once('=').unwrap().1;
+    let offer = fields
+        .iter()
+        .find(|(name, _)| name == "offer")
+        .unwrap()
+        .1
+        .as_str();
+    let context = fields
+        .iter()
+        .find(|(name, _)| name == "context")
+        .unwrap()
+        .1
+        .as_str();
+    for secret in [
+        subject,
+        "ProviderNamePrivacySentinel",
+        "DisplayNamePrivacySentinel",
+        "BiographyPrivacySentinel",
+        "DraftNamePrivacySentinel",
+        "DraftBiographyPrivacySentinel",
+        token.as_str(),
+        session_secret,
+        offer,
+        context,
+        login.nonce.as_str(),
+    ] {
+        assert_that!(contents.as_str(), not(contains_substring(secret)));
+    }
+    Ok(())
+}

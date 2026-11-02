@@ -1,0 +1,58 @@
+{
+  "commit": "aff5e5bd6d038f0b43099054046e291000117998",
+  "invocation": "469b9283-3d6f-44f6-b423-57601c1760a1",
+  "test": "profile_upgrade_preserves_existing_ledgers_sessions_and_saved_ranking",
+  "source": "book_smartz/web/package_test.rs",
+  "source_blob": "2b686a1ad74bccccfca0e3ef490b13b3bde75662",
+  "report_sha256": "b71d13d177935c2ad2a20ca202a8fd895e3e291bdb109fa473c480d57334dc83",
+  "helper": "migrate_package",
+  "mapped_lines": [
+    {
+      "line": 786,
+      "hits": 2
+    },
+    {
+      "line": 787,
+      "hits": 2
+    },
+    {
+      "line": 788,
+      "hits": 2
+    },
+    {
+      "line": 789,
+      "hits": 2
+    },
+    {
+      "line": 790,
+      "hits": 2
+    },
+    {
+      "line": 791,
+      "hits": 2
+    },
+    {
+      "line": 792,
+      "hits": 2
+    },
+    {
+      "line": 793,
+      "hits": 0
+    },
+    {
+      "line": 794,
+      "hits": 2
+    },
+    {
+      "line": 795,
+      "hits": 2
+    },
+    {
+      "line": 796,
+      "hits": 2
+    }
+  ],
+  "hit_lines": 10,
+  "zero_hit_lines": [793],
+  "scope": "Focused ordinary upgrade test. This is not the hosted patch coverage result."
+}
