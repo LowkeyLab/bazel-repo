@@ -61,6 +61,7 @@ topcoat_rust_binary(
         "profile.sql",
         "profile/saves.sql",
         "profile/recovery.sql",
+        "profile/recovery_lifecycle.sql",
         "catalog.sql",
         "catalog/cache.sql",
     ],

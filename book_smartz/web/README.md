@@ -419,6 +419,16 @@ A definite outcome permits another explicit save. Sign-out removes this browser'
 
 A separate secure HttpOnly session cookie groups these references across ordinary sign-in. It supplies no authentication or draft selection authority.
 
-The separate profile-recovery migration preserves existing migration ledgers. Startup readiness checks require its schema.
+Restoration and save preparation use the same account-row lock. Restoration records a terminal rejection for an original submission that did not enter preparation.
+The reader must select `Check your save` for an original submission that already entered preparation. Otherwise, the restored form receives a new submission identity.
+A renewed session in another tab does not prevent draft retention from an older form.
+Sign-out removes drafts for all readers in this browser and revokes the current session in one transaction.
+
+Unfilled form contexts remain available for 720 hours after their original session expires.
+Draft capture and restoration each renew a 720-hour retention period. Expired contexts cannot capture or restore text.
+Login-return mappings expire after one hour. Profile rendering and sign-in each remove up to 256 expired mappings and 256 expired contexts.
+These limits use elapsed hours. Cleanup does not delete authoritative save evidence.
+
+The separate profile-recovery migrations preserve existing migration ledgers. Startup readiness checks require their schema.
 The approved native-form requirement in [#2920](https://github.com/LowkeyLab/bazel-repo/issues/2920) controls this profile journey.
 It supersedes the general JavaScript requirement for this journey. Enhanced and native forms use the same server recovery path.

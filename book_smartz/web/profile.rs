@@ -51,7 +51,7 @@ pub async fn import_name(
 }
 
 struct Editor {
-    recovery: Option<Uuid>,
+    recovery: Option<recovery::DraftId>,
     draft: Option<Text>,
     offer: Option<Offer>,
     checking: Option<Offer>,
@@ -72,7 +72,7 @@ impl Editor {
 }
 #[derive(Deserialize)]
 pub struct Query {
-    recovery: Option<Uuid>,
+    recovery: Option<recovery::DraftId>,
 }
 #[page("/profile")]
 pub async fn show(cx: &Cx, Form(query): Form<Query>) -> Result<BoxView<'_>> {
@@ -100,8 +100,8 @@ pub async fn show(cx: &Cx, Form(query): Form<Query>) -> Result<BoxView<'_>> {
 }
 #[derive(Deserialize)]
 pub struct Input {
-    context: Option<Uuid>,
-    recovery: Option<Uuid>,
+    context: Option<recovery::DraftId>,
+    recovery: Option<recovery::DraftId>,
     csrf: String,
     offer: String,
     checking: Option<String>,

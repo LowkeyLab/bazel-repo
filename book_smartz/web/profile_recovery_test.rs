@@ -441,7 +441,7 @@ async fn ordinary_sign_in_then_sign_out_removes_an_abandoned_recovery_draft() ->
         link.strip_prefix("/auth/google?profile=").unwrap()
     );
     // The reader uses ordinary sign-in instead of the recovery link, then signs out.
-    let renewed = app.login("abandoned-recovery").await?;
+    let renewed = app.login("another-reader-in-this-browser").await?;
     let auth = format!("{renewed}; {browser_cookies}");
     let current = get(&app, &auth, "/profile").await?.text().await?;
     let csrf = regex::Regex::new(r#"name="csrf" value="([^"]+)"#)?
@@ -525,6 +525,236 @@ async fn an_original_native_form_requires_check_when_its_saved_response_was_not_
     .await?
     .text()
     .await?;
+    assert_that!(
+        checked,
+        contains_substring("We confirmed your profile save.")
+    );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn renewal_in_one_tab_still_retains_another_tabs_expired_form() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let old = app.login("two-expired-tabs").await?;
+    let first = page(&app, &old).await?;
+    let second = page(&app, &old).await?;
+    let link = capture(&app, &first, "First tab draft").await?;
+    let (renewed, destination) = resume(&app, &link, "two-expired-tabs").await?;
+    assert_that!(
+        get(&app, &renewed, &destination).await?.status().as_u16(),
+        eq(200)
+    );
+    let response = post(
+        &app,
+        &renewed,
+        &values(&second, "Second tab draft", "Second tab biography", "save")?,
+    )
+    .await?;
+    assert_that!(response.status().as_u16(), eq(200));
+    let link = sign_in_link(&response.text().await?)?;
+    let (renewed, destination) = resume(&app, &link, "two-expired-tabs").await?;
+    assert_that!(
+        get(&app, &renewed, &destination).await?.text().await?,
+        contains_substring("Second tab draft")
+    );
+    assert_that!(
+        page(&app, &renewed).await?,
+        not(contains_substring("Second tab draft"))
+    );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn restoration_rejects_an_original_writer_that_enters_late() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let session = app.login("late-original").await?;
+    let before = page(&app, &session).await?;
+    let mut original = values(&before, "Late original", "Original biography", "save")?;
+    // Validation retains the offer but renders a second context for it.
+    let invalid = post(
+        &app,
+        &session,
+        &values(&before, "Invalid\nname", "Original biography", "save")?,
+    )
+    .await?
+    .text()
+    .await?;
+    let second = values(&invalid, "Late original", "Original biography", "save")?;
+    let captured = post(&app, "", &second).await?.text().await?;
+    let link = sign_in_link(&captured)?;
+    let (session, destination) = resume(&app, &link, "late-original").await?;
+    let restored = get(&app, &session, &destination).await?.text().await?;
+    // This request has current authorization but retains the original submission.
+    let current = values(&restored, "Restored edit", "Changed biography", "save")?;
+    let csrf = current
+        .iter()
+        .find(|(key, _)| key == "csrf")
+        .unwrap()
+        .1
+        .clone();
+    original
+        .iter_mut()
+        .find(|(key, _)| key == "csrf")
+        .unwrap()
+        .1 = csrf;
+    let _ = post(&app, &session, &original).await?;
+    assert_that!(
+        page(&app, &session).await?,
+        not(contains_substring("Late original"))
+    );
+    // An already authorized validation response can also render after restoration.
+    original
+        .iter_mut()
+        .find(|(key, _)| key == "name")
+        .unwrap()
+        .1 = "Invalid\nname".into();
+    let late_form = post(&app, &session, &original).await?.text().await?;
+    let _ = post(
+        &app,
+        &session,
+        &values(&late_form, "Late replacement", "Original biography", "save")?,
+    )
+    .await?;
+    assert_that!(
+        page(&app, &session).await?,
+        not(contains_substring("Late replacement"))
+    );
+    let result = post(&app, &session, &current).await?.text().await?;
+    assert_that!(
+        result,
+        contains_substring("Your profile changes were saved.")
+    );
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn failed_draft_cleanup_preserves_the_session_for_logout_retry() -> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let session = app.login("atomic-logout").await?;
+    let before = page(&app, &session).await?;
+    let fields = values(&before, "Private draft", "Private biography", "save")?;
+    let _ = post(&app, "", &fields).await?;
+    sqlx::raw_sql("CREATE FUNCTION book_smartz_profile_recovery.reject_cleanup() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'controlled cleanup failure'; END $$; CREATE TRIGGER reject_cleanup BEFORE DELETE ON book_smartz_profile_recovery.drafts FOR EACH ROW EXECUTE FUNCTION book_smartz_profile_recovery.reject_cleanup();")
+        .execute(&app.pool).await?;
+    let csrf = fields
+        .iter()
+        .find(|(key, _)| key == "csrf")
+        .unwrap()
+        .1
+        .clone();
+    let logout = || {
+        app.client
+            .post(format!("{}/logout", app.base))
+            .header("cookie", &session)
+            .header("origin", "https://reader.example")
+            .header("content-type", "application/x-www-form-urlencoded")
+            .body(encoded(&[("csrf".into(), csrf.clone())]))
+    };
+    assert_that!(logout().send().await?.status().as_u16(), eq(500));
+    assert_that!(
+        get(&app, &session, "/profile").await?.status().as_u16(),
+        eq(200)
+    );
+    sqlx::query("DROP TRIGGER reject_cleanup ON book_smartz_profile_recovery.drafts")
+        .execute(&app.pool)
+        .await?;
+    assert_that!(logout().send().await?.status().as_u16(), eq(303));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn expired_drafts_are_unavailable_and_profile_access_removes_old_contexts()
+-> anyhow::Result<()> {
+    let app = Fixture::new().await?;
+    let session = app.login("expired-draft").await?;
+    let before = page(&app, &session).await?;
+    let fields = values(&before, "Expired private text", "Private biography", "save")?;
+    sqlx::query(
+        "UPDATE book_smartz_profile_recovery.drafts SET expires_at=now()-interval '1 second'",
+    )
+    .execute(&app.pool)
+    .await?;
+    assert_that!(post(&app, "", &fields).await?.status().as_u16(), eq(403));
+    let _ = page(&app, &session).await?;
+    let remaining: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM book_smartz_profile_recovery.drafts WHERE expires_at<=now()",
+    )
+    .fetch_one(&app.pool)
+    .await?;
+    assert_that!(remaining, eq(0));
+    Ok(())
+}
+
+#[googletest::test]
+#[tokio::test]
+async fn retention_grace_renews_without_removing_authoritative_save_evidence() -> anyhow::Result<()>
+{
+    let app = Fixture::new().await?;
+    let session = app.login("retention-grace").await?;
+    let before = page(&app, &session).await?;
+    let fields = values(&before, "Retained name", "Retained biography", "save")?;
+    let context = fields
+        .iter()
+        .find(|(key, _)| key == "context")
+        .unwrap()
+        .1
+        .parse::<uuid::Uuid>()?;
+    let grace: bool = sqlx::query_scalar("SELECT d.expires_at=s.expires_at+interval '720 hours' FROM book_smartz_profile_recovery.drafts d JOIN book_smartz_web.sessions s ON s.token_hash=d.session_hash WHERE d.id=$1")
+        .bind(context).fetch_one(&app.pool).await?;
+    assert_that!(grace, eq(true));
+    sqlx::raw_sql("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second'; UPDATE book_smartz_profile_recovery.drafts SET expires_at=now()+interval '1 minute'")
+        .execute(&app.pool).await?;
+    let captured = post(&app, "", &fields).await?.text().await?;
+    let link = sign_in_link(&captured)?;
+    let renewed: bool = sqlx::query_scalar("SELECT expires_at>now()+interval '719 hours' FROM book_smartz_profile_recovery.drafts WHERE id=$1")
+        .bind(context).fetch_one(&app.pool).await?;
+    assert_that!(renewed, eq(true));
+    let (session, destination) = resume(&app, &link, "retention-grace").await?;
+    sqlx::query("UPDATE book_smartz_profile_recovery.drafts SET expires_at=now()+interval '1 minute' WHERE id=$1")
+        .bind(context).execute(&app.pool).await?;
+    let restored = get(&app, &session, &destination).await?.text().await?;
+    let renewed: bool = sqlx::query_scalar("SELECT expires_at>now()+interval '719 hours' FROM book_smartz_profile_recovery.drafts WHERE id=$1")
+        .bind(context).fetch_one(&app.pool).await?;
+    assert_that!(renewed, eq(true));
+    let response = post(
+        &app,
+        &session,
+        &values(&restored, "Retained name", "Retained biography", "save")?,
+    )
+    .await?
+    .text()
+    .await?;
+    assert_that!(
+        response,
+        contains_substring("Your profile changes were saved.")
+    );
+    let check = values(&restored, "Retained name", "Retained biography", "check")?;
+    let current = page(&app, &session).await?;
+    let context = values(&current, "", "", "save")?
+        .into_iter()
+        .find(|(key, _)| key == "context")
+        .unwrap()
+        .1
+        .parse::<uuid::Uuid>()?;
+    sqlx::query("INSERT INTO book_smartz_profile_recovery.login_returns (state_hash,draft_id,expires_at) VALUES ($1,$2,now()-interval '1 second')")
+        .bind([0u8;32].as_slice()).bind(context).execute(&app.pool).await?;
+    sqlx::query(
+        "UPDATE book_smartz_profile_recovery.drafts SET expires_at=now()-interval '1 second'",
+    )
+    .execute(&app.pool)
+    .await?;
+    let _ = page(&app, &session).await?;
+    let remaining: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM book_smartz_profile_recovery.login_returns WHERE expires_at<=now()",
+    )
+    .fetch_one(&app.pool)
+    .await?;
+    assert_that!(remaining, eq(0));
+    let checked = post(&app, &session, &check).await?.text().await?;
     assert_that!(
         checked,
         contains_substring("We confirmed your profile save.")

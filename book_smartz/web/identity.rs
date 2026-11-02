@@ -330,7 +330,7 @@ pub struct Callback {
 
 #[derive(Deserialize)]
 pub struct LoginInput {
-    profile: Option<Uuid>,
+    profile: Option<crate::profile::recovery::DraftId>,
 }
 #[route(GET "/auth/google")]
 pub async fn login(cx: &Cx, Form(input): Form<LoginInput>) -> Result<()> {
@@ -342,6 +342,7 @@ pub async fn login(cx: &Cx, Form(input): Form<LoginInput>) -> Result<()> {
     let verifier = Token::random().encode().trim_end_matches('=').to_owned();
     async {
     let mut transaction = app.pool.begin().await?;
+    crate::profile::recovery::cleanup(&mut transaction).await?;
     sqlx::query("DELETE FROM book_smartz_web.login_challenges WHERE expires_at <= now()")
         .execute(&mut *transaction)
         .await?;
@@ -454,7 +455,7 @@ pub async fn callback(cx: &Cx, Form(input): Form<Callback>) -> Result<()> {
     let expires: chrono::DateTime<chrono::Utc> = issued.expires_at.into();
     sqlx::query("INSERT INTO book_smartz_web.sessions (token_hash, reader_id, csrf, expires_at) VALUES ($1, $2, $3, $4)")
         .bind(issued.token_hash.as_slice()).bind(reader).bind(csrf).bind(expires).execute(&mut *transaction).await?;
-    let destination=crate::profile::recovery::destination(&mut transaction,state.hash().as_slice(),reader,issued.token_hash.as_slice()).await?;
+    let destination=crate::profile::recovery::destination(&mut transaction,state.hash().as_slice(),ReaderId::new(reader),issued.token_hash.as_slice()).await?;
     transaction.commit().await?;
         Ok::<_, sqlx::Error>(destination)
     }.await.inspect_err(|error| diagnostic.database_failure(error))?;
