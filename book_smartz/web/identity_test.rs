@@ -330,7 +330,7 @@ async fn logout_requires_its_own_session_csrf_and_canonical_origin_and_revokes_o
 
 #[googletest::test]
 #[tokio::test]
-async fn login_discards_expired_challenges_and_requests_only_openid() -> anyhow::Result<()> {
+async fn login_discards_expired_challenges_and_requests_openid_and_profile() -> anyhow::Result<()> {
     let app = Fixture::new().await?;
     app.begin().await?;
     sqlx::query(
@@ -357,7 +357,7 @@ async fn login_discards_expired_challenges_and_requests_only_openid() -> anyhow:
         .unwrap()
         .1
         .into_owned();
-    assert_that!(scope, eq("openid"));
+    assert_that!(scope, eq("openid profile"));
     Ok(())
 }
 
