@@ -1,23 +1,23 @@
 {
-  "commit": "3446db7c2254cb81c558aafbf76cf21008d05451",
-  "invocation": "144e6389-2fd5-4813-8b85-74dd2b390a9c",
+  "commit": "aff5e5bd6d038f0b43099054046e291000117998",
+  "invocation": "ba0989ac-9187-4233-ba7c-5aa494f0111b",
   "chromium": "156.0.8078.4",
   "scene_records": 144,
   "widths": [320, 390, 1440],
   "browser_files": [
     {
       "name": "browser-evidence.json",
-      "sha256": "3c6c57271e87bc39d9a9629914cb26de75fb9f6b0332d265bf88adb8ccd599c3",
-      "bytes": 1453422
+      "sha256": "74b48a120b74b89c2eb1bbfdf3f7d1e04f2190a9b7e578a30165ec458add05a3",
+      "bytes": 1453390
     },
     {
-      "name": "browser-lifecycle-497.jsonl",
-      "sha256": "7a0c2ff71a727b5017ac613612b735d5f3f11f99518fe2e7f7869c15a4056d0d",
+      "name": "browser-lifecycle-483.jsonl",
+      "sha256": "65637d0193dddb703b93de1749108a794c19b0f7fe67afa32654be7156cbf686",
       "bytes": 868
     },
     {
-      "name": "browser-lifecycle-708.jsonl",
-      "sha256": "4747fe3f308e84bc735c79a3592ece1dee1fcb53368cdf2edcd4ec8d0526bec4",
+      "name": "browser-lifecycle-697.jsonl",
+      "sha256": "10e1ef1fdb2c2327c18fdbe3f7f8df7e4092264858963db0acca12353b2e0f89",
       "bytes": 4032
     },
     {
@@ -142,7 +142,7 @@
     },
     {
       "name": "motion-evidence.json",
-      "sha256": "2d9393ac7e7729cbc09cf8fa8185a6606b413ee98241566793732444df3450b0",
+      "sha256": "3858068567904f1a73ad3d31764817fe6919b00b3f740760996da95b4fd83fa0",
       "bytes": 2092
     },
     {
@@ -297,7 +297,7 @@
     },
     {
       "name": "profile-name-validation-1440.png",
-      "sha256": "e8baca29b771ef05846b991314a0b6ef90867ec63075c0f2f453751e02a5e77e",
+      "sha256": "53c1335ae9e11d27444300a413d9a0e4a71dde15a0faf1d5b6361aec6fe3648f",
       "bytes": 106948
     },
     {
@@ -307,8 +307,8 @@
     },
     {
       "name": "profile-name-validation-390.png",
-      "sha256": "99b72080c6c54caf20858645f879a67a993e599fa7562ceeaae8284c3809f79f",
-      "bytes": 67030
+      "sha256": "ae8be07e39337aedec16de9a0de9b3216616ff5c2ed2b67465db356a622dbfa3",
+      "bytes": 84044
     },
     {
       "name": "profile-native-conflicting-edit-1440.png",
@@ -347,13 +347,13 @@
     },
     {
       "name": "profile-native-keyboard-320.png",
-      "sha256": "377e1eccaffcb15e1113f9c5f0f508da6f78a5c4a8e72370ec0aaac51c3a24aa",
-      "bytes": 77287
+      "sha256": "dab30b0e600f19e619b848cfef23d479da6f012d6588f2a4b610334c8b8ab120",
+      "bytes": 77285
     },
     {
       "name": "profile-native-keyboard-390.png",
-      "sha256": "87668d78502fc0228fc64d9a0c95c27a745796570bb4046fac1e918016ccaab6",
-      "bytes": 75906
+      "sha256": "fb0817ecea72144a03af0aa21f3672720380a80078d6ed4d5fcf7cbebf4228bc",
+      "bytes": 75904
     },
     {
       "name": "profile-native-profile-biography-error-1440.png",
@@ -362,8 +362,8 @@
     },
     {
       "name": "profile-native-profile-biography-error-320.png",
-      "sha256": "b6830216463a7942c79cbaf25026050f737efeae1cad00d14a165f80eefed882",
-      "bytes": 71680
+      "sha256": "99afb91a025e720947a489a49fc5ad890b180beedfe550e26b5509fb41a0f612",
+      "bytes": 71677
     },
     {
       "name": "profile-native-profile-biography-error-390.png",
@@ -372,18 +372,18 @@
     },
     {
       "name": "profile-native-profile-name-error-1440.png",
-      "sha256": "7a6547a80f363a91737222f711468f507d7b63017917699887181cfb8dffbb12",
+      "sha256": "a2c037fb11c9d286e38aa9ee4e85d3e6519650ee405b1bd4afdd324e4c95acca",
       "bytes": 91356
     },
     {
       "name": "profile-native-profile-name-error-320.png",
-      "sha256": "f97a08bb06be90909b8e22e5ad40e7ab8e8469af81f6b41be7772d63a310271d",
-      "bytes": 77509
+      "sha256": "bacb9faae66835f544a6cb64952ee61097973871e67aae53f30d69a230a184e3",
+      "bytes": 77510
     },
     {
       "name": "profile-native-profile-name-error-390.png",
-      "sha256": "05e0ac15efd879544b22a28c875388b370c4e7cb116d5cf94ab89f487e501e65",
-      "bytes": 76132
+      "sha256": "71fcf872c5604db016d14045eea2165fada8ed78ef708e3565a820c9e2634d42",
+      "bytes": 76134
     },
     {
       "name": "profile-native-uncertain-after-expiry-1440.png",
@@ -512,13 +512,13 @@
     },
     {
       "name": "recovery-first-placement-320.png",
-      "sha256": "5592097ef0c78d6006fd2ddf8fd01124e608965104c94b463ec991729da2d15e",
-      "bytes": 32675
+      "sha256": "348cf0978bd67d2ad8dd6cacf039af19641a6f995dd8f1d96cf075179a659bdc",
+      "bytes": 32948
     },
     {
       "name": "recovery-first-placement-390.png",
-      "sha256": "d3b0b2179eb25b53b10c2cf8b3e1ec1b67f7277515ea288d8ae10f328b6c36cf",
-      "bytes": 33197
+      "sha256": "1afc76fed327f6ec5f9f9353de27deebfbd3d9aa18517e7612576eed2ea64069",
+      "bytes": 33186
     },
     {
       "name": "recovery-long-comparison-1440.png",
@@ -642,8 +642,8 @@
     },
     {
       "name": "saved-profile-long-text-1440.png",
-      "sha256": "e0d83872553bc860c39ae22c1d455f544af525e5d8390d53f7b67f54225d48ec",
-      "bytes": 88014
+      "sha256": "91a66dc1212e969acddd055bdec5df017deb80cfccb21e4153d725fc4bad509c",
+      "bytes": 94462
     },
     {
       "name": "saved-profile-long-text-320.png",
@@ -748,34 +748,70 @@
   ],
   "execution_files": [
     {
-      "name": "acceptance-final.log",
-      "sha256": "801ce12253711b1bbe9c5e0d85693f02d004df097aecaf86203566a0af5b41bb",
-      "bytes": 26382
+      "name": "acceptance-repair-final.log",
+      "sha256": "7bb16dd1a7cb6acfd82e98c6ee439a8763964b2cbc80235852ee537d3cea5901",
+      "bytes": 33924
     },
     {
-      "name": "application-first-failure.log",
-      "sha256": "6ff6a724c97983bfc95cca7d548c99176be8bde4b980d0cfef549287b2564fc5",
-      "bytes": 20864
+      "name": "application-repair-first-failure.log",
+      "sha256": "62259081743bd8012b55b6e39f66bdf2971cbb2fe7757d1399bac75fab77bfcf",
+      "bytes": 21950
     },
     {
-      "name": "application-local-final.log",
-      "sha256": "2229c371180143106f52316575ddbb1fdf57bb85e70816be99d6f820c506fed1",
-      "bytes": 17330
+      "name": "application-repair-local.log",
+      "sha256": "2b9f943c15176910d98a23cddabdc3f7f64312b369037764318268b1c763f067",
+      "bytes": 16801
     },
     {
-      "name": "application-local-final-test.log",
-      "sha256": "1e83c1cd6b126192ca138d46bdfdafd32fda6ff6d8926517aea99fef101bcae7",
-      "bytes": 20315
+      "name": "application-repair-local-test.log",
+      "sha256": "1b5eff260e20f655a0eaaa519dea1007172b09fe6917ed5b5722861afa20a464",
+      "bytes": 1155
     },
     {
-      "name": "compatibility-final.log",
-      "sha256": "ade970ad9d0f37f715da6697ea36bb092f5aa024489bc80e2b99b79200117b34",
-      "bytes": 2497
+      "name": "compatibility-repair-final.log",
+      "sha256": "59838941152da6fe801d5a09ddad01f6d06577b5878dc5a9100879b221c0c070",
+      "bytes": 2761
     },
     {
-      "name": "compatibility-final-evidence.json",
-      "sha256": "e659de47ab49294c8fda1ecc8a9489efb230fd9b051bb9f5c829bebe28bb6abc",
+      "name": "compatibility-repair-final-evidence.json",
+      "sha256": "68c8820c1f1321d7f89afc8bee45283998bf4c9627fdde9f6d669b18985a7d3f",
       "bytes": 396
+    },
+    {
+      "name": "coverage-repair-measure.log",
+      "sha256": "4830970d1afe09b73bfc583ca665028da153adc5990a6a685a171809f05b2397",
+      "bytes": 18452
+    },
+    {
+      "name": "coverage-repair-first-failure.log",
+      "sha256": "9c5dfa3103d170478d2f945d5e36537a2dda0fde47af6559010cc94f01e55ca0",
+      "bytes": 5637
+    },
+    {
+      "name": "coverage-repair-measure-focused.log",
+      "sha256": "9f6316bb196f5ce2aece682b5daee4e172b12655a64eeaf5e1f672e4ec193703",
+      "bytes": 2802
+    },
+    {
+      "name": "coverage-repair-package.lcov",
+      "sha256": "b71d13d177935c2ad2a20ca202a8fd895e3e291bdb109fa473c480d57334dc83",
+      "bytes": 259698
+    },
+    {
+      "name": "migration-coverage.json",
+      "sha256": "dc1923532e4f3065f9c1632749d1bca1c532f00a87329e3e1824bba8ed14c9f1",
+      "bytes": 1121
     }
-  ]
+  ],
+  "application_remote": {
+    "passed": 63,
+    "failed": 3,
+    "failure_kind": "ExecutableFileBusy",
+    "stage": "fixture_migrate"
+  },
+  "application_local_repeat": {
+    "passed": 3,
+    "failed": 0,
+    "filtered_out": 63
+  }
 }

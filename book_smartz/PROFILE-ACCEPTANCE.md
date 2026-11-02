@@ -3,7 +3,7 @@
 ## Tested implementation
 
 This record covers [#2925](https://github.com/LowkeyLab/bazel-repo/issues/2925) and the acceptance areas in [#2920](https://github.com/LowkeyLab/bazel-repo/issues/2920).
-The tested implementation commit is `3446db7c2254cb81c558aafbf76cf21008d05451`.
+The tested implementation commit is `aff5e5bd6d038f0b43099054046e291000117998`.
 Later evidence commits change only this report and its retained artifacts. They do not change app or test source.
 
 The delivered archive runs with real isolated PostgreSQL and controlled signed Google responses.
@@ -19,30 +19,39 @@ nix develop --command aspect test \
   //book_smartz/web:http_test //book_smartz/web:application_test \
   //book_smartz/web:package_test //book_smartz/web:browser_test \
   --nocache_test_results --noremote_accept_cached --flaky_test_attempts=1 \
-  --test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=3446db7c2254cb81c558aafbf76cf21008d05451
+  --test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=aff5e5bd6d038f0b43099054046e291000117998
 ```
 
-[BuildBuddy retained the results and undeclared outputs](https://app.buildbuddy.io/invocation/144e6389-2fd5-4813-8b85-74dd2b390a9c).
-HTTP passed in 85.9 seconds. Package passed in 55.4 seconds. Chromium passed in 148.7 seconds.
-The app suite passed 65 cases. One case failed before migration execution with `ExecutableFileBusy` and OS error 26.
-That case was `failed_draft_cleanup_preserves_the_session_for_logout_retry`.
-The fixture observed no writer, but its process observation was incomplete. This evidence does not establish the cause.
-The original failure remains in the retained results.
+[BuildBuddy retained the results and undeclared outputs](https://app.buildbuddy.io/invocation/ba0989ac-9187-4233-ba7c-5aa494f0111b).
+HTTP passed in 109.9 seconds. Package passed in 68.5 seconds. Chromium passed in 205.5 seconds.
+The app suite passed 63 cases. Three cases failed during fixture migration startup with `ExecutableFileBusy` and OS error 26.
+Their process observations found no writer. This evidence does not establish the cause.
 
-A fresh local repeat passed all 66 app cases in 115.8 seconds. It used:
+A fresh local repeat passed those three cases in 19.0 seconds. It used:
 
 ```bash
 nix develop --command aspect test //book_smartz/web:application_test \
+  --test_arg=action_test::add_facts_distinguish_acknowledged_save_from_duplicate_attempt \
+  --test_arg=action_test::broken_diagnostic_delivery_preserves_confirmed_outcomes_and_durable_history \
+  --test_arg=action_test::display_feedback_is_reader_bound_and_distinguishes_fresh_saves_from_replay \
+  --test_arg=--test-threads=1 \
   --strategy=TestRunner=local --remote_executor= --remote_cache= \
   --bes_backend= --bes_results_url= --nocache_test_results --flaky_test_attempts=1 \
-  --test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=3446db7c2254cb81c558aafbf76cf21008d05451
+  --test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=aff5e5bd6d038f0b43099054046e291000117998
 ```
 
-The retained task receipts include `application-first-failure.log`, `application-local-final.log`, and `application-local-final-test.log`.
-The local pass establishes execution of the previously blocked scenario. It does not explain the remote executable-busy failure.
+The local result records three passes, zero failures, and 63 filtered cases.
+Together, the remote run and local repeat establish passing execution of all 66 app cases at the tested commit.
+They do not establish one successful complete app run at that commit.
+The receipts retain `application-repair-first-failure.log`, `application-repair-local.log`, and `application-repair-local-test.log`.
 
-The explicit previous-binary probe passed at the same implementation commit.
+Earlier acceptance at `3446db7c2254cb81c558aafbf76cf21008d05451` also encountered a fixture migration startup failure.
+Its full local repeat passed all 66 app cases. The receipts retain that earlier failure and repeat separately.
+Neither local result explains the remote executable-busy failures.
+
+The explicit previous-binary probe passed at the tested implementation commit.
 It used the [documented local command](web/README.md#complete-profile-acceptance) with the actual archive at `implement-2925/previous-package.tar`.
+The command set `BOOK_SMARTZ_ACCEPTANCE_COMMIT` to `aff5e5bd6d038f0b43099054046e291000117998`.
 The pre-profile source commit is `9fe0dc24537e8b53c9c5c54f5f5c0473e2310ca8`.
 [Its separate package build passed](https://app.buildbuddy.io/invocation/4a84dd2b-aa0c-4514-8561-07cefb4adb50).
 Its SHA-256 digest is `3a766c86cccea8cae87ac9b44b4e4ae72357cf67980891c32e213fb4f6e4f68e`.
@@ -79,7 +88,7 @@ These checks establish different failure boundaries.
 
 Chromium `156.0.8078.4` recorded 144 scene records at the three required widths.
 [The manifest](profile-acceptance/manifest.json) binds each retained browser artifact to its SHA-256 digest and tested commit.
-The complete output directory remains outside reusable checkouts under the task receipts at `implement-2925/acceptance-browser`.
+The complete output directory remains outside reusable checkouts under the task receipts at `implement-2925/acceptance-browser-repair`.
 BuildBuddy also retains these outputs with the preceding invocation.
 
 The following unmodified screenshots contain synthetic fixture values. Visual inspection found wrapped text, visible focus, and controls inside the page bounds.
@@ -104,7 +113,38 @@ After the digest-format correction, [package checks passed again](https://app.bu
 [The full repository build passed](https://app.buildbuddy.io/invocation/933ec083-7233-48dd-9e5b-8a65b89fd506).
 Lint completed with two existing `too_many_lines` warnings in `profile.rs`. The digest-format correction removed the new warning.
 Independent Standards and Spec reviews each found zero source issues at the implementation commit.
+After the coverage repair, [all 190 repository targets passed](https://app.buildbuddy.io/invocation/d215de51-25a7-4c73-ab75-a60fe1fe21b9).
+[The full repository build passed](https://app.buildbuddy.io/invocation/7598ef10-764e-49ca-a11d-4df2efe05bd7).
+Formatting completed. Lint completed with four acronym suggestions in this report and no errors.
+
 Source review does not establish runtime acceptance. Final PR checks and hosted review remain separate merge requirements.
+
+## Coverage correction
+
+At PR head `9c6973f427217c7ad2c9e69488d6fa2d574f70eb`, hosted tests and review passed.
+The [Codecov patch report](https://app.codecov.io/gh/LowkeyLab/bazel-repo/pull/2942) failed at 86.56 percent against a 91.41 percent target.
+Its native report identified ten missing lines in the migration helper used only by the manual probe.
+The ordinary upgrade test duplicated the same command.
+
+Commit `aff5e5bd6d038f0b43099054046e291000117998` shares that command through `migrate_package`.
+Both tests retain their diagnostic stage names. The executable, database URL, launch directory, and success assertion remain the same.
+
+[Focused native coverage passed](https://app.buildbuddy.io/invocation/469b9283-3d6f-44f6-b423-57601c1760a1) with this command:
+
+```bash
+nix develop --command bazel coverage //book_smartz/web:package_test \
+  --config=remote-linux --strategy=TestRunner=remote --noremote_local_fallback \
+  --nocache_test_results --noremote_accept_cached \
+  --test_arg=profile_upgrade_preserves_existing_ledgers_sessions_and_saved_ranking
+```
+
+[The measured record](profile-acceptance/migration-coverage.json) retains the source blob, report digest, and native line counts.
+Ten of eleven mapped helper lines recorded execution. Line 793 retains a zero-hit record.
+This focused result does not establish the new hosted patch percentage.
+
+The [first coverage run](https://app.buildbuddy.io/invocation/b268fbe8-1a64-4651-b8bc-12edfb8cf558) passed the upgrade case but failed two other fixture launches with `ExecutableFileBusy`.
+The collector discarded that failed suite. The focused result comes from a separate successful execution.
+These fixture failures remain unexplained. The task receipts retain their logs.
 
 ## Limits
 
@@ -113,4 +153,4 @@ These two acceptance areas remain outside #2925. No production configuration or 
 The explicit previous-binary probe needs a separately preserved release archive. Ordinary CI ignores that probe because it lacks this input.
 The [web test instructions](web/README.md#complete-profile-acceptance) explain its explicit command and failure behavior.
 Execution covered every required profile acceptance area. The remote executable-busy failure remains an unexplained execution limitation.
-The fresh local pass supplies the complete app acceptance result. Hosted CI must still pass for the final PR head.
+The targeted local repeat completes execution of the three blocked cases. Hosted CI must still pass for the final PR head.
