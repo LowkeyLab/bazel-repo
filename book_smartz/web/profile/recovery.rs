@@ -42,8 +42,7 @@ pub async fn expired<'a>(cx: &'a Cx, input: &Input) -> Result<Option<BoxView<'a>
         return Err(forbidden().into());
     }
     let reader = ReaderId::new(reader);
-    let offer = app
-        .profile_offers
+    app.profile_offers
         .verify(reader, &input.offer)
         .map_err(|_| forbidden())?;
     if let Some(checking) = &input.checking {
@@ -54,15 +53,8 @@ pub async fn expired<'a>(cx: &'a Cx, input: &Input) -> Result<Option<BoxView<'a>
     if !matches!(input.command.as_str(), "save" | "check" | "discard") {
         return Err(forbidden().into());
     }
-    // A native client can retain its original form after losing a completed response.
-    let checking = if input.checking.is_some() || saves::submitted(&app.pool, reader, offer).await?
-    {
-        Some(input.checking.as_deref().unwrap_or(&input.offer))
-    } else {
-        None
-    };
     let updated=sqlx::query("UPDATE book_smartz_profile_recovery.drafts SET checking=$2,display_name=$3,biography=$4 WHERE id=$1")
-        .bind(id).bind(checking).bind(&input.name).bind(&input.biography).execute(&app.pool).await?;
+        .bind(id).bind(&input.checking).bind(&input.name).bind(&input.biography).execute(&app.pool).await?;
     if updated.rows_affected() != 1 {
         return Err(forbidden().into());
     }
@@ -105,15 +97,19 @@ pub(super) async fn restore(
     let (offer, checking, name, biography) = row.ok_or_else(forbidden)?;
     let mut editor =
         Editor::fresh("We restored your draft. Review it before you save or check your save.");
-    editor.offer = Some(
-        app.profile_offers
-            .verify(reader, &offer)
-            .map_err(|_| forbidden())?,
-    );
+    let offer = app
+        .profile_offers
+        .verify(reader, &offer)
+        .map_err(|_| forbidden())?;
+    editor.offer = Some(offer);
     editor.checking = checking
-        .map(|v| app.profile_offers.verify(reader, &v))
+        .map(|value| app.profile_offers.verify(reader, &value))
         .transpose()
         .map_err(|_| forbidden())?;
+    // The original writer can finish after capture but before sign-in returns.
+    if editor.checking.is_none() && saves::submitted(pool, reader, offer).await? {
+        editor.checking = Some(offer);
+    }
     editor.draft = Some(Text { name, biography });
     editor.recovery = Some(id);
     Ok(editor)

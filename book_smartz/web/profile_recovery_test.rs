@@ -1,11 +1,12 @@
 //! Profile recovery through normal HTTP, signed identity, and real PostgreSQL.
-use crate::{
-    profile_save_test::{encoded, page, post, values},
-    test_support::Fixture,
-};
 use googletest::{
     assert_that,
     matchers::{contains_substring, eq, not},
+};
+
+use crate::{
+    profile_save_test::{encoded, page, post, values},
+    test_support::Fixture,
 };
 
 fn cookie(response: &reqwest::Response) -> anyhow::Result<String> {
@@ -481,11 +482,16 @@ async fn an_original_native_form_requires_check_when_its_saved_response_was_not_
         "Retained private biography",
         "save",
     )?;
+    // The browser loses its cookie before a delayed original request finishes.
+    let expired = post(&app, "", &fields).await?;
+    let link = sign_in_link(&expired.text().await?)?;
     let response = post(&app, &session, &fields).await?;
     assert_that!(response.status().as_u16(), eq(200));
     // The client retains the original form instead of consuming the response page.
     drop(response);
-    let link = capture(&app, &before, "Name before response loss").await?;
+    sqlx::query("UPDATE book_smartz_web.sessions SET expires_at=now()-interval '1 second'")
+        .execute(&app.pool)
+        .await?;
     let (session, destination) = resume(&app, &link, "native-response-loss").await?;
     let restored = get(&app, &session, &destination).await?.text().await?;
     assert_that!(restored.as_str(), contains_substring(r#"value="check""#));

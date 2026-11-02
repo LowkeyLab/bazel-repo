@@ -412,7 +412,7 @@ The reference permits draft retention when the session or its browser cookie exp
 The server still requires the canonical Origin and the original form values before retaining a draft.
 
 The recovery link associates that draft with the existing OAuth challenge. The callback returns the same reader to profile recovery.
-A different reader receives no draft. An ordinary profile read does not restore a draft from another tab.
+A different reader receives no draft. An ordinary profile read does not restore text retained only for another tab's sign-in.
 
 Sign-in never submits the retained text. An unresolved submission retains its original **Check your save** correlation.
 A definite outcome permits another explicit save. Sign-out removes this browser's retained drafts without deleting authoritative save evidence.
