@@ -316,7 +316,7 @@ bazel_dep(name = "rules_python_gazelle_plugin", version = "2.4.6", dev_dependenc
 bazel_dep(name = "bazel_skylib_gazelle_plugin", dev_dependency = True)
 git_override(
     module_name = "bazel_skylib_gazelle_plugin",
-    commit = "5f88ea649f9d4aaf2bec78c0426fc38b3dcc11d7",
+    commit = "a920cdfe02154b916b493b4ffdd08087f0498fc7",
     remote = "https://github.com/bazelbuild/bazel-skylib.git",
     strip_prefix = "gazelle",
 )
