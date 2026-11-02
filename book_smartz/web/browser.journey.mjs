@@ -868,6 +868,116 @@ async function journey() {
       .waitFor();
     assert.equal(profilePosts, 2);
     if (!javaScriptEnabled) {
+      for (const [field, name, biography] of [
+        ["profile-name", "x".repeat(101), "Valid biography"],
+        ["profile-biography", "Valid name", "x".repeat(501)],
+      ]) {
+        await recoveryPage
+          .getByRole("textbox", { name: "Display name", exact: true })
+          .fill(name);
+        await recoveryPage
+          .getByRole("textbox", { name: "Biography", exact: true })
+          .fill(biography);
+        await recoveryPage
+          .getByRole("button", { name: "Save changes", exact: true })
+          .click();
+        await recoveryPage.locator(`#${field}[aria-invalid="true"]`).waitFor();
+        assert.equal(
+          await recoveryPage.locator(`#${field}-error`).isVisible(),
+          true,
+        );
+        assert.notEqual(
+          (await recoveryPage.locator(`#${field}-error`).textContent()).trim(),
+          "",
+        );
+        assert.ok(
+          (
+            (await recoveryPage
+              .locator(`#${field}`)
+              .getAttribute("aria-describedby")) || ""
+          )
+            .split(/\s+/)
+            .includes(`${field}-error`),
+        );
+        await recoveryPage.waitForFunction(
+          (id) => document.activeElement?.id === id,
+          field,
+        );
+        await recordScene(`profile-native-${field}-error`, recoveryPage);
+        await recoveryPage
+          .getByRole("button", { name: "Discard changes", exact: true })
+          .focus();
+        await recoveryPage.keyboard.press("Enter");
+        await recoveryPage
+          .getByText(
+            "We restored your confirmed profile. Your local edits were discarded.",
+            { exact: true },
+          )
+          .waitFor();
+        assert.equal(
+          await recoveryPage
+            .getByRole("textbox", { name: "Display name", exact: true })
+            .inputValue(),
+          "Recovered browser draft",
+        );
+        assert.equal(
+          await recoveryPage
+            .getByRole("textbox", { name: "Biography", exact: true })
+            .inputValue(),
+          "This draft needs an explicit save.",
+        );
+      }
+      assert.equal(
+        await recoveryPage.getByRole("status").getAttribute("aria-live"),
+        "polite",
+      );
+      await recordScene("profile-native-discard", recoveryPage);
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .focus();
+      await recoveryPage.keyboard.press("Tab");
+      assert.equal(
+        await recoveryPage
+          .getByRole("textbox", { name: "Biography", exact: true })
+          .evaluate((element) => document.activeElement === element),
+        true,
+      );
+      await recordScene("profile-native-keyboard", recoveryPage);
+      const nativeStale = await recoveryContext.newPage();
+      await nativeStale.goto("https://reader.example/profile");
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .fill("Native newer profile");
+      await recoveryPage
+        .getByRole("button", { name: "Save changes", exact: true })
+        .click();
+      await recoveryPage
+        .getByText("Your profile changes were saved.", { exact: true })
+        .waitFor();
+      await nativeStale
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .fill("Native stale profile");
+      await nativeStale
+        .getByRole("button", { name: "Save changes", exact: true })
+        .click();
+      await nativeStale
+        .getByText(
+          "Another edit changed your profile. We reloaded the saved profile and discarded your local edits.",
+          { exact: true },
+        )
+        .waitFor();
+      assert.equal(
+        await nativeStale
+          .getByRole("textbox", { name: "Display name", exact: true })
+          .inputValue(),
+        "Native newer profile",
+      );
+      assert.equal(
+        await nativeStale.locator(".profile-name").textContent(),
+        "Native newer profile",
+      );
+      await recordScene("profile-native-conflicting-edit", nativeStale);
+      await nativeStale.close();
       await recoveryPage
         .getByRole("textbox", { name: "Display name", exact: true })
         .fill("Native uncertain draft");
@@ -908,7 +1018,7 @@ async function journey() {
       );
       assert.equal(
         await recoveryPage.locator(".profile-name").textContent(),
-        "Recovered browser draft",
+        "Native newer profile",
       );
       await fixture("expire");
       await recoveryPage

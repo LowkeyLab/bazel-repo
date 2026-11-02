@@ -232,8 +232,9 @@ Use `--test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=<tested-commit>` to identify the
 commit in both evidence files. Final acceptance must force fresh test execution.
 The recovery journey uses JavaScript and checks first Add, comparison,
 uncertainty, read/reload/sign-in without recovery, explicit Check your save,
-Resume, and keyboard completion. A separate browser test disables JavaScript only to
-verify the enable-JavaScript notice. Fixture controls remain outside production routes.
+Resume, and keyboard completion. The profile journey also checks native validation,
+save, discard, conflicts, uncertainty, and sign-in recovery with JavaScript off.
+A separate browser test checks the enable-JavaScript notice. Fixture controls remain outside production routes.
 A failed remote cover exposes one accessible placeholder and retains its catalog URL.
 
 The browser target uses the [pinned combined worker](../../tools/book_smartz_browser_worker/README.md)
@@ -432,3 +433,36 @@ These limits use elapsed hours. Cleanup does not delete authoritative save evide
 The separate profile-recovery migrations preserve existing migration ledgers. Startup readiness checks require their schema.
 The approved native-form requirement in [#2920](https://github.com/LowkeyLab/bazel-repo/issues/2920) controls this profile journey.
 It supersedes the general JavaScript requirement for this journey. Enhanced and native forms use the same server recovery path.
+
+## Complete profile acceptance
+
+Issue [#2925](https://github.com/LowkeyLab/bazel-repo/issues/2925) requires fresh execution against the final implementation commit.
+Run the HTTP, app, package, and browser targets with `--nocache_test_results` and `--noremote_accept_cached`.
+Set `BOOK_SMARTZ_ACCEPTANCE_COMMIT` to that commit. Retain the undeclared outputs outside reusable checkouts.
+The browser outputs include full-page screenshots, computed contrast, control bounds, and the Chromium version.
+Each recorded scene uses widths of 320, 390, and 1440 pixels.
+
+The explicit previous-binary probe requires the actual pre-profile archive from commit
+`9fe0dc24537e8b53c9c5c54f5f5c0473e2310ca8`.
+Build `//book_smartz/web:package` from a separate pooled assignment at that ref.
+Preserve its archive and digest before releasing that assignment.
+The probe uses both executables, their assets, real PostgreSQL, and the normal signed identity flow.
+It checks upgrade, repeated migration, rollback, old-session continuity, profile preservation, original ledgers, and ranking history.
+
+Ordinary test runs ignore the probe because it requires this external release input.
+A missing archive fails an explicit probe. It never substitutes the current binary.
+Run it locally with the preserved archive:
+
+```bash
+nix develop --command aspect test //book_smartz/web:package_test \
+  --test_arg=previous_binary_preserves_the_upgraded_profile_sessions_and_ranking \
+  --test_arg=--ignored \
+  --test_env=BOOK_SMARTZ_PREVIOUS_PACKAGE=/absolute/path/to/previous-package.tar \
+  --test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT="$(git rev-parse HEAD)" \
+  --strategy=TestRunner=local \
+  --remote_executor= --remote_cache= --bes_backend= --bes_results_url= \
+  --nocache_test_results
+```
+
+`profile-compatibility.json` records the tested commit, previous-archive digest, and passed preservation checks.
+Controlled-provider acceptance does not establish production deployment or live Google compatibility.
