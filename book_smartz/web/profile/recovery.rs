@@ -197,13 +197,16 @@ pub async fn clear_session(
     );
     Ok(())
 }
-pub async fn clear(
+pub async fn clear_draft(
     pool: &PgPool,
     reader: ReaderId,
-    id: Option<Uuid>,
+    id: Uuid,
 ) -> std::result::Result<(), sqlx::Error> {
-    sqlx::query("DELETE FROM book_smartz_profile_recovery.drafts WHERE reader_id=$1 AND ($2::uuid IS NULL OR id=$2)")
-        .bind(reader.as_uuid()).bind(id).execute(pool).await?;
+    sqlx::query("DELETE FROM book_smartz_profile_recovery.drafts WHERE reader_id=$1 AND id=$2")
+        .bind(reader.as_uuid())
+        .bind(id)
+        .execute(pool)
+        .await?;
     Ok(())
 }
 pub async fn migrate(pool: &PgPool) -> anyhow::Result<()> {

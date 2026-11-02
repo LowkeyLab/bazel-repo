@@ -867,6 +867,96 @@ async function journey() {
       .getByText("Your profile changes were saved.", { exact: true })
       .waitFor();
     assert.equal(profilePosts, 2);
+    if (!javaScriptEnabled) {
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .fill("Native uncertain draft");
+      let releaseNative, arrivedNative, failedNative;
+      const nativeGate = new Promise((resolve) => {
+        releaseNative = resolve;
+      });
+      const nativeResponse = new Promise((resolve, reject) => {
+        arrivedNative = resolve;
+        failedNative = reject;
+      });
+      heldResponse = {
+        path: "/profile/edit",
+        arrived: arrivedNative,
+        failed: failedNative,
+        release: nativeGate,
+        drop: true,
+      };
+      const browserControl = await recoveryContext.newCDPSession(recoveryPage);
+      try {
+        await recoveryPage
+          .getByRole("button", { name: "Save changes", exact: true })
+          .click({ noWaitAfter: true });
+        assert.equal(await nativeResponse, 200);
+        // Stop native navigation before the proxy delivers the saved response.
+        await browserControl.send("Page.stopLoading");
+        releaseNative();
+      } finally {
+        releaseNative();
+        heldResponse = null;
+        await browserControl.detach();
+      }
+      assert.equal(
+        await recoveryPage
+          .getByRole("textbox", { name: "Display name", exact: true })
+          .inputValue(),
+        "Native uncertain draft",
+      );
+      assert.equal(
+        await recoveryPage.locator(".profile-name").textContent(),
+        "Recovered browser draft",
+      );
+      await fixture("expire");
+      await recoveryPage
+        .getByRole("button", { name: "Save changes", exact: true })
+        .click();
+      await recoveryPage
+        .getByRole("heading", {
+          name: "Sign in to restore your profile draft",
+          exact: true,
+        })
+        .waitFor();
+      const beforeNativeSignIn = profilePosts;
+      await recoveryPage
+        .getByRole("link", { name: "Sign in with Google", exact: true })
+        .click();
+      await recoveryPage.waitForURL(/\/profile\?recovery=/);
+      assert.equal(
+        profilePosts,
+        beforeNativeSignIn,
+        "Native sign-in must not save or check automatically",
+      );
+      assert.equal(
+        await recoveryPage
+          .getByRole("button", { name: "Save changes", exact: true })
+          .isDisabled(),
+        true,
+      );
+      assert.equal(
+        await recoveryPage
+          .getByRole("button", { name: "Discard changes", exact: true })
+          .isDisabled(),
+        true,
+      );
+      assert.equal(
+        await recoveryPage
+          .getByRole("textbox", { name: "Display name", exact: true })
+          .inputValue(),
+        "Native uncertain draft",
+      );
+      await recordScene("profile-native-uncertain-after-expiry", recoveryPage);
+      await recoveryPage
+        .getByRole("button", { name: "Check your save", exact: true })
+        .click();
+      await recoveryPage
+        .getByText("We confirmed your profile save.", { exact: true })
+        .waitFor();
+      assert.equal(profilePosts, beforeNativeSignIn + 1);
+    }
     await recoveryPage
       .getByRole("textbox", { name: "Display name", exact: true })
       .fill("Draft removed on sign-out");

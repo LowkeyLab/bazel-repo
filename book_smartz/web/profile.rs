@@ -151,7 +151,7 @@ pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<BoxView<'_>> {
                 return render(cx, editor).await;
             }
             if let Some(id) = input.recovery {
-                recovery::clear(&app.pool, session.reader, Some(id)).await?;
+                recovery::clear_draft(&app.pool, session.reader, id).await?;
             }
             return render(
                 cx,
@@ -182,7 +182,7 @@ pub async fn edit(cx: &Cx, Form(input): Form<Input>) -> Result<BoxView<'_>> {
     if matches!(&outcome, Outcome::Saved | Outcome::Conflict)
         && let Some(id) = input.recovery
     {
-        recovery::clear(&app.pool, session.reader, Some(id)).await?;
+        recovery::clear_draft(&app.pool, session.reader, id).await?;
     }
     match outcome {
         Outcome::Saved if checking.is_some_and(|original| original.id != offer.id) => {
