@@ -395,7 +395,9 @@ These checks use the delivered package and controlled identity responses. Live-p
 Sign-in requests `openid profile` and imports the optional name from the validated ID token.
 [Google documents this name claim as optional](https://developers.google.com/identity/openid-connect/openid-connect).
 The first successful sign-in completes the attempt for both new and existing readers.
-Missing, malformed, blank, multiline, and over-limit names leave the name empty. Import never truncates or automatically retries.
+
+Missing, malformed, blank, multiline, and over-limit names leave the name empty.
+The same rule applies to names with the null character `U+0000`. Import never truncates or automatically retries.
 The existing normalization and 100-extended-grapheme-cluster limit apply. Biography text remains unchanged.
 
 Import and session persistence share the identity transaction and account-row coordination.

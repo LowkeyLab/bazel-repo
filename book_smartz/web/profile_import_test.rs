@@ -25,7 +25,8 @@ async fn sign_in(app: &Fixture, subject: &str, name: Option<Value>) -> anyhow::R
     let response = app.finish(&login, claims).await?;
     anyhow::ensure!(
         response.status().as_u16() == 303,
-        "sign-in did not complete"
+        "sign-in did not complete: {}",
+        response.status()
     );
     Ok(response
         .headers()
@@ -65,6 +66,11 @@ async fn google_name_is_normalized_once_and_survives_restart_and_later_sign_in()
         profile(&app, &cookie).await?,
         contains_substring("value=\"Google Reader\"")
     );
+    let cookie = sign_in(&app, "one-time-google-name", Some(json!("Reader\u{0}Name"))).await?;
+    assert_that!(
+        profile(&app, &cookie).await?,
+        contains_substring("value=\"Google Reader\"")
+    );
     Ok(())
 }
 
@@ -99,6 +105,7 @@ async fn missing_unusable_and_boundary_names_complete_the_single_attempt() -> an
         (Some(json!({"unusable": "object"})), String::new()),
         (Some(json!(false)), String::new()),
         (Some(json!(42)), String::new()),
+        (Some(json!("Reader\u{0}Name")), String::new()),
         (Some(json!(" \t\n\u{2003}")), String::new()),
         (Some(json!("Two\nlines")), String::new()),
         (Some(json!("e\u{301}".repeat(101))), String::new()),

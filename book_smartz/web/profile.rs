@@ -37,9 +37,13 @@ pub async fn import_name(
     reader: ReaderId,
     name: Option<&str>,
 ) -> std::result::Result<(), sqlx::Error> {
-    let name = Text::validate(name.unwrap_or_default(), "")
-        .unwrap_or_default()
-        .name;
+    let name = Text::validate(
+        name.filter(|value| !value.contains('\0'))
+            .unwrap_or_default(),
+        "",
+    )
+    .unwrap_or_default()
+    .name;
     sqlx::query("INSERT INTO book_smartz_profiles.profiles (reader_id,display_name,import_attempted) VALUES ($1,$2,true) ON CONFLICT (reader_id) DO UPDATE SET display_name=EXCLUDED.display_name,import_attempted=true WHERE NOT book_smartz_profiles.profiles.import_attempted")
         .bind(reader.as_uuid()).bind(name).execute(&mut **transaction).await?;
     Ok(())
