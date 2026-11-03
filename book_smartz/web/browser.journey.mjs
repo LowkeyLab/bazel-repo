@@ -760,6 +760,29 @@ async function journey() {
     true,
   );
   await recordScene("profile-unconfirmed-save");
+  await fixture("expire");
+  await page
+    .getByRole("button", { name: "Check your save", exact: true })
+    .click();
+  await page
+    .getByRole("heading", {
+      name: "Sign in to restore your profile draft",
+      exact: true,
+    })
+    .waitFor();
+  const beforeProfileSignIn = mutationRequests.get("/profile/edit") || 0;
+  await page
+    .getByRole("link", { name: "Sign in with Google", exact: true })
+    .click();
+  await page.waitForURL(/\/profile\?recovery=/);
+  assert.equal(
+    mutationRequests.get("/profile/edit") || 0,
+    beforeProfileSignIn,
+    "Sign-in must not check or save automatically",
+  );
+  assert.equal(await profileSave().isDisabled(), true);
+  assert.equal(await profileName().inputValue(), "Draft after lost response");
+  await recordScene("profile-expired-unconfirmed-save");
   await page
     .getByRole("button", { name: "Check your save", exact: true })
     .click();
@@ -771,6 +794,359 @@ async function journey() {
     "Draft after lost response",
   );
   await recordScene("profile-confirmed-save");
+  // Each navigation retains its own draft without using a shared browser cookie.
+  for (const javaScriptEnabled of [true, false]) {
+    const recoveryContext = await browser.newContext({
+      javaScriptEnabled,
+      ignoreHTTPSErrors: true,
+      viewport: { width: 390, height: 844 },
+    });
+    const recoveryPage = await recoveryContext.newPage();
+    recoveryPage.setDefaultTimeout(10000);
+    let profilePosts = 0;
+    recoveryPage.on("request", (request) => {
+      if (
+        request.method() === "POST" &&
+        new URL(request.url()).pathname === "/profile/edit"
+      )
+        profilePosts++;
+    });
+    await recoveryPage.goto("https://reader.example/");
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL("https://reader.example/ranking");
+    await recoveryPage.goto("https://reader.example/profile");
+    await recoveryPage
+      .getByRole("textbox", { name: "Display name", exact: true })
+      .fill("Recovered browser draft");
+    await recoveryPage
+      .getByRole("textbox", { name: "Biography", exact: true })
+      .fill("This draft needs an explicit save.");
+    await fixture("expire");
+    await recoveryContext.clearCookies();
+    await recoveryPage
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await recoveryPage
+      .getByRole("heading", {
+        name: "Sign in to restore your profile draft",
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(profilePosts, 1);
+    await recordScene(
+      `profile-expired-${javaScriptEnabled ? "enhanced" : "native"}`,
+      recoveryPage,
+    );
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL(/\/profile\?recovery=/);
+    assert.equal(
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .inputValue(),
+      "Recovered browser draft",
+    );
+    assert.equal(
+      await recoveryPage
+        .getByRole("textbox", { name: "Biography", exact: true })
+        .inputValue(),
+      "This draft needs an explicit save.",
+    );
+    assert.equal(profilePosts, 1, "Sign-in must not submit a profile save");
+    await recordScene(
+      `profile-restored-${javaScriptEnabled ? "enhanced" : "native"}`,
+      recoveryPage,
+    );
+    await recoveryPage
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await recoveryPage
+      .getByText("Your profile changes were saved.", { exact: true })
+      .waitFor();
+    assert.equal(profilePosts, 2);
+    if (!javaScriptEnabled) {
+      for (const [field, name, biography] of [
+        ["profile-name", "x".repeat(101), "Valid biography"],
+        ["profile-biography", "Valid name", "x".repeat(501)],
+      ]) {
+        await recoveryPage
+          .getByRole("textbox", { name: "Display name", exact: true })
+          .fill(name);
+        await recoveryPage
+          .getByRole("textbox", { name: "Biography", exact: true })
+          .fill(biography);
+        await recoveryPage
+          .getByRole("button", { name: "Save changes", exact: true })
+          .click();
+        await recoveryPage.locator(`#${field}[aria-invalid="true"]`).waitFor();
+        assert.equal(
+          await recoveryPage.locator(`#${field}-error`).isVisible(),
+          true,
+        );
+        assert.notEqual(
+          (await recoveryPage.locator(`#${field}-error`).textContent()).trim(),
+          "",
+        );
+        assert.ok(
+          (
+            (await recoveryPage
+              .locator(`#${field}`)
+              .getAttribute("aria-describedby")) || ""
+          )
+            .split(/\s+/)
+            .includes(`${field}-error`),
+        );
+        await recoveryPage.waitForFunction(
+          (id) => document.activeElement?.id === id,
+          field,
+        );
+        await recordScene(`profile-native-${field}-error`, recoveryPage);
+        await recoveryPage
+          .getByRole("button", { name: "Discard changes", exact: true })
+          .focus();
+        await recoveryPage.keyboard.press("Enter");
+        await recoveryPage
+          .getByText(
+            "We restored your confirmed profile. Your local edits were discarded.",
+            { exact: true },
+          )
+          .waitFor();
+        assert.equal(
+          await recoveryPage
+            .getByRole("textbox", { name: "Display name", exact: true })
+            .inputValue(),
+          "Recovered browser draft",
+        );
+        assert.equal(
+          await recoveryPage
+            .getByRole("textbox", { name: "Biography", exact: true })
+            .inputValue(),
+          "This draft needs an explicit save.",
+        );
+      }
+      assert.equal(
+        await recoveryPage.getByRole("status").getAttribute("aria-live"),
+        "polite",
+      );
+      await recordScene("profile-native-discard", recoveryPage);
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .focus();
+      await recoveryPage.keyboard.press("Tab");
+      assert.equal(
+        await recoveryPage
+          .getByRole("textbox", { name: "Biography", exact: true })
+          .evaluate((element) => document.activeElement === element),
+        true,
+      );
+      await recordScene("profile-native-keyboard", recoveryPage);
+      const nativeStale = await recoveryContext.newPage();
+      await nativeStale.goto("https://reader.example/profile");
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .fill("Native newer profile");
+      await recoveryPage
+        .getByRole("button", { name: "Save changes", exact: true })
+        .click();
+      await recoveryPage
+        .getByText("Your profile changes were saved.", { exact: true })
+        .waitFor();
+      await nativeStale
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .fill("Native stale profile");
+      await nativeStale
+        .getByRole("button", { name: "Save changes", exact: true })
+        .click();
+      await nativeStale
+        .getByText(
+          "Another edit changed your profile. We reloaded the saved profile and discarded your local edits.",
+          { exact: true },
+        )
+        .waitFor();
+      assert.equal(
+        await nativeStale
+          .getByRole("textbox", { name: "Display name", exact: true })
+          .inputValue(),
+        "Native newer profile",
+      );
+      assert.equal(
+        await nativeStale.locator(".profile-name").textContent(),
+        "Native newer profile",
+      );
+      await recordScene("profile-native-conflicting-edit", nativeStale);
+      await nativeStale.close();
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .fill("Native uncertain draft");
+      let releaseNative, arrivedNative, failedNative;
+      const nativeGate = new Promise((resolve) => {
+        releaseNative = resolve;
+      });
+      const nativeResponse = new Promise((resolve, reject) => {
+        arrivedNative = resolve;
+        failedNative = reject;
+      });
+      heldResponse = {
+        path: "/profile/edit",
+        arrived: arrivedNative,
+        failed: failedNative,
+        release: nativeGate,
+        drop: true,
+      };
+      const browserControl = await recoveryContext.newCDPSession(recoveryPage);
+      try {
+        await recoveryPage
+          .getByRole("button", { name: "Save changes", exact: true })
+          .click({ noWaitAfter: true });
+        assert.equal(await nativeResponse, 200);
+        // Stop native navigation before the proxy delivers the saved response.
+        await browserControl.send("Page.stopLoading");
+        releaseNative();
+      } finally {
+        releaseNative();
+        heldResponse = null;
+        await browserControl.detach();
+      }
+      assert.equal(
+        await recoveryPage
+          .getByRole("textbox", { name: "Display name", exact: true })
+          .inputValue(),
+        "Native uncertain draft",
+      );
+      assert.equal(
+        await recoveryPage.locator(".profile-name").textContent(),
+        "Native newer profile",
+      );
+      await fixture("expire");
+      await recoveryPage
+        .getByRole("button", { name: "Save changes", exact: true })
+        .click();
+      await recoveryPage
+        .getByRole("heading", {
+          name: "Sign in to restore your profile draft",
+          exact: true,
+        })
+        .waitFor();
+      const beforeNativeSignIn = profilePosts;
+      await recoveryPage
+        .getByRole("link", { name: "Sign in with Google", exact: true })
+        .click();
+      await recoveryPage.waitForURL(/\/profile\?recovery=/);
+      assert.equal(
+        profilePosts,
+        beforeNativeSignIn,
+        "Native sign-in must not save or check automatically",
+      );
+      assert.equal(
+        await recoveryPage
+          .getByRole("button", { name: "Save changes", exact: true })
+          .isDisabled(),
+        true,
+      );
+      assert.equal(
+        await recoveryPage
+          .getByRole("button", { name: "Discard changes", exact: true })
+          .isDisabled(),
+        true,
+      );
+      assert.equal(
+        await recoveryPage
+          .getByRole("textbox", { name: "Display name", exact: true })
+          .inputValue(),
+        "Native uncertain draft",
+      );
+      await recordScene("profile-native-uncertain-after-expiry", recoveryPage);
+      await recoveryPage
+        .getByRole("button", { name: "Check your save", exact: true })
+        .click();
+      await recoveryPage
+        .getByText("We confirmed your profile save.", { exact: true })
+        .waitFor();
+      assert.equal(profilePosts, beforeNativeSignIn + 1);
+    }
+    await recoveryPage
+      .getByRole("textbox", { name: "Display name", exact: true })
+      .fill("Draft removed on sign-out");
+    await fixture("expire");
+    await recoveryPage
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await recoveryPage
+      .getByRole("heading", {
+        name: "Sign in to restore your profile draft",
+        exact: true,
+      })
+      .waitFor();
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL(/\/profile\?recovery=/);
+    const removedDraftUrl = recoveryPage.url();
+    await recoveryPage
+      .getByRole("button", { name: "Sign out of this browser", exact: true })
+      .click();
+    await recoveryPage.waitForURL("https://reader.example/");
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL("https://reader.example/ranking");
+    const removed = await recoveryPage.goto(removedDraftUrl);
+    assert.equal(removed.status(), 403);
+    assert.equal(
+      await recoveryPage
+        .getByText("Draft removed on sign-out", { exact: true })
+        .count(),
+      0,
+    );
+    await recoveryPage.goto("https://reader.example/profile");
+    await recoveryPage
+      .getByRole("textbox", { name: "Display name", exact: true })
+      .fill("Previous account draft");
+    await fixture("expire");
+    await recoveryPage
+      .getByRole("button", { name: "Save changes", exact: true })
+      .click();
+    await recoveryPage
+      .getByRole("heading", {
+        name: "Sign in to restore your profile draft",
+        exact: true,
+      })
+      .waitFor();
+    const privateLink = await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .getAttribute("href");
+    const privateReference = new URL(
+      privateLink,
+      "https://reader.example",
+    ).searchParams.get("profile");
+    await fixture("native-reader");
+    await recoveryPage
+      .getByRole("link", { name: "Sign in with Google", exact: true })
+      .click();
+    await recoveryPage.waitForURL("https://reader.example/ranking");
+    await recoveryPage.goto("https://reader.example/profile");
+    assert.notEqual(
+      await recoveryPage
+        .getByRole("textbox", { name: "Display name", exact: true })
+        .inputValue(),
+      "Previous account draft",
+    );
+    const denied = await recoveryPage.goto(
+      `https://reader.example/profile?recovery=${privateReference}`,
+    );
+    assert.equal(denied.status(), 403);
+    await fixture("browser-reader");
+    await recoveryContext.close();
+  }
+  await page.goto("https://reader.example/");
+  await page
+    .getByRole("link", { name: "Sign in with Google", exact: true })
+    .click();
+  await page.waitForURL("https://reader.example/ranking");
+  await page.goto("https://reader.example/profile");
   await profileName().fill("  ");
   await profileBio().fill("\n\t ");
   await profileSave().click();

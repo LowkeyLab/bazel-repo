@@ -122,7 +122,7 @@ git_override(
 bazel_dep(name = "bazel_skylib")
 git_override(
     module_name = "bazel_skylib",
-    commit = "5f88ea649f9d4aaf2bec78c0426fc38b3dcc11d7",
+    commit = "a920cdfe02154b916b493b4ffdd08087f0498fc7",
     remote = "https://github.com/bazelbuild/bazel-skylib.git",
 )
 
@@ -179,7 +179,7 @@ bazel_dep(name = "rules_rs")
 bazel_dep(name = "llvm")
 git_override(
     module_name = "llvm",
-    commit = "fd2addebff08b29675ee266bc2766e475ce9263b",
+    commit = "413655560cc6269a1bf4eaac5100fd96830948bd",
     remote = "https://github.com/hermeticbuild/hermetic-llvm.git",
 )
 
@@ -316,7 +316,7 @@ bazel_dep(name = "rules_python_gazelle_plugin", version = "2.4.6", dev_dependenc
 bazel_dep(name = "bazel_skylib_gazelle_plugin", dev_dependency = True)
 git_override(
     module_name = "bazel_skylib_gazelle_plugin",
-    commit = "5f88ea649f9d4aaf2bec78c0426fc38b3dcc11d7",
+    commit = "a920cdfe02154b916b493b4ffdd08087f0498fc7",
     remote = "https://github.com/bazelbuild/bazel-skylib.git",
     strip_prefix = "gazelle",
 )
@@ -332,7 +332,7 @@ git_override(
 bazel_dep(name = "rules_angular")
 git_override(
     module_name = "rules_angular",
-    commit = "7822265c5a0565c8c1fdc254e021178131bfcfa8",
+    commit = "ccb8ce17f3c9ee0b7a752b3b5b9aa0643c081857",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_angular:fix.patch"],
     remote = "https://github.com/devversion/rules_angular.git",

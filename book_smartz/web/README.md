@@ -232,8 +232,9 @@ Use `--test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT=<tested-commit>` to identify the
 commit in both evidence files. Final acceptance must force fresh test execution.
 The recovery journey uses JavaScript and checks first Add, comparison,
 uncertainty, read/reload/sign-in without recovery, explicit Check your save,
-Resume, and keyboard completion. A separate browser test disables JavaScript only to
-verify the enable-JavaScript notice. Fixture controls remain outside production routes.
+Resume, and keyboard completion. The profile journey also checks native validation,
+save, discard, conflicts, uncertainty, and sign-in recovery with JavaScript off.
+A separate browser test checks the enable-JavaScript notice. Fixture controls remain outside production routes.
 A failed remote cover exposes one accessible placeholder and retains its catalog URL.
 
 The browser target uses the [pinned combined worker](../../tools/book_smartz_browser_worker/README.md)
@@ -404,3 +405,64 @@ Import and session persistence share the identity transaction and account-row co
 The import initializes text without advancing the manual-save revision, so an already-open draft can explicitly replace imported text.
 A confirmed manual save completes the import attempt and advances that revision. Later sign-ins preserve the saved choice, including an empty name.
 An uncertain commit does not produce a successful sign-in redirect. Later sign-ins retain a committed import instead of repeating it.
+
+## Profile recovery after session expiry
+
+A profile form includes a private recovery reference bound to its signed offer and cross-site request forgery token.
+The reference permits draft retention when the session or its browser cookie expires. It cannot authorize a profile save.
+The server still requires the canonical Origin and the original form values before retaining a draft.
+
+The recovery link associates that draft with the existing OAuth challenge. The callback returns the same reader to profile recovery.
+A different reader receives no draft. An ordinary profile read does not restore text retained only for another tab's sign-in.
+
+Sign-in never submits the retained text. An unresolved submission retains its original **Check your save** correlation.
+A definite outcome permits another explicit save. Sign-out removes this browser's retained drafts without deleting authoritative save evidence.
+
+A separate secure HttpOnly session cookie groups these references across ordinary sign-in. It supplies no authentication or draft selection authority.
+
+Restoration and save preparation use the same account-row lock. Restoration records a terminal rejection for an original submission that did not enter preparation.
+The reader must select `Check your save` for an original submission that already entered preparation. Otherwise, the restored form receives a new submission identity.
+A renewed session in another tab does not prevent draft retention from an older form.
+Sign-out removes drafts for all readers in this browser and revokes the current session in one transaction.
+
+Unfilled form contexts remain available for 720 hours after their original session expires.
+Draft capture and restoration each renew a 720-hour retention period. Expired contexts cannot capture or restore text.
+Login-return mappings expire after one hour. Profile rendering and sign-in each remove up to 256 expired mappings and 256 expired contexts.
+These limits use elapsed hours. Cleanup does not delete authoritative save evidence.
+
+The separate profile-recovery migrations preserve existing migration ledgers. Startup readiness checks require their schema.
+The approved native-form requirement in [#2920](https://github.com/LowkeyLab/bazel-repo/issues/2920) controls this profile journey.
+It supersedes the general JavaScript requirement for this journey. Enhanced and native forms use the same server recovery path.
+
+## Complete profile acceptance
+
+Issue [#2925](https://github.com/LowkeyLab/bazel-repo/issues/2925) requires fresh execution against the final implementation commit.
+Run the HTTP, app, package, and browser targets with `--nocache_test_results` and `--noremote_accept_cached`.
+Set `BOOK_SMARTZ_ACCEPTANCE_COMMIT` to that commit. Retain the undeclared outputs outside reusable checkouts.
+The browser outputs include full-page screenshots, computed contrast, control bounds, and the Chromium version.
+Each recorded scene uses widths of 320, 390, and 1440 pixels.
+
+The explicit previous-binary probe requires the actual pre-profile archive from commit
+`9fe0dc24537e8b53c9c5c54f5f5c0473e2310ca8`.
+Build `//book_smartz/web:package` from a separate pooled assignment at that ref.
+Preserve its archive and digest before releasing that assignment.
+The probe uses both executables, their assets, real PostgreSQL, and the normal signed identity flow.
+It checks upgrade, repeated migration, rollback, old-session continuity, profile preservation, original ledgers, and ranking history.
+
+Ordinary test runs ignore the probe because it requires this external release input.
+A missing archive fails an explicit probe. It never substitutes the current binary.
+Run it locally with the preserved archive:
+
+```bash
+nix develop --command aspect test //book_smartz/web:package_test \
+  --test_arg=previous_binary_preserves_the_upgraded_profile_sessions_and_ranking \
+  --test_arg=--ignored \
+  --test_env=BOOK_SMARTZ_PREVIOUS_PACKAGE=/absolute/path/to/previous-package.tar \
+  --test_env=BOOK_SMARTZ_ACCEPTANCE_COMMIT="$(git rev-parse HEAD)" \
+  --strategy=TestRunner=local \
+  --remote_executor= --remote_cache= --bes_backend= --bes_results_url= \
+  --nocache_test_results
+```
+
+`profile-compatibility.json` records the tested commit, previous-archive digest, and passed preservation checks.
+Controlled-provider acceptance does not establish production deployment or live Google compatibility.

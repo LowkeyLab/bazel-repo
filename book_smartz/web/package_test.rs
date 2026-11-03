@@ -535,6 +535,9 @@ async fn profile_upgrade_preserves_existing_ledgers_sessions_and_saved_ranking()
         .await?;
     let ledgers = "SELECT 'ranking', version, checksum FROM book_smartz._sqlx_migrations UNION ALL SELECT 'identity', version, checksum FROM book_smartz_web._sqlx_migrations UNION ALL SELECT 'catalog', version, checksum FROM book_smartz_catalog._sqlx_migrations ORDER BY 1, 2";
     let before: Vec<(String, i64, Vec<u8>)> = sqlx::query_as(ledgers).fetch_all(&app.pool).await?;
+    sqlx::query("DROP SCHEMA book_smartz_profile_recovery CASCADE")
+        .execute(&app.pool)
+        .await?;
     sqlx::query("DROP SCHEMA book_smartz_profile_saves CASCADE")
         .execute(&app.pool)
         .await?;
@@ -571,17 +574,8 @@ async fn profile_upgrade_preserves_existing_ledgers_sessions_and_saved_ranking()
     rejected(&app, "https://reader.example")
         .await
         .context("startup must reject a missing profile schema")?;
-    let migrate = || {
-        fixture_process::status(
-            Command::new(app.package.path().join("book-smartz"))
-                .arg("migrate")
-                .env("DATABASE_URL", &app.database)
-                .current_dir(app.cwd.path()),
-            "profile_upgrade_migrate",
-        )
-    };
-    assert_that!(migrate()?.success(), eq(true));
-    assert_that!(migrate()?.success(), eq(true));
+    migrate_package(&app, "profile_upgrade_migrate")?;
+    migrate_package(&app, "profile_upgrade_migrate")?;
     let after: Vec<(String, i64, Vec<u8>)> = sqlx::query_as(ledgers).fetch_all(&app.pool).await?;
     assert_that!(after, eq(&before));
     app.restart().await?;
@@ -597,5 +591,206 @@ async fn profile_upgrade_preserves_existing_ledgers_sessions_and_saved_ranking()
         app.ranking(&cookie).await?.text().await?,
         contains_substring("OL111W")
     );
+    Ok(())
+}
+
+// This explicit probe needs the actual archive of the previous release.
+// A missing archive fails the probe instead of substituting the current binary.
+#[googletest::test]
+#[tokio::test]
+#[ignore = "Run explicitly with BOOK_SMARTZ_PREVIOUS_PACKAGE set to the prior archive."]
+async fn previous_binary_preserves_the_upgraded_profile_sessions_and_ranking() -> anyhow::Result<()>
+{
+    use std::fmt::Write;
+
+    use sha2::Digest;
+
+    let previous = std::env::var_os("BOOK_SMARTZ_PREVIOUS_PACKAGE")
+        .context("BOOK_SMARTZ_PREVIOUS_PACKAGE must identify the actual previous archive")?;
+    let archive = fs::read(previous)?;
+    let mut previous_sha256 = String::with_capacity(64);
+    for byte in sha2::Sha256::digest(&archive) {
+        write!(previous_sha256, "{byte:02x}")?;
+    }
+    let previous_package = tempfile::tempdir()?;
+    tar::Archive::new(archive.as_slice()).unpack(previous_package.path())?;
+    let mut app = Fixture::new().await?;
+    app.process.0.kill()?;
+    app.process.0.wait()?;
+    sqlx::raw_sql("DROP SCHEMA book_smartz_profile_recovery CASCADE; DROP SCHEMA book_smartz_profile_saves CASCADE; DROP SCHEMA book_smartz_profiles CASCADE")
+        .execute(&app.pool).await?;
+    let current_package = std::mem::replace(&mut app.package, previous_package);
+    migrate_package(&app, "profile_compatibility_migrate")?;
+    app.restart_after_exit().await?;
+    let cookie = app.login("profile-compatibility-reader").await?;
+    assert_that!(
+        app.client
+            .get(format!("{}/profile", app.base))
+            .header("cookie", &cookie)
+            .send()
+            .await?
+            .status()
+            .as_u16(),
+        eq(404)
+    );
+    let reader: uuid::Uuid =
+        sqlx::query_scalar("SELECT reader_id FROM book_smartz_web.accounts WHERE subject=$1")
+            .bind("profile-compatibility-reader")
+            .fetch_one(&app.pool)
+            .await?;
+    let store =
+        book_smartz_storage::Store::new(app.pool.clone(), book_smartz_storage::tracing_observer());
+    let book = book_smartz_domain::Book::new(
+        book_smartz_domain::BookId::new(uuid::Uuid::new_v4()),
+        book_smartz_domain::OpenLibraryWorkId::try_from("OL829W")?,
+    );
+    store
+        .register_book(&book, book_smartz_storage::OperationContext::default())
+        .await?;
+    store
+        .execute(
+            book_smartz_domain::ReaderId::new(reader),
+            book_smartz_domain::CommandContext {
+                expected_revision: 0,
+                event_id: book_smartz_domain::EventId::new(uuid::Uuid::new_v4()),
+                time: chrono::Utc::now(),
+            },
+            book_smartz_domain::Command::Start { book_id: book.id() },
+            book_smartz_storage::OperationContext::default(),
+        )
+        .await?;
+    assert_that!(
+        app.ranking(&cookie).await?.text().await?,
+        contains_substring("OL829W")
+    );
+    let ledgers = "SELECT 'ranking',version,checksum FROM book_smartz._sqlx_migrations UNION ALL SELECT 'identity',version,checksum FROM book_smartz_web._sqlx_migrations UNION ALL SELECT 'catalog',version,checksum FROM book_smartz_catalog._sqlx_migrations UNION ALL SELECT 'metadata',version,checksum FROM book_smartz_metadata._sqlx_migrations UNION ALL SELECT 'actions',version,checksum FROM book_smartz_actions._sqlx_migrations ORDER BY 1,2";
+    let before: Vec<(String, i64, Vec<u8>)> = sqlx::query_as(ledgers).fetch_all(&app.pool).await?;
+    let history_before: Vec<serde_json::Value> = sqlx::query_scalar(
+        "SELECT envelope FROM book_smartz.ranking_events WHERE reader_id=$1 ORDER BY sequence",
+    )
+    .bind(reader)
+    .fetch_all(&app.pool)
+    .await?;
+    app.process.0.kill()?;
+    app.process.0.wait()?;
+    let previous_package = std::mem::replace(&mut app.package, current_package);
+    migrate_package(&app, "profile_compatibility_migrate")?;
+    migrate_package(&app, "profile_compatibility_migrate")?;
+    app.restart_after_exit().await?;
+    let profile = app
+        .client
+        .get(format!("{}/profile", app.base))
+        .header("cookie", &cookie)
+        .send()
+        .await?
+        .text()
+        .await?;
+    assert_that!(profile.as_str(), contains_substring("1 ranked book"));
+    let field = |name: &str| -> anyhow::Result<String> {
+        Ok(
+            regex::Regex::new(&format!(r#"name="{name}" value="([^"]+)"#))?
+                .captures(&profile)
+                .context("profile form field is missing")?[1]
+                .to_owned(),
+        )
+    };
+    let body = url::form_urlencoded::Serializer::new(String::new())
+        .extend_pairs([
+            ("csrf", field("csrf")?),
+            ("offer", field("offer")?),
+            ("context", field("context")?),
+            ("name", "Compatibility reader".into()),
+            ("biography", "Preserved across binary rollback.".into()),
+            ("command", "save".into()),
+        ])
+        .finish();
+    let saved = app
+        .client
+        .post(format!("{}/profile/edit", app.base))
+        .header("cookie", &cookie)
+        .header("origin", "https://reader.example")
+        .header("content-type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await?
+        .text()
+        .await?;
+    assert_that!(
+        saved,
+        contains_substring("Your profile changes were saved.")
+    );
+    let current_package = std::mem::replace(&mut app.package, previous_package);
+    app.restart().await?;
+    // The old binary serves the upgraded database and executes its own migrations.
+    assert_that!(
+        app.ranking(&cookie).await?.text().await?,
+        contains_substring("OL829W")
+    );
+    assert_that!(
+        app.client
+            .get(format!("{}/profile", app.base))
+            .header("cookie", &cookie)
+            .send()
+            .await?
+            .status()
+            .as_u16(),
+        eq(404)
+    );
+    let old_cookie = app.login("profile-compatibility-reader").await?;
+    app.process.0.kill()?;
+    app.process.0.wait()?;
+    migrate_package(&app, "profile_compatibility_migrate")?;
+    let previous_package = std::mem::replace(&mut app.package, current_package);
+    app.restart_after_exit().await?;
+    drop(previous_package);
+    let restored = app
+        .client
+        .get(format!("{}/profile", app.base))
+        .header("cookie", &old_cookie)
+        .send()
+        .await?
+        .text()
+        .await?;
+    for value in [
+        "Compatibility reader",
+        "Preserved across binary rollback.",
+        "1 ranked book",
+    ] {
+        assert_that!(restored.as_str(), contains_substring(value));
+    }
+    let after: Vec<(String, i64, Vec<u8>)> = sqlx::query_as(ledgers).fetch_all(&app.pool).await?;
+    assert_that!(after, eq(&before));
+    let history_after: Vec<serde_json::Value> = sqlx::query_scalar(
+        "SELECT envelope FROM book_smartz.ranking_events WHERE reader_id=$1 ORDER BY sequence",
+    )
+    .bind(reader)
+    .fetch_all(&app.pool)
+    .await?;
+    assert_that!(history_after, eq(&history_before));
+    if let Some(directory) = std::env::var_os("TEST_UNDECLARED_OUTPUTS_DIR") {
+        let directory = std::path::PathBuf::from(directory);
+        fs::create_dir_all(&directory)?;
+        fs::write(
+            directory.join("profile-compatibility.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "commit": std::env::var("BOOK_SMARTZ_ACCEPTANCE_COMMIT").unwrap_or_else(|_| "working-tree".into()),
+                "previous_archive_sha256": previous_sha256,
+                "old_schema_upgrade": "passed", "repeated_migration": "passed", "old_binary_overlap": "passed",
+                "session_continuity": "passed", "profile_preservation": "passed", "ranking_history": "unchanged", "original_ledgers": "unchanged",
+            }))?,
+        )?;
+    }
+    Ok(())
+}
+
+fn migrate_package(app: &Fixture, stage: &'static str) -> anyhow::Result<()> {
+    let status = fixture_process::status(
+        Command::new(app.package.path().join("book-smartz"))
+            .arg("migrate")
+            .env("DATABASE_URL", &app.database)
+            .current_dir(app.cwd.path()),
+        stage,
+    )?;
+    assert_that!(status.success(), eq(true));
     Ok(())
 }

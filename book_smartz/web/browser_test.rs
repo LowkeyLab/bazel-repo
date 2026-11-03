@@ -119,8 +119,8 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
             tokio::select! {
                 line = output.next_line(), if output_open => {
                     let Some(line) = line? else { output_open = false; continue; };
-                    if line == "fixture:native-reader" {
-                        native_reader.store(true, Ordering::SeqCst);
+                    if matches!(line.as_str(),"fixture:native-reader"|"fixture:browser-reader") {
+                        native_reader.store(line=="fixture:native-reader", Ordering::SeqCst);
                         input.write_all(b"ack\n").await?;
                         input.flush().await?;
                         continue;

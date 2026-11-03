@@ -127,12 +127,20 @@ document.addEventListener(
         "text/html",
       );
       const main = page.querySelector("main");
+      if (main?.hasAttribute("data-profile-recovery")) {
+        document.querySelector("main").replaceWith(main);
+        document.title = page.title;
+        main.querySelector("h1").focus({ preventScroll: true });
+        return;
+      }
       if (!main?.querySelector("[data-profile-form]")) {
         checking(form);
         return;
       }
       document.querySelector("main").replaceWith(main);
       document.title = page.title;
+      if (!main.querySelector('input[name="recovery"]'))
+        window.history.replaceState(null, "", "/profile");
       const focus =
         main.querySelector('[aria-invalid="true"]') ||
         main.querySelector("[data-profile-message]");
