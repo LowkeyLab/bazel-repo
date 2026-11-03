@@ -230,7 +230,7 @@ git_override(
 bazel_dep(name = "rules_buf")
 git_override(
     module_name = "rules_buf",
-    commit = "ae0f59a8a8ad18e566ccce0ee020a10854d45e70",
+    commit = "2ac94a854252398a108b3a9da5e0a425ba97cd7b",
     remote = "https://github.com/bufbuild/rules_buf.git",
 )
 
@@ -294,7 +294,7 @@ git_override(
 bazel_dep(name = "rules_python")
 git_override(
     module_name = "rules_python",
-    commit = "220231eefc84a435283afb59e011054624b9a73b",
+    commit = "822a3b77b3a869f17d647ab72eef3c099974b4d5",
     remote = "https://github.com/bazel-contrib/rules_python.git",
 )
 
@@ -308,7 +308,7 @@ git_override(
 bazel_dep(name = "gazelle")
 git_override(
     module_name = "gazelle",
-    commit = "6b575b681f2a05257f04e98c02e83b92c1fb766f",
+    commit = "47b936e3796ff792aac1cc30427a068ce2d15501",
     remote = "https://github.com/bazel-contrib/bazel-gazelle.git",
 )
 
