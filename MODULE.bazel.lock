@@ -262,13 +262,12 @@
     },
     "@@aspect_rules_esbuild+//esbuild:extensions.bzl%esbuild": {
       "general": {
-        "bzlTransitiveDigest": "d7ZX4vRQi1piBRzeBVE1Gp2RcpEYqWZ3nJ+fCERUMr8=",
+        "bzlTransitiveDigest": "uzwiHlw8aD/BoCFELNtiRY6Ii1SYnxB8EI/u66cAuOM=",
         "usagesDigest": "zscLXmeKw3CswJvSNF5UkxkAt00c48BDnmYqvy/Xca4=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_rules_esbuild+,aspect_rules_js aspect_rules_js+",
           "REPO_MAPPING:aspect_rules_esbuild+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:aspect_rules_js+,aspect_rules_js aspect_rules_js+",
-          "REPO_MAPPING:aspect_rules_js+,aspect_tools_telemetry_report aspect_tools_telemetry++telemetry+aspect_tools_telemetry_report",
           "REPO_MAPPING:aspect_rules_js+,bazel_features bazel_features+",
           "REPO_MAPPING:aspect_rules_js+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_rules_js+,bazel_skylib bazel_skylib+",
@@ -427,7 +426,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "ihzLOoAnQP6Y5iSYOhEjvb6uxEbA6ZgH8Qikau2lGRU=",
-        "usagesDigest": "Fr1re2JAFIXbA3CiTqDBnGZCUV6YmKThrI6jwm4NSL4=",
+        "usagesDigest": "M351ZzIfLUlH7TYci1NW+xnZL0Q1R89by6P0d7xseJw=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+",
@@ -440,7 +439,6 @@
               "deps": {
                 "aspect_rules_py": "1.13.0",
                 "aspect_rules_lint": "",
-                "aspect_rules_js": "",
                 "aspect_rules_swc": "",
                 "aspect_rules_ts": "",
                 "aspect_tools_telemetry": "0.5.2"
