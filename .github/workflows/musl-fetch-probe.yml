@@ -23,6 +23,7 @@ jobs:
           probe="$(mktemp -d "$RUNNER_TEMP/musl-probe.XXXXXXXX")"
           mkdir "$probe/repository-cache" "$probe/repo-contents-cache"
           bazel --ignore_all_rc_files --output_user_root="$probe/output" fetch \
+            --experimental_isolated_extension_usages \
             --repository_cache="$probe/repository-cache" \
             --repo_contents_cache="$probe/repo-contents-cache" \
             --experimental_workspace_rules_log_file="$probe/workspace-rules.log" \
