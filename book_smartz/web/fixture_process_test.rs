@@ -176,7 +176,7 @@ fn unpack_package() -> Result<tempfile::TempDir> {
     let archive =
         rlocation!(files, std::env::var("PACKAGE_ARCHIVE")?).context("package archive")?;
     let package = tempfile::tempdir()?;
-    tar::Archive::new(fs::File::open(archive)?).unpack(package.path())?;
+    fixture_process::unpack(fs::File::open(archive)?, package.path())?;
     Ok(package)
 }
 #[googletest::test]
@@ -216,5 +216,45 @@ fn excess_writers_produce_a_limited_report_and_preserve_the_error() -> Result<()
     );
     assert_that!(record["observation"]["limited"].as_bool(), eq(Some(true)));
     assert_that!(record["observation"]["complete"].as_bool(), eq(Some(false)));
+    Ok(())
+}
+
+#[googletest::test]
+fn concurrent_archive_extraction_keeps_new_executables_startable() -> Result<()> {
+    let start = std::sync::Barrier::new(8);
+    let outcomes = std::thread::scope(|scope| {
+        let mut workers = Vec::new();
+        for _ in 0..8 {
+            let start = &start;
+            workers.push(scope.spawn(move || {
+                start.wait();
+                (0..16)
+                    .map(|_| {
+                        let package = unpack_package()?;
+                        fixture_process::status(
+                            Command::new(package.path().join("book-smartz"))
+                                .arg("fixture-invalid-command")
+                                .stdout(Stdio::null())
+                                .stderr(Stdio::null()),
+                            "parallel_fresh_package",
+                        )
+                    })
+                    .collect::<Result<Vec<_>>>()
+            }));
+        }
+        workers
+            .into_iter()
+            .map(|worker| {
+                worker
+                    .join()
+                    .map_err(|_| anyhow::anyhow!("package worker panicked"))?
+            })
+            .collect::<Result<Vec<_>>>()
+    })?;
+    for statuses in outcomes {
+        for status in statuses {
+            assert_that!(status.code(), eq(Some(1)));
+        }
+    }
     Ok(())
 }

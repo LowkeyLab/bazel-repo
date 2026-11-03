@@ -5,6 +5,7 @@ use std::{
     os::unix::fs::MetadataExt,
     path::Path,
     process::{Child, Command, ExitStatus},
+    sync::RwLock,
 };
 
 use serde_json::{Value, json};
@@ -14,11 +15,38 @@ const MAX_FD_ENTRIES: usize = 4_096;
 const MAX_WRITERS: usize = 16;
 const MAX_FDINFO_BYTES: u64 = 4_096;
 
+// Shared preparation permits parallel archives. Creation excludes their writers.
+static EXECUTABLE_PREPARATION: RwLock<()> = RwLock::new(());
+
+pub fn unpack<R: Read>(reader: R, destination: &Path) -> std::io::Result<()> {
+    let _writing = EXECUTABLE_PREPARATION
+        .read()
+        .map_err(|_| std::io::Error::other("fixture executable preparation lock poisoned"))?;
+    let mut archive = tar::Archive::new(reader);
+    archive.unpack(destination)
+}
+
+pub fn create_process<T>(create: impl FnOnce() -> std::io::Result<T>) -> std::io::Result<T> {
+    let _starting = EXECUTABLE_PREPARATION
+        .write()
+        .map_err(|_| std::io::Error::other("fixture executable preparation lock poisoned"))?;
+    create()
+}
+
+fn start(command: &mut Command) -> std::io::Result<Child> {
+    create_process(|| command.spawn())
+}
+
+fn wait_for_status(command: &mut Command) -> std::io::Result<ExitStatus> {
+    // Release the creation guard before waiting for the child's work.
+    start(command)?.wait()
+}
+
 pub fn spawn(command: &mut Command, stage: &'static str) -> anyhow::Result<Child> {
-    observe(command, stage, "spawn", Command::spawn)
+    observe(command, stage, "spawn", start)
 }
 pub fn status(command: &mut Command, stage: &'static str) -> anyhow::Result<ExitStatus> {
-    observe(command, stage, "status", Command::status)
+    observe(command, stage, "status", wait_for_status)
 }
 fn observe<T>(
     command: &mut Command,

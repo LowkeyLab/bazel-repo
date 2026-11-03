@@ -7,7 +7,7 @@ use crate::{
     diagnostic_events::{
         OperationKind, OperationOutcome, OperationRecord, Reason, Severity, Stage,
     },
-    test_support::Fixture,
+    test_support::{Fixture, fixture_process},
 };
 
 async fn record(
@@ -375,10 +375,11 @@ async fn ranking_failure_is_observed_after_component_loading_and_survives_broken
     let fresh = app.login("private-broken-output-reader").await?;
     assert_that!(app.ranking(&fresh).await?.status().as_u16(), eq(200));
     assert_that!(
-        std::process::Command::new("kill")
-            .args(["-TERM", &app.process.0.id().to_string()])
-            .status()?
-            .success(),
+        fixture_process::status(
+            std::process::Command::new("kill").args(["-TERM", &app.process.0.id().to_string()]),
+            "fixture_signal"
+        )?
+        .success(),
         eq(true)
     );
     assert_that!(
@@ -474,11 +475,13 @@ async fn stalled_output_preserves_requests_and_reports_accumulated_loss_after_re
     .await
     .map_err(|_| anyhow::anyhow!("Accumulated diagnostic loss record is absent."))??;
     assert_that!(
-        std::process::Command::new("kill")
-            .arg("-TERM")
-            .arg(app.process.0.id().to_string())
-            .status()?
-            .success(),
+        fixture_process::status(
+            std::process::Command::new("kill")
+                .arg("-TERM")
+                .arg(app.process.0.id().to_string()),
+            "fixture_signal"
+        )?
+        .success(),
         eq(true)
     );
     app.process.0.wait()?;
@@ -532,13 +535,15 @@ async fn migration_configuration_failure_reports_a_safe_terminal_fact() -> anyho
     };
     let app = Fixture::new().await?;
     let capture = tempfile::NamedTempFile::new()?;
-    let status = std::process::Command::new(app.package.path().join("book-smartz"))
-        .arg("migrate")
-        .env("DATABASE_URL", "private invalid database configuration")
-        .current_dir(app.cwd.path())
-        .stdout(std::process::Stdio::null())
-        .stderr(capture.as_file().try_clone()?)
-        .status()?;
+    let status = fixture_process::status(
+        std::process::Command::new(app.package.path().join("book-smartz"))
+            .arg("migrate")
+            .env("DATABASE_URL", "private invalid database configuration")
+            .current_dir(app.cwd.path())
+            .stdout(std::process::Stdio::null())
+            .stderr(capture.as_file().try_clone()?),
+        "fixture_initialization",
+    )?;
     assert_that!(status.success(), eq(false));
     let contents = std::fs::read_to_string(capture.path())?;
     let records: Vec<InitializationRecord> = contents
@@ -630,7 +635,10 @@ fn rejected_initialization(
 ) -> anyhow::Result<crate::diagnostic_events::InitializationRecord> {
     let capture = tempfile::NamedTempFile::new()?;
     command.stderr(capture.as_file().try_clone()?);
-    assert_that!(command.status()?.success(), eq(false));
+    assert_that!(
+        fixture_process::status(command, "fixture_initialization")?.success(),
+        eq(false)
+    );
     let contents = std::fs::read_to_string(capture.path())?;
     let records: Vec<crate::diagnostic_events::InitializationRecord> = contents
         .lines()
@@ -741,9 +749,10 @@ async fn migration_facts_preserve_sessions_and_distinguish_checksum_failure() ->
     let mut instances = Vec::new();
     for _ in 0..2 {
         let capture = tempfile::NamedTempFile::new()?;
-        let status = initialization_command(&app, "migrate")
-            .stderr(capture.as_file().try_clone()?)
-            .status()?;
+        let status = fixture_process::status(
+            initialization_command(&app, "migrate").stderr(capture.as_file().try_clone()?),
+            "fixture_migrate",
+        )?;
         assert_that!(status.success(), eq(true));
         let contents = std::fs::read_to_string(capture.path())?;
         let records: Vec<InitializationRecord> = contents
@@ -792,12 +801,12 @@ async fn stalled_early_stderr_preserves_failure_exit() -> anyhow::Result<()> {
     }
     destination.set_nonblocking(false)?;
     let descriptor: std::os::fd::OwnedFd = destination.into();
-    let mut process = crate::test_support::Process(
+    let mut process = crate::test_support::Process(fixture_process::spawn(
         initialization_command(&app, "migrate")
             .env("DATABASE_URL", "private invalid database configuration")
-            .stderr(std::fs::File::from(descriptor))
-            .spawn()?,
-    );
+            .stderr(std::fs::File::from(descriptor)),
+        "fixture_initialization",
+    )?);
     let status = tokio::time::timeout(Duration::from_secs(5), async {
         loop {
             if let Some(status) = process.0.try_wait()? {
@@ -970,12 +979,12 @@ async fn stalled_shutdown_output_cannot_extend_the_packaged_cleanup_limit() -> a
     }
     destination.set_nonblocking(false)?;
     let descriptor: std::os::fd::OwnedFd = destination.into();
-    let mut process = crate::test_support::Process(
+    let mut process = crate::test_support::Process(fixture_process::spawn(
         initialization_command(&app, "serve")
             .env("PORT", port.to_string())
-            .stderr(std::fs::File::from(descriptor))
-            .spawn()?,
-    );
+            .stderr(std::fs::File::from(descriptor)),
+        "fixture_initialization",
+    )?);
     tokio::time::timeout(Duration::from_secs(20), async {
         loop {
             if let Ok(response) = app
@@ -997,10 +1006,11 @@ async fn stalled_shutdown_output_cannot_extend_the_packaged_cleanup_limit() -> a
     .await??;
     let started = std::time::Instant::now();
     assert_that!(
-        std::process::Command::new("kill")
-            .args(["-TERM", &process.0.id().to_string()])
-            .status()?
-            .success(),
+        fixture_process::status(
+            std::process::Command::new("kill").args(["-TERM", &process.0.id().to_string()]),
+            "fixture_signal"
+        )?
+        .success(),
         eq(true)
     );
     assert_that!(wait_for_shutdown(&mut process).await?.success(), eq(true));

@@ -29,11 +29,13 @@ impl Drop for Process {
         if self.0.try_wait().ok().flatten().is_some() {
             return;
         }
-        let _ = Command::new("kill")
-            .args(["-TERM", &self.0.id().to_string()])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+        let _ = fixture_process::status(
+            Command::new("kill")
+                .args(["-TERM", &self.0.id().to_string()])
+                .stdout(Stdio::null())
+                .stderr(Stdio::null()),
+            "fixture_signal",
+        );
         for _ in 0..200 {
             if self.0.try_wait().ok().flatten().is_some() {
                 return;
@@ -79,9 +81,11 @@ impl Fixture {
         let files = Runfiles::create()?;
         let archive = rlocation!(files, std::env::var("PACKAGE_ARCHIVE")?).unwrap();
         let package = tempfile::tempdir()?;
-        tar::Archive::new(fs::File::open(archive).context("fixture archive open failed")?)
-            .unpack(package.path())
-            .context("fixture archive extraction failed")?;
+        fixture_process::unpack(
+            fs::File::open(archive).context("fixture archive open failed")?,
+            package.path(),
+        )
+        .context("fixture archive extraction failed")?;
         let cwd = tempfile::tempdir()?;
         let status = fixture_process::status(
             Command::new(package.path().join("book-smartz"))

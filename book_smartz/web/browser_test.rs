@@ -83,17 +83,19 @@ async fn sign_in_search_add_and_keyboard_preference_in_responsive_workspace() ->
         .ok_or_else(|| anyhow::anyhow!("Missing fixture TLS key"))?;
     let certificate = rlocation!(files, std::env::var("BROWSER_CERTIFICATE")?)
         .ok_or_else(|| anyhow::anyhow!("Missing fixture certificate"))?;
-    let mut child = tokio::process::Command::new(runner)
-        .args([
-            app.base.as_str(),
-            key.to_str().unwrap(),
-            certificate.to_str().unwrap(),
-        ])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true)
-        .spawn()?;
+    let mut child = test_support::fixture_process::create_process(|| {
+        tokio::process::Command::new(runner)
+            .args([
+                app.base.as_str(),
+                key.to_str().unwrap(),
+                certificate.to_str().unwrap(),
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+    })?;
     let child_pid = child.id();
     let mut input = child.stdin.take().unwrap();
     let mut output = tokio::io::BufReader::new(child.stdout.take().unwrap()).lines();
