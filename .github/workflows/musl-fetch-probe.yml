@@ -1,0 +1,32 @@
+name: Fresh musl fetch probe
+on:
+  push:
+    branches: [codex/musl-fetch-probe-2965]
+permissions:
+  contents: read
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: bc0ccc46bde7e46a4db72c7b3c25725dbbcbe937
+          persist-credentials: false
+      - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
+        with:
+          repository-cache: false
+      - name: Fetch the pinned musl repository
+        shell: bash
+        run: |
+          git rev-parse HEAD
+          probe="$(mktemp -d "$RUNNER_TEMP/musl-probe.XXXXXXXX")"
+          mkdir "$probe/repository-cache" "$probe/repo-contents-cache"
+          bazel --ignore_all_rc_files --output_user_root="$probe/output" fetch \
+            --repository_cache="$probe/repository-cache" \
+            --repo_contents_cache="$probe/repo-contents-cache" \
+            --experimental_workspace_rules_log_file="$probe/workspace-rules.log" \
+            --color=no --curses=no --show_progress_rate_limit=0 \
+            --repo='@@llvm++musl+musl_libc'
+          test -d "$(bazel --ignore_all_rc_files --output_user_root="$probe/output" info output_base)/external/llvm++musl+musl_libc"
+          strings "$probe/workspace-rules.log" | grep -F 'https://musl.libc.org/releases/musl-1.2.6.tar.gz'
