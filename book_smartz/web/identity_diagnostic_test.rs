@@ -749,9 +749,10 @@ async fn migration_facts_preserve_sessions_and_distinguish_checksum_failure() ->
     let mut instances = Vec::new();
     for _ in 0..2 {
         let capture = tempfile::NamedTempFile::new()?;
-        let status = initialization_command(&app, "migrate")
-            .stderr(capture.as_file().try_clone()?)
-            .status()?;
+        let status = fixture_process::status(
+            initialization_command(&app, "migrate").stderr(capture.as_file().try_clone()?),
+            "fixture_migrate",
+        )?;
         assert_that!(status.success(), eq(true));
         let contents = std::fs::read_to_string(capture.path())?;
         let records: Vec<InitializationRecord> = contents
