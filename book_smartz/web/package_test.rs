@@ -295,7 +295,7 @@ async fn stalled_integrity_verification_expires_readiness_and_cannot_delay_shutd
     let manifest = app.package.path().join("integrity.json");
     fs::remove_file(&manifest)?;
     assert_that!(
-        Command::new("mkfifo").arg(&manifest).status()?.success(),
+        fixture_process::status(Command::new("mkfifo").arg(&manifest), "fixture_fifo")?.success(),
         eq(true)
     );
     // The verifier blocks opening this FIFO. Readiness must remain responsive
@@ -319,10 +319,11 @@ async fn stalled_integrity_verification_expires_readiness_and_cannot_delay_shutd
     .await
     .context("stalled verifier must expire readiness")??;
     assert_that!(
-        Command::new("kill")
-            .args(["-TERM", &app.process.0.id().to_string()])
-            .status()?
-            .success(),
+        fixture_process::status(
+            Command::new("kill").args(["-TERM", &app.process.0.id().to_string()]),
+            "fixture_signal"
+        )?
+        .success(),
         eq(true)
     );
     let status = tokio::time::timeout(Duration::from_secs(5), async {
@@ -370,10 +371,11 @@ async fn graceful_shutdown_drains_an_admitted_request_and_preserves_the_session(
     }).await??;
     let start = std::time::Instant::now();
     assert_that!(
-        Command::new("kill")
-            .args(["-TERM", &app.process.0.id().to_string()])
-            .status()?
-            .success(),
+        fixture_process::status(
+            Command::new("kill").args(["-TERM", &app.process.0.id().to_string()]),
+            "fixture_signal"
+        )?
+        .success(),
         eq(true)
     );
     tokio::time::timeout(Duration::from_secs(3), async {
@@ -613,7 +615,7 @@ async fn previous_binary_preserves_the_upgraded_profile_sessions_and_ranking() -
         write!(previous_sha256, "{byte:02x}")?;
     }
     let previous_package = tempfile::tempdir()?;
-    tar::Archive::new(archive.as_slice()).unpack(previous_package.path())?;
+    fixture_process::unpack(archive.as_slice(), previous_package.path())?;
     let mut app = Fixture::new().await?;
     app.process.0.kill()?;
     app.process.0.wait()?;
