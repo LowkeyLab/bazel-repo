@@ -28,7 +28,7 @@
     "io.ktor:ktor-server-websockets-jvm": 2115855841,
     "org.jetbrains.exposed:exposed-core": -286128052,
     "org.jetbrains.exposed:exposed-dao": 1378973198,
-    "org.jetbrains.exposed:exposed-jdbc": -1689743961,
+    "org.jetbrains.exposed:exposed-jdbc": 797768872,
     "org.jetbrains.kotlin:kotlin-test-junit": 1914213676,
     "org.jetbrains.kotlin:kotlin-test-junit5": 1406189049,
     "org.junit.jupiter:junit-jupiter": 1320696306,
@@ -331,12 +331,12 @@
     "org.jetbrains.exposed:exposed-core": -575191890,
     "org.jetbrains.exposed:exposed-core:jar:javadoc": -1469693191,
     "org.jetbrains.exposed:exposed-core:jar:sources": 1242485852,
-    "org.jetbrains.exposed:exposed-dao": 1709061734,
+    "org.jetbrains.exposed:exposed-dao": -306294426,
     "org.jetbrains.exposed:exposed-dao:jar:javadoc": -2136558069,
     "org.jetbrains.exposed:exposed-dao:jar:sources": -1155139867,
-    "org.jetbrains.exposed:exposed-jdbc": -228358643,
-    "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": 440315567,
-    "org.jetbrains.exposed:exposed-jdbc:jar:sources": 747893950,
+    "org.jetbrains.exposed:exposed-jdbc": -85480325,
+    "org.jetbrains.exposed:exposed-jdbc:jar:javadoc": -1431772560,
+    "org.jetbrains.exposed:exposed-jdbc:jar:sources": -1913904751,
     "org.jetbrains.kotlin:kotlin-reflect": -1734605400,
     "org.jetbrains.kotlin:kotlin-reflect:jar:javadoc": 1121744771,
     "org.jetbrains.kotlin:kotlin-reflect:jar:sources": 290175045,
@@ -1228,11 +1228,11 @@
     },
     "org.jetbrains.exposed:exposed-jdbc": {
       "shasums": {
-        "jar": "4e364fcec09afa36a81ec2b3602bb317969eede659ed573a36e4d3fdb45275f5",
-        "javadoc": "564bba96d39b1d258f80eacf98da87f6f2351382e757d834807380a8d1d2d7a1",
-        "sources": "486c44bd85d6d88bcaca764126066090b7925f5e6af58746480e7fa11da130b9"
+        "jar": "9fa98df52849bdd6174a47f9ee72e794a0a93026d03062f94ee0a926ae516e08",
+        "javadoc": "50a4ae680cca559f194519fd3d125e13fcd6761142fb8e71bc1b269d68764ca9",
+        "sources": "f4d615f5a9c4350e6a045ab43d171fefe738a4a8f934322a33693cc6d82d7834"
       },
-      "version": "1.6.0"
+      "version": "1.6.1"
     },
     "org.jetbrains.kotlin:kotlin-reflect": {
       "shasums": {
