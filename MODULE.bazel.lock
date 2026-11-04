@@ -40,7 +40,6 @@
     "https://bcr.bazel.build/modules/aspect_bazel_lib/2.8.1/MODULE.bazel": "812d2dd42f65dca362152101fbec418029cc8fd34cbad1a2fde905383d705838",
     "https://bcr.bazel.build/modules/aspect_rules_py/1.13.0/MODULE.bazel": "59dcae198154d8fe8b525f9934ec016db506c535405d826ed661a897d303246d",
     "https://bcr.bazel.build/modules/aspect_rules_py/1.13.0/source.json": "1e25906a710e298488ac3b85133d48157523597984c8b8bf786b470514e017f7",
-    "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.3.3/MODULE.bazel": "37c764292861c2f70314efa9846bb6dbb44fc0308903b3285da6528305450183",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.1/MODULE.bazel": "9d94e5c22c0019995c0a3216a6abb1717dc3f35acccf4e6267a55d6df38367aa",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.2/MODULE.bazel": "c715a5fb6b13a0086c061618f00d033a4ab6d76cbd1083e38d7ca953b5e547f4",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.2/source.json": "4dd300d44767ad4860098b006dda614e67ab0409ae6ec6e133faad303fe9ede8",
@@ -424,7 +423,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "ihzLOoAnQP6Y5iSYOhEjvb6uxEbA6ZgH8Qikau2lGRU=",
-        "usagesDigest": "5eo3tKuSexXsMQoAQXjgfXNkT/aB9lKCQJR754bbuek=",
+        "usagesDigest": "wmFQFyhBlSRPcdbQgFQySobFF5CBFFi0biOX6QJn3Rg=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+",
@@ -436,7 +435,6 @@
             "attributes": {
               "deps": {
                 "aspect_rules_py": "1.13.0",
-                "aspect_rules_swc": "",
                 "aspect_rules_ts": "",
                 "aspect_tools_telemetry": "0.5.2"
               },
