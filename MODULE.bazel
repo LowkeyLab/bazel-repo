@@ -480,7 +480,7 @@ maven.install(
         "io.ktor:ktor-server-cors-jvm:3.6.1",
         # Database dependencies
         "com.h2database:h2:2.5.252",
-        "org.jetbrains.exposed:exposed-core:1.6.0",
+        "org.jetbrains.exposed:exposed-core:1.6.1",
         "org.jetbrains.exposed:exposed-dao:1.6.0",
         "org.jetbrains.exposed:exposed-jdbc:1.6.0",
         "org.postgresql:postgresql:42.7.14",
