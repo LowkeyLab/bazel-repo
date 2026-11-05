@@ -1,6 +1,8 @@
 def config(ctx):
     ctx.tasks["format"].args.formatter_target = "//tools/format:format"
 
+    ctx.tasks["lint"].args.rules_lint_fix_flag = "@rules_lint//lint:fix"
+
     ctx.tasks["lint"].args.bazel_flags = [
         "--config=lint",
         "--remote_cache=grpcs://remote.buildbuddy.io",
