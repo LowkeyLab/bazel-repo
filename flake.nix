@@ -72,7 +72,12 @@
             mkdir .aspect
             cp ${./.aspect/config.axl} .aspect/repo_config.axl
             cp ${./tools/aspect/delivery_flags.axl} .aspect/check.axl
-            echo 'load("./check.axl", "config")' > .aspect/config.axl
+            cat > .aspect/config.axl <<'AXL'
+            load("./check.axl", configure_check = "config")
+
+            def config(ctx):
+                configure_check(ctx)
+            AXL
             echo "common --remote_cache=grpcs://remote.buildbuddy.io" > .bazelrc
             aspect delivery-flags
             touch "$out"
