@@ -64,7 +64,7 @@ git_override(
 bazel_dep(name = "aspect_rules_js")
 git_override(
     module_name = "aspect_rules_js",
-    commit = "cb13163d3be9098cc8d51b7cb374868f8ae6fb04",
+    commit = "fc6bdd763e9d652d2340aa3109f905e4799d0dd0",
     patch_args = ["-p1"],
     patches = ["//tools/coverage:rules_js_runfiles.patch"],
     remote = "https://github.com/aspect-build/rules_js.git",
