@@ -581,7 +581,7 @@
     },
     "@@rules_buf+//buf:extensions.bzl%buf": {
       "general": {
-        "bzlTransitiveDigest": "hb1ZKLNRx7AnhgftOwNRaO75TIWBlBWVwMweZWgccNY=",
+        "bzlTransitiveDigest": "2Cwu7VgPp/JS1kp4Eu7098r9Z7kNW4ph1PVVTBSTylk=",
         "usagesDigest": "W/iCirFwM8XJmn4NV6D4OyO/jdb+O9azvn21pKCrMsU=",
         "recordedInputs": [
           "REPO_MAPPING:rules_buf+,bazel_tools bazel_tools"
