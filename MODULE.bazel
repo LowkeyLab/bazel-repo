@@ -80,7 +80,7 @@ git_override(
 bazel_dep(name = "aspect_rules_ts")
 git_override(
     module_name = "aspect_rules_ts",
-    commit = "9c87225d8803711b14d4f004355982eba77b7547",
+    commit = "1042611dbb6894aaa8dc941f9dd31073b22df99b",
     remote = "https://github.com/aspect-build/rules_ts.git",
 )
 
