@@ -23,17 +23,17 @@ single_version_override(
     patches = ["//tools/python:coverage.patch"],
 )
 
-bazel_dep(name = "aspect_rules_lint")
+bazel_dep(name = "rules_lint")
 git_override(
-    module_name = "aspect_rules_lint",
-    commit = "021617c74d4b6061e176b74feb9810bc19592377",
+    module_name = "rules_lint",
+    commit = "96c7d44b8f5b51331c2b0d07b30f656bc74ac809",
     patch_strip = 1,
     patches = ["//tools/lint:python_typing.patch"],
     remote = "https://github.com/aspect-build/rules_lint.git",
 )
 
 # Vale and its Google style package are checksum-pinned by rules_lint.
-lint_tools = use_extension("@aspect_rules_lint//lint:extensions.bzl", "tools")
+lint_tools = use_extension("@rules_lint//lint:extensions.bzl", "tools")
 lint_tools.vale(tag = "v3.7.0")
 lint_tools.vale_styles(styles = ["Google"])
 use_repo(
@@ -46,10 +46,10 @@ use_repo(
     "vale_macOS_arm64",
 )
 
-bazel_dep(name = "aspect_rules_lint_rust")
+bazel_dep(name = "rules_lint_rust")
 git_override(
-    module_name = "aspect_rules_lint_rust",
-    commit = "021617c74d4b6061e176b74feb9810bc19592377",
+    module_name = "rules_lint_rust",
+    commit = "96c7d44b8f5b51331c2b0d07b30f656bc74ac809",
     remote = "https://github.com/aspect-build/rules_lint.git",
     strip_prefix = "lint/rust",
 )
@@ -589,7 +589,7 @@ toolchains = use_extension(
     "toolchains",
 )
 
-# Share the stable toolchain with aspect_rules_lint_rust, which imports this name.
+# Share the stable toolchain with rules_lint_rust, which imports this name.
 toolchains.toolchain(
     name = "default_rust_toolchains",
     edition = "2024",
@@ -723,7 +723,7 @@ use_repo(go_deps, "com_github_gin_contrib_cors", "com_github_gin_contrib_slog", 
 #########################
 # Keep Sorted
 keep_sorted_deps = use_extension("@gazelle//:extensions.bzl", "go_deps", isolate = True)
-keep_sorted_deps.from_file(go_mod = "@aspect_rules_lint//lint/keep-sorted:go.mod")
+keep_sorted_deps.from_file(go_mod = "@rules_lint//lint/keep-sorted:go.mod")
 use_repo(keep_sorted_deps, "com_github_google_keep_sorted")
 
 ##########################

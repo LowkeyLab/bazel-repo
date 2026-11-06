@@ -1,18 +1,18 @@
 "Define linter aspects"
 
-load("@aspect_rules_lint//lint:buf.bzl", "lint_buf_aspect")
-load("@aspect_rules_lint//lint:checkstyle.bzl", "lint_checkstyle_aspect")
-load("@aspect_rules_lint//lint:eslint.bzl", "lint_eslint_aspect")
-load("@aspect_rules_lint//lint:keep_sorted.bzl", "lint_keep_sorted_aspect")
-load("@aspect_rules_lint//lint:ktlint.bzl", "lint_ktlint_aspect")
-load("@aspect_rules_lint//lint:lint_test.bzl", "lint_test")
-load("@aspect_rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
-load("@aspect_rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
-load("@aspect_rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
-load("@aspect_rules_lint//lint:stylelint.bzl", "lint_stylelint_aspect")
-load("@aspect_rules_lint//lint:ty.bzl", "lint_ty_aspect")
-load("@aspect_rules_lint//lint:vale.bzl", "lint_vale_aspect")
-load("@aspect_rules_lint_rust//:clippy.bzl", "lint_clippy_aspect")
+load("@rules_lint//lint:buf.bzl", "lint_buf_aspect")
+load("@rules_lint//lint:checkstyle.bzl", "lint_checkstyle_aspect")
+load("@rules_lint//lint:eslint.bzl", "lint_eslint_aspect")
+load("@rules_lint//lint:keep_sorted.bzl", "lint_keep_sorted_aspect")
+load("@rules_lint//lint:ktlint.bzl", "lint_ktlint_aspect")
+load("@rules_lint//lint:lint_test.bzl", "lint_test")
+load("@rules_lint//lint:pmd.bzl", "lint_pmd_aspect")
+load("@rules_lint//lint:ruff.bzl", "lint_ruff_aspect")
+load("@rules_lint//lint:shellcheck.bzl", "lint_shellcheck_aspect")
+load("@rules_lint//lint:stylelint.bzl", "lint_stylelint_aspect")
+load("@rules_lint//lint:ty.bzl", "lint_ty_aspect")
+load("@rules_lint//lint:vale.bzl", "lint_vale_aspect")
+load("@rules_lint_rust//:clippy.bzl", "lint_clippy_aspect")
 
 # Protocol Buffers
 buf = lint_buf_aspect(

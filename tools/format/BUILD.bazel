@@ -4,8 +4,8 @@ This is in its own package because it has so many loading-time symbols,
 we don't want to trigger eager fetches of these for builds that don't want to run format.
 """
 
-load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@npm//:prettier/package_json.bzl", prettier = "bin")
+load("@rules_lint//format:defs.bzl", "format_multirun")
 load("//tools/coverage:jvm.bzl", "java_binary")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -50,15 +50,15 @@ java_binary(
 format_multirun(
     name = "format",
     css = ":prettier",
-    go = "@aspect_rules_lint//format:gofumpt",
+    go = "@rules_lint//format:gofumpt",
     html = ":prettier",
     java = ":java-format",
     javascript = ":prettier",
     kotlin = ":ktfmt",
     markdown = ":prettier",
-    python = "@aspect_rules_lint//format:ruff",
+    python = "@rules_lint//format:ruff",
     rust = "//tools/topcoat:format",
-    shell = "@aspect_rules_lint//format:shfmt",
+    shell = "@rules_lint//format:shfmt",
     starlark = "@buildifier_prebuilt//:buildifier",
-    yaml = "@aspect_rules_lint//format:yamlfmt",
+    yaml = "@rules_lint//format:yamlfmt",
 )
