@@ -26,7 +26,7 @@ single_version_override(
 bazel_dep(name = "aspect_rules_lint")
 git_override(
     module_name = "aspect_rules_lint",
-    commit = "021617c74d4b6061e176b74feb9810bc19592377",
+    commit = "4f5845675aeb6a9b9ad620740ae0a3628ff01503",
     patch_strip = 1,
     patches = ["//tools/lint:python_typing.patch"],
     remote = "https://github.com/aspect-build/rules_lint.git",
