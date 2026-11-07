@@ -3,17 +3,17 @@
     "aspect-cli-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1793984282,
-        "narHash": "sha256-X22XiA/92PG07bBn23AlVpN7ipPOIfDUH4aDb9GuM+M=",
+        "lastModified": 1794014367,
+        "narHash": "sha256-69W4LKnrbDpL/bybFMFOqy6sQR4TO9NiMA/ZqFREK3k=",
         "owner": "aspect-build",
         "repo": "aspect-cli",
-        "rev": "84d6d760132c5c52863bf1413ee58d0a07f4b8be",
+        "rev": "0659c7a0420bcfc23890c4f7615ec73d0b6f3eb2",
         "type": "github"
       },
       "original": {
         "owner": "aspect-build",
         "repo": "aspect-cli",
-        "rev": "84d6d760132c5c52863bf1413ee58d0a07f4b8be",
+        "rev": "0659c7a0420bcfc23890c4f7615ec73d0b6f3eb2",
         "type": "github"
       }
     },
