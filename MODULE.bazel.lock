@@ -4615,13 +4615,13 @@
         },
         {
           "importpath": "github.com/testcontainers/testcontainers-go",
-          "sha256": "d6ee7109c50c5a3557f86dd5e2d4eb88dd3e00d5d3b44e0a395447a0213c6dd0",
-          "version": "v0.44.0"
+          "sha256": "f868f59b6346c95ba00aa82a2710396155a73c064ca873f294de1fb865d3e6c8",
+          "version": "v0.45.0"
         },
         {
           "importpath": "github.com/testcontainers/testcontainers-go/modules/postgres",
-          "sha256": "0fb421ef87fb28d8686ba85db9975a56b295c89438e54603a1bac4c7858e86a2",
-          "version": "v0.44.0"
+          "sha256": "32a4c38ca2a8a9c94fafcef151803319ec6569a6df7ee0a2991b0ef3b58ef96a",
+          "version": "v0.45.0"
         },
         {
           "importpath": "golang.org/x/crypto",
