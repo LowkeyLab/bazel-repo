@@ -67,7 +67,7 @@
             inherit pkgs;
             perSystem.self = { inherit aspect; };
           };
-          aspect-delivery-flags = pkgs.runCommand "aspect-delivery-flags" { nativeBuildInputs = [ aspect ]; } ''
+          aspect-delivery-flags = pkgs.runCommand "aspect-delivery-flags" { nativeBuildInputs = [ aspect pkgs.git ]; } ''
             export ASPECT_CLI_CACHE="$TMPDIR/aspect-cache"
             mkdir .aspect
             cp ${./.aspect/config.axl} .aspect/repo_config.axl
