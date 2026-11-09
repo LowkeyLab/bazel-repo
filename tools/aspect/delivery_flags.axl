@@ -1,6 +1,6 @@
 """Regression checks for delivery flag redaction and remote cache selection."""
 
-load("@aspect//bazel.axl", "BazelTrait", bzl = "bazel")
+load("@aspect//bazel.axl", "BazelTrait", "bazel_invocation", "bazel_rc")
 load("@aspect//private/lib/bazel_results.axl", "redact_flags")
 load("./repo_config.axl", configure_repo = "config")
 
@@ -33,7 +33,7 @@ def _impl(ctx):
     # Model the CI deployment default, then exercise the same rc composition
     # used by delivery with the actual repository task arguments.
     ctx.traits[BazelTrait] = BazelTrait(base_flags = ["--remote_cache=grpcs://cache.aspect.build"])
-    rc = bzl.setup_command(ctx, "build")
+    rc = bazel_rc.setup(ctx, "build")
     for command in ["query", "build"]:
         actual_cache = rc.flag_value("--remote_cache", command = command)
         if actual_cache != "grpcs://remote.buildbuddy.io":
@@ -47,5 +47,5 @@ delivery_flags = task(
     kind = "delivery-flags",
     summary = "Check delivery header redaction without builds or network access.",
     implementation = _impl,
-    args = bzl.core_args("delivery checks"),
+    args = bazel_invocation.args("delivery checks"),
 )
