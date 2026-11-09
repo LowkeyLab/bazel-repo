@@ -1,0 +1,57 @@
+name: Ubuntu snapshot recovery probe
+on:
+  push:
+    branches: [codex/ubuntu-snapshot-probe-3012]
+permissions:
+  contents: read
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: 33f5e1aaf65900d5b1f6a09ac6da755b90ac5828
+          persist-credentials: false
+      - name: Download and verify the reported packages
+        shell: bash
+        run: |
+          git rev-parse HEAD
+          python3 - <<'PYTHON'
+          import hashlib
+          import json
+          import urllib.request
+          from pathlib import Path
+
+          wanted = {"libxtables12", "libip4tc2", "libsemanage-common"}
+          records = []
+          def walk(value):
+              if isinstance(value, dict):
+                  if "lock_content" in value:
+                      records.extend(json.loads(value["lock_content"])["packages"].values())
+                  for item in value.values():
+                      walk(item)
+              elif isinstance(value, list):
+                  for item in value:
+                      walk(item)
+
+          walk(json.loads(Path("MODULE.bazel.lock").read_text()))
+          selected = [item for item in records if item["name"] in wanted]
+          assert len(selected) == 3
+          assert {item["name"] for item in selected} == wanted
+          for item in selected:
+              assert len(item["urls"]) == 1
+              url = item["urls"][0]
+              assert url.startswith("https://snapshot.ubuntu.com/ubuntu/20261017T000000Z/")
+              with urllib.request.urlopen(url, timeout=120) as response:
+                  content = response.read()
+                  status = response.status
+              digest = hashlib.sha256(content).hexdigest()
+              assert status == 200
+              assert len(content) == item["size"]
+              assert digest == item["sha256"]
+              print(json.dumps({"name": item["name"], "version": item["version"],
+                                "architecture": item["architecture"], "url": url,
+                                "http_status": status, "bytes": len(content),
+                                "sha256": digest, "checksum_match": True}), flush=True)
+          PYTHON
