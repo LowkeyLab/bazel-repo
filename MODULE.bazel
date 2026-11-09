@@ -294,7 +294,7 @@ git_override(
 bazel_dep(name = "rules_python")
 git_override(
     module_name = "rules_python",
-    commit = "c1507d87f71e932604d89100abcf927beff898bd",
+    commit = "b03080ff6aafdeaf8b3152138e9af3b090cbae77",
     remote = "https://github.com/bazel-contrib/rules_python.git",
 )
 
