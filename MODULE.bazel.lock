@@ -4580,8 +4580,8 @@
         },
         {
           "importpath": "github.com/gin-contrib/slog",
-          "sha256": "96dcdeadf0752f57d5e00594c5d32c5840df65a43fa56e71c3cb1f9c1e58764f",
-          "version": "v1.2.4"
+          "sha256": "ec007212b049a8b48c9b81a9b0e719ee456437b7f9ba90f7e761022be98447e7",
+          "version": "v1.2.5"
         },
         {
           "importpath": "github.com/gin-gonic/gin",
