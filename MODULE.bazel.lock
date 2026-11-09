@@ -4615,13 +4615,13 @@
         },
         {
           "importpath": "github.com/testcontainers/testcontainers-go",
-          "sha256": "d6ee7109c50c5a3557f86dd5e2d4eb88dd3e00d5d3b44e0a395447a0213c6dd0",
-          "version": "v0.44.0"
+          "sha256": "f868f59b6346c95ba00aa82a2710396155a73c064ca873f294de1fb865d3e6c8",
+          "version": "v0.45.0"
         },
         {
           "importpath": "github.com/testcontainers/testcontainers-go/modules/postgres",
-          "sha256": "0fb421ef87fb28d8686ba85db9975a56b295c89438e54603a1bac4c7858e86a2",
-          "version": "v0.44.0"
+          "sha256": "32a4c38ca2a8a9c94fafcef151803319ec6569a6df7ee0a2991b0ef3b58ef96a",
+          "version": "v0.45.0"
         },
         {
           "importpath": "golang.org/x/crypto",
@@ -4675,8 +4675,8 @@
         },
         {
           "importpath": "github.com/Azure/go-ansiterm",
-          "sha256": "0ce13cb83d6febc5cbd2d7e715138a1e0dbb4e084539c476f0d5a38c5f2ecd80",
-          "version": "v0.0.0-20250102033503-faa5f7b0171c"
+          "sha256": "1a695f7b7082fb87a658e43afbefc54e12a1072d6ee608af0d7d6775297c688f",
+          "version": "v0.0.0-20261006220739-8c912ac31dd4"
         },
         {
           "importpath": "github.com/Masterminds/semver/v3",
@@ -4921,7 +4921,7 @@
         {
           "importpath": "github.com/docker/go-connections",
           "sha256": "0e916bb5125b73fcf42b40d5614942299a5827a62e64afe5f8d76260b721b507",
-          "version": "v0.7.0"
+          "version": "v0.8.2"
         },
         {
           "importpath": "github.com/docker/go-units",
@@ -5136,7 +5136,7 @@
         {
           "importpath": "github.com/magiconair/properties",
           "sha256": "da3229c1eaabc0de293c14ea5bcfa80f63300c0a03005377a3e421a2f35ce632",
-          "version": "v1.8.10"
+          "version": "v1.18.12"
         },
         {
           "importpath": "github.com/mattn/go-colorable",
@@ -5186,17 +5186,17 @@
         {
           "importpath": "github.com/moby/go-archive",
           "sha256": "5e848da6d91fd4d66420a8695dde1ea8e3747103742bba45e4d1151fc7225f7e",
-          "version": "v0.3.0"
+          "version": "v0.3.3"
         },
         {
           "importpath": "github.com/moby/moby/api",
-          "sha256": "0068c13f211659f3d0f924882f8f1c35465e686fa23809c9ce1d7780fc396d34",
-          "version": "v1.55.0"
+          "sha256": "2129f2a5124b7ff5bed2235407f7d99256cbc014f9f105a955bd8ddf8ba2b442",
+          "version": "v1.56.1"
         },
         {
           "importpath": "github.com/moby/moby/client",
-          "sha256": "2414770622a6bd4bcf4636a81d5f3dc83bcbc428b65925a2139519326558ddaa",
-          "version": "v0.5.0"
+          "sha256": "58e4adffcf6db85aa2364d61854bd943625655b974f0e155ebd825743ca3e06d",
+          "version": "v0.6.2"
         },
         {
           "importpath": "github.com/moby/patternmatcher",
