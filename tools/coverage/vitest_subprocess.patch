@@ -9,7 +9,7 @@
  import * as libCoverage from '@vitest/istanbul-lib-coverage';
  import * as libReport from '@vitest/istanbul-lib-report';
 @@ -16,6 +16,27 @@
- var version = "5.0.5";
+ var version = "5.1.0";
  
  const FILE_PROTOCOL = "file://";
 +// Node resolves subprocess entry-point symlinks outside Bazel's logical roots.

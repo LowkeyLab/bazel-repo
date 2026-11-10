@@ -13,7 +13,7 @@ Node resolves the child entry-point symlink to a physical path below `bazel-out`
 The provider excludes this path because it is outside the logical project root.
 The combined report then contains an empty-script baseline for the child.
 
-The repository applies `vitest_subprocess.patch` to `@vitest/coverage-v8@5.0.5` through `npm_translate_lock`.
+The repository applies `vitest_subprocess.patch` to `@vitest/coverage-v8@5.1.0` through `npm_translate_lock`.
 The patch matches physical aliases to existing files that the provider's own roots and unchanged filters admit.
 It uses the physical `realpathSync` operation that `rules_js` retains under `fs._unpatched`.
 It changes only extended-context script URLs in memory, before the maintained provider merges and filters profiles.
