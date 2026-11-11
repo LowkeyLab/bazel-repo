@@ -129,7 +129,7 @@ git_override(
 bazel_dep(name = "buildifier_prebuilt")
 git_override(
     module_name = "buildifier_prebuilt",
-    commit = "1e79ca7a9d1c2e04b6fad77217210753c774984f",
+    commit = "def7480572c222555c6a037d680914c85ae3a99b",
     remote = "https://github.com/keith/buildifier-prebuilt.git",
 )
 
