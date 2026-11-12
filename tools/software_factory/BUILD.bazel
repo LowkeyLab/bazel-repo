@@ -1,0 +1,52 @@
+load("//tools/coverage:rust.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "software_factory",
+    srcs = [
+        "controller.rs",
+        "github.rs",
+        "history.rs",
+        "lib.rs",
+        "model.rs",
+        "policy.rs",
+        "store.rs",
+    ],
+    crate_root = "lib.rs",
+    edition = "2024",
+    deps = [
+        "@crates//:chrono",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:uuid",
+    ],
+)
+
+rust_test(
+    name = "acceptance_test",
+    size = "small",
+    srcs = [
+        "acceptance_test.rs",
+        "adapter_test.rs",
+    ],
+    crate_root = "acceptance_test.rs",
+    edition = "2024",
+    env = {"RUST_TEST_THREADS": "1"},
+    deps = [
+        ":software_factory",
+        "@crates//:googletest",
+        "@crates//:serde_json",
+        "@crates//:tempfile",
+    ],
+)
+
+filegroup(
+    name = "markdown",
+    srcs = [
+        "ACCEPTANCE.md",
+        "README.md",
+    ],
+    tags = ["markdown"],
+)
