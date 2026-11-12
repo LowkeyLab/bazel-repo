@@ -4568,6 +4568,88 @@
       "notice_version": "3"
     },
     "@@gazelle+//:extensions.bzl%go_deps": {
+      "module_sums_v1": [
+        {
+          "importpath": "cloud.google.com/go/storage",
+          "sum": "h1:w2pQJhpUqVerMON45vatE2FpCYsNTf7OHjkn6ux5mMU=",
+          "version": "v1.62.0"
+        },
+        {
+          "importpath": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric",
+          "sum": "h1:jLdiS1vO+XJFyDSWRHBx56r4s/NNtcl5J6KyCcWUX/w=",
+          "version": "v0.57.0"
+        },
+        {
+          "importpath": "github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping",
+          "sum": "h1:RoO5+d7uCmDqovLrHCr2/BuViUXvdcrNxyNM1pN9dDQ=",
+          "version": "v0.57.0"
+        },
+        {
+          "importpath": "github.com/aws/aws-sdk-go-v2",
+          "sum": "h1:mJoei2CxPutQVxaATCzDUjcZEjVRdpsiiXi2o38yqWM=",
+          "version": "v1.36.3"
+        },
+        {
+          "importpath": "github.com/aws/aws-sdk-go-v2/credentials",
+          "sum": "h1:q+nV2yYegofO/SUXruT+pn4KxkxmaQ++1B/QedcKBFM=",
+          "version": "v1.17.65"
+        },
+        {
+          "importpath": "github.com/aws/aws-sdk-go-v2/internal/configsources",
+          "sum": "h1:ZK5jHhnrioRkUNOc+hOgQKlUL5JeC3S6JgLxtQ+Rm0Q=",
+          "version": "v1.3.34"
+        },
+        {
+          "importpath": "github.com/aws/aws-sdk-go-v2/internal/endpoints/v2",
+          "sum": "h1:SZwFm17ZUNNg5Np0ioo/gq8Mn6u9w19Mri8DnJ15Jf0=",
+          "version": "v2.6.34"
+        },
+        {
+          "importpath": "github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding",
+          "sum": "h1:eAh2A4b5IzM/lum78bZ590jy36+d/aFLgKF/4Vd1xPE=",
+          "version": "v1.12.3"
+        },
+        {
+          "importpath": "github.com/aws/aws-sdk-go-v2/service/internal/presigned-url",
+          "sum": "h1:dM9/92u2F1JbDaGooxTq18wmmFzbJRfXfVfy96/1CXM=",
+          "version": "v1.12.15"
+        },
+        {
+          "importpath": "github.com/aws/smithy-go",
+          "sum": "h1:Z//5NuZCSW6R4PhQ93hShNbyBbn8BWCmCVCt+Q8Io5k=",
+          "version": "v1.22.3"
+        },
+        {
+          "importpath": "github.com/godbus/dbus/v5",
+          "sum": "h1:4KLkAxT3aOY8Li4FRJe/KvhoNFFxo0m6fNuFUO8QJUk=",
+          "version": "v5.1.0"
+        },
+        {
+          "importpath": "github.com/golang/glog",
+          "sum": "h1:DrW6hGnjIhtvhOIiAKT6Psh/Kd/ldepEa81DKeiRJ5I=",
+          "version": "v1.2.5"
+        },
+        {
+          "importpath": "github.com/google/flatbuffers",
+          "sum": "h1:M9dgRyhJemaM4Sw8+66GHBu8ioaQmyPLg1b8VwK5WJg=",
+          "version": "v23.5.26+incompatible"
+        },
+        {
+          "importpath": "github.com/pierrec/lz4/v4",
+          "sum": "h1:xaKrnTkyoqfh1YItXl56+6KJNVYWlEEPuAQW9xsplYQ=",
+          "version": "v4.1.18"
+        },
+        {
+          "importpath": "github.com/xanzy/go-gitlab",
+          "sum": "h1:J9pTQoq0GsEFqzd6srCM1QfdfKAxSNz6mT6ntrpNF2w=",
+          "version": "v0.103.0"
+        },
+        {
+          "importpath": "golang.org/x/xerrors",
+          "sum": "h1:noIWHXmPHxILtqtCOPIhSt0ABwskkZKjD3bXGnZGpNY=",
+          "version": "v0.0.0-20240903120638-7835f813f4da"
+        }
+      ],
       "required_mod_files_v1": [
         {
           "importpath": "github.com/bazelbuild/rules_go",
