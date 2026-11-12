@@ -16,13 +16,23 @@ or activation command. It does not start normal operation.
   `Adapter` uses GraphQL cursors, stable total counts, and unique identities for
   Project items, labels, assigned actors, children, and blockers. Native parent
   and child closure is complete before selection. Inaccessible or partial data
-  stops the observation. Repository-qualified issue identities exclude foreign
+  stops the observation. History reads check the stable comment count against
+  the page budget before fetching comment bodies, then request one explicit REST
+  page at a time. Each page must have its expected size, unique comment IDs, and
+  the exact issue target; the final count must remain unchanged. Repository-qualified issue identities exclude foreign
   work; PR and draft Project items are not candidates.
 - `GhTransport` calls an operator-selected absolute `gh` executable and an explicit
   credential environment variable. It does not fall back to the planning
   session's or worker's inherited GitHub token.
-- `AppPublisher` authenticates the configured App with an operator-supplied App
-  JWT transport, verifies its approved installation, and obtains a token scoped
+- `AppJwtTransport::new` requires an operator-selected absolute `curl` executable
+  and the name of the dedicated App JWT environment variable. It sends an explicit
+  `Authorization: Bearer` header through a stdin-only curl configuration, with
+  default curl configuration disabled and no redirect following. The JWT is not
+  passed in arguments, temporary files, subprocess environment, or diagnostics.
+  Do not use `GhTransport` for App JWTs; it retains gh token authentication for
+  read credentials and scoped installation tokens.
+- `AppPublisher` authenticates the configured App with `AppJwtTransport`, verifies
+  its approved installation, and obtains a token scoped
   to this repository with only issue-write and metadata-read permissions.
   Publication still needs exact App, Bot actor, issue, record, payload, digest,
   and continuity read verification before the private anchor advances. The read adapter

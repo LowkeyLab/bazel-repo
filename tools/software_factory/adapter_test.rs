@@ -22,6 +22,7 @@ use super::{Native, app, key};
 struct Wire {
     fault: String,
     comments: Vec<Value>,
+    history_requests: Vec<(String, bool)>,
 }
 #[derive(Clone, Default)]
 struct Fixture(Rc<RefCell<Wire>>);
@@ -29,8 +30,11 @@ fn raw_issue(n: u64) -> Value {
     json!({"id":format!("I{n}"),"number":n,"repository":{"nameWithOwner":"LowkeyLab/bazel-repo"}})
 }
 impl Transport for Fixture {
-    fn request(&mut self, endpoint: &str, body: Option<Value>, _paginate: bool) -> Result<Value> {
-        let s = self.0.borrow();
+    fn request(&mut self, endpoint: &str, body: Option<Value>, paginate: bool) -> Result<Value> {
+        let mut s = self.0.borrow_mut();
+        if endpoint.contains("/comments?") {
+            s.history_requests.push((endpoint.into(), paginate));
+        }
         if endpoint == "graphql" {
             let body = body.unwrap();
             let q = body["query"].as_str().unwrap();
@@ -109,7 +113,14 @@ impl Transport for Fixture {
             });
             value["state"] = json!("OPEN");
             value["parent"] = if n == 1 { Value::Null } else { raw_issue(1) };
-            value["comments"] = json!({"totalCount":s.comments.iter().filter(|c|c["issue_url"]==issue_url(n)).count()});
+            let count = s
+                .comments
+                .iter()
+                .filter(|c| c["issue_url"] == issue_url(n))
+                .count();
+            let count = count
+                + usize::from(s.fault == "changing-history" && !s.history_requests.is_empty());
+            value["comments"] = json!({"totalCount":count});
             return Ok(json!({"data":{"node":value}}));
         }
         if endpoint.contains("/issues/comments/") {
@@ -134,7 +145,36 @@ impl Transport for Fixture {
         if s.fault == "partial-history" {
             comments.clear();
         }
-        Ok(json!([comments]))
+        if paginate {
+            return Ok(json!([comments]));
+        }
+        let page = endpoint
+            .split("&page=")
+            .nth(1)
+            .unwrap()
+            .parse::<usize>()
+            .unwrap();
+        if s.fault == "failed-history-page" && page == 2 {
+            return Err(software_factory::Error::Stop("fixture page failure".into()));
+        }
+        if s.fault == "malformed-history-page" {
+            return Ok(json!({"unexpected":"object"}));
+        }
+        if s.fault == "duplicate-history" && page == 2 {
+            return Ok(json!([comments[0].clone()]));
+        }
+        let size = if s.fault == "oversized-history-page" {
+            101
+        } else {
+            100
+        };
+        Ok(json!(
+            comments
+                .into_iter()
+                .skip((page - 1) * 100)
+                .take(size)
+                .collect::<Vec<_>>()
+        ))
     }
 }
 fn raw_with_type(n: u64) -> Value {
@@ -211,6 +251,63 @@ fn partial_connections_and_graphql_errors_never_establish_eligibility() {
     }
 }
 #[gtest]
+fn history_rejects_an_over_bound_count_before_fetching_any_pages() {
+    let f = Fixture::default();
+    for _ in 0..201 {
+        f.clone().publish(&key(2), "fixture", &app()).unwrap();
+    }
+    let mut a = Adapter::new(f.clone(), Clear, f.clone(), app(), 2, 100).unwrap();
+    expect_that!(a.history(&key(2)).is_err(), eq(true));
+    expect_that!(f.0.borrow().history_requests.len(), eq(0));
+}
+
+#[gtest]
+fn history_fetches_only_explicit_bounded_pages_without_transport_autopagination() {
+    for count in [0, 1, 100, 101, 200] {
+        let f = Fixture::default();
+        for _ in 0..count {
+            f.clone().publish(&key(2), "fixture", &app()).unwrap();
+        }
+        let mut a = Adapter::new(f.clone(), Clear, f.clone(), app(), 2, 100).unwrap();
+        expect_that!(a.history(&key(2)).unwrap().len(), eq(count));
+        let expected = (1..=count.div_ceil(100).max(1))
+            .map(|page| {
+                (
+                    format!(
+                        "repos/LowkeyLab/bazel-repo/issues/2/comments?per_page=100&page={page}"
+                    ),
+                    false,
+                )
+            })
+            .collect::<Vec<_>>();
+        expect_that!(&f.0.borrow().history_requests, eq(&expected));
+    }
+}
+
+#[gtest]
+fn history_page_failures_never_return_partial_or_unproven_history() {
+    for fault in [
+        "failed-history-page",
+        "malformed-history-page",
+        "duplicate-history",
+        "oversized-history-page",
+        "changing-history",
+        "partial-history",
+    ] {
+        let f = Fixture::default();
+        for _ in 0..101 {
+            f.clone().publish(&key(2), "fixture", &app()).unwrap();
+        }
+        f.0.borrow_mut().fault = fault.into();
+        let mut a = Adapter::new(f.clone(), Clear, f.clone(), app(), 2, 100).unwrap();
+        expect_that!(a.history(&key(2)).is_err(), eq(true));
+        let requests = &f.0.borrow().history_requests;
+        expect_that!(requests.len() <= 2, eq(true));
+        expect_that!(requests.iter().all(|(_, paginate)| !paginate), eq(true));
+    }
+}
+
+#[gtest]
 fn partial_history_cannot_advance_or_admit() {
     let dir = tempfile::tempdir().unwrap();
     let f = Fixture::default();
@@ -261,6 +358,153 @@ impl Transport for AppWire {
         )
     }
 }
+#[gtest]
+fn app_jwt_transport_sends_bearer_only_through_private_stdin() {
+    use software_factory::github::AppJwtTransport;
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let command = dir.path().join("curl");
+    // Record only fixture credentials at the public command boundary.
+    std::fs::write(&command, format!(
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}/args'\ncat > '{}/input'\nprintf '{{\"id\":100}}'\n",
+        dir.path().display(), dir.path().display()
+    )).unwrap();
+    std::fs::set_permissions(&command, std::fs::Permissions::from_mode(0o700)).unwrap();
+    // The test target sets this variable. No global environment mutation is needed.
+    let mut transport = AppJwtTransport::new(command.clone(), "RUST_TEST_THREADS".into()).unwrap();
+    let body = json!({"repositories":["bazel-repo"],"permissions":{"issues":"write"}});
+    expect_that!(
+        transport
+            .request(
+                "app/installations/77/access_tokens",
+                Some(body.clone()),
+                false
+            )
+            .unwrap(),
+        eq(&json!({"id":100}))
+    );
+    let args = std::fs::read_to_string(dir.path().join("args")).unwrap();
+    let input = std::fs::read_to_string(dir.path().join("input")).unwrap();
+    expect_that!(args.starts_with("--disable\n"), eq(true));
+    expect_that!(args.contains("--config\n-\n"), eq(true));
+    expect_that!(
+        args.contains("https://api.github.com/app/installations/77/access_tokens"),
+        eq(true)
+    );
+    expect_that!(args.contains("Authorization"), eq(false));
+    expect_that!(
+        input.contains("header = \"Authorization: Bearer 1\"\n"),
+        eq(true)
+    );
+    expect_that!(
+        input.contains(&format!(
+            "data-binary = {}\n",
+            serde_json::to_string(&body.to_string()).unwrap()
+        )),
+        eq(true)
+    );
+    transport.request("app", None, false).unwrap();
+    let args = std::fs::read_to_string(dir.path().join("args")).unwrap();
+    let input = std::fs::read_to_string(dir.path().join("input")).unwrap();
+    expect_that!(args.contains("--request\nGET\n"), eq(true));
+    expect_that!(input.contains("Authorization: Bearer 1"), eq(true));
+    expect_that!(input.contains("data-binary"), eq(false));
+    std::fs::write(
+        &command,
+        "#!/bin/sh\ncat >/dev/null\nprintf 'fixture.jwt.secret' >&2\nexit 22\n",
+    )
+    .unwrap();
+    expect_that!(
+        transport
+            .request("app", None, false)
+            .unwrap_err()
+            .to_string(),
+        eq("safety stop: App HTTP request failed; response withheld")
+    );
+}
+
+#[gtest]
+fn gh_read_and_installation_transports_keep_token_auth_without_secret_arguments() {
+    use software_factory::github::{GhInstallationFactory, GhTransport};
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = tempfile::tempdir().unwrap();
+    let command = dir.path().join("gh");
+    std::fs::write(&command, format!(
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}/args'\nprintf '%s' \"$GH_TOKEN\" > '{}/token'\ncat > '{}/input'\nprintf '{{}}'\n",
+        dir.path().display(), dir.path().display(), dir.path().display()
+    )).unwrap();
+    std::fs::set_permissions(&command, std::fs::Permissions::from_mode(0o700)).unwrap();
+    let mut read = GhTransport::new(command.clone(), "RUST_TEST_THREADS".into()).unwrap();
+    read.request(
+        "repos/LowkeyLab/bazel-repo/issues/2/comments?per_page=100&page=1",
+        None,
+        false,
+    )
+    .unwrap();
+    let args = std::fs::read_to_string(dir.path().join("args")).unwrap();
+    expect_that!(args.contains("--paginate"), eq(false));
+    expect_that!(args.contains("Authorization"), eq(false));
+    expect_that!(
+        std::fs::read_to_string(dir.path().join("token")).unwrap(),
+        eq("1")
+    );
+    let mut installed = GhInstallationFactory { command }
+        .create("fixture-installation".into())
+        .unwrap();
+    let body = json!({"body":"fixture publication"});
+    installed
+        .request(
+            "repos/LowkeyLab/bazel-repo/issues/2/comments",
+            Some(body.clone()),
+            false,
+        )
+        .unwrap();
+    let args = std::fs::read_to_string(dir.path().join("args")).unwrap();
+    expect_that!(args.contains("fixture-installation"), eq(false));
+    expect_that!(args.contains("--input\n-\n"), eq(true));
+    expect_that!(
+        std::fs::read_to_string(dir.path().join("token")).unwrap(),
+        eq("fixture-installation")
+    );
+    expect_that!(
+        std::fs::read_to_string(dir.path().join("input")).unwrap(),
+        eq(&body.to_string())
+    );
+}
+
+#[gtest]
+fn app_jwt_transport_rejects_missing_credentials_and_unbounded_requests_before_spawn() {
+    use software_factory::github::AppJwtTransport;
+    let command = std::path::PathBuf::from("/nonexistent-approved-command");
+    expect_that!(
+        AppJwtTransport::new("curl".into(), "RUST_TEST_THREADS".into()).is_err(),
+        eq(true)
+    );
+    let mut transport = AppJwtTransport::new(command.clone(), "RUST_TEST_THREADS".into()).unwrap();
+    for (endpoint, paginate) in [
+        ("app", true),
+        ("https://other.invalid/app", false),
+        ("app/../user", false),
+    ] {
+        expect_that!(
+            transport.request(endpoint, None, paginate).is_err(),
+            eq(true)
+        );
+    }
+    let mut missing =
+        AppJwtTransport::new(command, "SOFTWARE_FACTORY_ABSENT_JWT_FIXTURE_03167".into()).unwrap();
+    expect_that!(
+        missing
+            .request("app", None, false)
+            .unwrap_err()
+            .to_string()
+            .contains("JWT unavailable"),
+        eq(true)
+    );
+}
+
 struct AppFactory(AppWire);
 impl InstallationTransportFactory for AppFactory {
     type Client = AppWire;

@@ -82,6 +82,47 @@ bazel build //tools/software_factory/... \
   --remote_executor= --remote_cache= --bes_backend=
 ```
 
+## Hosted review corrections
+
+The corrected acceptance target passed **43 tests**, including six new transport
+and bounded-history tests. The original five-run, 37-test evidence above remains
+historical evidence, not a claim that the expanded suite ran five times.
+
+- `app_jwt_transport_sends_bearer_only_through_private_stdin` checks explicit
+  Bearer headers for App GET and token-minting POST requests, stdin-only secret
+  transfer, exact JSON input, and withheld failed-command diagnostics.
+- `gh_read_and_installation_transports_keep_token_auth_without_secret_arguments`
+  checks the unchanged read and installation token modes at the command boundary.
+- `app_jwt_transport_rejects_missing_credentials_and_unbounded_requests_before_spawn`
+  checks missing credentials, relative executables, foreign endpoints, traversal,
+  and unsupported automatic pagination.
+- `history_rejects_an_over_bound_count_before_fetching_any_pages` checks that a
+  201-comment history with a two-page allowance makes no REST history request.
+- `history_fetches_only_explicit_bounded_pages_without_transport_autopagination`
+  checks empty, single-comment, full-page, and two-page histories, including
+  exactly full final pages. Every REST request has an explicit page and disables
+  transport pagination.
+- `history_page_failures_never_return_partial_or_unproven_history` checks failed,
+  malformed, duplicate, oversized, changing, and incomplete page responses.
+
+Evidence under the same private root:
+
+- `codex-cycle-1-auth-red.log`: missing App JWT transport fails compilation before
+  implementation. `codex-cycle-1-bound-red-actual.log` and
+  `codex-cycle-1-pages-red.log`: the original history behavior fails the new
+  request-boundary assertions. Early commands that used `--test_filter` did not
+  run the intended Rust tests; the replacement RED commands used `--test_arg`.
+- `codex-cycle-1-final-tests.log`: all 43 tests passed, with no filtered tests.
+- `codex-cycle-1-final-build.log`, `codex-cycle-1-final-lint.log`, and
+  `codex-cycle-1-format-local.log`: focused build, lint, and whole-tree formatting
+  completed successfully. Existing Clippy advisories and toolchain warnings
+  remain. An initial formatter invocation timed out; the local-only retry passed.
+- `codex-cycle-1-curl-protocol.log`: installed curl sent the exact Bearer header
+  and JSON body from stdin configuration to a local HTTP fixture. This checks
+  curl's configuration parsing, not a live GitHub App or production credentials.
+
+No commit, push, review request, or GitHub mutation was made for these corrections.
+
 ## Remaining readiness prerequisites
 
 No production App identity, installation permissions, private Project access,

@@ -90,6 +90,93 @@ impl Transport for GhTransport {
         Ok(serde_json::from_slice(&result.stdout)?)
     }
 }
+/// App JWT transport. The approved executable is curl, not gh: gh's default
+/// token scheme cannot authenticate an App JWT. Credentials go through stdin,
+/// never command arguments, temporary config files, or diagnostic output.
+pub struct AppJwtTransport {
+    command: PathBuf,
+    token_variable: String,
+}
+impl AppJwtTransport {
+    pub fn new(command: PathBuf, token_variable: String) -> Result<Self> {
+        require(
+            command.is_absolute() && !token_variable.is_empty(),
+            "missing approved App HTTP command or JWT source",
+        )?;
+        Ok(Self {
+            command,
+            token_variable,
+        })
+    }
+}
+impl Transport for AppJwtTransport {
+    fn request(&mut self, endpoint: &str, body: Option<Value>, paginate: bool) -> Result<Value> {
+        require(
+            !paginate
+                && endpoint.starts_with("app")
+                && endpoint.split('/').all(|part| {
+                    !part.is_empty() && part.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                }),
+            "unsupported App request",
+        )?;
+        let token = std::env::var(&self.token_variable)
+            .map_err(|_| crate::Error::Stop("dedicated App JWT unavailable".into()))?;
+        require(
+            !token.is_empty()
+                && token
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b)),
+            "invalid App JWT credential",
+        )?;
+        let mut config = format!(
+            "header = \"Authorization: Bearer {token}\"\nheader = \"Accept: application/vnd.github+json\"\nheader = \"Content-Type: application/json\"\n"
+        );
+        if let Some(body) = &body {
+            // Serialized JSON has no literal controls. Its JSON-quoted form uses
+            // exactly curl config's quote and backslash escapes.
+            config.push_str(&format!(
+                "data-binary = {}\n",
+                serde_json::to_string(&body.to_string())?
+            ));
+        }
+        let mut child = Command::new(&self.command)
+            .env_remove(&self.token_variable)
+            .env_remove("GH_TOKEN")
+            .env_remove("GITHUB_TOKEN")
+            .args([
+                "--disable",
+                "--silent",
+                "--show-error",
+                "--fail",
+                "--connect-timeout",
+                "10",
+                "--max-time",
+                "60",
+                "--request",
+                if body.is_some() { "POST" } else { "GET" },
+                "--url",
+                &format!("https://api.github.com/{endpoint}"),
+                "--config",
+                "-",
+            ])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
+        let mut input = child
+            .stdin
+            .take()
+            .ok_or_else(|| crate::Error::Stop("missing App HTTP input".into()))?;
+        input.write_all(config.as_bytes())?;
+        drop(input);
+        let result = child.wait_with_output()?;
+        require(
+            result.status.success(),
+            "App HTTP request failed; response withheld",
+        )?;
+        Ok(serde_json::from_slice(&result.stdout)?)
+    }
+}
 /// Trusted native execution inventory, not a fact derived from labels or comments.
 pub trait ExecutionInventory {
     fn clear(&mut self, issue: &IssueKey) -> Result<bool>;
@@ -504,30 +591,34 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> GitHub for Adapte
         let before = self.issue_node(&node)?["comments"]["totalCount"]
             .as_u64()
             .ok_or_else(|| crate::Error::Stop("missing history count".into()))?;
-        let pages = self.transport.request(
-            &format!(
-                "repos/{}/issues/{}/comments?per_page=100",
-                issue.repository(),
-                issue.number()
-            ),
-            None,
-            true,
-        )?;
-        let pages = pages
-            .as_array()
-            .filter(|p| !p.is_empty())
-            .ok_or_else(|| crate::Error::Stop("missing history pages".into()))?;
+        // The stable GraphQL total proves the required REST page count, including
+        // an exactly full last page. Refuse over-budget histories before fetching
+        // any comment bodies. Never let the subprocess follow additional pages.
+        let page_count = before.div_ceil(100).max(1);
         require(
-            pages.len() <= self.max_pages,
+            page_count <= self.max_pages as u64,
             "history page bound exhausted",
         )?;
         let mut comments = Vec::new();
         let mut ids = BTreeSet::new();
-        for page in pages {
-            for raw in page
+        for page in 1..=page_count {
+            let values = self.transport.request(
+                &format!(
+                    "repos/{}/issues/{}/comments?per_page=100&page={page}",
+                    issue.repository(),
+                    issue.number()
+                ),
+                None,
+                false,
+            )?;
+            let values = values
                 .as_array()
-                .ok_or_else(|| crate::Error::Stop("malformed history page".into()))?
-            {
+                .ok_or_else(|| crate::Error::Stop("malformed history page".into()))?;
+            require(
+                values.len() as u64 == before.saturating_sub((page - 1) * 100).min(100),
+                "incomplete or changing history page",
+            )?;
+            for raw in values {
                 let comment = self.parse_comment(issue, raw)?;
                 require(ids.insert(comment.id.clone()), "duplicate history comment")?;
                 comments.push(comment);
