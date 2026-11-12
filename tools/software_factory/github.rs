@@ -16,6 +16,11 @@ use crate::{
 };
 
 pub trait Transport {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error on credential, transport, response, or supported-request failure.
+    /// Mutation errors do not authorize another send.
     fn request(&mut self, endpoint: &str, body: Option<Value>, paginate: bool) -> Result<Value>;
 }
 /// Explicit credential source; never inherits a worker's or planning session's token.
@@ -28,6 +33,10 @@ enum Credential {
     Installation(String),
 }
 impl GhTransport {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command is not absolute or the token variable is empty.
     pub fn new(command: PathBuf, token_variable: String) -> Result<Self> {
         require(
             command.is_absolute() && !token_variable.is_empty(),
@@ -90,14 +99,20 @@ impl Transport for GhTransport {
         Ok(serde_json::from_slice(&result.stdout)?)
     }
 }
-/// App JWT transport. The approved executable is curl, not gh: gh's default
-/// token scheme cannot authenticate an App JWT. Credentials go through stdin,
+/// App JWT transport.
+///
+/// The approved executable is curl, not gh: gh's default token scheme cannot
+/// authenticate an App JWT. Credentials go through stdin,
 /// never command arguments, temporary config files, or diagnostic output.
 pub struct AppJwtTransport {
     command: PathBuf,
     token_variable: String,
 }
 impl AppJwtTransport {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the command is not absolute or the JWT variable is empty.
     pub fn new(command: PathBuf, token_variable: String) -> Result<Self> {
         require(
             command.is_absolute() && !token_variable.is_empty(),
@@ -134,10 +149,9 @@ impl Transport for AppJwtTransport {
         if let Some(body) = &body {
             // Serialized JSON has no literal controls. Its JSON-quoted form uses
             // exactly curl config's quote and backslash escapes.
-            config.push_str(&format!(
-                "data-binary = {}\n",
-                serde_json::to_string(&body.to_string())?
-            ));
+            config.push_str("data-binary = ");
+            config.push_str(&serde_json::to_string(&body.to_string())?);
+            config.push('\n');
         }
         let mut child = Command::new(&self.command)
             .env_remove(&self.token_variable)
@@ -179,6 +193,10 @@ impl Transport for AppJwtTransport {
 }
 /// Trusted native execution inventory, not a fact derived from labels or comments.
 pub trait ExecutionInventory {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if trusted native execution state cannot be established.
     fn clear(&mut self, issue: &IssueKey) -> Result<bool>;
 }
 pub struct Unprovisioned;
@@ -220,6 +238,11 @@ impl ExecutionInventory for Unprovisioned {
 }
 /// Provisioning must authenticate the configured App before publication. No broad-token fallback.
 pub trait HistoryPublisher {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if App authority, repository scope, publication, or returned
+    /// record identity cannot be established. An error does not authorize another send.
     fn publish(&mut self, issue: &IssueKey, body: &str, app: &AppIdentity) -> Result<String>;
 }
 impl HistoryPublisher for Unprovisioned {
@@ -232,6 +255,10 @@ impl HistoryPublisher for Unprovisioned {
 /// A token minted by the authenticated App, not an inherited CLI token.
 pub trait InstallationTransportFactory {
     type Client: Transport;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an approved installation client cannot be created.
     fn create(&mut self, token: String) -> Result<Self::Client>;
 }
 pub struct GhInstallationFactory {
@@ -258,6 +285,10 @@ pub struct AppPublisher<T, F> {
     installation: u64,
 }
 impl<T: Transport, F: InstallationTransportFactory> AppPublisher<T, F> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the approved installation identifier is zero.
     pub fn new(app_transport: T, installations: F, installation: u64) -> Result<Self> {
         require(installation > 0, "missing approved App installation")?;
         Ok(Self {
@@ -342,6 +373,10 @@ pub struct Adapter<T, I, W> {
     max_issues: usize,
 }
 impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> Adapter<T, I, W> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if either approved read bound is zero.
     pub fn new(
         transport: T,
         inventory: I,
@@ -363,7 +398,7 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> Adapter<T, I, W> 
             max_issues,
         })
     }
-    fn graphql(&mut self, query: String, variables: Value) -> Result<Value> {
+    fn graphql(&mut self, query: &str, variables: &Value) -> Result<Value> {
         let value = self.transport.request(
             "graphql",
             Some(json!({"query":query,"variables":variables})),
@@ -378,7 +413,7 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> Adapter<T, I, W> 
         value
             .get("data")
             .cloned()
-            .filter(|v| v.is_object())
+            .filter(Value::is_object)
             .ok_or_else(|| crate::Error::Stop("missing GraphQL data".into()))
     }
     /// Follow cursors and verify stable total counts, unique nodes, and explicit page termination.
@@ -398,7 +433,7 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> Adapter<T, I, W> 
             let query = format!(
                 "query($id:ID!,$cursor:String) {{ node(id:$id) {{ ... on {typename} {{ {field}(first:100,after:$cursor) {{ totalCount pageInfo {{ hasNextPage endCursor }} nodes {{ {selection} }} }} }} }} }}"
             );
-            let data = self.graphql(query, json!({"id":node,"cursor":cursor}))?;
+            let data = self.graphql(&query, &json!({"id":node,"cursor":cursor}))?;
             let connection = &data["node"][field];
             let count = connection["totalCount"]
                 .as_u64()
@@ -432,7 +467,7 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> Adapter<T, I, W> 
         Err(crate::Error::Stop("read page bound exhausted".into()))
     }
     fn issue_node(&mut self, node: &str) -> Result<Value> {
-        let data=self.graphql("query($id:ID!) { node(id:$id) { __typename ... on Issue { id number createdAt state repository { nameWithOwner } parent { id number repository { nameWithOwner } } comments { totalCount } } } }".into(),json!({"id":node}))?;
+        let data=self.graphql("query($id:ID!) { node(id:$id) { __typename ... on Issue { id number createdAt state repository { nameWithOwner } parent { id number repository { nameWithOwner } } comments { totalCount } } } }",&json!({"id":node}))?;
         let issue = data["node"].clone();
         require(
             issue["__typename"] == "Issue" && text(&issue, "id")? == node,
@@ -445,12 +480,12 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> Adapter<T, I, W> 
             .repository()
             .split_once('/')
             .expect("validated repository");
-        let data=self.graphql("query($owner:String!,$name:String!,$number:Int!) { repository(owner:$owner,name:$name) { issue(number:$number) { id number repository { nameWithOwner } } } }".into(),json!({"owner":owner,"name":name,"number":key.number()}))?;
+        let data=self.graphql("query($owner:String!,$name:String!,$number:Int!) { repository(owner:$owner,name:$name) { issue(number:$number) { id number repository { nameWithOwner } } } }",&json!({"owner":owner,"name":name,"number":key.number()}))?;
         let issue = &data["repository"]["issue"];
         require(issue_key(issue)? == *key, "wrong exact issue lookup")?;
         text(issue, "id")
     }
-    fn parse_comment(&self, key: &IssueKey, value: &Value) -> Result<Comment> {
+    fn parse_comment(key: &IssueKey, value: &Value) -> Result<Comment> {
         let id = value["id"]
             .as_u64()
             .filter(|n| *n > 0)
@@ -619,7 +654,7 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> GitHub for Adapte
                 "incomplete or changing history page",
             )?;
             for raw in values {
-                let comment = self.parse_comment(issue, raw)?;
+                let comment = Self::parse_comment(issue, raw)?;
                 require(ids.insert(comment.id.clone()), "duplicate history comment")?;
                 comments.push(comment);
             }
@@ -647,7 +682,7 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> GitHub for Adapte
             None,
             false,
         )?;
-        let comment = self.parse_comment(issue, &raw)?;
+        let comment = Self::parse_comment(issue, &raw)?;
         require(comment.id == id, "wrong exact comment identity")?;
         Ok(comment)
     }

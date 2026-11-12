@@ -21,6 +21,10 @@ pub struct Record {
     pub event: Event,
 }
 impl Record {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the record cannot be serialized as JSON.
     pub fn body(&self) -> Result<String> {
         Ok(format!("{PREFIX}{}", serde_json::to_string(self)?))
     }
@@ -39,13 +43,25 @@ pub struct PendingRecord {
     pub attempted: bool,
     pub comment: Option<String>,
 }
+#[must_use]
 pub fn digest(body: &str) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
     Sha256::digest(body.as_bytes())
         .iter()
-        .map(|byte| format!("{byte:02x}"))
+        .flat_map(|byte| {
+            [
+                char::from(HEX[usize::from(byte >> 4)]),
+                char::from(HEX[usize::from(byte & 0x0f)]),
+            ]
+        })
         .collect()
 }
 /// Complete reads are required by the GitHub boundary. Extra structured records are not silently adopted.
+///
+/// # Errors
+///
+/// Returns an error for invalid structured records, wrong targets or authors,
+/// duplicate identities, broken continuity, changed anchors, or unproven pending history.
 pub fn validate(
     comments: &[Comment],
     issue: &IssueKey,
@@ -53,18 +69,18 @@ pub fn validate(
     anchors: &[Anchor],
     pending: Option<&PendingRecord>,
 ) -> Result<Vec<Record>> {
-    if let Some(pending) = pending {
-        if let Some(id) = &pending.comment {
-            require(
-                comments.iter().any(|comment| {
-                    &comment.id == id
-                        && comment.issue == pending.issue
-                        && comment.app.as_ref() == Some(app)
-                        && comment.body == pending.body
-                }),
-                "known pending history missing or modified",
-            )?;
-        }
+    if let Some(pending) = pending
+        && let Some(id) = &pending.comment
+    {
+        require(
+            comments.iter().any(|comment| {
+                &comment.id == id
+                    && comment.issue == pending.issue
+                    && comment.app.as_ref() == Some(app)
+                    && comment.body == pending.body
+            }),
+            "known pending history missing or modified",
+        )?;
     }
     let mut records: Vec<(Record, String)> = Vec::new();
     let mut comment_ids = BTreeSet::new();
@@ -93,11 +109,7 @@ pub fn validate(
                 && record_ids.insert(record.id.clone()),
             "contradictory history identity or order",
         )?;
-        let previous = if position == 0 {
-            None
-        } else {
-            Some(digest(&records.last().expect("previous record").1))
-        };
+        let previous = records.last().map(|(_, body)| digest(body));
         require(
             record.previous_digest == previous,
             "broken history continuity",

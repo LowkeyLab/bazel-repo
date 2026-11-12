@@ -16,6 +16,10 @@ pub enum Error {
     Json(#[from] serde_json::Error),
 }
 pub type Result<T> = std::result::Result<T, Error>;
+///
+/// # Errors
+///
+/// Returns a safety-stop error with the supplied reason when the condition is false.
 pub fn require(condition: bool, reason: &str) -> Result<()> {
     if condition {
         Ok(())

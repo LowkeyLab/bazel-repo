@@ -42,12 +42,27 @@ impl From<IssueKey> for String {
     }
 }
 impl IssueKey {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
+    /// Returns the repository from this validated issue key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the private key lacks its validated separator, which indicates
+    /// an internal invariant failure. Construction and deserialization validate it.
+    #[must_use]
     pub fn repository(&self) -> &str {
         self.0.rsplit_once('#').expect("validated key").0
     }
+    /// Returns the positive issue number from this validated key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the private key lacks its validated separator or canonical
+    /// `u64` number. Construction and deserialization enforce these invariants.
+    #[must_use]
     pub fn number(&self) -> u64 {
         self.0
             .rsplit_once('#')
@@ -61,9 +76,11 @@ impl IssueKey {
 #[serde(try_from = "String", into = "String")]
 pub struct Identity(String);
 impl Identity {
+    #[must_use]
     pub fn new() -> Self {
         Self(Uuid::new_v4().to_string())
     }
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }

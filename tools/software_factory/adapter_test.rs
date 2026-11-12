@@ -30,6 +30,8 @@ fn raw_issue(n: u64) -> Value {
     json!({"id":format!("I{n}"),"number":n,"repository":{"nameWithOwner":"LowkeyLab/bazel-repo"}})
 }
 impl Transport for Fixture {
+    // Keep the complete wire protocol and its fault cases in one fixture dispatch.
+    #[allow(clippy::too_many_lines)]
     fn request(&mut self, endpoint: &str, body: Option<Value>, paginate: bool) -> Result<Value> {
         let mut s = self.0.borrow_mut();
         if endpoint.contains("/comments?") {
@@ -331,12 +333,13 @@ fn partial_history_cannot_advance_or_admit() {
 #[gtest]
 fn unavailable_native_inventory_and_publication_prerequisites_fail_closed() {
     let f = Fixture::default();
-    let mut a = Adapter::new(f.clone(), Unprovisioned, Unprovisioned, app(), 100, 100).unwrap();
+    let mut a = Adapter::new(f, Unprovisioned, Unprovisioned, app(), 100, 100).unwrap();
     expect_that!(a.snapshot().is_err(), eq(true));
     expect_that!(a.publish(&key(2), "history").is_err(), eq(true));
 }
+type AppRequests = Rc<RefCell<Vec<(String, Option<Value>)>>>;
 #[derive(Clone)]
-struct AppWire(Rc<RefCell<Vec<(String, Option<Value>)>>>, bool);
+struct AppWire(AppRequests, bool);
 impl Transport for AppWire {
     fn request(&mut self, e: &str, b: Option<Value>, _: bool) -> Result<Value> {
         self.0.borrow_mut().push((e.into(), b.clone()));
@@ -525,7 +528,7 @@ fn publisher_authenticates_configured_app_and_scopes_installation_token() {
             .iter()
             .filter(|(e, _)| e.contains("/issues/2/comments"))
             .count();
-        expect_that!(sends, eq(if wrong { 0 } else { 1 }));
+        expect_that!(sends, eq(usize::from(!wrong)));
         if !wrong {
             let token = requests
                 .borrow()

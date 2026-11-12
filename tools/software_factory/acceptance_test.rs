@@ -12,6 +12,19 @@ use software_factory::{
 };
 
 mod adapter_test;
+
+#[gtest]
+fn history_digest_keeps_canonical_sha256_hex() {
+    expect_that!(
+        software_factory::history::digest("abc"),
+        eq("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    );
+    expect_that!(
+        software_factory::history::digest(""),
+        eq("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
+    );
+}
+
 type Result<T> = software_factory::Result<T>;
 fn key(n: u64) -> IssueKey {
     format!("LowkeyLab/bazel-repo#{n}").try_into().unwrap()
@@ -48,6 +61,8 @@ fn snapshot() -> Snapshot {
 }
 #[derive(Clone)]
 struct Remote(Rc<RefCell<RemoteState>>);
+// Each switch injects an independent failure; combinations test uncertain sends.
+#[allow(clippy::struct_excessive_bools)]
 struct RemoteState {
     snapshot: Snapshot,
     comments: Vec<Comment>,
@@ -275,7 +290,7 @@ fn readback_failure_does_not_advance_anchor_or_send_effect() {
     let (_dir, mut c, r, n) = setup();
     c.poll().unwrap();
     r.0.borrow_mut().fail_exact = true;
-    expect_that!(c.perform(action()).is_err(), eq(true));
+    expect_that!(c.perform(&action()).is_err(), eq(true));
     expect_that!(n.0.borrow().sent.len(), eq(0));
     let (store, _, _) = c.into_parts();
     expect_that!(store.load().unwrap().anchors[&key(2)].len(), eq(1));
@@ -325,7 +340,7 @@ fn action_recovery_preserves_original_identity_and_exact_target() {
     c.poll().unwrap();
     let a = action();
     n.0.borrow_mut().lost_ack = true;
-    expect_that!(c.perform(a.clone()).is_err(), eq(true));
+    expect_that!(c.perform(&a).is_err(), eq(true));
     expect_that!(r.0.borrow().comments.len(), eq(2));
     let (store, _, _) = c.into_parts();
     expect_that!(store.load().unwrap().pending_effect.unwrap().action, eq(&a));
@@ -338,7 +353,7 @@ fn action_recovery_preserves_original_identity_and_exact_target() {
     .unwrap();
     let mut c = Controller::new(store, r.clone(), n.clone(), "controller".into()).unwrap();
     c.recover().unwrap();
-    c.perform(a).unwrap();
+    c.perform(&a).unwrap();
     expect_that!(n.0.borrow().sent.len(), eq(1));
     expect_that!(r.0.borrow().comments.len(), eq(4));
 }
@@ -354,8 +369,8 @@ fn absent_or_wrong_effect_result_never_allows_repeat_or_another_job() {
             s.absent = !wrong;
             s.wrong = wrong;
         }
-        expect_that!(c.perform(a.clone()).is_err(), eq(true));
-        expect_that!(c.perform(a).is_err(), eq(true));
+        expect_that!(c.perform(&a).is_err(), eq(true));
+        expect_that!(c.perform(&a).is_err(), eq(true));
         expect_that!(c.poll().is_err(), eq(true));
         expect_that!(n.0.borrow().sent.len(), eq(1));
     }
@@ -415,7 +430,7 @@ fn native_pool_hermes_and_notification_routes_share_intent_and_recovery_contract
         c.poll().unwrap();
         let mut a = action();
         a.kind = kind;
-        c.perform(a).unwrap();
+        c.perform(&a).unwrap();
         expect_that!(native.0.borrow().sent.len(), eq(1));
         expect_that!(r.0.borrow().comments.len(), eq(3));
     }
@@ -431,7 +446,7 @@ fn notification_failure_cannot_clear_stop_or_release_slot() {
         n.lost_ack = true;
         n.absent = true;
     }
-    expect_that!(c.perform(a).is_err(), eq(true));
+    expect_that!(c.perform(&a).is_err(), eq(true));
     expect_that!(c.poll().is_err(), eq(true));
     let (store, _, _) = c.into_parts();
     expect_that!(store.load().unwrap().active.unwrap().issue, eq(&key(2)));
@@ -650,10 +665,10 @@ fn completed_action_identity_cannot_be_reused_with_changed_payload() {
     let (_dir, mut c, _, n) = setup();
     c.poll().unwrap();
     let a = action();
-    c.perform(a.clone()).unwrap();
+    c.perform(&a).unwrap();
     let mut changed = a;
     changed.payload = "different admission".into();
-    expect_that!(c.perform(changed).is_err(), eq(true));
+    expect_that!(c.perform(&changed).is_err(), eq(true));
     expect_that!(n.0.borrow().sent.len(), eq(1));
 }
 #[gtest]
@@ -755,7 +770,7 @@ fn lost_pending_effect_with_unpublished_intent_stops_before_admission() {
         remote.drop_send = true;
         remote.lost_ack = true;
     }
-    expect_that!(c.perform(action()).is_err(), eq(true));
+    expect_that!(c.perform(&action()).is_err(), eq(true));
     let path = dir.path().join("private/state.json");
     let mut value: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
@@ -792,7 +807,7 @@ fn null_private_authority_cannot_override_authenticated_history() {
         c.poll().unwrap();
         if field == "pending_effect" {
             n.0.borrow_mut().lost_ack = true;
-            expect_that!(c.perform(action()).is_err(), eq(true));
+            expect_that!(c.perform(&action()).is_err(), eq(true));
         }
         if field == "pending_record" {
             r.0.borrow_mut().fail_exact = true;

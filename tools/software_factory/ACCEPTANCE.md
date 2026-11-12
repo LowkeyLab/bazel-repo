@@ -1,7 +1,7 @@
 # Intake acceptance evidence
 
 Scope: issue #3152 and specification #3151, sections 2, 3, and the intake
-acceptance boundary. These are controlled fixture results, not activation
+acceptance boundary. Controlled fixtures provide these results, not activation
 approval or deployed integration evidence.
 
 ## Configuration and versions
@@ -17,19 +17,19 @@ approval or deployed integration evidence.
 - Private receipts: real temporary directories with `0700` root and `0600` files.
 - Harness `RUST_TEST_THREADS=1`; a separate process tests exclusive ownership.
 - Test/build commands clear remote executor, remote cache, and build-event service
-  endpoints. No live GitHub, Hermes, pool, or notification effects are sent.
+  endpoints. Tests send no live GitHub, Hermes, pool, or notification effects.
 
 ## Results
 
 The acceptance target passed **37 tests in each of five runs** with no failures.
 The count includes `process_owner_probe`, the subprocess helper. The suite uses
-real filesystem persistence and real independent subprocess locking; other
-external interfaces are controlled fixtures.
+real filesystem persistence and real independent subprocess locking. Controlled
+fixtures replace the other external interfaces.
 
 | Requirement                             | Positive case and expected result                                                                                                                                                                                                                                                                                                                                        | Failure/recovery case and expected result                                                                                                                                                                                                                                                                                                                                                                                                           | Actual                   |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
 | Complete 60-second intake               | `controller_polling_reports_sixty_seconds_and_bounds_failed_observations`: successful observations request a 60-second delay. `paginated_wire_adapter_selects_native_first_eligible_child_through_controller`: read all Project, actor, label, child, and blocker pages, then select the native first eligible child.                                                    | `partial_connections_and_graphql_errors_never_establish_eligibility`, `partial_history_cannot_advance_or_admit`, `partial_or_contradictory_native_reads_cannot_select`: partial data, repeated cursors, inaccessible nodes, and invalid native relationships cannot authorize selection. Failure backoff stops at its configured bound.                                                                                                             | Passed in all five runs. |
-| Authorization and rechecks              | `research_authorization_does_not_override_waiting_or_hitl`: research authorization selects research without granting implementation. `admission_rechecks_blockers_without_removing_readiness`: blocking preserves implementation readiness; a fresh unblocked observation permits the same job.                                                                          | `exclusions_are_applied_before_oldest_selection`, `later_blocker_and_assignment_pages_exclude_the_first_sibling`, `recheck_after_selection_retains_slot_on_assignment_conflict`: waiting, HITL, closed, PR, ownership conflict, execution uncertainty, and missing authorization do not admit. Project PR/foreign items are excluded by the wire adapter.                                                                                           | Passed in all five runs. |
+| Authorization and rechecks              | `research_authorization_does_not_override_waiting_or_hitl`: research authorization selects research without granting implementation. `admission_rechecks_blockers_without_removing_readiness`: blocking preserves implementation readiness; a fresh unblocked observation permits the same job.                                                                          | `exclusions_are_applied_before_oldest_selection`, `later_blocker_and_assignment_pages_exclude_the_first_sibling`, `recheck_after_selection_retains_slot_on_assignment_conflict`: waiting, human-in-the-loop decisions, closed, PR, ownership conflict, execution uncertainty, and missing authorization do not admit. The wire adapter excludes Project PR and foreign items.                                                                       | Passed in all five runs. |
 | Ordering and one active slot            | `native_order_constrains_only_eligible_siblings`, `no_eligible_work_is_idle_and_numeric_ties_do_not_use_project_order`: earlier eligible native siblings constrain selection, ineligible siblings do not, and numeric repository-qualified ties ignore Project order. `selection_wait_and_restart_retain_one_job`: waits and restart retain the original job identity.   | Blocking, ownership changes, uncertain actions, and failed notifications retain the slot rather than selecting another issue. `notification_failure_cannot_clear_stop_or_release_slot` verifies that notification failure cannot unlock dispatch.                                                                                                                                                                                                   | Passed in all five runs. |
 | Exclusive ownership and missing state   | `independent_process_observes_exclusive_lock_and_stopped_owner_handoff` and `lock_and_stopped_owner_handoff_are_required`: an independent process cannot open the held lock; reopening requires a fresh process identity and trusted stopped-owner evidence. Authenticated active-job history records subsequent owner changes.                                          | `missing_or_nonprivate_receipts_are_not_new_jobs`, `receipts_have_private_modes_and_reject_symlinked_root`: absent identity/state, insecure files, and symlinked roots fail closed. Explicit initialization refuses an existing receipt root.                                                                                                                                                                                                       | Passed in all five runs. |
 | App-authenticated exact history         | `publisher_authenticates_configured_app_and_scopes_installation_token`: verify the App/installation and request only repository-scoped issue authority. `uncertain_history_recovers_exact_record_without_duplicate_send`: a lost acknowledgement adopts only the original exact authenticated record.                                                                    | `readback_failure_does_not_advance_anchor_or_send_effect`, `absent_after_uncertain_history_send_never_republishes`, `damaged_history_stops_advancement`, `observed_history_damage_is_a_durable_stop_not_automatic_repair_authority`: missing/edited/forged/duplicate records and App mismatches stop; read verification failure does not advance an anchor; remote absence does not permit resend; restoring bytes does not clear the durable stop. | Passed in all five runs. |
@@ -43,9 +43,8 @@ These paths are local evidence references, not public production receipts.
 - `final-acceptance-results.json`: parsed expected/actual results for every test in
   each run, with exact base commit, versions, and fixture configuration.
 - `final-acceptance-evidence/run_1_of_5/` through `run_5_of_5/`: copied Bazel `test.log`
-  and `test.xml` outputs for each run. The XML wraps the Rust harness, so individual
-  Rust test names and results are parsed from `test.log`, not inferred from XML
-  wrapper counts.
+  and `test.xml` outputs for each run. The XML wraps the Rust harness, so the result collector parses individual
+  Rust test names and results from `test.log`, not XML wrapper counts.
 - `parent-tests-final.log`: successful five-run acceptance command.
 - `parent-build-final.log`: successful `aspect build //tools/software_factory/...`.
 - `parent-format-final.log`: successful `aspect format --scope=all`.
@@ -85,7 +84,7 @@ bazel build //tools/software_factory/... \
 ## Hosted review corrections
 
 The corrected acceptance target passed **43 tests**, including six new transport
-and bounded-history tests. The original five-run, 37-test evidence above remains
+and bounded-history tests. The original five-run, 37-test evidence in the preceding section remains
 historical evidence, not a claim that the expanded suite ran five times.
 
 - `app_jwt_transport_sends_bearer_only_through_private_stdin` checks explicit
@@ -97,44 +96,63 @@ historical evidence, not a claim that the expanded suite ran five times.
   checks missing credentials, relative executables, foreign endpoints, traversal,
   and unsupported automatic pagination.
 - `history_rejects_an_over_bound_count_before_fetching_any_pages` checks that a
-  201-comment history with a two-page allowance makes no REST history request.
+  201-comment history with a two-page allowance makes no HTTP history request.
 - `history_fetches_only_explicit_bounded_pages_without_transport_autopagination`
   checks empty, single-comment, full-page, and two-page histories, including
-  exactly full final pages. Every REST request has an explicit page and disables
+  exactly full final pages. Every HTTP request has an explicit page and disables
   transport pagination.
 - `history_page_failures_never_return_partial_or_unproven_history` checks failed,
   malformed, duplicate, oversized, changing, and incomplete page responses.
 
 Evidence under the same private root:
 
-- `codex-cycle-1-auth-red.log`: missing App JWT transport fails compilation before
+- `codex-cycle-1-auth-red.log`: missing App token transport fails compilation before
   implementation. `codex-cycle-1-bound-red-actual.log` and
   `codex-cycle-1-pages-red.log`: the original history behavior fails the new
   request-boundary assertions. Early commands that used `--test_filter` did not
-  run the intended Rust tests; the replacement RED commands used `--test_arg`.
+  run the intended Rust tests; the replacement failing-test commands used `--test_arg`.
 - `codex-cycle-1-final-tests.log`: all 43 tests passed, with no filtered tests.
 - `codex-cycle-1-final-build.log`, `codex-cycle-1-final-lint.log`, and
   `codex-cycle-1-format-local.log`: focused build, lint, and whole-tree formatting
   completed successfully. Existing Clippy advisories and toolchain warnings
   remain. An initial formatter invocation timed out; the local-only retry passed.
 - `codex-cycle-1-curl-protocol.log`: installed curl sent the exact Bearer header
-  and JSON body from stdin configuration to a local HTTP fixture. This checks
+  and JSON body from standard input configuration to a local HTTP fixture. This checks
   curl's configuration parsing, not a live GitHub App or production credentials.
 
-No commit, push, review request, or GitHub mutation was made for these corrections.
+These fixture corrections make no live App calls. Subsequent delivery committed
+and pushed them for hosted review.
+
+## Lint corrections
+
+The expanded acceptance target passed **44 tests without cached results**, including a known
+`SHA-256` digest example. The focused build and formatter also passed.
+The latest raw Clippy diagnostics contain no warnings or errors for the library
+or acceptance target. Vale reports no errors, warnings, or suggestions.
+
+Public interfaces now document their errors and invariant-only panics. Mechanical
+simplifications preserve the existing safety decisions. `Controller::perform`
+borrows its action. Two narrowly scoped test-fixture exceptions retain independent
+fault switches and a complete wire-protocol dispatch without changing production
+lint policy.
+
+Evidence: `lint-cleanup-parent-verified.json`, `lint-cleanup-parent-tests.log`,
+`lint-cleanup-parent-build.log`, `lint-cleanup-parent-format.log`, and
+`lint-cleanup-parent-lint.log` under the private evidence root. These results
+supersede the earlier package lint advisories, not the runtime prerequisites.
 
 ## Remaining readiness prerequisites
 
-No production App identity, installation permissions, private Project access,
-controller/worker OS isolation, stopped-owner supervisor, native execution
-inventory, native worker admission, pool receipt integration, or notification
-routing is certified by these fixtures. Missing evidence blocks its affected
+These fixtures do not certify production App identity, installation permissions,
+private Project access, controller/worker OS isolation, stopped-owner supervision,
+native execution inventory, native worker admission, pool receipt integration, or
+notification routing. Missing evidence blocks its affected
 operation through the `Unprovisioned` interfaces. Later tickets own those native
 integrations, reviews, merge delivery, and final readiness evidence.
 
-No service or scheduled task was installed, no activation was requested, and no live
-external fixture was used. Full-repository test/build/lint was attempted but
-remains blocked by the independently reproduced base-commit failure. Initial
+Delivery installed no service or scheduled task, requested no activation, and used
+no live external fixture. Local full-repository test/build/lint attempts remain
+blocked by the independently reproduced base-commit failure. Initial
 independent Standards and Spec reviews found one import-order violation and two
 recovery defects. The corrected implementation includes six regression tests. A further lost-acknowledgement case retains the
 discovered comment identity before retrying an exact read. Its failing-before-fix

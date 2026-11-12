@@ -9,9 +9,26 @@ use crate::{
 
 /// Implementations must finish all pages or return an error; no partial success.
 pub trait GitHub {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the complete Project and native issue reads cannot be established.
     fn snapshot(&mut self) -> Result<Snapshot>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the complete history for the exact issue cannot be read.
     fn history(&mut self, issue: &IssueKey) -> Result<Vec<Comment>>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if publication fails or its acknowledgement is uncertain.
+    /// An error does not authorize another send.
     fn publish(&mut self, issue: &IssueKey, body: &str) -> Result<String>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the exact comment cannot be read or its target is invalid.
     fn exact_comment(&mut self, issue: &IssueKey, id: &str) -> Result<Comment>;
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -22,7 +39,16 @@ pub enum Observation {
 }
 /// Native adapters retain their original tool receipts and identities. No blind retries.
 pub trait Effects {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the native effect fails or its acknowledgement is uncertain.
+    /// An error does not authorize another send.
     fn send(&mut self, action: &Action) -> Result<()>;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the original exact action target cannot be inspected.
     fn inspect_exact(&mut self, action: &Action) -> Result<Observation>;
 }
 /// Separate replaceable boundaries for native integrations. Not worker implementations.
@@ -74,6 +100,10 @@ pub struct Controller<G, E> {
     poisoned: bool,
 }
 impl<G: GitHub, E: Effects> Controller<G, E> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the assignee is empty or the private store cannot be loaded.
     pub fn new(store: Store, github: G, effects: E, assignee: String) -> Result<Self> {
         require(!assignee.is_empty(), "missing configured assignee")?;
         store.load()?;
@@ -121,7 +151,7 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             comments,
             issue,
             &state.app,
-            state.anchors.get(issue).map(Vec::as_slice).unwrap_or(&[]),
+            state.anchors.get(issue).map_or(&[][..], Vec::as_slice),
             state.pending_record.as_ref().filter(|p| &p.issue == issue),
         );
         if result.is_err() {
@@ -168,7 +198,9 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             let Some(record) = record else {
                 return self.stop_integrity(state, "invalid pending history record");
             };
-            if record.id != pending.record || record.issue != pending.issue {
+            let identity_matches = record.id == pending.record;
+            let issue_matches = record.issue == pending.issue;
+            if !identity_matches || !issue_matches {
                 return self.stop_integrity(state, "pending history identity mismatch");
             }
             match record.event {
@@ -179,18 +211,15 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
                 _ => {}
             }
         }
-        let selection_matches = match &state.active {
-            Some(active) => {
-                selected.len() == 1
-                    && selected[0]
-                        == (
-                            active.issue.clone(),
-                            active.job.clone(),
-                            active.work.clone(),
-                        )
-            }
-            None => selected.is_empty(),
-        };
+        let selection_matches = state.active.as_ref().map_or(selected.is_empty(), |active| {
+            selected.len() == 1
+                && selected[0]
+                    == (
+                        active.issue.clone(),
+                        active.job.clone(),
+                        active.work.clone(),
+                    )
+        });
         let unresolved: Vec<_> = intents
             .iter()
             .filter(|a| !outcomes.contains(&a.id))
@@ -220,7 +249,7 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             "pending history must be reconciled first",
         )?;
         self.records(state, issue)?;
-        let anchors = state.anchors.get(issue).map(Vec::as_slice).unwrap_or(&[]);
+        let anchors = state.anchors.get(issue).map_or(&[][..], Vec::as_slice);
         let record = Record {
             id: Identity::new(),
             issue: issue.clone(),
@@ -307,6 +336,11 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
         self.save(state)
     }
     /// Reconcile pending exact targets. Absence after uncertain send never grants retry authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error on receipt failure, invalid history, unresolved publication,
+    /// unconfirmed effects, or an invalid ownership handoff. Original identities are retained.
     pub fn recover(&mut self) -> Result<()> {
         let mut state = self.load()?;
         self.validate_all(&state)?;
@@ -341,6 +375,11 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
         Ok(())
     }
     /// The host scheduler consumes this delay. This library starts no service.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the configured polling failure allowance is exhausted.
+    /// The observation retains any error from the poll itself.
     pub fn poll_with_backoff(
         &mut self,
         policy: &mut policy::PollPolicy,
@@ -352,6 +391,11 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             next_poll_seconds,
         })
     }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if recovery, complete reads, history integrity, persistence,
+    /// or active-job authorization cannot be established.
     pub fn poll(&mut self) -> Result<Decision> {
         self.recover()?;
         let mut state = self.load()?;
@@ -406,6 +450,11 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
         )
     }
     /// An intent seam, not a worker launcher. Call immediately before native admission.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if recovery fails, an action is unresolved, no job is selected,
+    /// or fresh eligibility cannot be established.
     pub fn prepare_admission(&mut self) -> Result<Active> {
         self.recover()?;
         let state = self.load()?;
@@ -421,7 +470,17 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
         Ok(active)
     }
     /// Controller-level effect contract. Production integrations remain separately gated.
-    pub fn perform(&mut self, action: Action) -> Result<()> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if recovery, exact action identity, authenticated intent,
+    /// fresh authorization, persistence, native send, or exact readback fails.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the pending effect disappears after it is established in this
+    /// serialized transition. This indicates an internal invariant failure.
+    pub fn perform(&mut self, action: &Action) -> Result<()> {
         self.recover()?;
         let mut state = self.load()?;
         let active = state
@@ -445,7 +504,7 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             .filter(|a| a.id == action.id)
             .collect();
         require(
-            previous_intents.len() <= 1 && previous_intents.first().is_none_or(|a| **a == action),
+            previous_intents.len() <= 1 && previous_intents.first().is_none_or(|a| *a == action),
             "changed payload reused an original action identity",
         )?;
         if records
@@ -459,7 +518,7 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             return Ok(());
         }
         if let Some(pending) = &state.pending_effect {
-            require(pending.action == action, "another action retains the slot")?;
+            require(&pending.action == action, "another action retains the slot")?;
         } else {
             state.pending_effect = Some(PendingEffect {
                 action: action.clone(),
@@ -479,7 +538,7 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
         )?;
         state.pending_effect.as_mut().expect("pending").attempted = true;
         self.save(&state)?;
-        self.effects.send(&action)?;
+        self.effects.send(action)?;
         self.finish_effect(&mut state)
     }
     fn finish_effect(&mut self, state: &mut State) -> Result<()> {
@@ -537,6 +596,11 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             )),
         }
     }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the reason is empty, recovery fails, an effect is unresolved,
+    /// no job is active, or the wait record cannot be persisted and verified.
     pub fn wait(&mut self, reason: String) -> Result<()> {
         require(!reason.is_empty(), "missing wait reason")?;
         self.recover()?;

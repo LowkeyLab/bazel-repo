@@ -6,6 +6,7 @@ use crate::{
     require,
 };
 
+#[must_use]
 pub fn authorization(issue: &Issue, owner: &str) -> Option<Work> {
     let has = |s: &str| issue.labels.iter().any(|label| label == s);
     if issue.key.repository() != REPOSITORY
@@ -42,6 +43,11 @@ pub fn authorization(issue: &Issue, owner: &str) -> Option<Work> {
         None
     }
 }
+///
+/// # Errors
+///
+/// Returns an error if the Project read is incomplete or unrelated, identities or
+/// timestamps are invalid, or native relationships are missing, cyclic, or contradictory.
 pub fn validate(snapshot: &Snapshot) -> Result<()> {
     require(
         snapshot.complete && snapshot.project == PROJECT,
@@ -93,6 +99,16 @@ pub fn validate(snapshot: &Snapshot) -> Result<()> {
     }
     Ok(())
 }
+///
+/// # Errors
+///
+/// Returns an error if the snapshot fails validation.
+///
+/// # Panics
+///
+/// Panics if a validated snapshot loses an issue, parent, or valid timestamp,
+/// or if an eligible candidate loses authorization during this immutable call.
+/// These conditions indicate an internal validation invariant failure.
 pub fn select(snapshot: &Snapshot, owner: &str) -> Result<Option<(IssueKey, Work)>> {
     validate(snapshot)?;
     let eligible: BTreeSet<_> = snapshot
@@ -133,6 +149,10 @@ pub struct PollPolicy {
     failures: u32,
 }
 impl PollPolicy {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the failure allowance is zero or the delay cap is below 60 seconds.
     pub fn new(max_failures: u32, cap_seconds: u64) -> Result<Self> {
         require(
             max_failures > 0 && cap_seconds >= 60,
@@ -144,6 +164,10 @@ impl PollPolicy {
             failures: 0,
         })
     }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when consecutive failed observations exceed the approved allowance.
     pub fn observed(&mut self, success: bool) -> Result<u64> {
         if success {
             self.failures = 0;

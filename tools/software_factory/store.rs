@@ -54,6 +54,10 @@ where
 }
 /// Implement only through trusted process supervision, not comments or PID absence.
 pub trait StoppedOwner {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if trusted supervision cannot prove that the previous owner stopped.
     fn verify_stopped(&mut self, previous: &Identity, next: &Identity) -> Result<String>;
 }
 pub struct Store {
@@ -64,6 +68,11 @@ pub struct Store {
 }
 impl Store {
     /// Explicit one-time operator provisioning. This does not authorize activation.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an existing, relative, unsafe, or in-checkout receipt root,
+    /// an incomplete App identity, or a lock, serialization, synchronization, or I/O failure.
     pub fn initialize(root: &Path, app: AppIdentity, owner: Identity) -> Result<Self> {
         require(root.is_absolute(), "receipt path must be absolute")?;
         require(
@@ -102,6 +111,11 @@ impl Store {
         store.write("identity.json", &(installation, app))?;
         Ok(store)
     }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if private receipts or their identities are invalid, the lock is held,
+    /// the process identity is reused, stopped-owner evidence fails, or persistence fails.
     pub fn open(root: &Path, next: Identity, verifier: &mut dyn StoppedOwner) -> Result<Self> {
         Self::check_root(root)?;
         let (installation, app): (Identity, AppIdentity) =
@@ -135,7 +149,7 @@ impl Store {
         require(
             metadata.is_dir()
                 && metadata.uid() == uid
-                && metadata.permissions().mode() & 0o077 == 0,
+                && metadata.permissions().mode().trailing_zeros() >= 6,
             "receipt root must be owned and private",
         )?;
         require(
@@ -171,7 +185,7 @@ impl Store {
             m.is_file()
                 && m.nlink() == 1
                 && m.uid() == fs::metadata("/proc/self")?.uid()
-                && m.permissions().mode() & 0o077 == 0,
+                && m.permissions().mode().trailing_zeros() >= 6,
             "receipt file must be owned, private, and unlinked",
         )
     }
@@ -180,6 +194,11 @@ impl Store {
         Self::check_file(&path)?;
         Ok(serde_json::from_reader(File::open(path)?)?)
     }
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the root or state file is unsafe, reading or deserialization
+    /// fails, or the state version, installation, or App identity does not match.
     pub fn load(&self) -> Result<State> {
         Self::check_root(&self.directory)?;
         let state: State = Self::read_private(&self.directory, "state.json")?;
