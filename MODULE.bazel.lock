@@ -5634,8 +5634,8 @@
         },
         {
           "importpath": "github.com/bazelbuild/bazel-gazelle",
-          "sha256": "1cdad457f5a8479d476cf592dbb50119eebd947c8d568a3adb3a718d3c7f6e81",
-          "version": "v0.42.0"
+          "sha256": "049bd381ba0f75fff5a063530c0f4417606e24ce58cb4d515d5227dd6658cf3f",
+          "version": "v0.45.0"
         },
         {
           "importpath": "github.com/bazelbuild/buildtools",
@@ -5644,8 +5644,8 @@
         },
         {
           "importpath": "github.com/bazelbuild/rules_go",
-          "sha256": "cd78ea04f1801ac0007f32baf38b818762618dda5b7f397473e398ff82cc1776",
-          "version": "v0.52.0"
+          "sha256": "02b60b4ff307e1cb15d72bd670faeb751c8ad7d85b1690c9f041e0468101a277",
+          "version": "v0.53.0"
         },
         {
           "importpath": "github.com/google/btree",
@@ -5731,11 +5731,6 @@
           "importpath": "golang.org/x/net",
           "sha256": "857ae8cc11c0bbdd6ee7369f205402aa354a7493801fb3e837285c403d8b1019",
           "version": "v0.34.0"
-        },
-        {
-          "importpath": "golang.org/x/sync",
-          "sha256": "700e5db00dd26aa19a17dce5fc552436d60f68c5606c85b821f24c3d6072a151",
-          "version": "v0.11.0"
         },
         {
           "importpath": "golang.org/x/sys",
@@ -5891,6 +5886,11 @@
           "importpath": "github.com/fsnotify/fsnotify",
           "sha256": "308e39dafa2959e33378c6536e818dc6ea2c03db2c210a18dcb9b01b72a60f5f",
           "version": "v1.7.0"
+        },
+        {
+          "importpath": "golang.org/x/sync",
+          "sha256": "700e5db00dd26aa19a17dce5fc552436d60f68c5606c85b821f24c3d6072a151",
+          "version": "v0.11.0"
         },
         {
           "importpath": "golang.org/x/tools",
