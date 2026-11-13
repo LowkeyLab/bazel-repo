@@ -43,6 +43,8 @@ pub struct State {
     pub pending_record: Option<PendingRecord>,
     #[serde(deserialize_with = "required_option")]
     pub pending_effect: Option<PendingEffect>,
+    #[serde(deserialize_with = "required_option")]
+    pub worker: Option<crate::worker::WorkerRecord>,
 }
 // A nullable field is not an optional receipt: omission must fail closed.
 fn required_option<'de, D, T>(deserializer: D) -> std::result::Result<Option<T>, D::Error>
@@ -106,6 +108,7 @@ impl Store {
             anchors: BTreeMap::new(),
             pending_record: None,
             pending_effect: None,
+            worker: None,
         };
         store.save(&state)?;
         store.write("identity.json", &(installation, app))?;

@@ -1,8 +1,8 @@
-# Software factory intake
+# Software factory controller
 
-This Rust library implements issue #3152 under specification #3151.
-It contains no service, scheduled entry, worker implementation, merge implementation,
-or activation command. It does not start normal operation.
+This Rust library implements issue #3152 for intake and issue #3153 for one native
+implementation worker under specification #3151. It contains no service, scheduled entry, merge
+implementation, or activation command. It does not start normal operation.
 
 ## Boundaries
 
@@ -39,11 +39,11 @@ or activation command. It does not start normal operation.
   requires its own provisioned read credential. Secrets are not put in receipts.
 - `ExecutionInventory` must inspect trusted native execution state. Neither
   labels nor issue prose can establish absence of an executing worker.
-- `NativeEffects` routes original actions to separate `Hermes`, `Pool`, and
-  `Notifications` interfaces. Native tools remain authoritative. This ticket
-  supplies intent/reconciliation seams, not replacements for native gateway
-  admission, standalone worktree-pool, pool-receipt, hosted-review, or merge
-  verification. Later integration must preserve their original receipts.
+- `NativeEffects` retains the generic `Hermes`, `Pool`, and `Notifications` routes.
+  `NativeWorker` implements the concrete worker protocol mapping and the
+  `WorkerRuntime` controller boundary. Native gateway admissions, standalone
+  worktree-pool, pool-receipt, hosted-review, and merge verification remain
+  authoritative. The library does not replace these interfaces with a second execution queue.
 - `Unprovisioned` rejects execution, publication, effect reconciliation, and
   stopped-owner handoff. Missing prerequisites never select a weaker interface.
 
@@ -100,12 +100,105 @@ prerequisites. Fixture tests do not prove that provisioning. This ticket authori
 and exercises no live Project mutation, issue comment, App token, worker, or
 notification fixture. Final readiness retains the single activation gate.
 
+## Native worker workflow
+
+### Native worker workflow and prerequisite stops
+
+`Controller::execute_worker` operates only on its selected implementation issue.
+It stores run, create, submit, cancel, and publication identities before a native
+send. Every transition uses the existing protected `Store` and App-authenticated
+issue history. `WorkerCheckpoint` binds the complete private receipt by digest.
+It does not publish original pool captures. Restart checks that binding before
+using the original identities. A missing worker field in an older private state
+is a prerequisite stop, not permission to reinitialize or reconstruct history.
+The operator must retain the old files and seek a maintainer-approved migration.
+
+The worker states are `Prepared`, `Created`, `Running`, `Implemented`,
+`RepairBlocked`, `Cancelling`, `Stopped`, and `ReviewCiWait`. None means merged
+or complete. The private receipt retains the terminal implementation result. PR
+publication is a separate authenticated intent through `publish_worker_pr`.
+The exact remote PR, marker, repository, branch, head, base, number, and node
+identity must match. Review/CI waits retain the issue slot. There is no release,
+replacement, repair-authorize, merge, or completion API in this slice.
+
+`NativeWorker` sends the supported flat `session.create` fields `request_id`,
+`source`, `cwd`, and `skills`. It submits the issue URL separately with
+`prompt.submit`. It reads `runtime.describe`, `session.info`, and
+`prompt.receipt`, and cancels with `prompt.cancel`. Profile/OS identity is not
+an invented session parameter. Admission `queued`, `started`, `unknown`, and
+`terminal` states retain authority epoch and execution generation. Acknowledged
+admission is not successful execution. An unknown result stops dependent work.
+
+The native `skills` loading mechanism can skip missing names when another name resolves.
+The trusted host must resolve **every** mandatory skill and supply actual content
+digests, then verify the actual frozen loaded content before submission. The
+requested-name echo in `launch_request`, a catalog listing, or slash-prefixed
+text is not that proof. The required-skill set must include repository and
+workflow requirements, not just `implement`. Bypass launches are not used.
+
+`NativeHost` is an explicit trusted supervision/extension boundary, not a new
+Hermes wire protocol. It must establish distinct controller/worker OS users,
+exclude workers from private credentials and ownership files, provide model and
+gateway credentials, and enforce a **synchronous mandatory review-before-correction gate**.
+That gate must stop a failed internal review before another corrective action
+can execute, and must remain closed until the future shared-budget workflow
+publishes durable repair authorization. `accept_hooks` only consents to shell
+hooks. Polling and racing cancellation cannot implement this prerequisite.
+The stock gateway contract inspected for this ticket does not demonstrate this
+gate or an all-skills frozen-content receipt. `UnprovisionedHost` therefore
+refuses admission. No weaker fallback is available.
+
+`NativeRpcCommand` is a transport adapter for an operator-supplied supported
+authenticated native JSON-RPC bridge executable. It is **not** a claim that
+Hermes ships a command with that interface. The library selects and installs no
+default bridge. The bridge receives one JSON-RPC packet on `stdin`, no arguments, and
+only the explicitly selected gateway credential as `HERMES_GATEWAY_TOKEN`.
+Controller App credentials are not inherited. Production must provision and
+validate that bridge or supply another supported `NativeRpc` connection.
+
+The adapter may cache acknowledged replies in memory, but that cache is not recovery
+authority. After an uncertain send or adapter restart, `NativeHost::exact_reply`
+must obtain the original exact native receipt through a provisioned supported
+interface. Missing lookup support, a missing result, or ambiguous evidence stops
+the action. The adapter does not repeat create/submit to discover their effects,
+derive undocumented native IDs, search for a newest session, or start a new run.
+
+`CapturedPoolInspector` reads the original private pool-receipt acquisition files
+and invokes only `assignment inspect` for the retained handle through the
+approved wrapper. It compares assignment, original acquisition operation,
+repository, worktree, and lossless Unix path bytes. Pending, unknown, capture
+errors, changed identities, or non-UTF-8 `cwd` bytes stop admission. It never
+acquires, releases, recovers, expands capacity, or substitutes a checkout.
+
+`GitHubPublications` reuses the existing GitHub `Transport` and requires a
+separately scoped publication credential. It reads all configured pages, checks
+the branch commit identity before posting, adds the stable publication marker, and reads
+back the exact PR. A matching existing marker prevents another publication.
+Ambiguity or an exhausted page bound stops reconciliation.
+
+### Worker operations
+
+The Software Factory operator owns these procedures. Authority changes require a maintainer.
+
+| Condition                                                   | Evidence and stop                                                                                                 | Resumption                                                                                                                      |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Missing native/skill/isolation/credential/gate prerequisite | No worker creation or submission. Retain selected issue and original acquisition.                                 | Operator supplies reviewed, exact bound evidence; no transport/worktree fallback.                                               |
+| Lost create/submit/publication acknowledgement              | Retain original action and run. Inspect its exact native/remote target. Absence does not permit resend.           | Only confirmed matching evidence can advance; otherwise maintainer reconciliation.                                              |
+| Internal review failure                                     | Trusted synchronous gate already prevents correction. Controller persists `RepairBlocked` and findings reference. | Future shared-budget workflow must durably authorize repair; this API cannot clear the stop.                                    |
+| Cancellation                                                | Persist exact cancellation intent. A request acknowledgement leaves `Cancelling`.                                 | `Stopped` requires trusted exact cessation, reconciled effects, and preserved unfinished work. Slot and assignment remain held. |
+| Implement success or review/CI wait                         | `Implemented` is not publication or completion. PR intent/readback is separate.                                   | Later review/merge tickets provide acceptance. The controller selects no new originating issue.                                 |
+
+All preceding production prerequisites remain unverified. Fixture success does not
+authorize live workers, PRs, pool changes, provisioning, or activation. The final
+readiness ticket retains the single maintainer activation gate.
+
 ## Validation
 
 ```sh
 bazel run //:gazelle
 aspect format --scope=all
 aspect test //tools/software_factory:acceptance_test
+aspect test //tools/software_factory:worker_test
 aspect build //tools/software_factory/...
 ```
 
@@ -126,3 +219,9 @@ The adapter follows the official GitHub GraphQL Issues reference (Issue,
 `Assignee`, `assignedActors`, `blockedBy`, `subIssues`) and the GitHub Apps API reference
 (Get the authenticated app, Get an installation, Create an installation access
 token). Source inspection is not deployed protocol or permission evidence.
+
+The native worker adapter follows the official
+[Gateway local sessions](https://hermes-agent.nousresearch.com/docs/developer-guide/gateway-local-sessions)
+contract. The inspected native source includes `gateway/session_controls.py`,
+`gateway/session_policy.py`, and the canonical admission and session contracts.
+These sources establish protocol shapes, not deployed host compatibility.

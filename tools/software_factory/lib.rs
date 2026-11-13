@@ -1,10 +1,13 @@
-//! Inactive Software Factory intake and authenticated recovery boundary.
+//! Inactive Software Factory intake, native worker, and authenticated recovery boundary.
 pub mod controller;
 pub mod github;
 pub mod history;
 pub mod model;
+pub mod native_worker;
 pub mod policy;
 pub mod store;
+pub mod worker;
+pub mod worker_io;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
