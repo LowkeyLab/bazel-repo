@@ -615,11 +615,9 @@ fn native_cancellation_readback_rejects_another_worker_or_execution_generation()
         execution_generation: Some(4),
     };
     let id = Identity::new();
-    let action = WorkerCommand::Cancel {
-        worker: worker.clone(),
-    }
-    .action(&id, &super::issue_key())
-    .unwrap();
+    let action = WorkerCommand::Cancel { worker }
+        .action(&id, &super::issue_key())
+        .unwrap();
     let valid = json!({"admission_id":"admission-1","ref":{"session_id":"session-1","profile_id":"worker"},"sequence":0,"status":"terminal","outcome":"cancelled","authority_epoch":7,"execution_generation":4,"result":{"final_response":"PRIVATE_CANCEL_RESULT"}});
     for field in [
         "valid",
