@@ -184,6 +184,11 @@ pub enum Event {
     Wait {
         reason: String,
     },
+    WorkerCheckpoint {
+        run: Identity,
+        digest: String,
+        phase: crate::worker::WorkerPhase,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Active {

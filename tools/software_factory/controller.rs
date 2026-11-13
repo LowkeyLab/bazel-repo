@@ -1,4 +1,4 @@
-//! Serialized workflows. No daemon, worker implementation, or activation entry point.
+//! Serialized intake, native worker, and recovery workflows. No daemon or activation entry point.
 use crate::{
     Result,
     history::{self, Anchor, PendingRecord, Record},
@@ -178,12 +178,16 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
         let mut selected = Vec::new();
         let mut intents = Vec::new();
         let mut outcomes = Vec::new();
+        let mut worker_checkpoint = None;
         for key in keys {
             for record in self.records(state, &key)? {
                 match record.event {
                     Event::Selected { job, work, .. } => selected.push((key.clone(), job, work)),
                     Event::Intent(action) => intents.push(action),
                     Event::Outcome { action, .. } => outcomes.push(action),
+                    Event::WorkerCheckpoint { run, digest, phase } => {
+                        worker_checkpoint = Some((key.clone(), run, digest, phase));
+                    }
                     _ => {}
                 }
             }
@@ -208,6 +212,9 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
                     selected.push((pending.issue.clone(), job, work));
                 }
                 Event::Intent(action) if !intents.contains(&action) => intents.push(action),
+                Event::WorkerCheckpoint { run, digest, phase } => {
+                    worker_checkpoint = Some((pending.issue.clone(), run, digest, phase));
+                }
                 _ => {}
             }
         }
@@ -237,7 +244,29 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
                     .is_some_and(|a| a.issue == p.action.issue)
                     && (!p.attempted || intents.iter().any(|a| a == &p.action))
             });
-        if !selection_matches || !effects_match {
+        let worker_matches_job = state.worker.as_ref().is_none_or(|worker| {
+            state
+                .active
+                .as_ref()
+                .is_some_and(|a| a.issue == worker.plan.issue && a.job == worker.plan.job)
+        });
+        let expected_worker = state
+            .worker
+            .as_ref()
+            .map(|worker| -> Result<_> {
+                Ok((
+                    worker.plan.issue.clone(),
+                    worker.plan.run.clone(),
+                    worker.digest()?,
+                    worker.phase.clone(),
+                ))
+            })
+            .transpose()?;
+        if !selection_matches
+            || !effects_match
+            || !worker_matches_job
+            || worker_checkpoint != expected_worker
+        {
             return self
                 .stop_integrity(state, "private authority contradicts authenticated history");
         }
@@ -481,6 +510,9 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
     /// Panics if the pending effect disappears after it is established in this
     /// serialized transition. This indicates an internal invariant failure.
     pub fn perform(&mut self, action: &Action) -> Result<()> {
+        self.perform_checked(action, true)
+    }
+    fn perform_checked(&mut self, action: &Action, require_eligibility: bool) -> Result<()> {
         self.recover()?;
         let mut state = self.load()?;
         let active = state
@@ -530,8 +562,23 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             self.append(&mut state, &active.issue, Event::Intent(action.clone()))?;
         }
         self.validate_all(&state)?;
-        let fresh = self.github.snapshot()?;
-        self.check_eligible(&fresh, &active)?;
+        if require_eligibility {
+            let fresh = self.github.snapshot()?;
+            self.check_eligible(&fresh, &active)?;
+        } else {
+            let worker = state
+                .worker
+                .as_ref()
+                .ok_or_else(|| crate::Error::Stop("cancellation without worker".into()))?;
+            let expected = crate::worker::WorkerCommand::Cancel {
+                worker: worker.identity()?,
+            }
+            .action(&worker.plan.cancel, &worker.plan.issue)?;
+            require(
+                worker.phase == crate::worker::WorkerPhase::Cancelling && action == &expected,
+                "only exact cancellation bypasses intake authorization",
+            )?;
+        }
         require(
             !state.pending_effect.as_ref().expect("pending").attempted,
             "uncertain action cannot be repeated",
@@ -616,5 +663,348 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             .issue
             .clone();
         self.append(&mut state, &issue, Event::Wait { reason })
+    }
+}
+
+impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
+    /// Publish only after implementation, then retain the slot for independent reviews and CI.
+    ///
+    /// # Errors
+    /// Rejects a live/blocked worker, malformed publication, or uncertain/mismatched remote PR.
+    pub fn publish_worker_pr(
+        &mut self,
+        request: crate::worker::PublicationRequest,
+    ) -> Result<crate::worker::WorkerRecord> {
+        use crate::worker::{WorkerCommand, WorkerPhase};
+        self.prepare_admission()?;
+        let mut worker = self
+            .load()?
+            .worker
+            .ok_or_else(|| crate::Error::Stop("no implementation worker".into()))?;
+        require(
+            matches!(
+                worker.phase,
+                WorkerPhase::Implemented | WorkerPhase::ReviewCiWait
+            ),
+            "implementation is not successfully terminal; no PR publication",
+        )?;
+        require(
+            !request.branch.is_empty()
+                && request.branch != "main"
+                && request
+                    .branch
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"/-_.".contains(&b))
+                && request.head.len() == 40
+                && request
+                    .head
+                    .bytes()
+                    .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+                && !request.title.trim().is_empty(),
+            "invalid exact publication branch/head/title",
+        )?;
+        let expected_head = request.head.clone();
+        let expected_branch = request.branch.clone();
+        let action = WorkerCommand::Publish {
+            request,
+            intent: worker.plan.publication.clone(),
+        }
+        .action(&worker.plan.publication, &worker.plan.issue)?;
+        self.perform(&action)?;
+        let publication: crate::worker::PublicationResult = self.worker_outcome(&action)?;
+        require(
+            publication.intent == worker.plan.publication
+                && publication.head == expected_head
+                && publication.branch == expected_branch
+                && publication.base == "main"
+                && publication.number > 0
+                && !publication.node_id.is_empty()
+                && publication.url
+                    == format!(
+                        "https://github.com/LowkeyLab/bazel-repo/pull/{}",
+                        publication.number
+                    ),
+            "exact remote PR differs from publication intent",
+        )?;
+        worker.publication = Some(publication);
+        worker.phase = WorkerPhase::ReviewCiWait;
+        self.checkpoint_worker(worker.clone())?;
+        Ok(worker)
+    }
+    /// Request cancellation; an acknowledgement alone never permits replacement or release.
+    ///
+    /// # Errors
+    /// Requires reconciled history, a known exact worker, and confirmed cessation/effects.
+    pub fn cancel_worker(&mut self, reason: String) -> Result<crate::worker::WorkerRecord> {
+        use crate::worker::{WorkerCommand, WorkerPhase};
+        require(!reason.is_empty(), "missing cancellation reason")?;
+        self.recover()?;
+        let mut worker = self
+            .load()?
+            .worker
+            .ok_or_else(|| crate::Error::Stop("no worker to cancel".into()))?;
+        if worker.phase == WorkerPhase::Stopped {
+            return Ok(worker);
+        }
+        let identity = worker.identity()?;
+        if worker.phase != WorkerPhase::Cancelling {
+            worker.phase = WorkerPhase::Cancelling;
+            worker.stop_reason = Some(reason);
+            self.checkpoint_worker(worker.clone())?;
+        }
+        let action = WorkerCommand::Cancel {
+            worker: identity.clone(),
+        }
+        .action(&worker.plan.cancel, &worker.plan.issue)?;
+        self.perform_checked(&action, false)?;
+        if let Some(evidence) = self.effects.stopped_effects(&identity)? {
+            require(
+                !evidence.is_empty(),
+                "empty exact cessation/effects evidence",
+            )?;
+            worker.cessation = Some(evidence);
+            worker.phase = WorkerPhase::Stopped;
+            self.checkpoint_worker(worker.clone())?;
+        }
+        Ok(worker)
+    }
+    fn checkpoint_worker(&mut self, worker: crate::worker::WorkerRecord) -> Result<()> {
+        let mut state = self.load()?;
+        let issue = worker.plan.issue.clone();
+        let event = Event::WorkerCheckpoint {
+            run: worker.plan.run.clone(),
+            digest: worker.digest()?,
+            phase: worker.phase.clone(),
+        };
+        state.worker = Some(worker);
+        self.append(&mut state, &issue, event)
+    }
+    fn worker_outcome<T: serde::de::DeserializeOwned>(&mut self, action: &Action) -> Result<T> {
+        let state = self.load()?;
+        let record = self
+            .records(&state, &action.issue)?
+            .into_iter()
+            .find_map(|r| match r.event {
+                Event::Outcome {
+                    action: id,
+                    evidence,
+                } if id == action.id => Some(evidence),
+                _ => None,
+            })
+            .ok_or_else(|| crate::Error::Stop("missing exact worker action outcome".into()))?;
+        Ok(serde_json::from_str(&record)?)
+    }
+    fn advance_worker_admission(
+        &mut self,
+        worker: &mut crate::worker::WorkerRecord,
+        issue_url: &str,
+    ) -> Result<()> {
+        use crate::worker::{WorkerCommand, WorkerPhase};
+        if worker.phase == WorkerPhase::Prepared {
+            let command = WorkerCommand::Create {
+                request_id: worker.plan.create.clone(),
+                profile: worker.plan.request.profile.clone(),
+                principal: worker.plan.request.principal.clone(),
+                cwd: worker.plan.request.pool.gateway_cwd()?.into(),
+                skills: worker.plan.request.mandatory_skills.clone(),
+                launch_digest: crate::history::digest(&serde_json::to_string(&worker.plan.launch)?),
+            };
+            let action = command.action(&worker.plan.create, &worker.plan.issue)?;
+            self.perform(&action)?;
+            let session: crate::worker::SessionEvidence = self.worker_outcome(&action)?;
+            require(
+                !session.session_id.is_empty()
+                    && session.session_id == session.stored_session_id
+                    && session.profile == worker.plan.request.profile
+                    && session.principal == worker.plan.request.principal
+                    && session.creation_id == worker.plan.create
+                    && !session.frozen_binding.is_empty()
+                    && session.loaded_skills == worker.plan.launch.skills,
+                "native session or actual frozen skill content does not match intent",
+            )?;
+            worker.session = Some(session);
+            worker.phase = WorkerPhase::Created;
+            self.checkpoint_worker(worker.clone())?;
+        }
+        if worker.phase == WorkerPhase::Created {
+            let session = worker
+                .session
+                .as_ref()
+                .ok_or_else(|| crate::Error::Stop("missing created session".into()))?;
+            let text = format!(
+                "Use the explicitly preloaded implement skill with issue {issue_url}. Preserve the mandatory review-before-repair gate. Do not correct a failed internal review without durable shared-budget authorization. Do not publish a PR; the controller owns a separate exact publication intent."
+            );
+            let action = WorkerCommand::Submit {
+                session_id: session.session_id.clone(),
+                submission_id: worker.plan.submit.clone(),
+                text,
+            }
+            .action(&worker.plan.submit, &worker.plan.issue)?;
+            self.perform(&action)?;
+            let admission: crate::worker::Admission = self.worker_outcome(&action)?;
+            worker.admission = Some(admission);
+            if worker
+                .admission
+                .as_ref()
+                .is_some_and(|a| a.status == "terminal")
+            {
+                worker.admission = Some(self.effects.observe(&worker.identity()?)?);
+            }
+            worker
+                .admission
+                .as_ref()
+                .ok_or_else(|| crate::Error::Stop("missing admitted worker".into()))?
+                .validate(&worker.identity()?)?;
+            worker.phase = WorkerPhase::Running;
+            self.checkpoint_worker(worker.clone())?;
+        }
+        Ok(())
+    }
+    /// Admit and observe one native implementation worker, retaining the originating slot.
+    ///
+    /// # Errors
+    /// Any missing prerequisite, uncertain effect, history failure, or changed identity stops.
+    /// This does not authorize repair, replacement, release, merge, or activation.
+    pub fn execute_worker(
+        &mut self,
+        request: crate::worker::WorkerRequest,
+    ) -> Result<crate::worker::WorkerRecord> {
+        use crate::worker::{WorkerPhase, WorkerPlan, WorkerRecord};
+        self.recover()?;
+        let state = self.load()?;
+        let retained = state.worker.as_ref().is_some_and(|worker| {
+            !matches!(worker.phase, WorkerPhase::Prepared | WorkerPhase::Created)
+        });
+        let active = if retained {
+            let active = state
+                .active
+                .ok_or_else(|| crate::Error::Stop("no selected job".into()))?;
+            let worker = state.worker.as_ref().expect("retained worker");
+            require(
+                worker.plan.request == request
+                    && worker.plan.issue == active.issue
+                    && worker.plan.job == active.job,
+                "retained worker identity or original pool receipt changed",
+            )?;
+            let identity = worker.identity()?;
+            worker
+                .admission
+                .as_ref()
+                .ok_or_else(|| crate::Error::Stop("missing retained admission".into()))?
+                .validate(&identity)?;
+            let mut snapshot = self.github.snapshot()?;
+            policy::validate(&snapshot)?;
+            // Absence gates new admission, not reads of the authenticated exact worker.
+            // This local snapshot is used only for observation; perform still checks fresh absence.
+            let issue = snapshot
+                .issues
+                .get_mut(&active.issue)
+                .ok_or_else(|| crate::Error::Stop("missing active issue".into()))?;
+            issue.execution_clear = true;
+            self.check_eligible(&snapshot, &active)?;
+            active
+        } else {
+            self.prepare_admission()?
+        };
+        require(
+            active.work == crate::model::Work::Implementation,
+            "research is not implementation authority",
+        )?;
+        let issue_url = format!(
+            "https://github.com/{}/issues/{}",
+            active.issue.repository(),
+            active.issue.number()
+        );
+        let mut worker = if let Some(worker) = self.load()?.worker {
+            require(
+                worker.plan.request == request
+                    && worker.plan.issue == active.issue
+                    && worker.plan.job == active.job,
+                "retained worker identity or original pool receipt changed",
+            )?;
+            worker
+        } else {
+            let launch = self.effects.prepare(&request, &issue_url)?;
+            launch.validate(&request)?;
+            let worker = WorkerRecord {
+                plan: WorkerPlan {
+                    run: Identity::new(),
+                    create: Identity::new(),
+                    submit: Identity::new(),
+                    cancel: Identity::new(),
+                    publication: Identity::new(),
+                    issue: active.issue.clone(),
+                    job: active.job,
+                    request,
+                    launch,
+                },
+                phase: WorkerPhase::Prepared,
+                session: None,
+                admission: None,
+                stop_reason: None,
+                cessation: None,
+                publication: None,
+            };
+            self.checkpoint_worker(worker.clone())?;
+            worker
+        };
+        if matches!(
+            worker.phase,
+            WorkerPhase::RepairBlocked
+                | WorkerPhase::Cancelling
+                | WorkerPhase::Stopped
+                | WorkerPhase::ReviewCiWait
+        ) {
+            return Ok(worker);
+        }
+        let current = self.effects.prepare(&worker.plan.request, &issue_url)?;
+        current.validate(&worker.plan.request)?;
+        require(
+            current.skills == worker.plan.launch.skills
+                && current.review_gate == worker.plan.launch.review_gate
+                && current.gateway.profile_id == worker.plan.launch.gateway.profile_id,
+            "frozen skill/gate/profile evidence changed; retain worker",
+        )?;
+        if !retained {
+            self.advance_worker_admission(&mut worker, &issue_url)?;
+        }
+        if worker.phase == WorkerPhase::Running {
+            let identity = worker.identity()?;
+            match self.effects.boundary(&identity)? {
+                crate::worker::Boundary::Clear => {}
+                crate::worker::Boundary::ReviewFailed { gate, findings } => {
+                    require(
+                        gate == worker.plan.launch.review_gate && !findings.is_empty(),
+                        "unbound review boundary evidence",
+                    )?;
+                    worker.phase = WorkerPhase::RepairBlocked;
+                    worker.stop_reason = Some(format!(
+                        "internal review failed at {gate}; durable shared-budget repair authorization required: {findings}"
+                    ));
+                    self.checkpoint_worker(worker.clone())?;
+                    return Ok(worker);
+                }
+            }
+            let admission = self.effects.observe(&identity)?;
+            admission.validate(&identity)?;
+            if admission.status == "terminal" {
+                worker.phase = if admission.outcome.as_deref() == Some("completed") {
+                    WorkerPhase::Implemented
+                } else {
+                    WorkerPhase::RepairBlocked
+                };
+                if worker.phase == WorkerPhase::RepairBlocked {
+                    worker.stop_reason = Some(
+                        "native turn did not complete; no automatic replacement or repair".into(),
+                    );
+                }
+            }
+            if worker.admission.as_ref() != Some(&admission) || worker.phase != WorkerPhase::Running
+            {
+                worker.admission = Some(admission);
+                self.checkpoint_worker(worker.clone())?;
+            }
+        }
+        Ok(worker)
     }
 }

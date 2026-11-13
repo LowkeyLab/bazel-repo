@@ -8,6 +8,7 @@ rust_binary(
         "summary.rs",
     ],
     crate_root = "main.rs",
+    visibility = ["//tools/software_factory:__pkg__"],  # keep
     deps = [
         "@crates//:anyhow",
         "@crates//:clap",

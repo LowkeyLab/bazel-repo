@@ -1,4 +1,146 @@
-# Intake acceptance evidence
+# Software factory acceptance evidence
+
+## Native worker evidence for issue #3153
+
+Fixture results do not establish production readiness or activation authority.
+The controller tests use real private filesystem persistence and authenticated
+history fixtures. Native and GitHub adapters use controlled protocol responses.
+Command tests execute temporary fixture programs, never live workers or pool commands.
+
+### Configuration
+
+- Base commit: `0a7ca8f51a9353f973f46bb6b1d151837075ce9d`.
+- Bazel `9.3.2`, Aspect `2026.46.3`, and Rust edition `2024`.
+- Native fixture profile `worker`, principal `worker-owner`, gateway `gateway-1`,
+  authority epoch `7`, execution generation `4`, session `session-1`, and admission `admission-1`.
+- The fixture reads the real controller user ID from `/proc/self` and uses worker user ID
+  `10001` only as trusted-supervisor fixture evidence. It does not provision that OS user.
+- Mandatory fixture skills: `implement`, `tdd`, and `code-review`. Production must
+  discover the complete repository/workflow manifest, including additional mandatory skills.
+- Original pool captures use private temporary files and fixed fixture assignment,
+  acquisition, repository, and worktree identities. Native `cwd` uses `/w`.
+  The lossless-path negative case contains byte `255` and permits no alternate checkout.
+- Publication fixture uses branch `feat/worker-2`, exact head
+  `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`, base `main`, and PR number `8`.
+  The GitHub adapter fixture has a three-page read bound.
+- Tests and builds clear remote execution, remote cache, and build-event endpoints.
+  Local build concurrency uses `--jobs=4` and `--action_env=GOMAXPROCS=2`.
+- Whole-tree formatting uses Bazel-managed Java 21. Gazelle uses the default
+  Bazel-managed Java toolchain. Forcing Java 21 on Gazelle fails its Java 25
+  manifest-stamping tool. Java 25 cannot run the configured Java formatter.
+  No toolchain installation or source workaround was necessary.
+
+### Expected and actual results
+
+`//tools/software_factory:worker_test` passed **23 tests in each of three runs**.
+The existing `acceptance_test` target passed **44 tests in each of three runs**.
+The six executions passed **201 individual test executions**, with no failures or
+ignored tests. Counts come from parsed Rust harness logs, not the Bazel XML wrapper count.
+
+| Requirement                 | Positive result expected                                                                                                                                                                                         | Failure/recovery result expected                                                                                                                                                                               | Actual                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Native contract and skills  | `controller_native_adapter_uses_only_flat_supported_rpc_and_explicit_skill_preload` creates and submits with frozen skills and the issue URL as a separate argument.                                             | Missing parameters, omitted host-manifest skills, missing resolved skills, and partial actual frozen content stop admission or submission. Repeated observation creates no second session.                     | Passed in all three runs.                                          |
+| Original pool receipt       | `pool_adapter_retains_acquisition_capture_and_only_inspects_exact_assignment` retains the original capture and requests only exact assignment inspection.                                                        | Pending/unknown/rejected captures, wrapper errors, and non-UTF-8 gateway `cwd` stop dependent work without acquisition or fallback.                                                                            | Passed in all three runs.                                          |
+| Durable admission recovery  | `lost_create_acknowledgement_restarts_exact_worker_without_resend` retains the same run and create identity.                                                                                                     | `lost_submit_ack_and_unknown_result_never_repeat_or_release_the_slot` retains the exact submission across restart and refuses to repeat an unknown effect.                                                     | Passed in all three runs.                                          |
+| Isolation and credentials   | Valid trusted-host fixture evidence permits the deterministic workflow.                                                                                                                                          | `isolation_and_credential_attestations_cannot_be_missing_or_reuse_controller_uid` rejects controller/root worker identities and absent isolation/credential evidence. `UnprovisionedHost` sends no create.     | Passed in all three runs. Actual OS separation remains unverified. |
+| Authenticated private state | `one_worker_uses_frozen_skills_authenticated_intents_and_retains_slot` checks verified issue intents before fixture sends.                                                                                       | `private_worker_receipt_cannot_disagree_with_authenticated_history` rejects changed private worker identity. Immediate terminal results remain private and do not enter public issue history.                  | Passed in all three runs.                                          |
+| Review and CI slot          | Successful implementation retains the issue slot. Separate publication moves the same worker to `ReviewCiWait`.                                                                                                  | Early publication fails. Lost publication acknowledgement reconciles the exact PR without another send. Existing notification routes remain separate from native worker sends.                                 | Passed in all three runs.                                          |
+| Internal review boundary    | Trusted synchronous gate fixture reports clear execution before observation.                                                                                                                                     | `internal_review_failure_is_a_durable_repair_stop_not_an_automatic_loop` retains `RepairBlocked` across restart, even after the fixture clears the failure signal. Missing mandatory gate stops before create. | Passed in all three runs. No stock-gateway gate claim.             |
+| Cancellation and cessation  | Exact stopped/effects evidence advances `Cancelling` to `Stopped` while retaining unfinished work and the slot.                                                                                                  | Cancellation acknowledgement alone, or cessation without reconciled effects, does not advance. Queued cancellation needs no invented execution generation or result.                                           | Passed in all three runs.                                          |
+| Protocol adapters           | Canonical admission parsing preserves epoch, generation, and terminal result. The command bridge sends one exact packet. GitHub publication reads the exact remote marker, branch, head, base, number, and node. | Malformed native identity and wrong JSON-RPC reply identity fail. An existing publication marker prevents another post.                                                                                        | Passed in all three runs.                                          |
+
+The initial worker API tests failed before implementation. Behavioral red tests
+also exposed private-history disagreement, caller omission of mandatory skills,
+terminal-result disclosure, and refusal of valid never-started cancellation.
+The retained `red-*.log` files record those failures before their fixes.
+
+### Retained native-worker evidence
+
+Private author evidence root: `/opt/data/cache/scratch/issue-3153`.
+
+- `final-results.json` contains parsed per-run status, exact test names, and counts.
+- `testlogs/` preserves the six harness logs and six Bazel XML wrappers.
+- `final-format.log`, `final-gazelle.log`, `final-test.log`, `final-build.log`,
+  and `final-lint.log` retain the actual gate output.
+- `red-*.log` and `green-*.log` retain test-first slice evidence.
+- The downloaded official gateway document is
+  `/opt/data/cache/scratch/gateway-sessions-3153.html`, with `SHA-256` digest
+  `1b0fd32b5ca466d089031d6e87f0958a203437cdd6f2d10256ae3715c9a92083`.
+  Native source inspection establishes wire shape only, not deployed version compatibility.
+
+The focused package build, whole-tree formatting, Gazelle, and strict package lint
+completed successfully. The parent repeated both test targets without cached
+results after correcting the independent Standards review's import-order finding.
+The independent Spec review reported no findings. Admission status strings and
+separate receipt validation remain wire-boundary design choices; the review's
+suggestions for typed statuses and shared receipt reads are non-blocking refactoring
+opportunities, not waived safety findings. The unavailable `asd-ste100` skill
+provides no strict-mode compliance evidence.
+
+Full-repository validation is not passing. The test attempt reported missing
+`/var/run/docker.sock` in unrelated database tests, process-fixture failures, and
+a timeout, followed by Bazel native-thread exhaustion. Capping the Bazel JVM with
+`--host_jvm_args=-XX:ActiveProcessorCount=4` permitted subsequent focused gates.
+The full build retry and full lint stop on Clojure dependency resolution:
+`clojure-1.12.6.pom.part.lock` is absent. The same dependency failure reproduced
+in the untouched planning checkout at `5886c059728a95fcd85ac0db19e454d0fbcff205`.
+No unrelated tests, dependencies, or checks were weakened.
+
+Parent evidence in the same private root: `parent-gates.json`,
+`parent-full-test.log`, `parent-full-build-retry.log`, `parent-full-lint.log`,
+`baseline-clojure.log`, `parent-review-gazelle-retry.log`,
+`parent-review-format-retry.log`, `parent-review-tests.log`, and
+`parent-focused-lint.log`. The initial formatter retry stopped on Git's
+intent-to-add index state; staging the reviewed new files allowed the unchanged
+whole-tree formatter to pass.
+
+### Hosted review corrections for issue #3153
+
+Hosted review of `59c7445cbdc9bff4ca6d776708e7340005f0235a` found three defects.
+Regression tests failed before correction and now pass:
+
+- The real pool wrapper could not inspect without a receipt root after the
+  adapter cleared its environment. The adapter now takes explicit approved
+  private receipt and catalog directories, preserves the original acquisition,
+  and rejects another catalog identity. The test executes the actual
+  `pool_receipt` binary with a controlled pool child, not a substitute wrapper.
+- Retained-worker observation incorrectly required absence of its own execution.
+  Exact post-admission observation now retains the same job/session/admission
+  and all other authorization checks without permitting create or submit.
+  New admission and PR publication still need execution clearance.
+- Submission readback accepted an execution-generation change. It now preserves
+  a known generation and authority epoch; only queued work without a generation
+  can acquire its first generation.
+
+The expanded suite passes **35 worker tests**, **44 intake tests**, and
+**20 pool-wrapper command tests**. Additional native adapter tests cover exact
+cancellation, cessation/effects separation, real publication routing, original
+reply recovery, and unprovisioned-host refusal. Local Bazel coverage measures
+native adapter line coverage at **94.27%**. This is not hosted patch coverage.
+The initial hosted patch result was **90.44%** against a **91.50%** target;
+updated hosted results remain a separate gate. No threshold or exclusion changed.
+
+Evidence: `cycle-1-controller-red.log`, `cycle-1-controller-green.log`,
+`cycle-1-parent-tests.log`, `cycle-1-parent-lint.log`,
+`coverage-additional-tests.log`, and `coverage-additional-tests.lcov` under the
+private evidence root. Adapter red logs are
+`/opt/data/cache/scratch/adapter-generation-red.log` and
+`/opt/data/cache/scratch/adapter-wrapper-red.log`. The downloaded initial hosted
+coverage evidence is under `ci-coverage-original/` in the private evidence root.
+
+### Runtime blocks
+
+The native stock contract does not demonstrate synchronous review-before-repair
+interception, complete actual frozen-skill proof, or exact lost-reply lookup for
+all required interruption cases. `UnprovisionedHost` rejects admission until the
+operator supplies reviewed supported interfaces and bound evidence. An explicit
+supported authenticated native bridge, approved OS/filesystem identities,
+controller/worker credential separation, and original pool compatibility also
+remain production prerequisites. No tests in this task activate workers, post
+live PRs, change pool state, or authorize normal operation. The final readiness
+ticket retains the single activation gate.
+
+## Retained intake evidence for issue #3152
 
 Scope: issue #3152 and specification #3151, sections 2, 3, and the intake
 acceptance boundary. Controlled fixtures provide these results, not activation
