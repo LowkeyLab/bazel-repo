@@ -94,6 +94,40 @@ Parent evidence in the same private root: `parent-gates.json`,
 intent-to-add index state; staging the reviewed new files allowed the unchanged
 whole-tree formatter to pass.
 
+### Hosted review corrections for issue #3153
+
+Hosted review of `59c7445cbdc9bff4ca6d776708e7340005f0235a` found three defects.
+Regression tests failed before correction and now pass:
+
+- The real pool wrapper could not inspect without a receipt root after the
+  adapter cleared its environment. The adapter now takes explicit approved
+  private receipt and catalog directories, preserves the original acquisition,
+  and rejects another catalog identity. The test executes the actual
+  `pool_receipt` binary with a controlled pool child, not a substitute wrapper.
+- Retained-worker observation incorrectly required absence of its own execution.
+  Exact post-admission observation now retains the same job/session/admission
+  and all other authorization checks without permitting create or submit.
+  New admission and PR publication still need execution clearance.
+- Submission readback accepted an execution-generation change. It now preserves
+  a known generation and authority epoch; only queued work without a generation
+  can acquire its first generation.
+
+The expanded suite passes **35 worker tests**, **44 intake tests**, and
+**20 pool-wrapper command tests**. Additional native adapter tests cover exact
+cancellation, cessation/effects separation, real publication routing, original
+reply recovery, and unprovisioned-host refusal. Local Bazel coverage measures
+native adapter line coverage at **94.27%**. This is not hosted patch coverage.
+The initial hosted patch result was **90.44%** against a **91.50%** target;
+updated hosted results remain a separate gate. No threshold or exclusion changed.
+
+Evidence: `cycle-1-controller-red.log`, `cycle-1-controller-green.log`,
+`cycle-1-parent-tests.log`, `cycle-1-parent-lint.log`,
+`coverage-additional-tests.log`, and `coverage-additional-tests.lcov` under the
+private evidence root. Adapter red logs are
+`/opt/data/cache/scratch/adapter-generation-red.log` and
+`/opt/data/cache/scratch/adapter-wrapper-red.log`. The downloaded initial hosted
+coverage evidence is under `ci-coverage-original/` in the private evidence root.
+
 ### Runtime blocks
 
 The native stock contract does not demonstrate synchronous review-before-repair

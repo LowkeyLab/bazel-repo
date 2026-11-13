@@ -53,7 +53,9 @@ rust_test(
         "worker_test.rs",
     ],
     crate_root = "worker_test.rs",
+    data = ["//tools/pool_receipt"],  # keep
     edition = "2024",
+    env = {"POOL_WRAPPER": "$(rootpath //tools/pool_receipt:pool_receipt)"},  # keep
     deps = [
         ":software_factory",
         "@crates//:googletest",

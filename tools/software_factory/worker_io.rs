@@ -189,19 +189,37 @@ pub struct CapturedPoolInspector {
     command: PathBuf,
     task: String,
     path: String,
+    receipt_root: PathBuf,
+    catalog_dir: PathBuf,
 }
 impl CapturedPoolInspector {
     /// # Errors
-    /// Requires explicit executable, task identity, and approved child executable search path.
-    pub fn new(command: PathBuf, task: String, path: String) -> Result<Self> {
+    /// Requires an explicit executable, task, child PATH, private receipt root, and catalog.
+    /// The catalog must be the authority used for the retained acquisition, never a default.
+    pub fn new(
+        command: PathBuf,
+        task: String,
+        path: String,
+        receipt_root: PathBuf,
+        catalog_dir: PathBuf,
+    ) -> Result<Self> {
         require(
             command.is_absolute() && !task.is_empty() && !path.is_empty(),
             "pool-receipt executable/task/PATH unavailable",
+        )?;
+        private_root(&receipt_root)?;
+        require(
+            catalog_dir.is_absolute()
+                && catalog_dir.canonicalize()? == catalog_dir
+                && catalog_dir.is_dir(),
+            "approved pool catalog directory unavailable",
         )?;
         Ok(Self {
             command,
             task,
             path,
+            receipt_root,
+            catalog_dir,
         })
     }
     fn original(receipt: &PoolReceipt) -> Result<()> {
@@ -266,20 +284,28 @@ fn private_json(path: &Path) -> Result<Value> {
 impl PoolInspector for CapturedPoolInspector {
     fn verify(&mut self, receipt: &PoolReceipt) -> Result<()> {
         Self::original(receipt)?;
+        private_root(&self.receipt_root)?;
+        let original = private_json(&receipt.directory().join("stdout"))?;
+        let catalog = original["context"]["catalog_id"]
+            .as_str()
+            .filter(|id| !id.is_empty())
+            .ok_or_else(|| Error::Stop("original pool catalog authority missing".into()))?;
         let handle = receipt.assignment().as_str();
         let output = Command::new(&self.command)
             .env_clear()
             .env("PATH", &self.path)
+            .arg("--receipt-dir")
+            .arg(&self.receipt_root)
             .args([
                 "--task",
                 &self.task,
                 "--assignment",
                 handle,
                 "--",
-                "assignment",
-                "inspect",
-                handle,
+                "--catalog-dir",
             ])
+            .arg(&self.catalog_dir)
+            .args(["assignment", "inspect", handle])
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -293,6 +319,15 @@ impl PoolInspector for CapturedPoolInspector {
             .as_str()
             .ok_or_else(|| Error::Stop("inspection receipt missing".into()))?;
         private_root(Path::new(directory))?;
+        require(
+            Path::new(directory).parent() == Some(self.receipt_root.as_path()),
+            "inspection receipt escaped approved root",
+        )?;
+        let inspected = private_json(&Path::new(directory).join("stdout"))?;
+        require(
+            inspected["context"]["catalog_id"] == catalog,
+            "exact pool catalog authority changed",
+        )?;
         let current = PoolReceipt::from_capture(
             directory.into(),
             &summary,

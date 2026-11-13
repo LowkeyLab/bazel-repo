@@ -165,10 +165,19 @@ derive undocumented native IDs, search for a newest session, or start a new run.
 
 `CapturedPoolInspector` reads the original private pool-receipt acquisition files
 and invokes only `assignment inspect` for the retained handle through the
-approved wrapper. It compares assignment, original acquisition operation,
+approved wrapper. Its constructor requires explicit approved private receipt and
+catalog directories; cleared subprocess environments do not select defaults.
+It compares the original catalog authority, assignment, acquisition operation,
 repository, worktree, and lossless Unix path bytes. Pending, unknown, capture
 errors, changed identities, or non-UTF-8 `cwd` bytes stop admission. It never
 acquires, releases, recovers, expands capacity, or substitutes a checkout.
+
+Retained post-admission observation reads the authenticated exact session and
+admission even while execution inventory reports that issue occupied. It retains
+all other authorization checks and cannot send create or submit. New admission
+and PR publication still require execution clearance. Submission readback preserves
+an acknowledged execution generation and authority epoch; only a queued admission
+without a generation can acquire its first generation.
 
 `GitHubPublications` reuses the existing GitHub `Transport` and requires a
 separately scoped publication credential. It reads all configured pages, checks

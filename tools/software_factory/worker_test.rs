@@ -63,9 +63,12 @@ fn fixture_app() -> AppIdentity {
     }
 }
 #[derive(Clone, Default)]
-struct History(Rc<RefCell<Vec<Comment>>>);
+struct History(Rc<RefCell<Vec<Comment>>>, Rc<RefCell<Option<Snapshot>>>);
 impl GitHub for History {
     fn snapshot(&mut self) -> Result<Snapshot> {
+        if let Some(snapshot) = self.1.borrow().as_ref() {
+            return Ok(snapshot.clone());
+        }
         let key = issue_key();
         let issue = Issue {
             key: key.clone(),
@@ -129,6 +132,8 @@ struct Runtime(Rc<RefCell<RuntimeState>>, History);
 #[allow(clippy::struct_excessive_bools)]
 struct RuntimeState {
     sent: Vec<Action>,
+    observed: Vec<WorkerIdentity>,
+    boundaries: Vec<WorkerIdentity>,
     lost: bool,
     lose_at: Option<usize>,
     absent: bool,
@@ -145,6 +150,8 @@ impl Runtime {
         Self(
             Rc::new(RefCell::new(RuntimeState {
                 sent: vec![],
+                observed: vec![],
+                boundaries: vec![],
                 lost: false,
                 lose_at: None,
                 absent: false,
@@ -267,14 +274,16 @@ impl WorkerRuntime for Runtime {
                 .collect(),
         })
     }
-    fn observe(&mut self, _: &WorkerIdentity) -> Result<Admission> {
+    fn observe(&mut self, worker: &WorkerIdentity) -> Result<Admission> {
+        self.0.borrow_mut().observed.push(worker.clone());
         Ok(admission(if self.0.borrow().terminal {
             "terminal"
         } else {
             "started"
         }))
     }
-    fn boundary(&mut self, _: &WorkerIdentity) -> Result<Boundary> {
+    fn boundary(&mut self, worker: &WorkerIdentity) -> Result<Boundary> {
+        self.0.borrow_mut().boundaries.push(worker.clone());
         Ok(if self.0.borrow().review_failed {
             Boundary::ReviewFailed {
                 gate: "native-sync-review-gate:1".into(),
@@ -361,6 +370,181 @@ fn one_worker_uses_frozen_skills_authenticated_intents_and_retains_slot() {
         ),
         eq(true)
     );
+}
+
+#[gtest]
+fn executing_retained_worker_observes_exact_identity_without_new_admission() {
+    let (dir, mut c, mut history, runtime) = controller_setup();
+    let running = c.execute_worker(request()).unwrap();
+    let identity = running.identity().unwrap();
+    let mut snapshot = history.snapshot().unwrap();
+    snapshot
+        .issues
+        .get_mut(&issue_key())
+        .unwrap()
+        .execution_clear = false;
+    *history.1.borrow_mut() = Some(snapshot);
+    let before = runtime.0.borrow().observed.len();
+    expect_that!(c.execute_worker(request()).unwrap(), eq(&running));
+    expect_that!(runtime.0.borrow().observed.len(), eq(before + 1));
+    expect_that!(runtime.0.borrow().observed.last(), eq(Some(&identity)));
+    expect_that!(runtime.0.borrow().boundaries.last(), eq(Some(&identity)));
+    expect_that!(c.prepare_admission().is_err(), eq(true));
+    let (store, _, _) = c.into_parts();
+    drop(store);
+    let store = Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+    let mut c =
+        Controller::new(store, history.clone(), runtime.clone(), "controller".into()).unwrap();
+    runtime.0.borrow_mut().review_failed = true;
+    let blocked = c.execute_worker(request()).unwrap();
+    expect_that!(blocked.phase, eq(&WorkerPhase::RepairBlocked));
+    expect_that!(blocked.identity().unwrap(), eq(&identity));
+    runtime.0.borrow_mut().review_failed = false;
+    let (store, _, _) = c.into_parts();
+    drop(store);
+    let store = Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+    let mut c = Controller::new(store, history, runtime.clone(), "controller".into()).unwrap();
+    expect_that!(c.execute_worker(request()).unwrap(), eq(&blocked));
+    expect_that!(runtime.0.borrow().sent.len(), eq(2));
+    let (store, _, _) = c.into_parts();
+    expect_that!(
+        store.load().unwrap().active.unwrap().issue,
+        eq(&issue_key())
+    );
+}
+
+#[gtest]
+fn retained_observation_keeps_all_other_authorization_checks() {
+    for change in 0..6 {
+        let (_dir, mut c, mut history, runtime) = controller_setup();
+        c.execute_worker(request()).unwrap();
+        let observed = runtime.0.borrow().observed.len();
+        let mut snapshot = history.snapshot().unwrap();
+        let issue = snapshot.issues.get_mut(&issue_key()).unwrap();
+        issue.execution_clear = false;
+        match change {
+            0 => issue.assignees.push("another-owner".into()),
+            1 => issue.labels.push("blocked".into()),
+            2 => issue.blockers_closed.push(false),
+            3 => issue.open = false,
+            4 => snapshot.members.clear(),
+            _ => snapshot.complete = false,
+        }
+        *history.1.borrow_mut() = Some(snapshot);
+        expect_that!(c.execute_worker(request()).is_err(), eq(true));
+        expect_that!(runtime.0.borrow().observed.len(), eq(observed));
+        expect_that!(runtime.0.borrow().sent.len(), eq(2));
+        let (store, _, _) = c.into_parts();
+        expect_that!(
+            store.load().unwrap().active.unwrap().issue,
+            eq(&issue_key())
+        );
+    }
+}
+
+#[gtest]
+fn occupied_inventory_cannot_replace_retained_worker_or_publish_a_pr() {
+    let (_dir, mut c, mut history, runtime) = controller_setup();
+    let running = c.execute_worker(request()).unwrap();
+    let mut snapshot = history.snapshot().unwrap();
+    snapshot
+        .issues
+        .get_mut(&issue_key())
+        .unwrap()
+        .execution_clear = false;
+    let other: IssueKey = "LowkeyLab/bazel-repo#3".to_owned().try_into().unwrap();
+    let mut unrelated = snapshot.issues[&issue_key()].clone();
+    unrelated.key = other.clone();
+    unrelated.node = "I3".into();
+    unrelated.execution_clear = true;
+    snapshot.members.push(other.clone());
+    snapshot.issues.insert(other, unrelated);
+    *history.1.borrow_mut() = Some(snapshot);
+    let mut changed = request();
+    changed.principal = "replacement-owner".into();
+    expect_that!(c.execute_worker(changed).is_err(), eq(true));
+    runtime.0.borrow_mut().terminal = true;
+    let completed = c.execute_worker(request()).unwrap();
+    expect_that!(completed.phase, eq(&WorkerPhase::Implemented));
+    expect_that!(completed.plan, eq(&running.plan));
+    expect_that!(
+        c.publish_worker_pr(software_factory::worker::PublicationRequest {
+            branch: "feat/worker-2".into(),
+            head: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into(),
+            title: "Implement issue 2".into(),
+            body: "Closes #2".into(),
+        })
+        .is_err(),
+        eq(true)
+    );
+    expect_that!(runtime.0.borrow().sent.len(), eq(2));
+    let (store, _, _) = c.into_parts();
+    expect_that!(
+        store.load().unwrap().active.unwrap().issue,
+        eq(&issue_key())
+    );
+}
+
+#[gtest]
+fn exact_cancellation_remains_available_with_occupied_inventory() {
+    let (_dir, mut c, mut history, runtime) = controller_setup();
+    let running = c.execute_worker(request()).unwrap();
+    let mut snapshot = history.snapshot().unwrap();
+    snapshot
+        .issues
+        .get_mut(&issue_key())
+        .unwrap()
+        .execution_clear = false;
+    *history.1.borrow_mut() = Some(snapshot);
+    let cancelling = c.cancel_worker("operator cancellation".into()).unwrap();
+    expect_that!(cancelling.phase, eq(&WorkerPhase::Cancelling));
+    expect_that!(
+        cancelling.identity().unwrap(),
+        eq(&running.identity().unwrap())
+    );
+    runtime.0.borrow_mut().stopped = true;
+    runtime.0.borrow_mut().reconciled = true;
+    expect_that!(
+        c.cancel_worker("operator cancellation".into())
+            .unwrap()
+            .phase,
+        eq(&WorkerPhase::Stopped)
+    );
+    expect_that!(runtime.0.borrow().sent.len(), eq(3));
+}
+
+#[gtest]
+fn occupied_inventory_blocks_new_create_and_submit_in_retained_early_phases() {
+    for lost_at in [None, Some(1), Some(2)] {
+        let (_dir, mut c, mut history, runtime) = controller_setup();
+        if let Some(sent) = lost_at {
+            runtime.0.borrow_mut().lose_at = Some(sent);
+            expect_that!(c.execute_worker(request()).is_err(), eq(true));
+        }
+        let sent = runtime.0.borrow().sent.len();
+        let mut snapshot = history.snapshot().unwrap();
+        snapshot
+            .issues
+            .get_mut(&issue_key())
+            .unwrap()
+            .execution_clear = false;
+        *history.1.borrow_mut() = Some(snapshot);
+        expect_that!(c.execute_worker(request()).is_err(), eq(true));
+        expect_that!(runtime.0.borrow().sent.len(), eq(sent));
+        let (store, _, _) = c.into_parts();
+        let state = store.load().unwrap();
+        expect_that!(state.active.unwrap().issue, eq(&issue_key()));
+        expect_that!(
+            state.worker.map(|worker| worker.phase),
+            eq(&lost_at.map(|sent| {
+                if sent == 1 {
+                    WorkerPhase::Prepared
+                } else {
+                    WorkerPhase::Created
+                }
+            }))
+        );
+    }
 }
 
 #[gtest]

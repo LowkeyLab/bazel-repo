@@ -870,7 +870,42 @@ impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
         request: crate::worker::WorkerRequest,
     ) -> Result<crate::worker::WorkerRecord> {
         use crate::worker::{WorkerPhase, WorkerPlan, WorkerRecord};
-        let active = self.prepare_admission()?;
+        self.recover()?;
+        let state = self.load()?;
+        let retained = state.worker.as_ref().is_some_and(|worker| {
+            !matches!(worker.phase, WorkerPhase::Prepared | WorkerPhase::Created)
+        });
+        let active = if retained {
+            let active = state
+                .active
+                .ok_or_else(|| crate::Error::Stop("no selected job".into()))?;
+            let worker = state.worker.as_ref().expect("retained worker");
+            require(
+                worker.plan.request == request
+                    && worker.plan.issue == active.issue
+                    && worker.plan.job == active.job,
+                "retained worker identity or original pool receipt changed",
+            )?;
+            let identity = worker.identity()?;
+            worker
+                .admission
+                .as_ref()
+                .ok_or_else(|| crate::Error::Stop("missing retained admission".into()))?
+                .validate(&identity)?;
+            let mut snapshot = self.github.snapshot()?;
+            policy::validate(&snapshot)?;
+            // Absence gates new admission, not reads of the authenticated exact worker.
+            // This local snapshot is used only for observation; perform still checks fresh absence.
+            let issue = snapshot
+                .issues
+                .get_mut(&active.issue)
+                .ok_or_else(|| crate::Error::Stop("missing active issue".into()))?;
+            issue.execution_clear = true;
+            self.check_eligible(&snapshot, &active)?;
+            active
+        } else {
+            self.prepare_admission()?
+        };
         require(
             active.work == crate::model::Work::Implementation,
             "research is not implementation authority",
@@ -930,7 +965,9 @@ impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
                 && current.gateway.profile_id == worker.plan.launch.gateway.profile_id,
             "frozen skill/gate/profile evidence changed; retain worker",
         )?;
-        self.advance_worker_admission(&mut worker, &issue_url)?;
+        if !retained {
+            self.advance_worker_admission(&mut worker, &issue_url)?;
+        }
         if worker.phase == WorkerPhase::Running {
             let identity = worker.identity()?;
             match self.effects.boundary(&identity)? {

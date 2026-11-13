@@ -287,7 +287,11 @@ impl<R: NativeRpc, H: NativeHost, P: PoolInspector, J: PublicationApi> Effects
                 require(
                     observed.admission_id == admitted.admission_id
                         && observed.session_id == admitted.session_id
-                        && observed.profile == admitted.profile,
+                        && observed.profile == admitted.profile
+                        && observed.authority_epoch == admitted.authority_epoch
+                        && (observed.execution_generation == admitted.execution_generation
+                            || (admitted.status == "queued"
+                                && admitted.execution_generation.is_none())),
                     "exact native receipt mismatch",
                 )?;
                 public_admission(observed)?
