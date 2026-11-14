@@ -95,7 +95,13 @@ impl NativeHost for Host {
         Ok(())
     }
     fn frozen_session(&mut self, a: &Action, _: &Value) -> Result<SessionEvidence> {
-        let mut loaded_skills = self.0.prepare(&request(), "fixture")?.skills;
+        let mut requested = request();
+        if let software_factory::worker::WorkerCommand::Create { skills, .. } =
+            serde_json::from_str(&a.payload)?
+        {
+            requested.mandatory_skills = skills;
+        }
+        let mut loaded_skills = self.0.prepare(&requested, "fixture")?.skills;
         if self.0.0.borrow().frozen_partial {
             loaded_skills.pop();
         }
@@ -172,6 +178,87 @@ fn controller_native_adapter_uses_only_flat_supported_rpc_and_explicit_skill_pre
     );
     drop(dir);
 }
+#[gtest]
+fn research_controller_native_adapter_loads_research_and_ask_matt_and_reads_terminal_json() {
+    use super::research_test::{findings, research_request, research_setup};
+    struct ResearchWire(Wire, Rc<RefCell<Option<Value>>>);
+    impl NativeRpc for ResearchWire {
+        fn call(&mut self, method: &str, params: Value) -> Result<Value> {
+            let mut reply = self.0.call(method, params)?;
+            if method == "prompt.receipt"
+                && let Some(result) = self.1.borrow().as_ref()
+            {
+                reply["status"] = json!("terminal");
+                reply["outcome"] = json!("completed");
+                reply["result"] = json!({"final_response":serde_json::to_string(result)?});
+            }
+            Ok(reply)
+        }
+    }
+    let (_dir, c, history, runtime) = research_setup();
+    let (store, _, _) = c.into_parts();
+    let wire = Wire::default();
+    let result = Rc::new(RefCell::new(None));
+    let native = NativeWorker::new(
+        ResearchWire(wire.clone(), result.clone()),
+        Host(runtime, None),
+        Pool,
+        Publications,
+    );
+    let mut c = Controller::new(store, history.clone(), native, "controller".into()).unwrap();
+    c.execute_worker(research_request()).unwrap();
+    *result.borrow_mut() = Some(findings());
+    expect_that!(
+        c.execute_worker(research_request()).unwrap().phase,
+        eq(&WorkerPhase::ResearchComplete)
+    );
+    let calls = wire.0.borrow();
+    let create = &calls.iter().find(|(m, _)| m == "session.create").unwrap().1;
+    expect_that!(&create["skills"], eq(&json!(["research", "ask-matt"])));
+    expect_that!(
+        calls.iter().filter(|(m, _)| m == "session.create").count(),
+        eq(1)
+    );
+    expect_that!(
+        calls.iter().filter(|(m, _)| m == "prompt.submit").count(),
+        eq(1)
+    );
+    expect_that!(
+        history
+            .0
+            .borrow()
+            .iter()
+            .filter(|c| c.body.contains("ResearchPublished"))
+            .count(),
+        eq(1)
+    );
+}
+
+#[gtest]
+fn research_partial_actual_frozen_skills_stop_before_submission() {
+    use super::research_test::{research_request, research_setup};
+    let (_dir, c, history, runtime) = research_setup();
+    let (store, _, _) = c.into_parts();
+    runtime.0.borrow_mut().frozen_partial = true;
+    let wire = Wire::default();
+    let native = NativeWorker::new(wire.clone(), Host(runtime, None), Pool, Publications);
+    let mut c = Controller::new(store, history, native, "controller".into()).unwrap();
+    expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+    expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+    expect_that!(
+        wire.0
+            .borrow()
+            .iter()
+            .filter(|(m, _)| m == "session.create")
+            .count(),
+        eq(1)
+    );
+    expect_that!(
+        wire.0.borrow().iter().any(|(m, _)| m == "prompt.submit"),
+        eq(false)
+    );
+}
+
 #[gtest]
 fn native_rpc_command_sends_one_supported_packet_and_rejects_wrong_reply_identity() {
     use std::os::unix::fs::PermissionsExt;

@@ -1,5 +1,86 @@
 # Software factory acceptance evidence
 
+## AFK research evidence for issue #3154
+
+These results use controlled controller and native-adapter fixtures. They do not
+prove deployed integration or authorize activation or live research.
+
+### Configuration and validation boundary
+
+- Assigned source base: `b1a060025608a529ed8014644c2d688ea23283bc`.
+- Bazel `9.3.2`, Aspect `2026.46.3`, Bazel-managed Rust `1.99.1`, edition `2024`.
+- The current base cannot resolve its dependency graph. The initial attempt
+  failed to apply `tools/lint/python_typing.patch` to the pinned `rules_lint`.
+  A scratch override of that dependency exposed a second existing failure:
+  `aspect_rules_js` declares module name `rules_js`.
+- All current-base Gazelle, formatting, full-test, full-build, and lint attempts
+  remain blocked before the changed Rust source is analyzed. No repository
+  dependency, patch, lint rule, or validation threshold was changed for this ticket.
+- To exercise the implementation, a separate scratch validation tree uses the
+  repository archive at `59c7445cbdc9bff4ca6d776708e7340005f0235a` for dependency
+  configuration. Its `tools/software_factory` and `tools/pool_receipt` paths are
+  symlinks to the actual assigned checkout. This validates the changed source,
+  not the current base's broken dependency configuration. It is not a current-base pass.
+- Fixture identity: gateway `gateway-1`, profile `worker`, principal `worker-owner`,
+  epoch `7`, research admission `admission-1` with generation `4`, and separate
+  handoff admission `handoff-1` with generation `5`. Required research skills are
+  `research` and `ask-matt`. The trusted fixture manifest is independent of caller
+  omissions. Existing App, original pool, private-store, and isolation fixtures
+  remain in use. No live assignment is acquired or released by these tests.
+- Local validation clears remote execution, cache, and build-event endpoints;
+  it uses four jobs, `GOMAXPROCS=2`, and JVM `ActiveProcessorCount=4`.
+- Nix and the required `asd-ste100` skill are unavailable. There is no Nix-shell
+  or strict-English verification claim.
+
+### Expected and actual results
+
+The alternate dependency configuration passed each focused target in three
+uncached runs: **50 worker tests**, **44 intake tests**, and **20 pool-wrapper
+command tests** per run. All **342 individual executions passed**, with no
+failures or ignored tests. Counts come from parsed Rust harness logs.
+The package build passed. All three package Clippy reports are empty, with
+explicit report exit code `0`. The Bazel-managed Rust formatter passed.
+Current-base whole-repository gates remain blocked as stated above.
+
+| Requirement                   | Expected result                                                                                                                                                         | Actual result                                                                                                                    |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Authorized native research    | Load research and ask-matt explicitly, retain original pool/run/session identities, and submit no implementation workflow.                                              | Passed through controller fixtures and the real native adapter with controlled RPC responses.                                    |
+| Findings and completion       | Publish findings on the exact originating issue, verify App/payload/continuity, publish exact comment/digest confirmation, then enter ResearchComplete without a PR.    | Passed; repeat calls create no second findings record or native admission.                                                       |
+| Interrupted publication       | Reconcile the original findings or confirmation comment after restart, including waiting labels. Absence after uncertain send never permits republishing or completion. | Passed for lost findings acknowledgement, lost confirmation acknowledgement, and temporarily absent exact findings.              |
+| Required skills               | Missing caller-manifest skills, missing resolved research content, and partial actual frozen skills stop before submission.                                             | Passed; restoring a missing prerequisite permits the original selected job, not a substitute workflow.                           |
+| Waiting and decision labels   | Waiting labels and decision-type labels suppress admission even with ready-for-agent.                                                                                   | Passed for needs-info, needs-triage, ready-for-human, blocked, waiting, and wayfinder:grilling.                                  |
+| Real human state              | Publish the unanswered question, checkpoint HumanInputRequired, invoke preloaded ask-matt with a separate durable submission, and accept no worker-generated answer.    | Passed across restart, lost handoff acknowledgement, unknown exact effect, waiting labels, and changed subsequent worker output. |
+| Implementation boundary       | Reject implementation worker substitution, generic PR publication, merge actions, arbitrary replacement prompts, and implementation or fabricated-answer output fields. | Passed. Rejected terminal output remains retained after restart; changed worker output cannot repair authority.                  |
+| Native recovery and cessation | Lost create/submit acknowledgements retain the original run and pool receipt. Cancellation of the handoff targets its distinct exact admission and generation.          | Passed without resending an uncertain native mutation.                                                                           |
+| Output prerequisites          | Empty findings, absent sources, and empty human questions cannot publish or complete.                                                                                   | Passed; no public findings record is emitted.                                                                                    |
+
+The behavioral red runs are retained in `red-admission.log`, `red-findings.log`,
+`red-human-authority.log`, and `red-handoff-identity.log`. They failed before their
+corresponding fixes. Subsequent `green-*.log` files retain slice results.
+
+### Evidence files and remaining gates
+
+Private evidence root: `/opt/data/cache/scratch/issue-3154`.
+
+- `final-results.json`: parsed test names/counts, configuration, source SHA-256
+  bindings, validation boundary, and actual Clippy report results.
+- `testlogs/`: the nine final Rust harness logs and Bazel XML wrappers.
+- `lint-reports/`: the three actual Clippy reports and exit-code files.
+- `validate-focused.sh` and `collect-evidence.py`: reproducible validation and
+  evidence collection commands. `final-mirror-status.log`, `final-mirror-test.log`,
+  `final-mirror-build.log`, `final-mirror-lint.log`, and
+  `final-mirror-rust-format.log` retain their output.
+- `baseline.log`, `baseline-local.log`, and `baseline-override.log`: current-base
+  dependency failures before implementation. `final-format.log`, `final-test.log`,
+  `final-build.log`, `final-lint.log`, and `gazelle-*.log` retain current-base gate
+  attempts. These are failures, not successful acceptance evidence.
+
+The independent Standards and Spec review remains the parent delivery workflow's
+responsibility. Deployed host prerequisites, native capability/frozen-skill proof,
+App permissions, real human delivery, and the final readiness activation gate
+remain unresolved runtime prerequisites. No live worker, research fixture,
+GitHub publication, pool recovery, PR, merge, or activation was performed.
+
 ## Native worker evidence for issue #3153
 
 Fixture results do not establish production readiness or activation authority.

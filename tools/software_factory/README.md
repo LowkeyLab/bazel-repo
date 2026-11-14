@@ -1,7 +1,7 @@
 # Software factory controller
 
-This Rust library implements issue #3152 for intake and issue #3153 for one native
-implementation worker under specification #3151. It contains no service, scheduled entry, merge
+This Rust library implements issue #3152 for intake, issue #3153 for one native
+implementation worker, and issue #3154 for AFK research under specification #3151. It contains no service, scheduled entry, merge
 implementation, or activation command. It does not start normal operation.
 
 ## Boundaries
@@ -104,7 +104,7 @@ notification fixture. Final readiness retains the single activation gate.
 
 ### Native worker workflow and prerequisite stops
 
-`Controller::execute_worker` operates only on its selected implementation issue.
+`Controller::execute_worker` operates only on its selected implementation or research issue.
 It stores run, create, submit, cancel, and publication identities before a native
 send. Every transition uses the existing protected `Store` and App-authenticated
 issue history. `WorkerCheckpoint` binds the complete private receipt by digest.
@@ -234,3 +234,74 @@ The native worker adapter follows the official
 contract. The inspected native source includes `gateway/session_controls.py`,
 `gateway/session_policy.py`, and the canonical admission and session contracts.
 These sources establish protocol shapes, not deployed host compatibility.
+
+## AFK research workflow
+
+`wayfinder:research` authorizes research only. The same selection, complete native
+reads, ownership, authenticated history, protected receipts, original pool capture,
+explicit frozen skills, and one-active-issue rules apply. Waiting labels suppress
+admission even if `ready-for-agent` is present. Decision-type labels do not become
+implementation permission. The required trusted skill manifest must contain both
+`research` and `ask-matt`, plus repository requirements. An omitted, unresolved,
+or incompletely frozen required skill stops the operation before submission.
+Implementation workflow skills cannot replace research.
+
+The worker follows the explicitly loaded research workflow and originating issue
+contract. It returns public findings with source references. The native terminal
+`final_response` contains this JSON object; a directly structured object is also
+accepted at the runtime boundary:
+
+```json
+{
+  "findings": "Cited Markdown findings under the originating issue contract.",
+  "evidence": ["https://example.test/primary-source"],
+  "human_question": null
+}
+```
+
+These fields are public. They must not contain secrets, private pool captures, or
+private native receipts. Unknown output fields, including implementation PRs,
+merge authority, and worker-supplied human answers, are rejected. Empty findings,
+missing sources, and empty human questions are rejected. The retained terminal
+result cannot be replaced with a different answer after restart.
+
+Successful native execution enters `ResearchReady`, not `Implemented`. The
+controller publishes `ResearchFindings` through its existing authenticated history
+path and reads back the exact comment, App identity, payload, and continuity.
+It then publishes and verifies `ResearchPublished`, which binds the confirmed
+comment identity and digest. Only then does it checkpoint `ResearchComplete`.
+Research completion is not a PR, merge, pool release, or activation decision.
+The receipt and issue slot remain retained under the existing stopped-job policy;
+this library does not add a release or replacement API.
+
+A non-null `human_question` remains unanswered. Findings publication and the
+`HumanInputRequired` stop precede a separate authenticated submission to the
+explicitly loaded `ask-matt` workflow in the retained native conversation. The
+original reserved publication action identity binds that handoff rather than a
+PR. Its separate admission and generation are retained for exact cancellation.
+The controller accepts no agent response as human input and provides no automatic
+readiness-restoration or implementation-conversion API. Native admission confirms
+the handoff submission, not that a human answered or that a downstream alert arrived.
+
+The common mutation seam rejects research PR publication, review checks, hosted
+reviews, merge, and arbitrary replacement prompts. It permits only the exact
+bound native creation, research submission, unanswered handoff, cancellation,
+and the existing notification interface. The trusted native host must preserve
+worker credential isolation and authorize only these effects. A prompt is not a
+substitute for those host prerequisites.
+
+### Research recovery and operation
+
+Owner: the Software Factory operator; a maintainer controls authority changes.
+
+| Condition                                        | Required evidence and stop                                                                                                                                    | Resumption                                                                                                                                      |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Missing research skill or host prerequisite      | Retain the selected issue. Send no native mutation.                                                                                                           | Resolve and verify the complete trusted manifest and existing native prerequisites.                                                             |
+| Interrupted findings or confirmation publication | Retain the original protected pending record and terminal result. No completion without exact readback.                                                       | Adopt only the exact authenticated comment and finish only unpublished confirmation/checkpoint work. Remote absence never permits another send. |
+| Interrupted human handoff                        | Retain the unanswered question, original submission action, and exact admission when known. Keep the slot occupied.                                           | Reconcile the original action. Reporting/handoff recovery may finish with waiting labels present; it cannot admit another research run.         |
+| Actual human decision needed                     | Preserve `HumanInputRequired`; use the loaded `ask-matt` workflow and existing `needs-info` policy. Worker output and readiness labels are not human answers. | A real human supplies the answer, and the maintainer follows the existing reassessment policy. This slice grants no automatic re-entry.         |
+| Research complete                                | Retain verified findings, publication confirmation, native result, pool receipt, and ownership evidence.                                                      | Apply the existing stopped-job policy; do not infer pool release or implementation authority.                                                   |
+
+All research tests use controlled fixtures. They do not establish deployed native
+capabilities, App permissions, OS isolation, real human delivery, or production
+readiness. No live research fixture or activation is authorized by this work.
