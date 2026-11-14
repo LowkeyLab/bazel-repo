@@ -120,6 +120,14 @@ impl<R, H, P, J> NativeWorker<R, H, P, J> {
         }
     }
 }
+impl<R, H: NativeHost, P, J> NativeWorker<R, H, P, J> {
+    fn retained_reply(&mut self, action: &Action) -> Result<Option<Value>> {
+        Ok(self
+            .host
+            .exact_reply(action)?
+            .or_else(|| self.replies.get(&action.id).cloned()))
+    }
+}
 fn string(value: &Value, name: &str) -> Result<String> {
     value[name]
         .as_str()
@@ -230,11 +238,7 @@ impl<R: NativeRpc, H: NativeHost, P: PoolInspector, J: PublicationApi> Effects
                 },
             );
         }
-        let reply = if let Some(reply) = self.host.exact_reply(action)? {
-            reply
-        } else if let Some(reply) = self.replies.get(&action.id) {
-            reply.clone()
-        } else {
+        let Some(reply) = self.retained_reply(action)? else {
             return Ok(Observation::Unknown);
         };
         let evidence = match command {

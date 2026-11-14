@@ -148,6 +148,23 @@ pub struct WorkerRequest {
     pub mandatory_skills: Vec<String>,
     pub pool: PoolReceipt,
 }
+impl WorkerRequest {
+    /// # Errors
+    /// Research requires its workflow and human handoff, never implementation skills.
+    pub fn work(&self) -> Result<crate::model::Work> {
+        let has = |name: &str| self.mandatory_skills.iter().any(|s| s == name);
+        if has("research") {
+            require(
+                has("ask-matt") && !has("implement") && !has("implement-spec"),
+                "research requires ask-matt and excludes implementation authority",
+            )?;
+            Ok(crate::model::Work::Research)
+        } else {
+            require(has("implement"), "implement is mandatory")?;
+            Ok(crate::model::Work::Implementation)
+        }
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ResolvedSkill {
     pub name: String,
@@ -190,10 +207,7 @@ impl LaunchEvidence {
             !self.review_gate.is_empty(),
             "mandatory synchronous review-before-repair gate unavailable",
         )?;
-        require(
-            request.mandatory_skills.iter().any(|s| s == "implement"),
-            "implement is mandatory",
-        )?;
+        request.work()?;
         require(
             request.mandatory_skills == self.mandatory_skills,
             "caller omitted or changed trusted mandatory skill manifest",
@@ -338,6 +352,9 @@ pub enum WorkerPhase {
     Cancelling,
     Stopped,
     ReviewCiWait,
+    ResearchReady,
+    ResearchComplete,
+    HumanInputRequired,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkerPlan {
@@ -360,6 +377,24 @@ pub struct WorkerRecord {
     pub stop_reason: Option<String>,
     pub cessation: Option<String>,
     pub publication: Option<PublicationResult>,
+    /// The separate ask-matt admission remains an active writer until exact cessation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff: Option<Admission>,
+    /// Question delivery is separate from research completion and never records a human answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff_delivery: Option<HandoffDelivery>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HandoffDelivery {
+    Pending,
+    Delivered,
+    Failed,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct HandoffResult {
+    pub question_delivered: bool,
+    pub evidence: String,
 }
 impl WorkerRecord {
     /// # Errors
@@ -370,8 +405,9 @@ impl WorkerRecord {
             .as_ref()
             .ok_or_else(|| crate::Error::Stop("worker has no exact session".into()))?;
         let admission = self
-            .admission
+            .handoff
             .as_ref()
+            .or(self.admission.as_ref())
             .ok_or_else(|| crate::Error::Stop("worker has no exact admission".into()))?;
         Ok(WorkerIdentity {
             run: self.plan.run.clone(),
@@ -386,6 +422,39 @@ impl WorkerRecord {
     /// Returns the integrity digest of the private worker receipt for authenticated history.
     pub fn digest(&self) -> Result<String> {
         Ok(crate::history::digest(&serde_json::to_string(self)?))
+    }
+}
+/// Public, cited research output. There is deliberately no answer or implementation field.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResearchFindings {
+    pub findings: String,
+    pub evidence: Vec<String>,
+    pub human_question: Option<String>,
+}
+impl ResearchFindings {
+    /// # Errors
+    /// Rejects implementation payloads, invented human answers, or incomplete findings.
+    pub fn from_terminal(value: &serde_json::Value) -> Result<Self> {
+        let result: Self = if let Some(text) = value
+            .get("final_response")
+            .and_then(serde_json::Value::as_str)
+        {
+            serde_json::from_str(text)?
+        } else {
+            serde_json::from_value(value.clone())?
+        };
+        require(
+            !result.findings.trim().is_empty()
+                && !result.evidence.is_empty()
+                && result.evidence.iter().all(|s| !s.trim().is_empty())
+                && result
+                    .human_question
+                    .as_ref()
+                    .is_none_or(|s| !s.trim().is_empty()),
+            "research findings, sources, or unanswered question are incomplete",
+        )?;
+        Ok(result)
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
