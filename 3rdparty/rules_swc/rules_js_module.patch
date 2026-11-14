@@ -1,0 +1,6 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -10 +10 @@
+-bazel_dep(name = "aspect_rules_js", version = "2.0.0")
++bazel_dep(name = "rules_js", repo_name = "aspect_rules_js", version = "2.0.0")
