@@ -1039,10 +1039,14 @@ impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
                 && worker
                     .admission
                     .as_ref()
-                    .is_some_and(|a| a.admission_id != admitted.admission_id)
-                && (admitted.status == "queued" || admitted.execution_generation.is_some()),
+                    .is_some_and(|a| a.admission_id != admitted.admission_id),
             "ask-matt must retain a distinct exact native admission",
         )?;
+        let mut identity = worker.identity()?;
+        identity.admission_id.clone_from(&admitted.admission_id);
+        // A separate handoff has not inherited the research execution generation.
+        identity.execution_generation = None;
+        admitted.validate(&identity)?;
         worker.handoff = Some(admitted);
         self.checkpoint_worker(worker.clone())
     }

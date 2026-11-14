@@ -425,6 +425,79 @@ fn lost_handoff_ack_restart_cancellation_targets_handoff_without_execute() {
 }
 
 #[gtest]
+fn lost_handoff_ack_recovers_never_started_cancellation_after_restart() {
+    for execute_first in [false, true] {
+        let (dir, mut c, mut history, runtime) = research_setup();
+        c.execute_worker(research_request()).unwrap();
+        let mut result = findings();
+        result["human_question"] = json!("Which authority?");
+        runtime.0.borrow_mut().terminal = true;
+        runtime.0.borrow_mut().research_result = Some(result);
+        let mut queued = super::admission("queued");
+        queued.admission_id = "handoff-1".into();
+        queued.execution_generation = None;
+        runtime.0.borrow_mut().handoff_observation = Some(queued.clone());
+        runtime.0.borrow_mut().lose_at = Some(3);
+        expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+        let original = runtime.0.borrow().sent[2].clone();
+        let (store, _, _) = c.into_parts();
+        let retained = store.load().unwrap().worker.unwrap();
+        expect_that!(retained.handoff.is_none(), eq(true));
+        drop(store);
+        queued.status = "terminal".into();
+        queued.outcome = Some("cancelled".into());
+        queued.result = None;
+        runtime.0.borrow_mut().handoff_observation = Some(queued.clone());
+        let store =
+            Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+        let mut c =
+            Controller::new(store, history.clone(), runtime.clone(), "controller".into()).unwrap();
+        if execute_first {
+            expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+            let state: serde_json::Value = serde_json::from_slice(
+                &std::fs::read(dir.path().join("private/state.json")).unwrap(),
+            )
+            .unwrap();
+            expect_that!(state["worker"]["handoff"].clone(), eq(&json!(queued)));
+            expect_that!(
+                state["worker"]["handoff_delivery"].clone(),
+                eq(&json!("Failed"))
+            );
+        }
+        let cancelling = c.cancel_worker("operator stop".into()).unwrap();
+        expect_that!(cancelling.phase, eq(&WorkerPhase::Cancelling));
+        expect_that!(cancelling.handoff, eq(&Some(queued.clone())));
+        expect_that!(cancelling.plan, eq(&retained.plan));
+        expect_that!(cancelling.cessation.is_none(), eq(true));
+        runtime.0.borrow_mut().stopped = true;
+        expect_that!(
+            c.cancel_worker("operator stop".into()).unwrap().phase,
+            eq(&WorkerPhase::Cancelling)
+        );
+        runtime.0.borrow_mut().reconciled = true;
+        let stopped = c.cancel_worker("operator stop".into()).unwrap();
+        expect_that!(stopped.phase, eq(&WorkerPhase::Stopped));
+        expect_that!(stopped.cessation.is_some(), eq(true));
+        let identity = stopped.identity().unwrap();
+        expect_that!(identity.admission_id.as_str(), eq("handoff-1"));
+        expect_that!(identity.execution_generation, eq(None));
+        let sent = runtime.0.borrow().sent.clone();
+        expect_that!(sent.len(), eq(4));
+        expect_that!(&sent[2], eq(&original));
+        let WorkerCommand::Cancel { worker } = serde_json::from_str(&sent[3].payload).unwrap()
+        else {
+            panic!("expected cancellation")
+        };
+        expect_that!(worker, eq(&identity));
+        expect_that!(
+            history.human_pause_confirmed(&issue_key()).unwrap(),
+            eq(true)
+        );
+        expect_that!(c.prepare_admission().is_err(), eq(true));
+    }
+}
+
+#[gtest]
 fn human_question_sets_waiting_labels_before_handoff_and_preserves_other_labels() {
     let (_dir, mut c, mut history, runtime) = research_setup();
     let mut snapshot = history.snapshot().unwrap();
@@ -588,6 +661,9 @@ fn completed_handoff_reports_delivery_but_never_answers_or_restores_readiness() 
 fn incomplete_handoff_results_and_changed_targets_stop_without_replay() {
     for fault in [
         "missing-result",
+        "missing-generation",
+        "started-cancel-missing-result",
+        "started-cancel-missing-generation",
         "unfinished",
         "empty-evidence",
         "machine-answer",
@@ -607,6 +683,16 @@ fn incomplete_handoff_results_and_changed_targets_stop_without_replay() {
         result.result = Some(json!({"question_delivered":true,"evidence":"question reference"}));
         match fault {
             "missing-result" => result.result = None,
+            "missing-generation" => result.execution_generation = None,
+            "started-cancel-missing-result" => {
+                result.outcome = Some("cancelled".into());
+                result.result = None;
+            }
+            "started-cancel-missing-generation" => {
+                result.outcome = Some("cancelled".into());
+                result.execution_generation = None;
+                result.result = None;
+            }
             "unfinished" => {
                 result.result = Some(json!({"question_delivered":false,"evidence":"not sent"}));
             }
@@ -628,6 +714,7 @@ fn incomplete_handoff_results_and_changed_targets_stop_without_replay() {
         expect_that!(runtime.0.borrow().sent.len(), eq(3));
         result.admission_id = "handoff-1".into();
         result.execution_generation = Some(5);
+        result.outcome = Some("completed".into());
         result.result = Some(json!({"question_delivered":true,"evidence":"question reference"}));
         runtime.0.borrow_mut().handoff_observation = Some(result);
         let recovered = c.execute_worker(research_request()).unwrap();

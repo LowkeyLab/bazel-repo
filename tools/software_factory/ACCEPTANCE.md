@@ -129,6 +129,39 @@ The parent delivery workflow must still complete independent reviews. There was
 no push, live worker admission, issue mutation, PR, merge, or activation in this
 review-correction task. Nix and strict-English verification remain unavailable.
 
+### Final recovery correction for issue #3154
+
+A lost ask-matt submission acknowledgement can precede cancellation of the
+queued admission. After restart, the controller now validates the distinct
+handoff with the existing `Admission::validate` rules. A terminal `cancelled`
+admission that never started needs no invented generation or terminal result.
+The research generation does not become the handoff generation.
+
+The new controller regression failed before the correction and passed after it.
+It covers direct cancellation after restart and execution observation before
+cancellation. Both paths retain the original run, pool receipt, and handoff
+submission. Execution observation records failed delivery, not a human answer.
+Cancellation still needs exact cessation and reconciled effects before `Stopped`.
+Started handoffs with a missing generation or result still fail closed, including
+cancelled outcomes. Waiting labels and the issue slot remain in place.
+
+The alternate dependency configuration passed **58 worker tests**, **46
+intake/adapter tests**, and **20 pool-wrapper tests** in each of three uncached
+runs: **372 individual executions**, with no failures or ignored tests. The
+focused package build and Bazel-managed Rust formatting passed. All three
+Clippy reports are empty with exit code `0`. Current-base Gazelle, whole-tree
+formatting, tests, build, and lint still stop before source analysis because
+`aspect_rules_js` declares `rules_js`. No dependency configuration was changed.
+
+Evidence root: `/opt/data/cache/scratch/issue-3154`.
+`spec-final-red.log` retains the expected distinct-admission failure;
+`spec-final-green.log` retains the passing regression. `spec-final-tests.log`,
+`spec-final-build.log`, `spec-final-lint.log`, and `spec-final-format.log` retain
+the alternate gate output. The nine Rust harness logs remain under the validation
+workspace's `bazel-testlogs`. `spec-final-gazelle.log` and
+`spec-current-{format,tests,build,lint}.log` retain the current-base blockers.
+These are fixture results, not deployed integration or activation evidence.
+
 ## Native worker evidence for issue #3153
 
 Fixture results do not establish production readiness or activation authority.
