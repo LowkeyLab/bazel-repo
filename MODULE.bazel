@@ -31,6 +31,7 @@ git_override(
     patches = [
         "//tools/lint:python_typing.patch",
         "//3rdparty/rules_lint:rules_js_module.patch",
+        "//3rdparty/rules_lint:js_output_capture.patch",
     ],
     remote = "https://github.com/aspect-build/rules_lint.git",
 )
@@ -424,11 +425,11 @@ npm.npm_translate_lock(
     npmrc = "//:.npmrc",
     patch_args = {
         "@vitest/coverage-v8@5.1.0": ["-p1"],
-        "astro@7.4.10": ["-p1"],
+        "astro@7.4.11": ["-p1"],
     },
     patches = {
         "@vitest/coverage-v8@5.1.0": ["//tools/coverage:vitest_subprocess.patch"],
-        "astro@7.4.10": ["//personal_website:astro_page_identity.patch"],
+        "astro@7.4.11": ["//personal_website:astro_page_identity.patch"],
     },
     pnpm_lock = "//:pnpm-lock.yaml",
 )
