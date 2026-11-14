@@ -1,6 +1,6 @@
 # Software factory acceptance evidence
 
-## AFK research evidence for issue #3154
+## Research evidence for issue #3154
 
 These results use controlled controller and native-adapter fixtures. They do not
 prove deployed integration or authorize activation or live research.
@@ -34,25 +34,25 @@ prove deployed integration or authorize activation or live research.
 
 ### Expected and actual results
 
-The alternate dependency configuration passed each focused target in three
-uncached runs: **50 worker tests**, **44 intake tests**, and **20 pool-wrapper
+Before review corrections, the alternate dependency configuration passed each focused target in three
+runs without cached results: **50 worker tests**, **44 intake tests**, and **20 pool-wrapper
 command tests** per run. All **342 individual executions passed**, with no
 failures or ignored tests. Counts come from parsed Rust harness logs.
 The package build passed. All three package Clippy reports are empty, with
 explicit report exit code `0`. The Bazel-managed Rust formatter passed.
-Current-base whole-repository gates remain blocked as stated above.
+Current-base whole-repository gates remain blocked by the documented dependency failures.
 
-| Requirement                   | Expected result                                                                                                                                                         | Actual result                                                                                                                    |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Authorized native research    | Load research and ask-matt explicitly, retain original pool/run/session identities, and submit no implementation workflow.                                              | Passed through controller fixtures and the real native adapter with controlled RPC responses.                                    |
-| Findings and completion       | Publish findings on the exact originating issue, verify App/payload/continuity, publish exact comment/digest confirmation, then enter ResearchComplete without a PR.    | Passed; repeat calls create no second findings record or native admission.                                                       |
-| Interrupted publication       | Reconcile the original findings or confirmation comment after restart, including waiting labels. Absence after uncertain send never permits republishing or completion. | Passed for lost findings acknowledgement, lost confirmation acknowledgement, and temporarily absent exact findings.              |
-| Required skills               | Missing caller-manifest skills, missing resolved research content, and partial actual frozen skills stop before submission.                                             | Passed; restoring a missing prerequisite permits the original selected job, not a substitute workflow.                           |
-| Waiting and decision labels   | Waiting labels and decision-type labels suppress admission even with ready-for-agent.                                                                                   | Passed for needs-info, needs-triage, ready-for-human, blocked, waiting, and wayfinder:grilling.                                  |
-| Real human state              | Publish the unanswered question, checkpoint HumanInputRequired, invoke preloaded ask-matt with a separate durable submission, and accept no worker-generated answer.    | Passed across restart, lost handoff acknowledgement, unknown exact effect, waiting labels, and changed subsequent worker output. |
-| Implementation boundary       | Reject implementation worker substitution, generic PR publication, merge actions, arbitrary replacement prompts, and implementation or fabricated-answer output fields. | Passed. Rejected terminal output remains retained after restart; changed worker output cannot repair authority.                  |
-| Native recovery and cessation | Lost create/submit acknowledgements retain the original run and pool receipt. Cancellation of the handoff targets its distinct exact admission and generation.          | Passed without resending an uncertain native mutation.                                                                           |
-| Output prerequisites          | Empty findings, absent sources, and empty human questions cannot publish or complete.                                                                                   | Passed; no public findings record is emitted.                                                                                    |
+| Requirement                   | Expected result                                                                                                                                                                | Actual result                                                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| Authorized native research    | Load research and ask-matt explicitly, retain original pool/run/session identities, and submit no implementation workflow.                                                     | Passed through controller fixtures and the real native adapter with controlled RPC responses.                                    |
+| Findings and completion       | Publish findings on the exact originating issue, verify App/payload/continuity, publish exact comment/digest confirmation, then enter ResearchComplete without a PR.           | Passed; repeat calls create no second findings record or native admission.                                                       |
+| Interrupted publication       | Reconcile the original findings or confirmation comment after restart, including waiting labels. Absence after uncertain send never permits republishing or completion.        | Passed for lost findings acknowledgement, lost confirmation acknowledgement, and temporarily absent exact findings.              |
+| Required skills               | Missing caller-manifest skills, missing resolved research content, and partial actual frozen skills stop before submission.                                                    | Passed; restoring a missing prerequisite permits the original selected job, not a substitute workflow.                           |
+| Waiting and decision labels   | Waiting labels and decision-type labels suppress admission even with ready-for-agent.                                                                                          | Passed for needs-info, needs-triage, ready-for-human, blocked, waiting, and wayfinder:grilling.                                  |
+| Real human state              | Publish the unanswered question, checkpoint HumanInputRequired, invoke the loaded ask-matt workflow with a separate durable submission, and accept no worker-generated answer. | Passed across restart, lost handoff acknowledgement, unknown exact effect, waiting labels, and changed subsequent worker output. |
+| Implementation boundary       | Reject implementation worker substitution, generic PR publication, merge actions, arbitrary replacement prompts, and implementation or fabricated-answer output fields.        | Passed. Rejected terminal output remains retained after restart; changed worker output cannot repair authority.                  |
+| Native recovery and cessation | Lost create/submit acknowledgements retain the original run and pool receipt. Cancellation of the handoff targets its distinct exact admission and generation.                 | Passed without resending an uncertain native mutation.                                                                           |
+| Output prerequisites          | Empty findings, absent sources, and empty human questions cannot publish or complete.                                                                                          | Passed; no public findings record is emitted.                                                                                    |
 
 The behavioral red runs are retained in `red-admission.log`, `red-findings.log`,
 `red-human-authority.log`, and `red-handoff-identity.log`. They failed before their
@@ -80,6 +80,54 @@ responsibility. Deployed host prerequisites, native capability/frozen-skill proo
 App permissions, real human delivery, and the final readiness activation gate
 remain unresolved runtime prerequisites. No live worker, research fixture,
 GitHub publication, pool recovery, PR, merge, or activation was performed.
+
+### Review corrections for issue #3154
+
+All three review findings have controller-level regression coverage:
+
+- Lost handoff acknowledgement: cancellation after restart adopts the separate
+  handoff admission before selecting its target, without an `execute_worker`
+  call first. Unknown exact effects block cancellation. The first generation of
+  a queued handoff is freshly observed before cancellation, not copied from history.
+- Handoff outcome: each call observes the exact handoff admission and retains a
+  separate delivery outcome. Failed, cancelled, incomplete, missing-result,
+  changed-target, changed-generation, and machine-answer responses stop safely.
+  Reported delivery remains `HumanInputRequired` after restart. It does not prove
+  a human answer, restore readiness, or authorize a PR or merge.
+- Waiting labels: the controller verifies an authenticated label intent before
+  the GitHub mutation. Exact read verification confirms `needs-info` is present and
+  `ready-for-agent` is absent before handoff admission. Type and unrelated labels
+  remain. Lost, partial, failed-before-effect, and failed-readback cases retain
+  the same intent across restart and send no second mutation. The GitHub wire
+  fixture verifies exact label IDs, complete pagination, and Issue fragments on
+  the `Labelable` mutation response.
+
+The alternate configuration passed **57 worker tests**, **46 intake/adapter
+tests**, and **20 pool-wrapper tests** in each of three runs without cached results: **369
+individual executions**, with no failures or ignored tests. The focused package
+build and Bazel-managed Rust formatting passed. Each of the three Clippy reports
+is empty and has explicit exit code `0`. These results do not resolve the
+current-base dependency failure or establish live integration.
+
+Evidence under `/opt/data/cache/scratch/issue-3154`:
+
+- `review-red-cancel.log`, `review-red-delivery.log`, `review-red-labels.log`,
+  `review-red-queued-cancel.log`, `review-red-handoff-contract.log`, and
+  `review-red-label-schema.log` retain behavioral failures before correction.
+  Matching `review-green-*.log` files retain the passing slice results.
+- `review-final-results.json`, `review-testlogs/`, and `review-lint-reports/`
+  retain parsed counts, exact test names, source SHA-256 bindings, and raw reports.
+- `review-final-status.log`, `review-final-test.log`, `review-final-build.log`,
+  `review-final-lint.log`, and `review-final-rust-format.log` retain the alternate
+  gate results. `validate-focused.sh` and `collect-evidence.py` reproduce them.
+- `review-gazelle.log`, `review-final-gazelle.log`, and
+  `review-current-{format,tests,build,lint}.log` retain failed current-base gates.
+  They stop before source analysis because `aspect_rules_js` declares `rules_js`.
+  No dependencies, thresholds, or unrelated source files were changed.
+
+The parent delivery workflow must still complete independent reviews. There was
+no push, live worker admission, issue mutation, PR, merge, or activation in this
+review-correction task. Nix and strict-English verification remain unavailable.
 
 ## Native worker evidence for issue #3153
 
@@ -171,7 +219,7 @@ Parent evidence in the same private root: `parent-gates.json`,
 `parent-full-test.log`, `parent-full-build-retry.log`, `parent-full-lint.log`,
 `baseline-clojure.log`, `parent-review-gazelle-retry.log`,
 `parent-review-format-retry.log`, `parent-review-tests.log`, and
-`parent-focused-lint.log`. The initial formatter retry stopped on Git's
+`parent-focused-lint.log`. The initial formatter retry stopped on the Git
 intent-to-add index state; staging the reviewed new files allowed the unchanged
 whole-tree formatter to pass.
 
@@ -189,7 +237,7 @@ Regression tests failed before correction and now pass:
   Exact post-admission observation now retains the same job/session/admission
   and all other authorization checks without permitting create or submit.
   New admission and PR publication still need execution clearance.
-- Submission readback accepted an execution-generation change. It now preserves
+- Submission read verification accepted an execution-generation change. It now preserves
   a known generation and authority epoch; only queued work without a generation
   can acquire its first generation.
 

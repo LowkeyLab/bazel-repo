@@ -380,6 +380,21 @@ pub struct WorkerRecord {
     /// The separate ask-matt admission remains an active writer until exact cessation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub handoff: Option<Admission>,
+    /// Question delivery is separate from research completion and never records a human answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handoff_delivery: Option<HandoffDelivery>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HandoffDelivery {
+    Pending,
+    Delivered,
+    Failed,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct HandoffResult {
+    pub question_delivered: bool,
+    pub evidence: String,
 }
 impl WorkerRecord {
     /// # Errors

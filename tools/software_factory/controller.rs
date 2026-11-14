@@ -30,6 +30,26 @@ pub trait GitHub {
     ///
     /// Returns an error if the exact comment cannot be read or its target is invalid.
     fn exact_comment(&mut self, issue: &IssueKey, id: &str) -> Result<Comment>;
+    /// # Errors
+    /// Adds needs-info and removes ready-for-agent on this exact issue, preserving other labels.
+    /// An uncertain or partial write must not be repeated without reconciliation.
+    fn pause_for_human(&mut self, _issue: &IssueKey) -> Result<()> {
+        Err(crate::Error::Stop(
+            "GitHub human-pause mutation unavailable".into(),
+        ))
+    }
+    /// # Errors
+    /// Reads complete labels from the exact issue, not worker output or a cached acknowledgement.
+    fn human_pause_confirmed(&mut self, issue: &IssueKey) -> Result<bool> {
+        let snapshot = self.snapshot()?;
+        policy::validate(&snapshot)?;
+        let issue = snapshot
+            .issues
+            .get(issue)
+            .ok_or_else(|| crate::Error::Stop("missing exact human-pause issue".into()))?;
+        Ok(issue.labels.iter().any(|s| s == "needs-info")
+            && !issue.labels.iter().any(|s| s == "ready-for-agent"))
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Observation {
@@ -527,6 +547,15 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
         if action.kind == EffectKind::Notification {
             return Ok(());
         }
+        if action.kind == EffectKind::Label {
+            return require(
+                state.worker.as_ref().is_some_and(|w| {
+                    w.phase == WorkerPhase::HumanInputRequired
+                        && action == &research_pause_action(w)
+                }),
+                "research permits only the exact human-pause label action",
+            );
+        }
         require(
             action.kind == EffectKind::Hermes,
             "research grants no implementation, check, or merge authority",
@@ -640,7 +669,8 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
                 .ok_or_else(|| crate::Error::Stop("cancellation without worker".into()))?;
             let allowed = if worker.phase == crate::worker::WorkerPhase::HumanInputRequired {
                 active.work == crate::model::Work::Research
-                    && action == &research_handoff_action(worker)?
+                    && (action == &research_handoff_action(worker)?
+                        || action == &research_pause_action(worker))
             } else {
                 worker.phase == crate::worker::WorkerPhase::Cancelling
                     && action
@@ -660,8 +690,22 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
         )?;
         state.pending_effect.as_mut().expect("pending").attempted = true;
         self.save(&state)?;
-        self.effects.send(action)?;
+        if Self::is_research_pause(&state, action) {
+            self.github.pause_for_human(&action.issue)?;
+        } else {
+            self.effects.send(action)?;
+        }
         self.finish_effect(&mut state)
+    }
+    fn is_research_pause(state: &State, action: &Action) -> bool {
+        state
+            .active
+            .as_ref()
+            .is_some_and(|a| a.work == crate::model::Work::Research)
+            && state
+                .worker
+                .as_ref()
+                .is_some_and(|w| action == &research_pause_action(w))
     }
     fn finish_effect(&mut self, state: &mut State) -> Result<()> {
         let action = state
@@ -693,7 +737,20 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
             state.pending_effect = None;
             return self.save(state);
         }
-        match self.effects.inspect_exact(&action)? {
+        let observation = if Self::is_research_pause(state, &action) {
+            if self.github.human_pause_confirmed(&action.issue)? {
+                Observation::Confirmed {
+                    action: action.clone(),
+                    evidence: "exact issue labels: needs-info present; ready-for-agent absent"
+                        .into(),
+                }
+            } else {
+                Observation::Unknown
+            }
+        } else {
+            self.effects.inspect_exact(&action)?
+        };
+        match observation {
             Observation::Confirmed {
                 action: found,
                 evidence,
@@ -741,6 +798,15 @@ impl<G: GitHub, E: Effects> Controller<G, E> {
     }
 }
 
+fn research_pause_action(worker: &crate::worker::WorkerRecord) -> Action {
+    Action {
+        id: worker.plan.run.clone(),
+        issue: worker.plan.issue.clone(),
+        kind: crate::model::EffectKind::Label,
+        target: format!("{}:human-input-labels", worker.plan.issue.as_str()),
+        payload: r#"{"add":["needs-info"],"remove":["ready-for-agent"]}"#.into(),
+    }
+}
 fn research_handoff_action(worker: &crate::worker::WorkerRecord) -> Result<Action> {
     let result = worker
         .admission
@@ -754,7 +820,7 @@ fn research_handoff_action(worker: &crate::worker::WorkerRecord) -> Result<Actio
     crate::worker::WorkerCommand::Submit {
         session_id: worker.identity()?.session_id,
         submission_id: worker.plan.publication.clone(),
-        text: format!("Use the explicitly preloaded ask-matt skill for the originating issue {}. The human question remains unanswered: {}. Route the existing workflow to the real human. Do not supply, infer, or accept an agent-generated human answer. Do not implement, publish a PR, merge, or restore readiness. Keep needs-info until actual human input and maintainer reassessment. This is a handoff only, not another research run.", worker.plan.issue.as_str(), question),
+        text: format!("Use the explicitly preloaded ask-matt skill for the originating issue {}. The human question remains unanswered: {}. Route the existing workflow to the real human. Do not supply, infer, or accept an agent-generated human answer. Do not implement, publish a PR, merge, or restore readiness. Keep needs-info until actual human input and maintainer reassessment. Return only a JSON object with question_delivered (true only after the question is routed) and evidence (the nonempty delivery reference). Report false if delivery is unfinished. Do not include a human answer. This is a handoff only, not another research run.", worker.plan.issue.as_str(), question),
     }.action(&worker.plan.publication, &worker.plan.issue)
 }
 
@@ -853,6 +919,16 @@ impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
         if worker.phase == WorkerPhase::Stopped {
             return Ok(worker);
         }
+        if worker.phase == WorkerPhase::HumanInputRequired {
+            self.reconcile_research_handoff(&mut worker)?;
+            let identity = worker.identity()?;
+            let current = self.effects.observe(&identity)?;
+            current.validate(&identity)?;
+            if worker.handoff.as_ref() != Some(&current) {
+                worker.handoff = Some(current);
+                self.checkpoint_worker(worker.clone())?;
+            }
+        }
         let identity = worker.identity()?;
         if worker.phase != WorkerPhase::Cancelling {
             worker.phase = WorkerPhase::Cancelling;
@@ -928,37 +1004,84 @@ impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
                 worker.stop_reason = Some("human question unanswered; ask-matt handoff cannot supply an answer or authorize implementation".into());
                 self.checkpoint_worker(worker.clone())?;
             }
+            self.perform_checked(&research_pause_action(&worker), false)?;
+            require(
+                self.github.human_pause_confirmed(&worker.plan.issue)?,
+                "human-pause labels changed; retain stop before handoff",
+            )?;
             let action = research_handoff_action(&worker)?;
             self.perform_checked(&action, false)?;
-            let admitted: crate::worker::Admission = self.worker_outcome(&action)?;
-            require(
-                admitted.session_id == worker.identity()?.session_id
-                    && admitted.profile == worker.plan.request.profile
-                    && matches!(admitted.status.as_str(), "queued" | "started" | "terminal"),
-                "ask-matt handoff admission does not match the exact research session",
-            )?;
-            require(
-                !admitted.admission_id.is_empty()
-                    && worker
-                        .admission
-                        .as_ref()
-                        .is_some_and(|a| a.admission_id != admitted.admission_id)
-                    && (admitted.status == "queued" || admitted.execution_generation.is_some()),
-                "ask-matt must retain a distinct exact native admission",
-            )?;
-            if worker.handoff.as_ref() != Some(&admitted) {
-                require(
-                    worker.handoff.is_none(),
-                    "ask-matt admission changed after readback",
-                )?;
-                worker.handoff = Some(admitted);
-                self.checkpoint_worker(worker.clone())?;
-            }
+            self.reconcile_research_handoff(&mut worker)?;
+            self.observe_research_handoff(&mut worker)?;
         } else if worker.phase != WorkerPhase::ResearchComplete {
             worker.phase = WorkerPhase::ResearchComplete;
             self.checkpoint_worker(worker.clone())?;
         }
         Ok(worker)
+    }
+    fn reconcile_research_handoff(
+        &mut self,
+        worker: &mut crate::worker::WorkerRecord,
+    ) -> Result<()> {
+        if worker.handoff.is_some() {
+            return Ok(());
+        }
+        let action = research_handoff_action(worker)?;
+        let admitted: crate::worker::Admission = self.worker_outcome(&action)?;
+        require(
+            admitted.session_id == worker.identity()?.session_id
+                && admitted.profile == worker.plan.request.profile
+                && matches!(admitted.status.as_str(), "queued" | "started" | "terminal"),
+            "ask-matt handoff admission does not match the exact research session",
+        )?;
+        require(
+            !admitted.admission_id.is_empty()
+                && worker
+                    .admission
+                    .as_ref()
+                    .is_some_and(|a| a.admission_id != admitted.admission_id)
+                && (admitted.status == "queued" || admitted.execution_generation.is_some()),
+            "ask-matt must retain a distinct exact native admission",
+        )?;
+        worker.handoff = Some(admitted);
+        self.checkpoint_worker(worker.clone())
+    }
+    fn observe_research_handoff(&mut self, worker: &mut crate::worker::WorkerRecord) -> Result<()> {
+        use crate::worker::{HandoffDelivery, HandoffResult};
+        let identity = worker.identity()?;
+        let observed = self.effects.observe(&identity)?;
+        observed.validate(&identity)?;
+        let delivery = if observed.status == "terminal" {
+            let delivered = observed.outcome.as_deref() == Some("completed")
+                && observed.result.as_ref().is_some_and(|value| {
+                    let parsed = value
+                        .get("final_response")
+                        .and_then(serde_json::Value::as_str)
+                        .map_or_else(
+                            || serde_json::from_value::<HandoffResult>(value.clone()),
+                            serde_json::from_str,
+                        );
+                    parsed.is_ok_and(|r| r.question_delivered && !r.evidence.trim().is_empty())
+                });
+            if delivered {
+                HandoffDelivery::Delivered
+            } else {
+                HandoffDelivery::Failed
+            }
+        } else {
+            HandoffDelivery::Pending
+        };
+        if worker.handoff.as_ref() != Some(&observed)
+            || worker.handoff_delivery.as_ref() != Some(&delivery)
+        {
+            worker.handoff = Some(observed);
+            worker.handoff_delivery = Some(delivery.clone());
+            self.checkpoint_worker(worker.clone())?;
+        }
+        require(
+            delivery != HandoffDelivery::Failed,
+            "ask-matt question delivery failed or unfinished; retain human-input stop",
+        )
     }
     fn checkpoint_worker(&mut self, worker: crate::worker::WorkerRecord) -> Result<()> {
         let mut state = self.load()?;
@@ -1218,6 +1341,7 @@ impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
                 cessation: None,
                 publication: None,
                 handoff: None,
+                handoff_delivery: None,
             };
             self.checkpoint_worker(worker.clone())?;
             worker

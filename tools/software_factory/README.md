@@ -175,7 +175,7 @@ acquires, releases, recovers, expands capacity, or substitutes a checkout.
 Retained post-admission observation reads the authenticated exact session and
 admission even while execution inventory reports that issue occupied. It retains
 all other authorization checks and cannot send create or submit. New admission
-and PR publication still require execution clearance. Submission readback preserves
+and PR publication still require execution clearance. Submission read verification preserves
 an acknowledged execution generation and authority epoch; only a queued admission
 without a generation can acquire its first generation.
 
@@ -235,7 +235,7 @@ contract. The inspected native source includes `gateway/session_controls.py`,
 `gateway/session_policy.py`, and the canonical admission and session contracts.
 These sources establish protocol shapes, not deployed host compatibility.
 
-## AFK research workflow
+## Research workflow
 
 `wayfinder:research` authorizes research only. The same selection, complete native
 reads, ownership, authenticated history, protected receipts, original pool capture,
@@ -274,19 +274,42 @@ Research completion is not a PR, merge, pool release, or activation decision.
 The receipt and issue slot remain retained under the existing stopped-job policy;
 this library does not add a release or replacement API.
 
-A non-null `human_question` remains unanswered. Findings publication and the
-`HumanInputRequired` stop precede a separate authenticated submission to the
-explicitly loaded `ask-matt` workflow in the retained native conversation. The
-original reserved publication action identity binds that handoff rather than a
-PR. Its separate admission and generation are retained for exact cancellation.
+A non-null `human_question` remains unanswered. After findings publication and the
+`HumanInputRequired` checkpoint, the controller records a separate authenticated
+label intent. The GitHub adapter adds `needs-info` and removes `ready-for-agent`
+on the exact originating issue. It preserves type and unrelated labels. Complete
+label read verification must confirm both conditions before the separate `ask-matt`
+submission. Partial writes, lost acknowledgements, and failed read verification retain the
+original action and stop dependent work. Recovery reads the exact issue; it never
+repeats an uncertain label mutation. Changed labels after a confirmed pause stop
+the handoff rather than granting another mutation or restoring readiness.
+
+The original reserved publication action identity binds the explicitly loaded
+`ask-matt` handoff rather than a PR. Its separate admission and generation are
+retained for exact cancellation. Cancellation first reconciles a handoff outcome
+that was not checkpointed, then reads its current exact admission. Queued work
+can acquire its first generation; known generations cannot change. Cancellation
+retries retain the original cancellation payload and still require separate
+cessation and effect-reconciliation evidence.
+
+Every handoff observation reads its exact admission again. `handoff_delivery`
+records `Pending`, `Delivered`, or `Failed` separately from research completion.
+`Delivered` requires native completion and a strict result with
+`question_delivered: true` and a nonempty `evidence` reference. This is the
+workflow's delivery report, not independent proof of real human delivery or an
+answer. A failed/cancelled turn, false delivery report, missing result, or
+machine-answer field cannot establish delivery. Failure retains the human-input
+stop and does not grant another submission. Even reported delivery retains
+`HumanInputRequired` and the waiting labels across restart.
 The controller accepts no agent response as human input and provides no automatic
 readiness-restoration or implementation-conversion API. Native admission confirms
 the handoff submission, not that a human answered or that a downstream alert arrived.
 
 The common mutation seam rejects research PR publication, review checks, hosted
 reviews, merge, and arbitrary replacement prompts. It permits only the exact
-bound native creation, research submission, unanswered handoff, cancellation,
-and the existing notification interface. The trusted native host must preserve
+bound native creation, research submission, exact human-pause label action,
+unanswered handoff, cancellation, and the existing notification interface.
+The trusted native host must preserve
 worker credential isolation and authorize only these effects. A prompt is not a
 substitute for those host prerequisites.
 
@@ -297,7 +320,7 @@ Owner: the Software Factory operator; a maintainer controls authority changes.
 | Condition                                        | Required evidence and stop                                                                                                                                    | Resumption                                                                                                                                      |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Missing research skill or host prerequisite      | Retain the selected issue. Send no native mutation.                                                                                                           | Resolve and verify the complete trusted manifest and existing native prerequisites.                                                             |
-| Interrupted findings or confirmation publication | Retain the original protected pending record and terminal result. No completion without exact readback.                                                       | Adopt only the exact authenticated comment and finish only unpublished confirmation/checkpoint work. Remote absence never permits another send. |
+| Interrupted findings or confirmation publication | Retain the original protected pending record and terminal result. No completion without exact read verification.                                              | Adopt only the exact authenticated comment and finish only unpublished confirmation/checkpoint work. Remote absence never permits another send. |
 | Interrupted human handoff                        | Retain the unanswered question, original submission action, and exact admission when known. Keep the slot occupied.                                           | Reconcile the original action. Reporting/handoff recovery may finish with waiting labels present; it cannot admit another research run.         |
 | Actual human decision needed                     | Preserve `HumanInputRequired`; use the loaded `ask-matt` workflow and existing `needs-info` policy. Worker output and readiness labels are not human answers. | A real human supplies the answer, and the maintainer follows the existing reassessment policy. This slice grants no automatic re-entry.         |
 | Research complete                                | Retain verified findings, publication confirmation, native result, pool receipt, and ownership evidence.                                                      | Apply the existing stopped-job policy; do not infer pool release or implementation authority.                                                   |

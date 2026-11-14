@@ -68,8 +68,51 @@ struct History(
     Rc<RefCell<Vec<Comment>>>,
     Rc<RefCell<Option<Snapshot>>>,
     Rc<RefCell<Option<String>>>,
+    Rc<RefCell<LabelState>>,
 );
+#[derive(Default)]
+struct LabelState {
+    fault: String,
+    sends: usize,
+}
 impl GitHub for History {
+    fn pause_for_human(&mut self, issue: &IssueKey) -> Result<()> {
+        if !self
+            .0
+            .borrow()
+            .iter()
+            .any(|c| c.issue == *issue && c.body.contains("human-input-labels"))
+        {
+            return Err(Error::Stop("label mutation without intent".into()));
+        }
+        self.3.borrow_mut().sends += 1;
+        let fault = self.3.borrow().fault.clone();
+        if fault == "fail-before" {
+            return Err(Error::Stop("label write failed".into()));
+        }
+        let mut snapshot = self.snapshot()?;
+        let labels = &mut snapshot.issues.get_mut(issue).unwrap().labels;
+        if fault != "partial" {
+            labels.retain(|s| s != "ready-for-agent");
+        }
+        if !labels.iter().any(|s| s == "needs-info") {
+            labels.push("needs-info".into());
+        }
+        *self.1.borrow_mut() = Some(snapshot);
+        if ["partial", "lost"].contains(&fault.as_str()) {
+            return Err(Error::Stop("label acknowledgement lost".into()));
+        }
+        Ok(())
+    }
+    fn human_pause_confirmed(&mut self, issue: &IssueKey) -> Result<bool> {
+        if self.3.borrow().fault == "readback-fail" {
+            return Err(Error::Stop("label readback failed".into()));
+        }
+        let snapshot = self.snapshot()?;
+        let labels = &snapshot.issues[issue].labels;
+        Ok(labels.iter().any(|s| s == "needs-info")
+            && !labels.iter().any(|s| s == "ready-for-agent"))
+    }
     fn snapshot(&mut self) -> Result<Snapshot> {
         if let Some(snapshot) = self.1.borrow().as_ref() {
             return Ok(snapshot.clone());
@@ -157,6 +200,7 @@ struct RuntimeState {
     review_failed: bool,
     terminal: bool,
     research_result: Option<serde_json::Value>,
+    handoff_observation: Option<Admission>,
     stopped: bool,
     reconciled: bool,
 }
@@ -176,6 +220,7 @@ impl Runtime {
                 review_failed: false,
                 terminal: false,
                 research_result: None,
+                handoff_observation: None,
                 stopped: false,
                 reconciled: false,
             })),
@@ -194,6 +239,11 @@ impl Effects for Runtime {
             .any(|c| c.body.contains(a.id.as_str()))
         {
             return Err(Error::Stop("send without authenticated intent".into()));
+        }
+        if matches!(serde_json::from_str::<WorkerCommand>(&a.payload)?, WorkerCommand::Submit {text, ..} if text.contains("explicitly preloaded ask-matt"))
+            && !self.1.human_pause_confirmed(&a.issue)?
+        {
+            return Err(Error::Stop("handoff before verified waiting labels".into()));
         }
         let mut state = self.0.borrow_mut();
         state.sent.push(a.clone());
@@ -235,7 +285,7 @@ impl Effects for Runtime {
                 let mut handoff = admission("started");
                 handoff.admission_id = "handoff-1".into();
                 handoff.execution_generation = Some(5);
-                serde_json::to_string(&handoff)?
+                serde_json::to_string(state.handoff_observation.as_ref().unwrap_or(&handoff))?
             }
             WorkerCommand::Submit { .. } | WorkerCommand::Cancel { .. } => {
                 serde_json::to_string(&admission("started"))?
@@ -310,6 +360,14 @@ impl WorkerRuntime for Runtime {
     fn observe(&mut self, worker: &WorkerIdentity) -> Result<Admission> {
         self.0.borrow_mut().observed.push(worker.clone());
         let state = self.0.borrow();
+        if worker.admission_id == "handoff-1" {
+            return Ok(state.handoff_observation.clone().unwrap_or_else(|| {
+                let mut result = admission("started");
+                result.admission_id = "handoff-1".into();
+                result.execution_generation = Some(5);
+                result
+            }));
+        }
         let mut result = admission(if state.terminal {
             "terminal"
         } else {

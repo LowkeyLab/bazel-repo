@@ -392,3 +392,283 @@ fn research_uses_native_admission_without_implementation_authority() {
     expect_that!(c.execute_worker(request()).is_err(), eq(true));
     expect_that!(runtime.0.borrow().sent.len(), eq(2));
 }
+
+#[gtest]
+fn lost_handoff_ack_restart_cancellation_targets_handoff_without_execute() {
+    let (dir, mut c, history, runtime) = research_setup();
+    c.execute_worker(research_request()).unwrap();
+    let mut result = findings();
+    result["human_question"] = json!("Which authority?");
+    runtime.0.borrow_mut().terminal = true;
+    runtime.0.borrow_mut().research_result = Some(result);
+    runtime.0.borrow_mut().lose_at = Some(3);
+    expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+    let (store, _, _) = c.into_parts();
+    drop(store);
+    let store = Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+    let mut c = Controller::new(store, history, runtime.clone(), "controller".into()).unwrap();
+    runtime.0.borrow_mut().absent = true;
+    expect_that!(c.cancel_worker("operator stop".into()).is_err(), eq(true));
+    expect_that!(runtime.0.borrow().sent.len(), eq(3));
+    runtime.0.borrow_mut().absent = false;
+    let cancelled = c.cancel_worker("operator stop".into()).unwrap();
+    expect_that!(
+        cancelled.identity().unwrap().admission_id.as_str(),
+        eq("handoff-1")
+    );
+    let last = runtime.0.borrow().sent.last().unwrap().clone();
+    let WorkerCommand::Cancel { worker } = serde_json::from_str(&last.payload).unwrap() else {
+        panic!("expected cancellation")
+    };
+    expect_that!(worker.admission_id.as_str(), eq("handoff-1"));
+    expect_that!(worker.execution_generation, eq(Some(5)));
+}
+
+#[gtest]
+fn human_question_sets_waiting_labels_before_handoff_and_preserves_other_labels() {
+    let (_dir, mut c, mut history, runtime) = research_setup();
+    let mut snapshot = history.snapshot().unwrap();
+    snapshot
+        .issues
+        .get_mut(&issue_key())
+        .unwrap()
+        .labels
+        .extend(["ready-for-agent".into(), "area:factory".into()]);
+    *history.1.borrow_mut() = Some(snapshot);
+    c.execute_worker(research_request()).unwrap();
+    let mut result = findings();
+    result["human_question"] = json!("Who approves?");
+    runtime.0.borrow_mut().terminal = true;
+    runtime.0.borrow_mut().research_result = Some(result);
+    c.execute_worker(research_request()).unwrap();
+    let labels = history.snapshot().unwrap().issues[&issue_key()]
+        .labels
+        .clone();
+    expect_that!(labels.contains(&"needs-info".into()), eq(true));
+    expect_that!(labels.contains(&"ready-for-agent".into()), eq(false));
+    expect_that!(labels.contains(&"wayfinder:research".into()), eq(true));
+    expect_that!(labels.contains(&"area:factory".into()), eq(true));
+}
+
+#[gtest]
+fn cancellation_refreshes_queued_handoff_generation_after_restart() {
+    let (dir, mut c, history, runtime) = research_setup();
+    c.execute_worker(research_request()).unwrap();
+    let mut result = findings();
+    result["human_question"] = json!("Which option?");
+    runtime.0.borrow_mut().terminal = true;
+    runtime.0.borrow_mut().research_result = Some(result);
+    let mut queued = super::admission("queued");
+    queued.admission_id = "handoff-1".into();
+    queued.execution_generation = None;
+    runtime.0.borrow_mut().handoff_observation = Some(queued.clone());
+    let waiting = c.execute_worker(research_request()).unwrap();
+    expect_that!(waiting.handoff, eq(&Some(queued.clone())));
+    let (store, _, _) = c.into_parts();
+    drop(store);
+    queued.status = "started".into();
+    queued.execution_generation = Some(5);
+    runtime.0.borrow_mut().handoff_observation = Some(queued);
+    let store = Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+    let mut c = Controller::new(store, history, runtime.clone(), "controller".into()).unwrap();
+    let cancelled = c.cancel_worker("operator stop".into()).unwrap();
+    expect_that!(
+        cancelled.identity().unwrap().execution_generation,
+        eq(Some(5))
+    );
+    let WorkerCommand::Cancel { worker } =
+        serde_json::from_str(&runtime.0.borrow().sent.last().unwrap().payload).unwrap()
+    else {
+        panic!("cancellation expected")
+    };
+    expect_that!(worker.execution_generation, eq(Some(5)));
+}
+
+#[gtest]
+fn uncertain_pause_mutation_recovers_only_by_exact_labels_without_resend() {
+    for fault in ["lost", "partial", "readback-fail", "fail-before"] {
+        let (dir, mut c, mut history, runtime) = research_setup();
+        c.execute_worker(research_request()).unwrap();
+        let mut snapshot = history.snapshot().unwrap();
+        snapshot
+            .issues
+            .get_mut(&issue_key())
+            .unwrap()
+            .labels
+            .push("ready-for-agent".into());
+        *history.1.borrow_mut() = Some(snapshot);
+        let mut result = findings();
+        result["human_question"] = json!("Which option?");
+        runtime.0.borrow_mut().terminal = true;
+        runtime.0.borrow_mut().research_result = Some(result);
+        history.3.borrow_mut().fault = fault.into();
+        expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+        expect_that!(runtime.0.borrow().sent.len(), eq(2));
+        let (store, _, _) = c.into_parts();
+        let action = store.load().unwrap().pending_effect.unwrap().action;
+        drop(store);
+        let store =
+            Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+        let mut c =
+            Controller::new(store, history.clone(), runtime.clone(), "controller".into()).unwrap();
+        if ["partial", "fail-before", "readback-fail"].contains(&fault) {
+            expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+            expect_that!(runtime.0.borrow().sent.len(), eq(2));
+        }
+        history.3.borrow_mut().fault.clear();
+        // A maintainer resolves partial/absent effects on the original exact target.
+        let mut snapshot = history.snapshot().unwrap();
+        let labels = &mut snapshot.issues.get_mut(&issue_key()).unwrap().labels;
+        labels.retain(|s| s != "ready-for-agent");
+        if !labels.contains(&"needs-info".into()) {
+            labels.push("needs-info".into());
+        }
+        *history.1.borrow_mut() = Some(snapshot);
+        let waiting = c.execute_worker(research_request()).unwrap();
+        expect_that!(waiting.phase, eq(&WorkerPhase::HumanInputRequired));
+        expect_that!(history.3.borrow().sends, eq(1));
+        expect_that!(runtime.0.borrow().sent.len(), eq(3));
+        expect_that!(
+            history
+                .0
+                .borrow()
+                .iter()
+                .filter(|c| c.body.contains("Intent") && c.body.contains(action.id.as_str()))
+                .count(),
+            eq(1)
+        );
+    }
+}
+
+#[gtest]
+fn completed_handoff_reports_delivery_but_never_answers_or_restores_readiness() {
+    let (dir, mut c, history, runtime) = research_setup();
+    c.execute_worker(research_request()).unwrap();
+    let mut result = findings();
+    result["human_question"] = json!("Which option?");
+    runtime.0.borrow_mut().terminal = true;
+    runtime.0.borrow_mut().research_result = Some(result);
+    let waiting = c.execute_worker(research_request()).unwrap();
+    expect_that!(
+        waiting.handoff_delivery,
+        eq(&Some(software_factory::worker::HandoffDelivery::Pending))
+    );
+    let WorkerCommand::Submit { text, .. } =
+        serde_json::from_str(&runtime.0.borrow().sent[2].payload).unwrap()
+    else {
+        panic!("handoff expected")
+    };
+    expect_that!(text.contains("question_delivered"), eq(true));
+    let mut terminal = waiting.handoff.unwrap();
+    terminal.status = "terminal".into();
+    terminal.outcome = Some("completed".into());
+    terminal.result = Some(
+        json!({"final_response":"{\"question_delivered\":true,\"evidence\":\"originating issue question comment\"}"}),
+    );
+    runtime.0.borrow_mut().handoff_observation = Some(terminal);
+    let delivered = c.execute_worker(research_request()).unwrap();
+    expect_that!(
+        delivered.handoff_delivery,
+        eq(&Some(software_factory::worker::HandoffDelivery::Delivered))
+    );
+    expect_that!(delivered.phase, eq(&WorkerPhase::HumanInputRequired));
+    let (store, _, _) = c.into_parts();
+    drop(store);
+    let store = Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+    let mut c = Controller::new(store, history, runtime.clone(), "controller".into()).unwrap();
+    expect_that!(
+        c.execute_worker(research_request()).unwrap(),
+        eq(&delivered)
+    );
+    expect_that!(c.prepare_admission().is_err(), eq(true));
+    expect_that!(runtime.0.borrow().sent.len(), eq(3));
+}
+
+#[gtest]
+fn incomplete_handoff_results_and_changed_targets_stop_without_replay() {
+    for fault in [
+        "missing-result",
+        "unfinished",
+        "empty-evidence",
+        "machine-answer",
+        "wrong-target",
+        "wrong-generation",
+    ] {
+        let (_dir, mut c, _, runtime) = research_setup();
+        c.execute_worker(research_request()).unwrap();
+        let mut findings = findings();
+        findings["human_question"] = json!("Which option?");
+        runtime.0.borrow_mut().terminal = true;
+        runtime.0.borrow_mut().research_result = Some(findings);
+        let waiting = c.execute_worker(research_request()).unwrap();
+        let mut result = waiting.handoff.unwrap();
+        result.status = "terminal".into();
+        result.outcome = Some("completed".into());
+        result.result = Some(json!({"question_delivered":true,"evidence":"question reference"}));
+        match fault {
+            "missing-result" => result.result = None,
+            "unfinished" => {
+                result.result = Some(json!({"question_delivered":false,"evidence":"not sent"}));
+            }
+            "empty-evidence" => {
+                result.result = Some(json!({"question_delivered":true,"evidence":" "}));
+            }
+            "machine-answer" => {
+                result.result = Some(
+                    json!({"question_delivered":true,"evidence":"ref","human_answer":"approved"}),
+                );
+            }
+            "wrong-target" => result.admission_id = "other-admission".into(),
+            "wrong-generation" => result.execution_generation = Some(6),
+            _ => unreachable!(),
+        }
+        runtime.0.borrow_mut().handoff_observation = Some(result.clone());
+        expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+        expect_that!(c.prepare_admission().is_err(), eq(true));
+        expect_that!(runtime.0.borrow().sent.len(), eq(3));
+        result.admission_id = "handoff-1".into();
+        result.execution_generation = Some(5);
+        result.result = Some(json!({"question_delivered":true,"evidence":"question reference"}));
+        runtime.0.borrow_mut().handoff_observation = Some(result);
+        let recovered = c.execute_worker(research_request()).unwrap();
+        expect_that!(recovered.phase, eq(&WorkerPhase::HumanInputRequired));
+        expect_that!(
+            recovered.handoff_delivery,
+            eq(&Some(software_factory::worker::HandoffDelivery::Delivered))
+        );
+        expect_that!(runtime.0.borrow().sent.len(), eq(3));
+    }
+}
+
+#[gtest]
+fn handoff_is_observed_fresh_and_failed_delivery_never_becomes_success() {
+    for outcome in ["failed", "cancelled", "completed"] {
+        let (dir, mut c, history, runtime) = research_setup();
+        c.execute_worker(research_request()).unwrap();
+        let mut result = findings();
+        result["human_question"] = json!("Which option?");
+        runtime.0.borrow_mut().terminal = true;
+        runtime.0.borrow_mut().research_result = Some(result);
+        let waiting = c.execute_worker(research_request()).unwrap();
+        let mut terminal = waiting.handoff.clone().unwrap();
+        terminal.status = "terminal".into();
+        terminal.outcome = Some(outcome.into());
+        terminal.result = Some(json!({"human_answer":"machine approval"}));
+        runtime.0.borrow_mut().handoff_observation = Some(terminal.clone());
+        let (store, _, _) = c.into_parts();
+        drop(store);
+        let store =
+            Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+        let mut c = Controller::new(store, history, runtime.clone(), "controller".into()).unwrap();
+        expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+        let (store, _, _) = c.into_parts();
+        let retained = store.load().unwrap().worker.unwrap();
+        expect_that!(retained.handoff, eq(&Some(terminal)));
+        expect_that!(retained.phase, eq(&WorkerPhase::HumanInputRequired));
+        expect_that!(
+            runtime.0.borrow().observed.last(),
+            eq(Some(&waiting.identity().unwrap()))
+        );
+        expect_that!(runtime.0.borrow().sent.len(), eq(3));
+    }
+}
