@@ -24,15 +24,12 @@ fn repeated_read_only_inputs_produce_the_declared_asset() -> anyhow::Result<()> 
     permissions.set_readonly(true);
     fs::set_permissions(&source, permissions)?;
     let options = AssetOptions::NONE;
-    let binary = RawAsset::encode(
-        AssetId::new("fixture", "lib.rs", "asset.txt", &options),
+    let binary = RawAsset::encode_vec(
+        AssetId::new("fixture", "asset.txt", &options),
         "asset.txt",
-        "fixture",
-        "",
-        "lib.rs",
         &options,
     );
-    fs::write(root.join("binary"), binary)?;
+    fs::write(root.join("binary"), &binary)?;
     fs::write(
         root.join("inputs.json"),
         br#"[{"path":"asset.txt","relative":"asset.txt"}]"#,

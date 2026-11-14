@@ -4581,26 +4581,6 @@
           "importpath": "golang.org/x/xerrors",
           "sum": "h1:noIWHXmPHxILtqtCOPIhSt0ABwskkZKjD3bXGnZGpNY=",
           "version": "v0.0.0-20240903120638-7835f813f4da"
-        },
-        {
-          "importpath": "github.com/go-logr/logr",
-          "sum": "h1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=",
-          "version": "v1.4.4"
-        },
-        {
-          "importpath": "go.opentelemetry.io/otel",
-          "sum": "h1:j7ALJ/zgkS7Z6aeJW09p8VC9804bC+PpeTfCD4XPnOM=",
-          "version": "v1.47.0"
-        },
-        {
-          "importpath": "go.opentelemetry.io/otel/metric",
-          "sum": "h1:4PptaldXx3Eat1XjMZ68pPJEs5wrhlemctZE9a3UdWY=",
-          "version": "v1.47.0"
-        },
-        {
-          "importpath": "go.opentelemetry.io/otel/trace",
-          "sum": "h1:JOjX/Oci8K94QHddo+bbfya/Ai/nf6/dt9ZfrFNWSrM=",
-          "version": "v1.47.0"
         }
       ],
       "required_mod_files_v1": [
@@ -5032,7 +5012,7 @@
         {
           "importpath": "github.com/go-logr/logr",
           "sha256": "c496f30d700f02b49a1b50bc2486a27c2f74df3dce75d9db6d2d43975b381727",
-          "version": "v1.4.3"
+          "version": "v1.4.4"
         },
         {
           "importpath": "github.com/go-logr/stdr",
@@ -5451,13 +5431,18 @@
         },
         {
           "importpath": "go.opentelemetry.io/otel",
-          "sha256": "f466441934839f12a009415b4c16a77d221e1aa5d767f878e2af5888f1ad839f",
-          "version": "v1.44.0"
+          "sha256": "11a2e49dee71689b665e29148de1ad870d35a9c5e39c490f61ff98e9988ed616",
+          "version": "v1.47.0"
+        },
+        {
+          "importpath": "go.opentelemetry.io/otel/log",
+          "sha256": "5b5184d8361c106394eff6abc967f4933721f040867a2a07c406788ca391d724",
+          "version": "v1.47.0"
         },
         {
           "importpath": "go.opentelemetry.io/otel/metric",
-          "sha256": "328a1fe2bc702b8c26765f18a9a26fc08748283bdbba26d538d4037b0fcb6afb",
-          "version": "v1.44.0"
+          "sha256": "95052b27898fbc50440e3fdf2a60a822063b396ddf65f6c12af4e8c3979d7280",
+          "version": "v1.47.0"
         },
         {
           "importpath": "go.opentelemetry.io/otel/trace",
