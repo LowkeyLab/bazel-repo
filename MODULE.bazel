@@ -9,7 +9,7 @@ module(
 # Keep immutable commits so builds remain reproducible.
 # Keep bazel-lib releases for their prebuilt helpers: source-built Go helpers
 # create a bootstrap cycle with the LLVM toolchain.
-bazel_dep(name = "bazel_lib", version = "3.7.2")
+bazel_dep(name = "bazel_lib", version = "3.8.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 
 # Expose the existing C toolchain rules for a test-only fsync fault fixture.
