@@ -1,7 +1,7 @@
 diff --git a/lint/ty.bzl b/lint/ty.bzl
 --- a/lint/ty.bzl
 +++ b/lint/ty.bzl
-@@ -15,6 +15,7 @@
+@@ -15,6 +15,7 @@ ty = lint_ty_aspect(
  ```
  """
  
@@ -9,7 +9,7 @@ diff --git a/lint/ty.bzl b/lint/ty.bzl
  load("@rules_python//python:defs.bzl", "PyInfo")
  load("//lint/private:lint_aspect.bzl", "LintOptionsInfo", "OPTIONAL_SARIF_PARSER_TOOLCHAIN", "OUTFILE_FORMAT", "filter_srcs", "noop_lint_action", "output_files", "parse_to_sarif_action", "should_visit")
  
-@@ -185,6 +203,13 @@
+@@ -185,6 +186,13 @@ def _ty_aspect_impl(target, ctx):
          ctx.bin_dir.path: True,
      }
  
@@ -23,7 +23,7 @@ diff --git a/lint/ty.bzl b/lint/ty.bzl
      # Collect from deps, pyi_deps, and srcs attributes using PyInfo:
      # - pyi_deps provides type stub dependencies for rules_python targets.
      # - When srcs contain labels to other targets (e.g., genrules that produce .py files),
-@@ -205,6 +230,11 @@
+@@ -210,6 +218,11 @@ def _ty_aspect_impl(target, ctx):
                          import_paths[dep.label.workspace_root] = True
                          import_paths[ctx.bin_dir.path + "/" + dep.label.workspace_root] = True
  
@@ -35,7 +35,7 @@ diff --git a/lint/ty.bzl b/lint/ty.bzl
      files_to_lint = filter_srcs(ctx.rule)
      outputs, info = output_files(_MNEMONIC, target, ctx)
  
-@@ -217,10 +247,10 @@
+@@ -222,10 +235,10 @@ def _ty_aspect_impl(target, ctx):
      # Pass transitive sources to ty_action so ty can resolve imports from dependencies
      transitive_srcs_depset = depset(transitive = transitive_sources)
      extra_search_paths = import_paths.keys()
@@ -48,7 +48,7 @@ diff --git a/lint/ty.bzl b/lint/ty.bzl
  
      # Ideally we'd just use {"TY_OUTPUT_FORMAT": "sarif"} however it prints absolute paths; see https://github.com/astral-sh/ruff/issues/14985
      # This issue should also be resolved when the issue from ruff is fixed.
-@@ -249,6 +279,10 @@
+@@ -254,6 +267,10 @@ def lint_ty_aspect(binary, config, rule_kinds = ["py_binary", "py_library", "py_
                  default = "//lint:options",
                  providers = [LintOptionsInfo],
              ),
@@ -62,7 +62,7 @@ diff --git a/lint/ty.bzl b/lint/ty.bzl
 diff --git a/tools/sarif/sarif.go b/tools/sarif/sarif.go
 --- a/tools/sarif/sarif.go
 +++ b/tools/sarif/sarif.go
-@@ -145,6 +145,7 @@
+@@ -147,6 +147,7 @@ func ToSarifJsonString(label string, mnemonic string, report string) (sarifJsonS
  	case "AspectRulesLintTy":
  		fm = []string{
  			`%Eerror%m`,
@@ -73,15 +73,15 @@ diff --git a/tools/sarif/sarif.go b/tools/sarif/sarif.go
 diff --git a/lint/ruff.bzl b/lint/ruff.bzl
 --- a/lint/ruff.bzl
 +++ b/lint/ruff.bzl
-@@ -45,6 +45,7 @@
+@@ -45,6 +45,7 @@ ruff = lint_ruff_aspect(
  ```
  """
  
 +load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
+ load("@rules_python//python:defs.bzl", "PyInfo")
  load("//lint/private:lint_aspect.bzl", "LintOptionsInfo", "OPTIONAL_SARIF_PARSER_TOOLCHAIN", "OUTFILE_FORMAT", "filter_srcs", "noop_lint_action", "output_files", "parse_to_sarif_action", "patch_and_output_files", "should_visit")
  load("//lint/private:patcher_action.bzl", "patcher_attrs", "run_patcher")
- 
-@@ -115,7 +116,15 @@
+@@ -118,7 +119,15 @@ def ruff_action(ctx, executable, srcs, config, stdout, exit_code = None, env = {
              action_args.add("--output-format=concise")
  
          if exit_code:
@@ -98,7 +98,7 @@ diff --git a/lint/ruff.bzl b/lint/ruff.bzl
              outputs.append(exit_code)
          else:
              # Create empty file on success, as Bazel expects one
-@@ -124,7 +133,7 @@
+@@ -127,7 +136,7 @@ def ruff_action(ctx, executable, srcs, config, stdout, exit_code = None, env = {
          ctx.actions.run_shell(
              inputs = inputs,
              outputs = outputs,
@@ -107,42 +107,39 @@ diff --git a/lint/ruff.bzl b/lint/ruff.bzl
              arguments = [action_args],
              mnemonic = ctx.attr._mnemonic,
              env = env,
-@@ -146,6 +155,11 @@
-     if len(files_to_lint) == 0:
-         noop_lint_action(ctx, outputs)
-         return [info]
-+
+@@ -175,3 +184,7 @@ def _ruff_aspect_impl(target, ctx):
 +    python_version = ctx.attr._python_version[BuildSettingInfo].value
 +    if not python_version:
 +        fail("Ruff requires the repository Python selector")
 +    checker_args = ctx.attr._args + ["--target-version", "py" + python_version.replace(".", "")]
+     extra_inputs = _transitive_python_sources(ctx)
  
      color_env = {"FORCE_COLOR": "1"} if ctx.attr._options[LintOptionsInfo].color else {}
- 
-@@ -158,13 +172,13 @@
+@@ -185,14 +198,14 @@ def _ruff_aspect_impl(target, ctx):
          outputs.human.exit_code,
          env = color_env,
          patch = getattr(outputs, "patch", None),
 -        args = ctx.attr._args,
 +        args = checker_args,
          mnemonic = ctx.attr._mnemonic,
+         extra_inputs = extra_inputs,
      )
  
      # TODO(alex): if we run with --fix, this will report the issues that were fixed. Does a machine reader want to know about them?
      raw_machine_report = ctx.actions.declare_file(OUTFILE_FORMAT.format(label = target.label.name, mnemonic = ctx.attr._mnemonic, suffix = "raw_machine_report"))
--    ruff_action(ctx, ctx.executable._ruff, files_to_lint, ctx.files._config_files, raw_machine_report, outputs.machine.exit_code, args = ctx.attr._args)
-+    ruff_action(ctx, ctx.executable._ruff, files_to_lint, ctx.files._config_files, raw_machine_report, outputs.machine.exit_code, args = checker_args)
+-    ruff_action(ctx, ctx.executable._ruff, files_to_lint, ctx.files._config_files, raw_machine_report, outputs.machine.exit_code, args = ctx.attr._args, extra_inputs = extra_inputs)
++    ruff_action(ctx, ctx.executable._ruff, files_to_lint, ctx.files._config_files, raw_machine_report, outputs.machine.exit_code, args = checker_args, extra_inputs = extra_inputs)
  
      # Ideally we'd just use {"RUFF_OUTPUT_FORMAT": "sarif"} however it prints absolute paths; see https://github.com/astral-sh/ruff/issues/14985
      parse_to_sarif_action(ctx, ctx.attr._mnemonic, raw_machine_report, outputs.machine.out)
-@@ -193,6 +207,10 @@
-             "_options": attr.label(
+@@ -222,6 +235,10 @@ def lint_ruff_aspect(binary, configs, rule_kinds = ["py_binary", "py_library", "
                  default = "//lint:options",
                  providers = [LintOptionsInfo],
-+            ),
+             ),
 +            "_python_version": attr.label(
 +                default = Label("@rules_python//python/config_settings:python_version"),
 +                providers = [BuildSettingInfo],
-             ),
++            ),
              "_ruff": attr.label(
                  default = binary,
+                 allow_files = True,

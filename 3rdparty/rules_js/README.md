@@ -2,8 +2,8 @@
 
 The pinned upstream module declares `rules_js`.
 The root uses `aspect_rules_js` as its apparent repository name.
-The module patches for rules_lint, esbuild, swc, TypeScript, and Angular retain that alias.
-All six aliases must resolve to the same canonical `rules_js+` repository.
+The module patches for rules_lint, rules_lint_rust, esbuild, swc, TypeScript, and Angular retain that alias.
+All seven aliases must resolve to the same canonical `rules_js+` repository.
 This keeps existing loads and provider identities consistent without a dependency update.
 
 ## Focused regression check
@@ -24,15 +24,15 @@ Set `BAZEL` to select a different Bazel executable when necessary.
 The check verifies these conditions:
 
 - The old root module identity fails upstream name validation.
-- The root and five integrations resolve their aliases to `rules_js+`.
+- The root and six integrations resolve their aliases to `rules_js+`.
 - Removing the TypeScript module patch makes the shared-identity assertion fail.
 - Restoring the patch makes the assertion pass again.
 
-The fixture contains rules_js, rules_lint, esbuild, swc, TypeScript, Angular,
+The fixture contains rules_js, rules_lint, rules_lint_rust, esbuild, swc, TypeScript, Angular,
 rules_nodejs, and their transitive module dependencies.
-It omits only the independent rules_lint Python typing patch from the selected overrides.
-That patch remains required in the root.
-Its repair is tracked in #3126.
+It retains the root rules_lint Python typing patch as well as the module identity patches.
+The combined check covers patch application for both #3125 and #3126.
+It does not exercise Python typing policy.
 The command saves complete mapping logs for the positive and negative checks.
 
 ## Limits
@@ -44,6 +44,6 @@ behavior, source membership, or combined coverage reconciliation.
 Run the existing native collector and coverage acceptance commands separately.
 Keep `tools/coverage/rules_js_runfiles.patch` and the existing coverage contracts.
 
-After the independent root blocker is repaired, regenerate `MODULE.bazel.lock`
-and run full mapping, formatting, lint, tests, build, and coverage through the
+Before merge, regenerate `MODULE.bazel.lock` and run full mapping, formatting,
+lint, tests, build, and coverage through the
 required Nix development workflow on the same final revision.
