@@ -765,10 +765,10 @@ oci_extension.pull(
 # Playwright release must match the root pnpm catalog.
 oci_extension.pull(
     name = "book_smartz_playwright",
-    digest = "sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe",
+    digest = "sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     image = "mcr.microsoft.com/playwright",
     platforms = ["linux/amd64"],
-    tag = "v1.65.0-noble",
+    tag = "v1.65.1-noble",
 )
 
 # Test fixtures: PostgreSQL 18 shared by all Testcontainers tests.
