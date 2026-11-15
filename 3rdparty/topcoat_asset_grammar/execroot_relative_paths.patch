@@ -1,0 +1,15 @@
+diff --git a/src/asset.rs b/src/asset.rs
+--- a/src/asset.rs
++++ b/src/asset.rs
+@@ -121,6 +121,11 @@
+             ));
+         }
+         let location = path.strip_prefix(call_site.manifest_dir()).unwrap_or(&path);
++        // Resolve and validate above, but do not embed the build sandbox path.
++        let directory = std::env::current_dir()
++            .map_err(|error| syn::Error::new(lit.span(), error))?;
++        let path = path.strip_prefix(&directory).unwrap_or(&path);
++        let location = location.strip_prefix(&directory).unwrap_or(location);
+         Ok((
+             path.to_string_lossy().into_owned(),
+             location.to_string_lossy().replace('\\', "/"),
