@@ -11,11 +11,7 @@ permissions:
 jobs:
   publish:
     if: >-
-      github.ref == 'refs/heads/main' || (github.repository == 'LowkeyLab/bazel-repo' &&
-
-       github.ref == 'refs/heads/fix/publisher-dependency-prerequisites' &&
-       github.actor == 'tacascer' && github.triggering_actor == 'tacascer' &&
-       inputs.reviewed_head == github.sha)
+      github.ref == 'refs/heads/main' || (github.repository == 'LowkeyLab/bazel-repo' && github.ref == 'refs/heads/fix/publisher-dependency-prerequisites' && github.actor == 'tacascer' && github.triggering_actor == 'tacascer' && inputs.reviewed_head == github.sha)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:

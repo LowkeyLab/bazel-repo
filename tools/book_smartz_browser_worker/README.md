@@ -33,7 +33,7 @@ This validates image prerequisites. It doesn't establish remote execution,
 anonymous GitHub Container Registry access, the full app journey, or production readiness.
 The app browser target uses this worker. Normal fallback policy remains unchanged.
 
-## Runtime evidence
+## Previous runtime evidence
 
 The validation passed with Docker 29.1.3, `containerd` 2.2.1, `runc` 1.3.4, and
 Chromium `156.0.8078.4` at `/ms-playwright/chromium-1248/chrome-linux64/chrome`.
@@ -48,9 +48,9 @@ executed the runtime test locally. Its image build used remote actions.
 
 ## Pinned inputs and updates
 
-- Playwright package: `1.64.1`, from the root pnpm catalog and lockfile.
-- Browser base: `mcr.microsoft.com/playwright:v1.64.1-noble`, pinned to
-  `sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf`.
+- Playwright package: `1.65.1`, from the root pnpm catalog and lockfile.
+- Browser base: `mcr.microsoft.com/playwright:v1.65.1-noble`, pinned to
+  `sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579`.
 - Architecture: Linux amd64.
 - Docker packages: the signed Ubuntu Noble snapshot at
   `https://snapshot.ubuntu.com/ubuntu/20261017T000000Z`, including updates and

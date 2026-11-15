@@ -24,7 +24,7 @@ js_test(
         "SITE_DIR": "$(rootpath //personal_website:build)",
     },
     exec_properties = {
-        "container-image": "docker://mcr.microsoft.com/playwright@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe",
+        "container-image": "docker://mcr.microsoft.com/playwright@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     },
 )
 
@@ -41,7 +41,7 @@ js_test(
         "FIXTURE_DIR": "$(rootpath //personal_website/tests:fixtures_build)",
     },
     exec_properties = {
-        "container-image": "docker://mcr.microsoft.com/playwright@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe",
+        "container-image": "docker://mcr.microsoft.com/playwright@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     },
 )
 
@@ -58,7 +58,7 @@ js_test(
         "FIXTURE_DIR": "$(rootpath //personal_website/tests:fixtures_build)",
     },
     exec_properties = {
-        "container-image": "docker://mcr.microsoft.com/playwright@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe",
+        "container-image": "docker://mcr.microsoft.com/playwright@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     },
 )
 
@@ -75,7 +75,7 @@ js_test(
         "FIXTURE_DIR": "$(rootpath //personal_website/tests:fixtures_build)",
     },
     exec_properties = {
-        "container-image": "docker://mcr.microsoft.com/playwright@sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe",
+        "container-image": "docker://mcr.microsoft.com/playwright@sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     },
 )
 
