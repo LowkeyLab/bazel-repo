@@ -1,0 +1,7 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+sh_binary(
+    name = "check_module_identity",
+    srcs = ["check_module_identity.sh"],
+    tags = ["manual"],
+)

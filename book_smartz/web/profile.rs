@@ -6,7 +6,7 @@ use sqlx::{
 };
 use topcoat::{
     Result,
-    context::{Cx, app_context},
+    context::{Cx, context as app_context},
     router::{
         content::Form,
         error::{forbidden, service_unavailable},
@@ -262,7 +262,7 @@ async fn render(cx: &Cx, editor: Editor) -> Result<BoxView<'_>> {
                 book_smartz_views::assets()
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
                 <script type="module" src=(topcoat::asset::asset!("./profile.js"))></script>
-                <script type="module" src=(topcoat::runtime::SCRIPT)></script>
+                topcoat::runtime::script()
             </head>
             <body>
                 book_smartz_views::heading()

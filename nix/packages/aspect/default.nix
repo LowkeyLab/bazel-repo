@@ -51,7 +51,11 @@ pkgs.rustPlatform.buildRustPackage (
       pkgs.protobuf
     ];
 
-    buildInputs = [ pkgs.openssl ];
+    buildInputs = [
+      pkgs.openssl
+      # zstd-sys probes libzstd with pkg-config --static.
+      (pkgs.zstd.override { enableStatic = true; })
+    ];
 
     nativeCheckInputs = [ pkgs.git ];
 

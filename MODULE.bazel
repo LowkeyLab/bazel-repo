@@ -28,7 +28,11 @@ git_override(
     module_name = "rules_lint",
     commit = "46361f882415c2206bebe575f59c5aefa3257529",
     patch_strip = 1,
-    patches = ["//tools/lint:python_typing.patch"],
+    patches = [
+        "//tools/lint:python_typing.patch",
+        "//3rdparty/rules_lint:rules_js_module.patch",
+        "//3rdparty/rules_lint:js_output_capture.patch",
+    ],
     remote = "https://github.com/aspect-build/rules_lint.git",
 )
 
@@ -50,6 +54,8 @@ bazel_dep(name = "rules_lint_rust")
 git_override(
     module_name = "rules_lint_rust",
     commit = "46361f882415c2206bebe575f59c5aefa3257529",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_lint:rust_rules_js_module.patch"],
     remote = "https://github.com/aspect-build/rules_lint.git",
     strip_prefix = "lint/rust",
 )
@@ -58,12 +64,15 @@ bazel_dep(name = "aspect_rules_esbuild")
 git_override(
     module_name = "aspect_rules_esbuild",
     commit = "3e446272538a0fb13c7102f116256ea66463cb51",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_esbuild:rules_js_module.patch"],
     remote = "https://github.com/aspect-build/rules_esbuild.git",
 )
 
-bazel_dep(name = "aspect_rules_js")
+# The upstream module is rules_js. Keep the apparent name for existing loads.
+bazel_dep(name = "rules_js", repo_name = "aspect_rules_js")
 git_override(
-    module_name = "aspect_rules_js",
+    module_name = "rules_js",
     commit = "f918131fcd5cf28e6d506bc9547fbdf999a5553a",
     patch_args = ["-p1"],
     patches = ["//tools/coverage:rules_js_runfiles.patch"],
@@ -74,6 +83,8 @@ bazel_dep(name = "aspect_rules_swc")
 git_override(
     module_name = "aspect_rules_swc",
     commit = "1c8dab362d2711b658b554e1ea1943c6d131e919",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_swc:rules_js_module.patch"],
     remote = "https://github.com/aspect-build/rules_swc.git",
 )
 
@@ -81,6 +92,8 @@ bazel_dep(name = "aspect_rules_ts")
 git_override(
     module_name = "aspect_rules_ts",
     commit = "1042611dbb6894aaa8dc941f9dd31073b22df99b",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_ts:rules_js_module.patch"],
     remote = "https://github.com/aspect-build/rules_ts.git",
 )
 
@@ -334,7 +347,10 @@ git_override(
     module_name = "rules_angular",
     commit = "e5cb4c388495711d194f2d686cb0f0f69fd3bd54",
     patch_args = ["-p1"],
-    patches = ["//3rdparty/rules_angular:fix.patch"],
+    patches = [
+        "//3rdparty/rules_angular:fix.patch",
+        "//3rdparty/rules_angular:rules_js_module.patch",
+    ],
     remote = "https://github.com/devversion/rules_angular.git",
 )
 
@@ -668,7 +684,12 @@ crate.annotation(
     additive_build_file_content = 'filegroup(name = "asset_inputs", srcs = glob(["browser/dist/**"]), visibility = ["//visibility:public"])',
     crate = "topcoat-runtime",
     extra_aliased_targets = {"topcoat_runtime_assets": "asset_inputs"},
-    rustc_env = {"CARGO_MANIFEST_DIR": "external/rules_rs++crate+crates__topcoat-runtime-0.12.0"},
+    rustc_env = {"CARGO_MANIFEST_DIR": "external/rules_rs++crate+crates__topcoat-runtime-0.12.1"},
+)
+crate.annotation(
+    crate = "topcoat-asset-grammar",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/topcoat_asset_grammar:execroot_relative_paths.patch"],
 )
 use_repo(crate, "crates")
 

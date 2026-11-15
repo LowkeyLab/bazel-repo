@@ -7,7 +7,7 @@ use std::{
 };
 
 use anyhow::{Context, ensure};
-use topcoat_core_grammar::pretty::{Registry, pretty_print_str};
+use topcoat_core_grammar::common::pretty::{Registry, pretty_print_str};
 
 fn main() -> anyhow::Result<()> {
     let mut args = std::env::args().skip(1);
@@ -33,13 +33,13 @@ fn main() -> anyhow::Result<()> {
         .collect();
     ensure!(!files.is_empty(), "expected Rust source files");
     let mut registry = Registry::new();
-    registry.register_macro::<topcoat_view_grammar::view::View>("view");
-    registry.register_macro::<topcoat_view_grammar::attributes::Attributes>("attributes");
-    registry.register_macro::<topcoat_view_grammar::class::Class>("class");
-    registry.register_macro::<topcoat_view_grammar::live::Live>("live");
-    registry.register_macro::<topcoat_view_grammar::live::Emit>("emit");
-    registry.register_macro::<topcoat_font_grammar::font_face::FontFace>("font_face");
-    registry.register_macro::<topcoat_font_grammar::font::Font>("font");
+    registry.register_function_like::<topcoat_view_grammar::view::View>("view");
+    registry.register_function_like::<topcoat_view_grammar::attributes::Attributes>("attributes");
+    registry.register_function_like::<topcoat_view_grammar::class::Class>("class");
+    registry.register_function_like::<topcoat_view_grammar::live::Live>("live");
+    registry.register_function_like::<topcoat_view_grammar::live::Emit>("emit");
+    registry.register_function_like::<topcoat_font_grammar::font_face::FontFace>("font_face");
+    registry.register_function_like::<topcoat_font_grammar::font::Font>("font");
     let mut changed = Vec::new();
     for file in files {
         let original = fs::read_to_string(file)?;

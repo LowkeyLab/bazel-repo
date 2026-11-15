@@ -53,7 +53,11 @@ pub async fn heading(cx: &topcoat::context::Cx) -> Result<impl View> {
     })
 }
 #[component]
-pub async fn cover(url: Option<String>, compact: bool) -> Result<impl View> {
+pub async fn cover(
+    cx: &topcoat::context::Cx,
+    url: Option<String>,
+    compact: bool,
+) -> Result<impl View> {
     let width = if compact { "48" } else { "160" };
     let height = if compact { "72" } else { "240" };
     Ok(view! {
@@ -83,7 +87,11 @@ pub async fn cover(url: Option<String>, compact: bool) -> Result<impl View> {
     })
 }
 #[component]
-pub async fn book(display: BookDisplay, compact: bool) -> Result<impl View> {
+pub async fn book(
+    cx: &topcoat::context::Cx,
+    display: BookDisplay,
+    compact: bool,
+) -> Result<impl View> {
     Ok(view! {
         <article class=(if compact { "book-summary compact" } else { "book-summary" })>
             cover(url: display.cover, compact: compact)
@@ -101,7 +109,11 @@ pub enum FeedbackKind {
     Status,
 }
 #[component]
-pub async fn feedback(message: String, kind: FeedbackKind) -> Result<impl View> {
+pub async fn feedback(
+    cx: &topcoat::context::Cx,
+    message: String,
+    kind: FeedbackKind,
+) -> Result<impl View> {
     Ok(view! {
         <p
             class="inline-feedback"
@@ -119,7 +131,7 @@ pub async fn feedback(message: String, kind: FeedbackKind) -> Result<impl View> 
 }
 
 #[component]
-pub async fn assets() -> Result<impl View> {
+pub async fn assets(cx: &topcoat::context::Cx) -> Result<impl View> {
     Ok(view! {
         topcoat::font::link(font: FONT)
         topcoat::font::link(font: HEADING_FONT)
@@ -137,7 +149,7 @@ pub async fn assets() -> Result<impl View> {
 }
 
 #[component]
-pub async fn submission_status() -> Result<impl View> {
+pub async fn submission_status(cx: &topcoat::context::Cx) -> Result<impl View> {
     Ok(view! {
         <p
             class="submission-status"

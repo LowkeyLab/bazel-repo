@@ -11,16 +11,16 @@ use sqlx::{
 use topcoat::{
     Result,
     asset::RouterBuilderAssetExt,
-    context::{Cx, app_context},
-    cookie::RouterBuilderCookieExt,
+    context::{Cx, context as app_context},
+    cookie::CookieLayer,
     font::RouterBuilderFontExt,
     router::{
         content::Form,
         error::{forbidden, see_other, unauthorized},
         module_router, page, request, route,
     },
-    runtime::RouterBuilderRuntimeExt,
-    session::{self, RouterBuilderSessionExt, SessionConfig},
+    runtime::RuntimeLayer,
+    session::{self, SessionTokenStore},
     view::{View, ViewExt, view},
 };
 use uuid::Uuid;
@@ -172,9 +172,11 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
         .page(actions::submit_preference)
         .page(actions::pause)
         .page(actions::resume)
-        .origin_policy(topcoat::router::OriginPolicy::new().trust_origins([origin.clone()]))
+        .with(topcoat::router::OriginPolicy::trust_origins([
+            origin.clone()
+        ]))
         .layer(PrivateResponses)
-        .runtime()
+        .layer(RuntimeLayer::new())
         .font(book_smartz_views::FONT)
         .font(book_smartz_views::HEADING_FONT)
         .route(ready)
@@ -182,13 +184,9 @@ async fn serve(observation: &mut initialization::Initialization) -> anyhow::Resu
         .route(identity::callback)
         .route(logout)
         .assets(assets)
-        .cookies()
-        .sessions(
-            SessionConfig::builder()
-                .token_store(identity::BrowserTokens)
-                .build(),
-        )
-        .app_context(Application {
+        .layer(CookieLayer::new())
+        .with(SessionTokenStore::new(identity::BrowserTokens))
+        .with(Application {
             pool: pool.clone(),
             store,
             origin,
@@ -375,7 +373,7 @@ async fn ready(cx: &Cx) -> Result<&'static str> {
 }
 
 #[page]
-async fn home() -> Result<impl View> {
+async fn home(cx: &Cx) -> Result<impl View> {
     Ok(view! {
         <!DOCTYPE html>
         <html lang="en">
@@ -425,7 +423,7 @@ async fn ranking(cx: &Cx) -> Result<impl View> {
                 book_smartz_views::assets()
                 <link rel="stylesheet" href=(topcoat::asset::asset!("./styles.css"))>
                 <script type="module" src=(topcoat::asset::asset!("./submitting.js"))></script>
-                <script type="module" src=(topcoat::runtime::SCRIPT)></script>
+                topcoat::runtime::script()
             </head>
             <body>
                 book_smartz_views::heading()

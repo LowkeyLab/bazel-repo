@@ -1,0 +1,1 @@
+exports_files(["rules_js_module.patch"])

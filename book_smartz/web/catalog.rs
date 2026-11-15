@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use topcoat::{
     Result,
-    context::{Cx, app_context},
+    context::{Cx, context as app_context},
     router::{
         content::Form,
         error::{bad_request, forbidden},
@@ -479,7 +479,7 @@ pub async fn select(cx: &Cx, Form(input): Form<SelectInput>) -> Result<impl View
 }
 
 #[topcoat::view::component]
-async fn result_card(work: CatalogWork, token: String, csrf: String) -> Result<impl View> {
+async fn result_card(cx: &Cx, work: CatalogWork, token: String, csrf: String) -> Result<impl View> {
     Ok(view! {
         <li>
             book_smartz_views::book(display: presentation(&work), compact: false)
