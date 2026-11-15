@@ -7,6 +7,7 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+from typing import NotRequired, TypedDict
 
 import pytest
 
@@ -15,6 +16,16 @@ REPORTER = RUNFILES / "tools/coverage/javascript_report"
 COLLECTOR = RUNFILES / os.environ["JAVASCRIPT_COLLECTOR"]
 MERGER = RUNFILES / os.environ["JAVASCRIPT_LCOV_MERGER"]
 LCOV = "SF:module.js\nDA:1,4\nLF:1\nLH:1\nend_of_record\n"
+
+
+class BrowserReceipt(TypedDict):
+    """Mutable receipt fixture, including deliberately invalid schema versions."""
+
+    schema_version: int | float
+    scripts: list[dict[str, str | list[str]]]
+    sources: list[str]
+    profile_sha256: NotRequired[str]
+    report_sha256: NotRequired[str]
 
 
 @pytest.fixture
@@ -469,7 +480,7 @@ def test_browser_output_validation_and_hit_preservation(
         "sourcesContent": [source],
         "mappings": "AAAA",
     }
-    receipt = {
+    receipt: BrowserReceipt = {
         "schema_version": 1,
         "scripts": [
             {
