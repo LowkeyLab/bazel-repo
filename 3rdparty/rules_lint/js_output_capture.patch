@@ -1,0 +1,62 @@
+diff --git a/lint/eslint.bzl b/lint/eslint.bzl
+index a5bc043..be5a355 100644
+--- a/lint/eslint.bzl
++++ b/lint/eslint.bzl
+@@ -179 +179 @@
+-            ctx.actions.run(
++            ctx.actions.run_shell(
+@@ -182,3 +182,4 @@
+-                executable = executable._eslint,
+-                arguments = [action_args],
+-                env = env | {"BAZEL_BINDIR": ctx.bin_dir.path} | {"JS_BINARY__EXIT_CODE_OUTPUT_FILE": exit_code.path} if exit_code else {},
++                tools = [executable._eslint],
++                arguments = [executable._eslint.path, exit_code.path, action_args],
++                command = "status=0; \"$1\" \"${@:3}\" || status=$?; printf '%s\\n' \"$status\" > \"$2\"",
++                env = env | {"BAZEL_BINDIR": ctx.bin_dir.path},
+diff --git a/lint/private/patcher_action.bzl b/lint/private/patcher_action.bzl
+index 18a9ab5..9c4affd 100644
+--- a/lint/private/patcher_action.bzl
++++ b/lint/private/patcher_action.bzl
+@@ -78,4 +78 @@
+-    common_env = {
+-        "BAZEL_BINDIR": ".",
+-        "JS_BINARY__SILENT_ON_SUCCESS": "1",
+-    }
++    common_env = {"BAZEL_BINDIR": "."}
+@@ -85 +81,0 @@
+-        common_env["JS_BINARY__STDOUT_OUTPUT_FILE"] = stdout.path
+@@ -88,2 +84,2 @@
+-        common_env["JS_BINARY__STDERR_OUTPUT_FILE"] = stderr.path
+-        outputs_list.append(stderr)
++        if stderr != stdout:
++            outputs_list.append(stderr)
+@@ -91 +86,0 @@
+-        common_env["JS_BINARY__EXIT_CODE_OUTPUT_FILE"] = exit_code.path
+@@ -112,2 +107,19 @@
+-        "executable": executable._patcher,
+-        "arguments": arguments,
++        "command": """
++status=0
++if [ "$2" = "$3" ]; then
++    "$1" "${@:5}" > "$2" 2>&1 || status=$?
++else
++    "$1" "${@:5}" > "$2" 2> "$3" || status=$?
++fi
++if [ -n "$4" ]; then
++    printf '%s\\n' "$status" > "$4"
++else
++    exit "$status"
++fi
++""",
++        "arguments": [
++            executable._patcher.path,
++            stdout.path if stdout != None else "/dev/stdout",
++            stderr.path if stderr != None else "/dev/stderr",
++            exit_code.path if exit_code != None else "",
++        ] + arguments,
+@@ -115 +127 @@
+-        "tools": tools,
++        "tools": tools + [executable._patcher],
+@@ -125 +137 @@
+-    ctx.actions.run(**kwargs)
++    ctx.actions.run_shell(**kwargs)

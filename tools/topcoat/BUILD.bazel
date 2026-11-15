@@ -7,6 +7,20 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["defs.bzl"])
 
+rust_test(
+    name = "asset_path_test",
+    size = "small",
+    srcs = ["asset_path_test.rs"],
+    compile_data = ["asset_path_test.rs"],
+    crate_root = "asset_path_test.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:topcoat",
+        "@crates//:topcoat-asset",
+    ],
+)
+
 rust_binary(
     name = "bundle",
     srcs = ["bundle.rs"],

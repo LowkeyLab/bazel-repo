@@ -31,6 +31,7 @@ git_override(
     patches = [
         "//tools/lint:python_typing.patch",
         "//3rdparty/rules_lint:rules_js_module.patch",
+        "//3rdparty/rules_lint:js_output_capture.patch",
     ],
     remote = "https://github.com/aspect-build/rules_lint.git",
 )
@@ -683,7 +684,12 @@ crate.annotation(
     additive_build_file_content = 'filegroup(name = "asset_inputs", srcs = glob(["browser/dist/**"]), visibility = ["//visibility:public"])',
     crate = "topcoat-runtime",
     extra_aliased_targets = {"topcoat_runtime_assets": "asset_inputs"},
-    rustc_env = {"CARGO_MANIFEST_DIR": "external/rules_rs++crate+crates__topcoat-runtime-0.12.0"},
+    rustc_env = {"CARGO_MANIFEST_DIR": "external/rules_rs++crate+crates__topcoat-runtime-0.12.1"},
+)
+crate.annotation(
+    crate = "topcoat-asset-grammar",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/topcoat_asset_grammar:execroot_relative_paths.patch"],
 )
 use_repo(crate, "crates")
 
