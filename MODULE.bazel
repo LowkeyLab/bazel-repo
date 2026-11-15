@@ -163,7 +163,7 @@ git_override(
 bazel_dep(name = "rules_multitool")
 git_override(
     module_name = "rules_multitool",
-    commit = "5ef5b45cb7a21eae978134a9e7b147727471bc38",
+    commit = "ab911f23ddda40b524d91fca3f4bd3fa0131cfec",
     remote = "https://github.com/bazel-contrib/rules_multitool.git",
 )
 
