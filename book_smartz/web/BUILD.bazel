@@ -346,7 +346,7 @@ rust_test(
         "PLAYWRIGHT_BROWSERS_PATH": "/ms-playwright",
     },
     exec_properties = {
-        "test.container-image": "docker://ghcr.io/lowkeylab/book_smartz_browser_worker@sha256:6fdbf236c09d41b4bc82d140ea6f5510eb27de20d422f4fa88b64cf59413990f",
+        "test.container-image": "docker://ghcr.io/lowkeylab/book_smartz_browser_worker@sha256:cc4e8dd51fbfd6ef6fd46499021855ac3ca1dc93c538cf9c707bd14fa8fe1913",
         "test.workload-isolation-type": "firecracker",
         "test.init-dockerd": "true",
     },
@@ -470,7 +470,7 @@ _BROWSER_COLLECTION_ENV = image_env("postgres_18") | {
 }
 
 _BROWSER_COLLECTION_EXEC_PROPERTIES = {
-    "test.container-image": "docker://ghcr.io/lowkeylab/book_smartz_browser_worker@sha256:6fdbf236c09d41b4bc82d140ea6f5510eb27de20d422f4fa88b64cf59413990f",
+    "test.container-image": "docker://ghcr.io/lowkeylab/book_smartz_browser_worker@sha256:cc4e8dd51fbfd6ef6fd46499021855ac3ca1dc93c538cf9c707bd14fa8fe1913",
     "test.workload-isolation-type": "firecracker",
     "test.init-dockerd": "true",
 }

@@ -33,6 +33,24 @@ This validates image prerequisites. It doesn't establish remote execution,
 anonymous GitHub Container Registry access, the full app journey, or production readiness.
 The app browser target uses this worker. Normal fallback policy remains unchanged.
 
+## Current publication evidence
+
+The privileged runtime test passed in
+[run 43721546194](https://github.com/LowkeyLab/bazel-repo/actions/runs/43721546194)
+at commit `04e735a593e774df687bd44ec835a6b9158078dc`.
+It exercised nested Docker, the declared PostgreSQL archive, and bundled Chromium
+with Playwright `1.65.1`. The separate anonymous-access job retrieved the full image
+and verified the manifest, configuration, and every layer by `SHA-256`.
+
+Verified worker manifest digest:
+`sha256:cc4e8dd51fbfd6ef6fd46499021855ac3ca1dc93c538cf9c707bd14fa8fe1913`.
+
+The maintainer authorized one reviewed-branch publication to resolve the bootstrap
+cycle. The temporary exception was restricted to the named branch, operator, and
+exact reviewed commit. The main-only workflow policy is restored before consumer
+delivery. This publication evidence does not establish the full app journey or
+production readiness.
+
 ## Previous runtime evidence
 
 The validation passed with Docker 29.1.3, `containerd` 2.2.1, `runc` 1.3.4, and
