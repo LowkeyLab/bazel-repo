@@ -1,11 +1,21 @@
 name: Publish Book Smartz browser worker
 on:
   workflow_dispatch:
+    inputs:
+      reviewed_head:
+        description: Full reviewed commit for the authorized one-time branch publication
+        required: false
+        type: string
 permissions:
   contents: read
 jobs:
   publish:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' || (github.repository == 'LowkeyLab/bazel-repo' &&
+
+       github.ref == 'refs/heads/fix/publisher-dependency-prerequisites' &&
+       github.actor == 'tacascer' && github.triggering_actor == 'tacascer' &&
+       inputs.reviewed_head == github.sha)
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -14,8 +24,26 @@ jobs:
     outputs:
       digest: ${{ steps.image.outputs.digest }}
     steps:
+      - name: Validate one-time reviewed publication binding
+        env:
+          PUBLISH_REPOSITORY: ${{ github.repository }}
+          PUBLISH_REF: ${{ github.ref }}
+          PUBLISH_ACTOR: ${{ github.actor }}
+          PUBLISH_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          PUBLISH_SHA: ${{ github.sha }}
+          REVIEWED_HEAD: ${{ inputs.reviewed_head }}
+        run: |
+          set -euo pipefail
+          if [[ "$PUBLISH_REF" == refs/heads/main ]]; then
+            exit 0
+          fi
+          [[ "$PUBLISH_REPOSITORY" == LowkeyLab/bazel-repo ]]
+          [[ "$PUBLISH_REF" == refs/heads/fix/publisher-dependency-prerequisites ]]
+          [[ "$PUBLISH_ACTOR" == tacascer && "$PUBLISH_TRIGGERING_ACTOR" == tacascer ]]
+          [[ "$REVIEWED_HEAD" =~ ^[0-9a-f]{40}$ && "$REVIEWED_HEAD" == "$PUBLISH_SHA" ]]
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
@@ -50,6 +78,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: bazel-contrib/setup-bazel@d68576867819dfdec2cf9586a68795f81461da3e
         with:
