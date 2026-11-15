@@ -1,6 +1,6 @@
 # Browser fixtures
 
-The Bazel `fixtures_build` target injects test routes into a separate Astro build. The production build, sitemap, and image do not include these routes. Each browser test starts its own static server on an ephemeral loopback port and a fresh Chromium context. Local Nix shells supply `CHROMIUM_EXECUTABLE`; remote execution uses the pinned Microsoft Playwright 1.63.0 Noble image and its bundled browser.
+The Bazel `fixtures_build` target injects test routes into a separate Astro build. The production build, sitemap, and image do not include these routes. Each browser test starts its own static server on an ephemeral loopback port and a fresh Chromium context. Local Nix shells supply `CHROMIUM_EXECUTABLE`. Remote execution uses the pinned Microsoft Playwright 1.65.0 Noble image and its bundled browser.
 
 Browser tests use the same embedded variable Caveat font as production, with all external network requests blocked. There is no separate test font or Google Fonts substitution. For delayed, held, and blocked font cases, the harness extracts the production font bytes from the built CSS and serves them through a controlled local route. Normal tests exercise the unmodified embedded font.
 
