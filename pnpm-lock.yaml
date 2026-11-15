@@ -76,8 +76,8 @@ catalogs:
       specifier: '>=4.0.0 <4.3.6'
       version: 4.3.3
     '@tsconfig/strictest':
-      specifier: 2.0.8
-      version: 2.0.8
+      specifier: 2.0.9
+      version: 2.0.9
     '@types/canvas-confetti':
       specifier: ^1.9.0
       version: 1.9.0
@@ -189,6 +189,9 @@ catalogs:
     typescript-eslint:
       specifier: ^8.49.0
       version: 8.72.2
+    vite:
+      specifier: ^8.0.0
+      version: 8.3.8
     vitest:
       specifier: ^5.0.0
       version: 5.1.0
@@ -232,7 +235,7 @@ importers:
         version: 10.0.1(eslint@10.14.0(jiti@2.7.0))
       '@tsconfig/strictest':
         specifier: 'catalog:'
-        version: 2.0.8
+        version: 2.0.9
       '@types/istanbul-lib-coverage':
         specifier: 2.0.6
         version: 2.0.6
@@ -2886,8 +2889,8 @@ packages:
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
 
-  '@tsconfig/strictest@2.0.8':
-    resolution: {integrity: sha512-XnQ7vNz5HRN0r88GYf1J9JJjqtZPiHt2woGJOo2dYqyHGGcd6OLGqSlBB6p1j9mpzja6Oe5BoPqWmeDx6X9rLw==}
+  '@tsconfig/strictest@2.0.9':
+    resolution: {integrity: sha512-CbwIySRXoGapLZYXqQHF15cg0wQImJa25Ynmubb7816vnHqTdQrmQlSbZxkJrrBusHLbF1kFbNVn8XtxmQ3EpQ==}
 
   '@tybys/wasm-util@0.10.4':
     resolution: {integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==}
@@ -8109,7 +8112,7 @@ snapshots:
       tailwindcss: 4.3.3
       vite: 8.3.8(@types/node@24.19.2)(esbuild@0.28.2)(jiti@2.7.0)(sass-embedded@1.104.1)(sass@1.104.1)(yaml@2.9.1)
 
-  '@tsconfig/strictest@2.0.8': {}
+  '@tsconfig/strictest@2.0.9': {}
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
