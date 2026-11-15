@@ -1,3 +1,4 @@
 exports_files([
     "fix.patch",
+    "rules_js_module.patch",
 ])

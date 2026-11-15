@@ -76,6 +76,33 @@ and temporary Gazelle-generated targets in ordinary and hidden packages.
 Restore temporary probes afterward. Distinguish locally executed checks,
 configured CI remote execution, and hosted CI on the final PR head.
 
+### Action regression test
+
+Run the focused action verification with two supported selectors and a new absolute
+evidence directory. For the current selector, use:
+
+```sh
+nix develop --command bazel run //tools/lint:check_python_typing_actions -- \
+  "$PWD" /absolute/path/to/new-evidence 3.15 3.14
+```
+
+This command does not change source files or run Gazelle. It inspects the real
+Ruff and `ty` actions for `//python_sample:python_sample`. Both human and
+machine actions must receive the selected version. All four actions must retain
+the imported first-party sources and installed packaging wheel directory. The `ty`
+actions must also retain the library's own import root, which its wheel dependency
+does not supply. Changing the selector must
+change all four action keys. A negative assertion rejects a different selector.
+The evidence directory retains the complete action descriptions and logs.
+
+This verification does not execute the checkers or verify wheel metadata, installed
+stub resolution, diagnostic reports, hidden packages, or Aspect strategies.
+Those acceptance checks remain separate.
+
+The compatibility patch retains upstream Ruff `extra_inputs` in both actions.
+The local selector arguments, `ty` own sources/imports, Ruff tool-error handling,
+and `ty` SARIF warnings remain necessary at the selected `rules_lint` revision.
+
 See the accepted specification in
 [issue #2339](https://github.com/LowkeyLab/bazel-repo/issues/2339) and its
 [policy resolution](https://github.com/LowkeyLab/bazel-repo/issues/2323#issuecomment-6232007070).

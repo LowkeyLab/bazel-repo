@@ -1,0 +1,4 @@
+exports_files([
+    "rules_js_module.patch",
+    "rust_rules_js_module.patch",
+])
