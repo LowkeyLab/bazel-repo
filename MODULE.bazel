@@ -306,7 +306,7 @@ git_override(
 bazel_dep(name = "rules_python")
 git_override(
     module_name = "rules_python",
-    commit = "b14f75597dbf34ac7a7f38c10952488b693d98ae",
+    commit = "55afc88fc110e933cf54b79f701240168f1f0f49",
     remote = "https://github.com/bazel-contrib/rules_python.git",
 )
 
@@ -789,7 +789,7 @@ oci_extension.pull(
 # Test fixtures: PostgreSQL 18 shared by all Testcontainers tests.
 oci_extension.pull(
     name = "test_postgres_18",
-    digest = "sha256:b9f6b8ff03b62f3cfd9d9ba3fe56226a9991c79d3fb46fd46536263bf02be553",
+    digest = "sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc",
     image = "docker.io/library/postgres",
     platforms = ["linux/amd64"],
     tag = "18",
