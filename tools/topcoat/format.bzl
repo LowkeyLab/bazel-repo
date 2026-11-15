@@ -20,6 +20,6 @@ format_adapter = rule(
     executable = True,
     attrs = {
         "_tool": attr.label(default = Label("//tools/topcoat:format_impl"), executable = True, cfg = "exec"),
-        "_rustfmt": attr.label(default = Label("@rustfmt_linux_x86_64_1_99_1//:rustfmt_bin"), allow_single_file = True, cfg = "exec"),
+        "_rustfmt": attr.label(default = Label("@rustfmt_linux_x86_64_1_100_0//:rustfmt_bin"), allow_single_file = True, cfg = "exec"),
     },
 )

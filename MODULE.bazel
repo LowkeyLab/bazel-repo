@@ -9,7 +9,7 @@ module(
 # Keep immutable commits so builds remain reproducible.
 # Keep bazel-lib releases for their prebuilt helpers: source-built Go helpers
 # create a bootstrap cycle with the LLVM toolchain.
-bazel_dep(name = "bazel_lib", version = "3.7.2")
+bazel_dep(name = "bazel_lib", version = "3.8.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 
 # Expose the existing C toolchain rules for a test-only fsync fault fixture.
@@ -307,7 +307,7 @@ git_override(
 bazel_dep(name = "rules_python")
 git_override(
     module_name = "rules_python",
-    commit = "ca1e25d4932ed521324dc6c33d7c64603a4cdf8f",
+    commit = "b14f75597dbf34ac7a7f38c10952488b693d98ae",
     remote = "https://github.com/bazel-contrib/rules_python.git",
 )
 
@@ -325,7 +325,7 @@ git_override(
     remote = "https://github.com/bazel-contrib/bazel-gazelle.git",
 )
 
-bazel_dep(name = "rules_python_gazelle_plugin", version = "2.4.6", dev_dependency = True)
+bazel_dep(name = "rules_python_gazelle_plugin", version = "2.5.1", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", dev_dependency = True)
 git_override(
     module_name = "bazel_skylib_gazelle_plugin",
@@ -501,7 +501,7 @@ maven.install(
         "org.jetbrains.exposed:exposed-jdbc:1.6.1",
         "org.postgresql:postgresql:42.7.14",
         # Logging
-        "ch.qos.logback:logback-classic:1.6.6",
+        "ch.qos.logback:logback-classic:1.6.7",
         # JSON Path
         "com.jayway.jsonpath:json-path:3.0.0",
     ],
@@ -609,7 +609,7 @@ toolchains = use_extension(
 toolchains.toolchain(
     name = "default_rust_toolchains",
     edition = "2024",
-    version = "1.99.1",
+    version = "1.100.0",
 )
 toolchains.toolchain(
     name = "nightly_rust_toolchains",
@@ -620,7 +620,7 @@ use_repo(
     toolchains,
     "default_rust_toolchains",
     "nightly_rust_toolchains",
-    "rustfmt_linux_x86_64_1_99_1",
+    "rustfmt_linux_x86_64_1_100_0",
 )
 
 register_toolchains(
