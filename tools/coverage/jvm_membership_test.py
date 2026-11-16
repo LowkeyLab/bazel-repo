@@ -196,7 +196,8 @@ java_library(name="shared_executed", srcs=["Shared.java"], javacopts=["-g"])
 java_library(name="shared_unused", srcs=["Shared.java"], javacopts=["-g:source,lines"])
 java_library(name="inactive_owner", srcs=select({":inactive": ["Unused.java"], "//conditions:default": []}))
 java_library(name="unique_duplicate", srcs=["Same.java"])
-java_test(name="excluded", srcs=[], main_class="clojure.main", use_testrunner=False, args=["PACKAGE/Excluded.clj"], data=["Excluded.clj"], runtime_deps=select({":inactive": [":lib"], "//conditions:default": ["@deps//:org_clojure_clojure"]}))
+genrule(name="excluded_source", outs=["Excluded.java"], cmd="echo 'package excluded; public class Excluded { public static void main(String[] args) {} }' > $@")
+java_test(name="excluded", srcs=[":excluded_source"], main_class="excluded.Excluded", use_testrunner=False, runtime_deps=select({":inactive": [":lib"], "//conditions:default": []}))
 java_library(name="duplicates", srcs=["//PACKAGE/a:Same.java", "//PACKAGE/b:Same.java"])
 """.replace("PACKAGE", package)
         )
@@ -228,7 +229,7 @@ java_library(name="duplicates", srcs=["//PACKAGE/a:Same.java", "//PACKAGE/b:Same
             directory / "Shared.java",
             "package shared;\npublic class Shared {\n  public static int choose(boolean enabled) {\n    if (enabled) { return 7; }\n    return 3;\n  }\n}\n",
         )
-        write(directory / "Excluded.clj", '(println "excluded-only")\n')
+
         write(
             directory / "Child.java",
             'package child;\npublic class Child {\n  public static void main(String[] args) {\n    if (args.length == 0) {\n      System.out.println("child-only");\n    }\n  }\n}\n',
@@ -270,7 +271,7 @@ public class Execution {{
             for line in excluded[expected[0]].splitlines()
             if line.startswith("DA:")
         )
-        assert f"{package}/Excluded.clj" not in excluded
+        assert f"{package}/Excluded.java" not in excluded
         excluded_receipt = json.loads((root / "coverage-jvm/receipt.json").read_text())
         assert excluded_receipt["test_inputs"][f"//{package}:excluded"]["sources"] == []
         measured = cover(f"//{package}:execution", "measured")

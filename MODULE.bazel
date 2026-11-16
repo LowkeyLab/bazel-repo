@@ -261,13 +261,6 @@ git_override(
     remote = "https://github.com/bazel-contrib/rules_jvm_external.git",
 )
 
-bazel_dep(name = "rules_clojure")
-git_override(
-    module_name = "rules_clojure",
-    commit = "c0322b0251489b5d9f883e55ec093e90cb0dbdd9",
-    remote = "https://github.com/griffinbank/rules_clojure.git",
-)
-
 bazel_dep(name = "rules_mypy")
 git_override(
     module_name = "rules_mypy",
@@ -582,17 +575,6 @@ maven.artifact(
     version = "33.7.2-jre",
 )
 use_repo(maven, "maven")
-
-clojure_deps = use_extension("@rules_clojure//:extensions.bzl", "deps")
-clojure_deps.install(
-    aliases = [
-        "dev",
-        "test",
-    ],
-    deps_edn = "//:deps.edn",
-    repo_name = "deps",
-)
-use_repo(clojure_deps, "deps")
 
 register_toolchains("//:kotlin_toolchain")
 
