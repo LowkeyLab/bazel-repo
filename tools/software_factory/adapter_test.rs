@@ -23,6 +23,8 @@ struct Wire {
     fault: String,
     comments: Vec<Value>,
     history_requests: Vec<(String, bool)>,
+    label_mutations: Vec<Value>,
+    paused: bool,
 }
 #[derive(Clone, Default)]
 struct Fixture(Rc<RefCell<Wire>>);
@@ -45,6 +47,23 @@ impl Transport for Fixture {
             if s.fault == "graphql-error" {
                 return Ok(json!({"errors":[{"message":"denied"}],"data":{"node":null}}));
             }
+            if q.contains("addLabelsToLabelable") {
+                if q.contains("labelable { id }") {
+                    return Err(software_factory::Error::Stop(
+                        "id is not a Labelable interface field; use an Issue fragment".into(),
+                    ));
+                }
+                s.label_mutations.push(body.clone());
+                s.paused = true;
+                return Ok(
+                    json!({"data":{"add":{"labelable":{"id":id}},"remove":{"labelable":{"id":id}}}}),
+                );
+            }
+            if q.contains("label(name:") {
+                return Ok(
+                    json!({"data":{"repository":{"label":{"id":"L-info","name":"needs-info"}}}}),
+                );
+            }
             if q.contains("repository(owner:") {
                 return Ok(
                     json!({"data":{"repository":{"issue":raw_issue(body["variables"]["number"].as_u64().unwrap())}}}),
@@ -63,6 +82,10 @@ impl Transport for Fixture {
                     "blockedBy"
                 };
                 let values = match field {
+                    "labels" if n == 2 && s.paused => vec![
+                        json!({"id":"L-info","name":"needs-info"}),
+                        json!({"id":"L2","name":"bug"}),
+                    ],
                     "items" => vec![
                         json!({"id":"P2","content":raw_with_type(2)}),
                         json!({"id":"P3","content":raw_with_type(3)}),
@@ -204,6 +227,31 @@ impl ExecutionInventory for Clear {
 fn adapter(f: Fixture) -> Adapter<Fixture, Clear, Fixture> {
     Adapter::new(f.clone(), Clear, f, app(), 100, 100).unwrap()
 }
+#[gtest]
+fn human_pause_adapter_mutates_only_exact_waiting_labels_and_reads_back() {
+    let fixture = Fixture::default();
+    let mut github = adapter(fixture.clone());
+    github.pause_for_human(&key(2)).unwrap();
+    expect_that!(github.human_pause_confirmed(&key(2)).unwrap(), eq(true));
+    let wire = fixture.0.borrow();
+    expect_that!(wire.label_mutations.len(), eq(1));
+    expect_that!(
+        wire.label_mutations[0]["variables"],
+        eq(&json!({"id":"I2","needsInfo":"L-info","ready":"L1"}))
+    );
+}
+
+#[gtest]
+fn incomplete_pause_labels_prevent_mutation() {
+    let fixture = Fixture::default();
+    fixture.0.borrow_mut().fault = "incomplete-labels".into();
+    expect_that!(
+        adapter(fixture.clone()).pause_for_human(&key(2)).is_err(),
+        eq(true)
+    );
+    expect_that!(fixture.0.borrow().label_mutations.len(), eq(0));
+}
+
 #[gtest]
 fn paginated_wire_adapter_selects_native_first_eligible_child_through_controller() {
     let dir = tempfile::tempdir().unwrap();

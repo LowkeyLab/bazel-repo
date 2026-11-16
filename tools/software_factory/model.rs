@@ -184,6 +184,15 @@ pub enum Event {
     Wait {
         reason: String,
     },
+    ResearchFindings {
+        run: Identity,
+        findings: crate::worker::ResearchFindings,
+    },
+    ResearchPublished {
+        run: Identity,
+        comment: String,
+        digest: String,
+    },
     WorkerCheckpoint {
         run: Identity,
         digest: String,

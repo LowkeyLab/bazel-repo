@@ -50,6 +50,7 @@ rust_test(
     size = "small",
     srcs = [
         "native_worker_test.rs",  # keep
+        "research_test.rs",  # keep
         "worker_test.rs",
     ],
     crate_root = "worker_test.rs",

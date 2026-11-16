@@ -522,6 +522,44 @@ impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> Adapter<T, I, W> 
     }
 }
 impl<T: Transport, I: ExecutionInventory, W: HistoryPublisher> GitHub for Adapter<T, I, W> {
+    fn pause_for_human(&mut self, issue: &IssueKey) -> Result<()> {
+        require(
+            issue.repository() == crate::model::REPOSITORY,
+            "foreign human-pause target",
+        )?;
+        let node = self.lookup(issue)?;
+        let labels = self.connection(&node, "Issue", "labels", "id name")?;
+        let data = self.graphql(
+            "query { repository(owner:\"LowkeyLab\",name:\"bazel-repo\") { label(name:\"needs-info\") { id name } } }",
+            &json!({}),
+        )?;
+        let label = &data["repository"]["label"];
+        require(
+            label["name"] == "needs-info",
+            "missing exact needs-info label",
+        )?;
+        let needs_info = text(label, "id")?;
+        let ready = labels.iter().find(|l| l["name"] == "ready-for-agent");
+        let mut variables = json!({"id":node,"needsInfo":needs_info});
+        let query = if let Some(ready) = ready {
+            variables["ready"] = json!(text(ready, "id")?);
+            "mutation($id:ID!,$needsInfo:ID!,$ready:ID!) { add:addLabelsToLabelable(input:{labelableId:$id,labelIds:[$needsInfo]}) { labelable { ... on Issue { id } } } remove:removeLabelsFromLabelable(input:{labelableId:$id,labelIds:[$ready]}) { labelable { ... on Issue { id } } } }"
+        } else {
+            "mutation($id:ID!,$needsInfo:ID!) { add:addLabelsToLabelable(input:{labelableId:$id,labelIds:[$needsInfo]}) { labelable { ... on Issue { id } } } }"
+        };
+        let result = self.graphql(query, &variables)?;
+        require(
+            result["add"]["labelable"]["id"] == node
+                && (ready.is_none() || result["remove"]["labelable"]["id"] == node),
+            "label mutation target mismatch",
+        )
+    }
+    fn human_pause_confirmed(&mut self, issue: &IssueKey) -> Result<bool> {
+        let node = self.lookup(issue)?;
+        let labels = self.connection(&node, "Issue", "labels", "id name")?;
+        Ok(labels.iter().any(|l| l["name"] == "needs-info")
+            && !labels.iter().any(|l| l["name"] == "ready-for-agent"))
+    }
     fn snapshot(&mut self) -> Result<Snapshot> {
         let items = self.connection(
             PROJECT,
