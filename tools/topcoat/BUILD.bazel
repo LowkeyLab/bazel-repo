@@ -7,6 +7,20 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["defs.bzl"])
 
+rust_test(
+    name = "asset_path_test",
+    size = "small",
+    srcs = ["asset_path_test.rs"],
+    compile_data = ["asset_path_test.rs"],
+    crate_root = "asset_path_test.rs",
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:topcoat",
+        "@crates//:topcoat-asset",
+    ],
+)
+
 rust_binary(
     name = "bundle",
     srcs = ["bundle.rs"],
@@ -51,6 +65,27 @@ rust_binary(
 )
 
 format_adapter(name = "format")
+
+rust_test(
+    name = "format_binary_test",
+    size = "small",
+    srcs = ["format_binary_test.rs"],
+    crate_root = "format_binary_test.rs",
+    data = [
+        ":format_impl",
+        "@rustfmt_linux_x86_64_1_100_0//:rustfmt_bin",
+    ],
+    env = {
+        "FORMAT_IMPL_TOOL": "$(rlocationpath :format_impl)",
+        "RUSTFMT_TOOL": "$(rlocationpath @rustfmt_linux_x86_64_1_100_0//:rustfmt_bin)",
+    },
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:tempfile",
+        "@rules_rust//tools/runfiles",
+    ],
+)
 
 rust_test(
     name = "format_test",

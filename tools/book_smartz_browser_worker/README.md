@@ -33,7 +33,25 @@ This validates image prerequisites. It doesn't establish remote execution,
 anonymous GitHub Container Registry access, the full app journey, or production readiness.
 The app browser target uses this worker. Normal fallback policy remains unchanged.
 
-## Runtime evidence
+## Current publication evidence
+
+The privileged runtime test passed in
+[run 43721546194](https://github.com/LowkeyLab/bazel-repo/actions/runs/43721546194)
+at commit `04e735a593e774df687bd44ec835a6b9158078dc`.
+It exercised nested Docker, the declared PostgreSQL archive, and bundled Chromium
+with Playwright `1.65.1`. The separate anonymous-access job retrieved the full image
+and verified the manifest, configuration, and every layer by `SHA-256`.
+
+Verified worker manifest digest:
+`sha256:cc4e8dd51fbfd6ef6fd46499021855ac3ca1dc93c538cf9c707bd14fa8fe1913`.
+
+The maintainer authorized one reviewed-branch publication to resolve the bootstrap
+cycle. The temporary exception was restricted to the named branch, operator, and
+exact reviewed commit. The main-only workflow policy is restored before consumer
+delivery. This publication evidence does not establish the full app journey or
+production readiness.
+
+## Previous runtime evidence
 
 The validation passed with Docker 29.1.3, `containerd` 2.2.1, `runc` 1.3.4, and
 Chromium `156.0.8078.4` at `/ms-playwright/chromium-1248/chrome-linux64/chrome`.
@@ -48,9 +66,9 @@ executed the runtime test locally. Its image build used remote actions.
 
 ## Pinned inputs and updates
 
-- Playwright package: `1.64.1`, from the root pnpm catalog and lockfile.
-- Browser base: `mcr.microsoft.com/playwright:v1.64.1-noble`, pinned to
-  `sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf`.
+- Playwright package: `1.65.1`, from the root pnpm catalog and lockfile.
+- Browser base: `mcr.microsoft.com/playwright:v1.65.1-noble`, pinned to
+  `sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579`.
 - Architecture: Linux amd64.
 - Docker packages: the signed Ubuntu Noble snapshot at
   `https://snapshot.ubuntu.com/ubuntu/20261017T000000Z`, including updates and

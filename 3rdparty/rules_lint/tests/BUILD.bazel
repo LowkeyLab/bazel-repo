@@ -1,0 +1,72 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load(":capture.bzl", "eslint_capture_test", "eslint_tool_error_test")
+
+# Generate deliberate lint fixtures so repository-wide source lint stays clean.
+genrule(
+    name = "fixtures",
+    outs = [
+        "clean.js",
+        "eslint.config.cjs",
+        "violation.js",
+    ],
+    cmd = "\n".join([
+        "printf '%s\\n' 'const answer = 42;' > $(location clean.js)",
+        "printf '%s\\n' 'debugger;' > $(location violation.js)",
+        "printf '%s\\n' 'module.exports = [{rules: {\"no-debugger\": \"error\"}}];' > $(location eslint.config.cjs)",
+    ]),
+)
+
+js_library(
+    name = "config",
+    srcs = ["eslint.config.cjs"],
+    tags = ["no-lint"],
+)
+
+filegroup(
+    name = "clean",
+    srcs = ["clean.js"],
+    tags = ["lint-genfiles"],
+)
+
+filegroup(
+    name = "violation",
+    srcs = ["violation.js"],
+    tags = ["lint-genfiles"],
+)
+
+filegroup(
+    name = "tool_error_source",
+    srcs = ["clean.js"],
+    tags = ["lint-genfiles"],
+)
+
+eslint_capture_test(
+    name = "clean_test",
+    size = "small",
+    srcs = [":clean"],
+)
+
+eslint_capture_test(
+    name = "violation_test",
+    size = "small",
+    srcs = [":violation"],
+    expected_exit_code = 1,
+)
+
+eslint_tool_error_test(
+    name = "tool_error_test",
+    size = "small",
+    srcs = [":tool_error_source"],
+    expected_exit_code = 2,
+)
+
+bzl_library(
+    name = "capture",
+    srcs = ["capture.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@rules_lint//lint:eslint",
+        "@rules_lint//lint:lint_test",
+    ],
+)

@@ -9,7 +9,7 @@ module(
 # Keep immutable commits so builds remain reproducible.
 # Keep bazel-lib releases for their prebuilt helpers: source-built Go helpers
 # create a bootstrap cycle with the LLVM toolchain.
-bazel_dep(name = "bazel_lib", version = "3.7.2")
+bazel_dep(name = "bazel_lib", version = "3.8.0")
 bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 
 # Expose the existing C toolchain rules for a test-only fsync fault fixture.
@@ -26,9 +26,13 @@ single_version_override(
 bazel_dep(name = "rules_lint")
 git_override(
     module_name = "rules_lint",
-    commit = "46361f882415c2206bebe575f59c5aefa3257529",
+    commit = "26c866a777f5fb09f18776f4364958b4e151045c",
     patch_strip = 1,
-    patches = ["//tools/lint:python_typing.patch"],
+    patches = [
+        "//tools/lint:python_typing.patch",
+        "//3rdparty/rules_lint:rules_js_module.patch",
+        "//3rdparty/rules_lint:js_output_capture.patch",
+    ],
     remote = "https://github.com/aspect-build/rules_lint.git",
 )
 
@@ -49,7 +53,9 @@ use_repo(
 bazel_dep(name = "rules_lint_rust")
 git_override(
     module_name = "rules_lint_rust",
-    commit = "46361f882415c2206bebe575f59c5aefa3257529",
+    commit = "26c866a777f5fb09f18776f4364958b4e151045c",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_lint:rust_rules_js_module.patch"],
     remote = "https://github.com/aspect-build/rules_lint.git",
     strip_prefix = "lint/rust",
 )
@@ -58,12 +64,15 @@ bazel_dep(name = "aspect_rules_esbuild")
 git_override(
     module_name = "aspect_rules_esbuild",
     commit = "3e446272538a0fb13c7102f116256ea66463cb51",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_esbuild:rules_js_module.patch"],
     remote = "https://github.com/aspect-build/rules_esbuild.git",
 )
 
-bazel_dep(name = "aspect_rules_js")
+# The upstream module is rules_js. Keep the apparent name for existing loads.
+bazel_dep(name = "rules_js", repo_name = "aspect_rules_js")
 git_override(
-    module_name = "aspect_rules_js",
+    module_name = "rules_js",
     commit = "f918131fcd5cf28e6d506bc9547fbdf999a5553a",
     patch_args = ["-p1"],
     patches = ["//tools/coverage:rules_js_runfiles.patch"],
@@ -74,6 +83,8 @@ bazel_dep(name = "aspect_rules_swc")
 git_override(
     module_name = "aspect_rules_swc",
     commit = "1c8dab362d2711b658b554e1ea1943c6d131e919",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_swc:rules_js_module.patch"],
     remote = "https://github.com/aspect-build/rules_swc.git",
 )
 
@@ -81,6 +92,8 @@ bazel_dep(name = "aspect_rules_ts")
 git_override(
     module_name = "aspect_rules_ts",
     commit = "1042611dbb6894aaa8dc941f9dd31073b22df99b",
+    patch_strip = 1,
+    patches = ["//3rdparty/rules_ts:rules_js_module.patch"],
     remote = "https://github.com/aspect-build/rules_ts.git",
 )
 
@@ -150,7 +163,7 @@ git_override(
 bazel_dep(name = "rules_multitool")
 git_override(
     module_name = "rules_multitool",
-    commit = "5ef5b45cb7a21eae978134a9e7b147727471bc38",
+    commit = "ab911f23ddda40b524d91fca3f4bd3fa0131cfec",
     remote = "https://github.com/bazel-contrib/rules_multitool.git",
 )
 
@@ -179,7 +192,7 @@ bazel_dep(name = "rules_rs")
 bazel_dep(name = "llvm")
 git_override(
     module_name = "llvm",
-    commit = "eb1def84d54ef31cb236233ce8e835d09c9d8e2c",
+    commit = "02a44d57c9efc2410f70227fd61463a5f62cb6b1",
     remote = "https://github.com/hermeticbuild/hermetic-llvm.git",
 )
 
@@ -190,7 +203,7 @@ use_repo(llvm, "llvm-project")
 
 git_override(
     module_name = "rules_rs",
-    commit = "31551f214972aee5a0dc88a9dc129e6146235618",
+    commit = "01adc1c97b6e42933d1e9e79d331ebb118fa2b2e",
     patch_args = ["-p1"],
     patches = ["//3rdparty/rules_rs:toolchain_repository_compatibility.patch"],
     remote = "https://github.com/hermeticbuild/rules_rs.git",
@@ -265,7 +278,7 @@ git_override(
 bazel_dep(name = "rules_go")
 git_override(
     module_name = "rules_go",
-    commit = "caa2ca58cb8f1305a77eff41540441cdaf954e48",
+    commit = "0caa9600f1f596b1536aee6abdb254bb49482f99",
     patch_strip = 1,
     patches = [
         "//tools/go:required_coverage.patch",
@@ -294,7 +307,7 @@ git_override(
 bazel_dep(name = "rules_python")
 git_override(
     module_name = "rules_python",
-    commit = "19325443485c34d66bc9cb0bb3e2b11240167da9",
+    commit = "ea4234e6457c8401bb6f2da3e64fda9693bf6b71",
     remote = "https://github.com/bazel-contrib/rules_python.git",
 )
 
@@ -312,7 +325,7 @@ git_override(
     remote = "https://github.com/bazel-contrib/bazel-gazelle.git",
 )
 
-bazel_dep(name = "rules_python_gazelle_plugin", version = "2.4.6", dev_dependency = True)
+bazel_dep(name = "rules_python_gazelle_plugin", version = "2.5.1", dev_dependency = True)
 bazel_dep(name = "bazel_skylib_gazelle_plugin", dev_dependency = True)
 git_override(
     module_name = "bazel_skylib_gazelle_plugin",
@@ -334,7 +347,10 @@ git_override(
     module_name = "rules_angular",
     commit = "e5cb4c388495711d194f2d686cb0f0f69fd3bd54",
     patch_args = ["-p1"],
-    patches = ["//3rdparty/rules_angular:fix.patch"],
+    patches = [
+        "//3rdparty/rules_angular:fix.patch",
+        "//3rdparty/rules_angular:rules_js_module.patch",
+    ],
     remote = "https://github.com/devversion/rules_angular.git",
 )
 
@@ -409,11 +425,11 @@ npm.npm_translate_lock(
     npmrc = "//:.npmrc",
     patch_args = {
         "@vitest/coverage-v8@5.1.0": ["-p1"],
-        "astro@7.4.7": ["-p1"],
+        "astro@7.4.11": ["-p1"],
     },
     patches = {
         "@vitest/coverage-v8@5.1.0": ["//tools/coverage:vitest_subprocess.patch"],
-        "astro@7.4.7": ["//personal_website:astro_page_identity.patch"],
+        "astro@7.4.11": ["//personal_website:astro_page_identity.patch"],
     },
     pnpm_lock = "//:pnpm-lock.yaml",
 )
@@ -485,7 +501,7 @@ maven.install(
         "org.jetbrains.exposed:exposed-jdbc:1.6.1",
         "org.postgresql:postgresql:42.7.14",
         # Logging
-        "ch.qos.logback:logback-classic:1.6.6",
+        "ch.qos.logback:logback-classic:1.6.7",
         # JSON Path
         "com.jayway.jsonpath:json-path:3.0.0",
     ],
@@ -593,7 +609,7 @@ toolchains = use_extension(
 toolchains.toolchain(
     name = "default_rust_toolchains",
     edition = "2024",
-    version = "1.99.1",
+    version = "1.100.0",
 )
 toolchains.toolchain(
     name = "nightly_rust_toolchains",
@@ -604,7 +620,7 @@ use_repo(
     toolchains,
     "default_rust_toolchains",
     "nightly_rust_toolchains",
-    "rustfmt_linux_x86_64_1_99_1",
+    "rustfmt_linux_x86_64_1_100_0",
 )
 
 register_toolchains(
@@ -668,7 +684,12 @@ crate.annotation(
     additive_build_file_content = 'filegroup(name = "asset_inputs", srcs = glob(["browser/dist/**"]), visibility = ["//visibility:public"])',
     crate = "topcoat-runtime",
     extra_aliased_targets = {"topcoat_runtime_assets": "asset_inputs"},
-    rustc_env = {"CARGO_MANIFEST_DIR": "external/rules_rs++crate+crates__topcoat-runtime-0.12.0"},
+    rustc_env = {"CARGO_MANIFEST_DIR": "external/rules_rs++crate+crates__topcoat-runtime-0.12.1"},
+)
+crate.annotation(
+    crate = "topcoat-asset-grammar",
+    patch_args = ["-p1"],
+    patches = ["//3rdparty/topcoat_asset_grammar:execroot_relative_paths.patch"],
 )
 use_repo(crate, "crates")
 
@@ -677,7 +698,7 @@ use_repo(crate, "crates")
 interpreters = use_extension("@aspect_rules_py//py/unstable:extension.bzl", "python_interpreters")
 interpreters.configure(
     # renovate: datasource=github-releases depName=astral-sh/python-build-standalone
-    releases = ["20261026"],
+    releases = ["20261110"],
 )
 interpreters.toolchain(
     is_default = True,
@@ -765,16 +786,16 @@ oci_extension.pull(
 # Playwright release must match the root pnpm catalog.
 oci_extension.pull(
     name = "book_smartz_playwright",
-    digest = "sha256:9beb546099e11f52d62e505537914870e01a67e0e6b00ae41da4775324e73dbe",
+    digest = "sha256:1507cbfc550a63a6b7396791ca4f00df17beb56342d2447b3f106c306f525579",
     image = "mcr.microsoft.com/playwright",
     platforms = ["linux/amd64"],
-    tag = "v1.65.0-noble",
+    tag = "v1.65.1-noble",
 )
 
 # Test fixtures: PostgreSQL 18 shared by all Testcontainers tests.
 oci_extension.pull(
     name = "test_postgres_18",
-    digest = "sha256:b9f6b8ff03b62f3cfd9d9ba3fe56226a9991c79d3fb46fd46536263bf02be553",
+    digest = "sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc",
     image = "docker.io/library/postgres",
     platforms = ["linux/amd64"],
     tag = "18",

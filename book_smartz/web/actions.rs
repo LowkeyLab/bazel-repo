@@ -13,7 +13,7 @@ use sqlx::{
 };
 use topcoat::{
     Result,
-    context::{Cx, app_context},
+    context::{Cx, context as app_context},
     router::{
         content::Form,
         error::{forbidden, see_other},
@@ -451,7 +451,7 @@ impl RecoveryActions {
     }
 }
 #[topcoat::view::component]
-async fn recovery_form(csrf: String, action: ActionId) -> Result<impl View> {
+async fn recovery_form(cx: &Cx, csrf: String, action: ActionId) -> Result<impl View> {
     Ok(view! {
         <form method="post" action="/recover" data-ranking-action="">
             <input type="hidden" name="csrf" value=(csrf)>

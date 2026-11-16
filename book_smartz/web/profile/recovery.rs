@@ -8,7 +8,7 @@ use sqlx::{
 };
 use topcoat::{
     Result,
-    context::{Cx, app_context},
+    context::{Cx, context as app_context},
     cookie::{Cookie, Cookies, SameSite, cookies},
     router::error::forbidden,
     session,
