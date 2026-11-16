@@ -198,13 +198,13 @@ def test_failed_discovery_never_reports_an_empty_inventory(
 def test_jvm_candidates_preserve_independent_source_scope(workspace: Path) -> None:
     protocol = workspace / "protocol.json"
     configuration = json.loads(protocol.read_text())
-    configuration["files"].extend(["Library.java", "excluded.clj"])
+    configuration["files"].extend(["Library.java", "excluded.txt"])
     protocol.write_text(json.dumps(configuration))
     (workspace / "Library.java").write_text("public class Library {}\n")
-    (workspace / "excluded.clj").write_text("(ns excluded)\n")
+    (workspace / "excluded.txt").write_text("excluded resource\n")
     extra = """
 <source-file name="//:Library.java"/>
-<source-file name="//:excluded.clj"/>
+<source-file name="//:excluded.txt"/>
 <rule class="java_library" name="//:java_lib">
   <list name="srcs"><label value="//:Library.java"/></list>
 </rule>
@@ -214,11 +214,11 @@ def test_jvm_candidates_preserve_independent_source_scope(workspace: Path) -> No
 <rule class="java_test" name="//:java_test">
   <list name="deps"><label value="//:java_alias"/></list>
 </rule>
-<rule class="clojure_library" name="//:clj_lib">
-  <list name="srcs"><label value="//:excluded.clj"/></list>
+<rule class="filegroup" name="//:resource_files">
+  <list name="srcs"><label value="//:excluded.txt"/></list>
 </rule>
-<rule class="java_test" name="//:clojure_test">
-  <list name="deps"><label value="//:clj_lib"/></list>
+<rule class="java_test" name="//:resource_test">
+  <list name="deps"><label value="//:resource_files"/></list>
 </rule>
 """
     query = workspace / "query.xml"
@@ -226,6 +226,6 @@ def test_jvm_candidates_preserve_independent_source_scope(workspace: Path) -> No
     result = run_inventory(workspace)
     assert result.returncode == 0, result.stdout + result.stderr
     inventory = json.loads((workspace / "inventory.json").read_text())
-    assert inventory["jvm_tests"] == ["//:clojure_test", "//:java_test"]
+    assert inventory["jvm_tests"] == ["//:java_test", "//:resource_test"]
     assert any(source["path"] == "Library.java" for source in inventory["eligible"])
-    assert any(source["path"] == "excluded.clj" for source in inventory["excluded"])
+    assert any(source["path"] == "excluded.txt" for source in inventory["excluded"])

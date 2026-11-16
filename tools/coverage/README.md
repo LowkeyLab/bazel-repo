@@ -27,7 +27,7 @@ The integrations below retain collector evidence and source-specific limits.
 Measurement requires collector evidence.
 Final reconciliation checks every eligible source.
 
-The scope excludes WebAssembly execution, Clojure, SQL and procedural bodies,
+The scope excludes WebAssembly execution, SQL and procedural bodies,
 Askama templates, GraphQL documents, Nix, shell, Starlark, Caddy configuration,
 and non-executable content. Eligible surrounding code remains in the inventory.
 Generated output, vendored code, and external dependencies remain outside scope.
@@ -355,7 +355,7 @@ Ordinary builds retain their existing configuration.
 The command writes `coverage-jvm/receipt.json`.
 A metadata aspect reads the public [InstrumentedFilesInfo](https://bazel.build/rules/lib/providers/InstrumentedFilesInfo) provider for each configured native JVM test.
 Only eligible Java/Kotlin sources in that configured dependency closure require profiles.
-An inactive Java dependency does not require profiles from an excluded Clojure execution.
+An inactive Java dependency does not require profiles from an execution of generated Java source.
 Missing or invalid configured test metadata causes collection failure.
 
 The directory retains raw profiles, configured class jars, metadata, baseline XML,
@@ -363,7 +363,7 @@ and measured XML. The receipt identifies source mappings, execution evidence,
 and exact collector limits. Build events use local file URIs for downloaded outputs.
 Missing roots, required class inputs, required profiles, corrupt data, and incomplete
 source analysis cause command failure. Other language records retain their contents.
-Clojure remains outside scope.
+Generated Java source remains outside scope.
 
 A unique source filename within a configured owner supplies an exact path.
 This permits package/directory mismatches and duplicate filenames across owners.

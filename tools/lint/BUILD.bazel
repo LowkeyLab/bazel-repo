@@ -87,7 +87,6 @@ vale_test(
         "//book_smartz/domain:markdown",
         "//book_smartz/storage:markdown",
         "//book_smartz/web:markdown",
-        "//clojure_sample:markdown",
         "//mindreadr:markdown",
         "//nicknamer:markdown",
         "//nicknamer2:markdown",

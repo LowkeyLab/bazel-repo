@@ -1110,7 +1110,7 @@ impl Analysis {
             if sources.len() != 1 {
                 return Err(invalid("A combined record must identify one source."));
             }
-            if ![".java", ".kt", ".kts", ".clj"]
+            if ![".java", ".kt", ".kts"]
                 .iter()
                 .any(|suffix| sources[0].ends_with(suffix))
             {
