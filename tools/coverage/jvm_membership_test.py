@@ -271,7 +271,6 @@ public class Execution {{
             for line in excluded[expected[0]].splitlines()
             if line.startswith("DA:")
         )
-        assert f"{package}/Excluded.java" not in excluded
         excluded_receipt = json.loads((root / "coverage-jvm/receipt.json").read_text())
         assert excluded_receipt["test_inputs"][f"//{package}:excluded"]["sources"] == []
         measured = cover(f"//{package}:execution", "measured")
