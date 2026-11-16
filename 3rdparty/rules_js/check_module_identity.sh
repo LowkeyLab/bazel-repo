@@ -44,6 +44,7 @@ for package in rules_lint rules_esbuild rules_swc rules_ts rules_angular; do
 	printf 'exports_files(glob(["*.patch"]))\n' >"$fixture/3rdparty/$package/BUILD.bazel"
 done
 cp "$repository/3rdparty/rules_lint/rust_rules_js_module.patch" "$fixture/3rdparty/rules_lint/"
+cp "$repository/3rdparty/rules_lint/js_output_capture.patch" "$fixture/3rdparty/rules_lint/"
 cp "$repository/3rdparty/rules_angular/fix.patch" "$fixture/3rdparty/rules_angular/"
 mkdir -p "$fixture/tools/coverage"
 cp "$repository/tools/coverage/rules_js_runfiles.patch" "$fixture/tools/coverage/"

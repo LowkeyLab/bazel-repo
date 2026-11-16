@@ -2,13 +2,13 @@
   description = "Dev shell for bazel-repo";
 
   inputs = {
-    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=2074cc672349f14240fb7ea90d509e0b643e9dd4";
+    nixpkgs.url = "git+https://github.com/NixOS/nixpkgs?shallow=1&ref=nixpkgs-unstable&rev=5d2b81a7a3be3e2f832879028e4d60abbf58e9a0";
     aspect-cli-src = {
-      url = "github:aspect-build/aspect-cli?rev=9e7f7da07e0ffa89166f9c465504c502d6fa5514";
+      url = "github:aspect-build/aspect-cli?rev=d50e3c440017a16537d9b7082a051dccc086a194";
       flake = false;
     };
     llm-agents = {
-      url = "github:numtide/llm-agents.nix?rev=7a541f4c60effbe0c43afe50fe7debe32aadacf0";
+      url = "github:numtide/llm-agents.nix?rev=733d5b0fa81d5aad7c623dca8d8170ce411fba1d";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };

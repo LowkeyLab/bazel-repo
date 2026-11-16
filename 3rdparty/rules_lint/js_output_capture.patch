@@ -1,14 +1,11 @@
 diff --git a/lint/eslint.bzl b/lint/eslint.bzl
+index a5bc043..be5a355 100644
 --- a/lint/eslint.bzl
 +++ b/lint/eslint.bzl
-@@ -176,12 +176,13 @@
- 
-             action_args.add_all(["--output-file", stdout.short_path])
- 
+@@ -179 +179 @@
 -            ctx.actions.run(
 +            ctx.actions.run_shell(
-                 inputs = _gather_inputs(ctx, target, srcs, file_inputs),
-                 outputs = [stdout, exit_code],
+@@ -182,3 +182,4 @@
 -                executable = executable._eslint,
 -                arguments = [action_args],
 -                env = env | {"BAZEL_BINDIR": ctx.bin_dir.path} | {"JS_BINARY__EXIT_CODE_OUTPUT_FILE": exit_code.path} if exit_code else {},
@@ -16,40 +13,26 @@ diff --git a/lint/eslint.bzl b/lint/eslint.bzl
 +                arguments = [executable._eslint.path, exit_code.path, action_args],
 +                command = "status=0; \"$1\" \"${@:3}\" || status=$?; printf '%s\\n' \"$status\" > \"$2\"",
 +                env = env | {"BAZEL_BINDIR": ctx.bin_dir.path},
-                 mnemonic = _MNEMONIC,
-                 progress_message = "Linting %{label} with ESLint",
-             )
 diff --git a/lint/private/patcher_action.bzl b/lint/private/patcher_action.bzl
+index 18a9ab5..9c4affd 100644
 --- a/lint/private/patcher_action.bzl
 +++ b/lint/private/patcher_action.bzl
-@@ -75,20 +75,15 @@
-     )
- 
-     # Build common environment variables and outputs list
+@@ -78,4 +78 @@
 -    common_env = {
 -        "BAZEL_BINDIR": ".",
 -        "JS_BINARY__SILENT_ON_SUCCESS": "1",
 -    }
 +    common_env = {"BAZEL_BINDIR": "."}
- 
-     outputs_list = [patch_out]
-     if stdout != None:
+@@ -85 +81,0 @@
 -        common_env["JS_BINARY__STDOUT_OUTPUT_FILE"] = stdout.path
-         outputs_list.append(stdout)
-     if stderr != None:
+@@ -88,2 +84,2 @@
 -        common_env["JS_BINARY__STDERR_OUTPUT_FILE"] = stderr.path
 -        outputs_list.append(stderr)
 +        if stderr != stdout:
 +            outputs_list.append(stderr)
-     if exit_code != None:
+@@ -91 +86,0 @@
 -        common_env["JS_BINARY__EXIT_CODE_OUTPUT_FILE"] = exit_code.path
-         outputs_list.append(exit_code)
- 
-     # Merge with provided env if any
-@@ -109,10 +104,27 @@
-     kwargs = {
-         "inputs": final_inputs,
-         "outputs": outputs_list,
+@@ -112,2 +107,19 @@
 -        "executable": executable._patcher,
 -        "arguments": arguments,
 +        "command": """
@@ -71,15 +54,9 @@ diff --git a/lint/private/patcher_action.bzl b/lint/private/patcher_action.bzl
 +            stderr.path if stderr != None else "/dev/stderr",
 +            exit_code.path if exit_code != None else "",
 +        ] + arguments,
-         "env": final_env,
+@@ -115 +127 @@
 -        "tools": tools,
 +        "tools": tools + [executable._patcher],
-         # Workaround for the rules_js launcher's undeclared mktemp dependency (#547).
-         # Honor --action_env until that launcher supplies its own utilities.
-         # Explicit env values still take precedence.
-@@ -122,4 +134,4 @@
-         kwargs["mnemonic"] = mnemonic
-     if progress_message != None:
-         kwargs["progress_message"] = progress_message
+@@ -125 +137 @@
 -    ctx.actions.run(**kwargs)
 +    ctx.actions.run_shell(**kwargs)

@@ -239,7 +239,7 @@ A failed remote cover exposes one accessible placeholder and retains its catalog
 
 The browser target uses the [pinned combined worker](../../tools/book_smartz_browser_worker/README.md)
 on BuildBuddy Firecracker, with Docker initialization and the matching bundled
-Chromium under `/ms-playwright`. The worker's [publication and anonymous full-image verification](https://github.com/LowkeyLab/bazel-repo/actions/runs/39092168629)
+Chromium under `/ms-playwright`. The worker's [publication and anonymous full-image verification](https://github.com/LowkeyLab/bazel-repo/actions/runs/43721546194)
 passed before consumer enablement. Normal CI retains its existing remote-to-local
 fallback policy. The app, HTTP, and package targets retain their remote PostgreSQL fixtures.
 

@@ -87,10 +87,11 @@ nix develop --command bazel run //tools/lint:check_python_typing_actions -- \
 ```
 
 This command does not change source files or run Gazelle. It inspects the real
-Ruff and `ty` actions for `//python_sample:python_sample_bin`. Both human and
+Ruff and `ty` actions for `//python_sample:python_sample`. Both human and
 machine actions must receive the selected version. All four actions must retain
 the imported first-party sources and installed packaging wheel directory. The `ty`
-actions must also retain the target's own import root. Changing the selector must
+actions must also retain the library's own import root, which its wheel dependency
+does not supply. Changing the selector must
 change all four action keys. A negative assertion rejects a different selector.
 The evidence directory retains the complete action descriptions and logs.
 

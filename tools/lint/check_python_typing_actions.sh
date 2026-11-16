@@ -46,7 +46,7 @@ for selected in "$version" "$other_version"; do
 		cd "$repository"
 		# bazel run can retain its output-base lock while this command runs.
 		"$bazel_command" --batch "--output_base=$evidence/bazel-output" aquery \
-			'mnemonic("AspectRulesLint(Ruff|Ty)", //python_sample:python_sample_bin)' \
+			'mnemonic("AspectRulesLint(Ruff|Ty)", //python_sample:python_sample)' \
 			--aspects=//tools/lint:linters.bzl%ruff,//tools/lint:linters.bzl%ty \
 			--output_groups=rules_lint_human,rules_lint_machine \
 			--output=text \

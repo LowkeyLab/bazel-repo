@@ -67,6 +67,27 @@ rust_binary(
 format_adapter(name = "format")
 
 rust_test(
+    name = "format_binary_test",
+    size = "small",
+    srcs = ["format_binary_test.rs"],
+    crate_root = "format_binary_test.rs",
+    data = [
+        ":format_impl",
+        "@rustfmt_linux_x86_64_1_100_0//:rustfmt_bin",
+    ],
+    env = {
+        "FORMAT_IMPL_TOOL": "$(rlocationpath :format_impl)",
+        "RUSTFMT_TOOL": "$(rlocationpath @rustfmt_linux_x86_64_1_100_0//:rustfmt_bin)",
+    },
+    deps = [
+        "@crates//:anyhow",
+        "@crates//:googletest",
+        "@crates//:tempfile",
+        "@rules_rust//tools/runfiles",
+    ],
+)
+
+rust_test(
     name = "format_test",
     size = "small",
     srcs = ["format_test.rs"],
