@@ -285,7 +285,14 @@ impl Effects for Runtime {
                 let mut handoff = admission("started");
                 handoff.admission_id = "handoff-1".into();
                 handoff.execution_generation = Some(5);
-                serde_json::to_string(state.handoff_observation.as_ref().unwrap_or(&handoff))?
+                handoff = state
+                    .handoff_observation
+                    .as_ref()
+                    .unwrap_or(&handoff)
+                    .clone();
+                // Match NativeWorker's public outcome: terminal contents stay private.
+                handoff.result = None;
+                serde_json::to_string(&handoff)?
             }
             WorkerCommand::Submit { .. } | WorkerCommand::Cancel { .. } => {
                 serde_json::to_string(&admission("started"))?

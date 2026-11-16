@@ -466,7 +466,7 @@ fn lost_handoff_ack_recovers_never_started_cancellation_after_restart() {
         }
         let cancelling = c.cancel_worker("operator stop".into()).unwrap();
         expect_that!(cancelling.phase, eq(&WorkerPhase::Cancelling));
-        expect_that!(cancelling.handoff, eq(&Some(queued.clone())));
+        expect_that!(cancelling.handoff, eq(&Some(queued)));
         expect_that!(cancelling.plan, eq(&retained.plan));
         expect_that!(cancelling.cessation.is_none(), eq(true));
         runtime.0.borrow_mut().stopped = true;
@@ -493,6 +493,105 @@ fn lost_handoff_ack_recovers_never_started_cancellation_after_restart() {
             history.human_pause_confirmed(&issue_key()).unwrap(),
             eq(true)
         );
+        expect_that!(c.prepare_admission().is_err(), eq(true));
+    }
+}
+
+#[gtest]
+fn terminal_handoff_readback_loads_private_result_before_checkpoint() {
+    let (_dir, mut c, mut history, runtime) = research_setup();
+    c.execute_worker(research_request()).unwrap();
+    let mut result = findings();
+    result["human_question"] = json!("Which authority?");
+    runtime.0.borrow_mut().terminal = true;
+    runtime.0.borrow_mut().research_result = Some(result);
+    let mut terminal = super::admission("terminal");
+    terminal.admission_id = "handoff-1".into();
+    terminal.execution_generation = Some(5);
+    terminal.result =
+        Some(json!({"question_delivered":true,"evidence":"private delivery receipt"}));
+    runtime.0.borrow_mut().handoff_observation = Some(terminal.clone());
+    let waiting = c.execute_worker(research_request()).unwrap();
+    expect_that!(waiting.handoff, eq(&Some(terminal)));
+    expect_that!(
+        waiting.handoff_delivery,
+        eq(&Some(software_factory::worker::HandoffDelivery::Delivered))
+    );
+    expect_that!(waiting.phase, eq(&WorkerPhase::HumanInputRequired));
+    expect_that!(runtime.0.borrow().sent.len(), eq(3));
+    expect_that!(
+        history.human_pause_confirmed(&issue_key()).unwrap(),
+        eq(true)
+    );
+    expect_that!(
+        history
+            .0
+            .borrow()
+            .iter()
+            .any(|record| record.body.contains("private delivery receipt")),
+        eq(false)
+    );
+}
+
+#[gtest]
+fn lost_terminal_handoff_ack_loads_private_result_for_execution_and_cancellation() {
+    for cancel in [false, true] {
+        let (dir, mut c, history, runtime) = research_setup();
+        c.execute_worker(research_request()).unwrap();
+        let mut result = findings();
+        result["human_question"] = json!("Which authority?");
+        runtime.0.borrow_mut().terminal = true;
+        runtime.0.borrow_mut().research_result = Some(result);
+        let mut terminal = super::admission("terminal");
+        terminal.admission_id = "handoff-1".into();
+        terminal.execution_generation = Some(5);
+        terminal.result =
+            Some(json!({"question_delivered":true,"evidence":"private delivery receipt"}));
+        runtime.0.borrow_mut().handoff_observation = Some(terminal.clone());
+        runtime.0.borrow_mut().lose_at = Some(3);
+        expect_that!(c.execute_worker(research_request()).is_err(), eq(true));
+        let original = runtime.0.borrow().sent[2].clone();
+        let (store, _, _) = c.into_parts();
+        expect_that!(
+            store.load().unwrap().worker.unwrap().handoff.is_none(),
+            eq(true)
+        );
+        drop(store);
+        let store =
+            Store::open(&dir.path().join("private"), Identity::new(), &mut Handoff).unwrap();
+        let mut c = Controller::new(store, history, runtime.clone(), "controller".into()).unwrap();
+        let recovered = if cancel {
+            c.cancel_worker("operator stop".into()).unwrap()
+        } else {
+            c.execute_worker(research_request()).unwrap()
+        };
+        expect_that!(recovered.handoff, eq(&Some(terminal)));
+        expect_that!(
+            recovered.identity().unwrap().admission_id.as_str(),
+            eq("handoff-1")
+        );
+        expect_that!(
+            recovered.identity().unwrap().execution_generation,
+            eq(Some(5))
+        );
+        expect_that!(&runtime.0.borrow().sent[2], eq(&original));
+        if cancel {
+            expect_that!(recovered.phase, eq(&WorkerPhase::Cancelling));
+            expect_that!(runtime.0.borrow().sent.len(), eq(4));
+            let WorkerCommand::Cancel { worker } =
+                serde_json::from_str(&runtime.0.borrow().sent[3].payload).unwrap()
+            else {
+                panic!("expected cancellation")
+            };
+            expect_that!(worker, eq(&recovered.identity().unwrap()));
+        } else {
+            expect_that!(recovered.phase, eq(&WorkerPhase::HumanInputRequired));
+            expect_that!(
+                recovered.handoff_delivery,
+                eq(&Some(software_factory::worker::HandoffDelivery::Delivered))
+            );
+            expect_that!(runtime.0.borrow().sent.len(), eq(3));
+        }
         expect_that!(c.prepare_admission().is_err(), eq(true));
     }
 }

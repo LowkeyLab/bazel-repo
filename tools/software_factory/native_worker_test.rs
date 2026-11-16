@@ -235,6 +235,79 @@ fn research_controller_native_adapter_loads_research_and_ask_matt_and_reads_term
 }
 
 #[gtest]
+fn research_native_adapter_fetches_private_result_for_immediate_terminal_handoff() {
+    use super::research_test::{findings, research_request, research_setup};
+    struct TerminalHandoffWire(Wire, Rc<RefCell<bool>>);
+    impl NativeRpc for TerminalHandoffWire {
+        fn call(&mut self, method: &str, params: Value) -> Result<Value> {
+            let handoff = params["text"]
+                .as_str()
+                .is_some_and(|text| text.contains("explicitly preloaded ask-matt"))
+                || params["admission_id"].as_str() == Some("handoff-1");
+            let mut reply = self.0.call(method, params)?;
+            if handoff {
+                reply["admission_id"] = json!("handoff-1");
+                reply["execution_generation"] = json!(5);
+                reply["status"] = json!("terminal");
+                reply["outcome"] = json!("completed");
+                reply["result"] = json!({"final_response":"{\"question_delivered\":true,\"evidence\":\"private native delivery receipt\"}"});
+            } else if method == "prompt.receipt" && *self.1.borrow() {
+                let mut result = findings();
+                result["human_question"] = json!("Which authority?");
+                reply["status"] = json!("terminal");
+                reply["outcome"] = json!("completed");
+                reply["result"] = json!({"final_response":serde_json::to_string(&result)?});
+            }
+            Ok(reply)
+        }
+    }
+    let (_dir, c, history, runtime) = research_setup();
+    let (store, _, _) = c.into_parts();
+    let wire = Wire::default();
+    let ready = Rc::new(RefCell::new(false));
+    let native = NativeWorker::new(
+        TerminalHandoffWire(wire.clone(), ready.clone()),
+        Host(runtime, None),
+        Pool,
+        Publications,
+    );
+    let mut c = Controller::new(store, history.clone(), native, "controller".into()).unwrap();
+    c.execute_worker(research_request()).unwrap();
+    *ready.borrow_mut() = true;
+    let waiting = c.execute_worker(research_request()).unwrap();
+    expect_that!(waiting.phase, eq(&WorkerPhase::HumanInputRequired));
+    expect_that!(
+        waiting.handoff_delivery,
+        eq(&Some(software_factory::worker::HandoffDelivery::Delivered))
+    );
+    expect_that!(
+        waiting.identity().unwrap().admission_id.as_str(),
+        eq("handoff-1")
+    );
+    expect_that!(
+        waiting.identity().unwrap().execution_generation,
+        eq(Some(5))
+    );
+    expect_that!(waiting.handoff.unwrap().result.is_some(), eq(true));
+    expect_that!(
+        history
+            .0
+            .borrow()
+            .iter()
+            .any(|record| record.body.contains("private native delivery receipt")),
+        eq(false)
+    );
+    expect_that!(
+        wire.0
+            .borrow()
+            .iter()
+            .filter(|(method, _)| method == "prompt.submit")
+            .count(),
+        eq(2)
+    );
+}
+
+#[gtest]
 fn research_partial_actual_frozen_skills_stop_before_submission() {
     use super::research_test::{research_request, research_setup};
     let (_dir, c, history, runtime) = research_setup();

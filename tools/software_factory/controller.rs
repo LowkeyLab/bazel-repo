@@ -1027,7 +1027,7 @@ impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
             return Ok(());
         }
         let action = research_handoff_action(worker)?;
-        let admitted: crate::worker::Admission = self.worker_outcome(&action)?;
+        let mut admitted: crate::worker::Admission = self.worker_outcome(&action)?;
         require(
             admitted.session_id == worker.identity()?.session_id
                 && admitted.profile == worker.plan.request.profile
@@ -1044,8 +1044,20 @@ impl<G: GitHub, E: crate::worker::WorkerRuntime> Controller<G, E> {
         )?;
         let mut identity = worker.identity()?;
         identity.admission_id.clone_from(&admitted.admission_id);
-        // A separate handoff has not inherited the research execution generation.
-        identity.execution_generation = None;
+        // Bind the handoff's own generation, never the research generation.
+        identity.execution_generation = admitted.execution_generation;
+        if admitted.status == "terminal" {
+            // Public action outcomes omit terminal contents. Read the exact private receipt.
+            let observed = self.effects.observe(&identity)?;
+            let mut public = observed.clone();
+            public.result = None;
+            admitted.result = None;
+            require(
+                public == admitted,
+                "terminal handoff receipt changed from the exact action outcome",
+            )?;
+            admitted = observed;
+        }
         admitted.validate(&identity)?;
         worker.handoff = Some(admitted);
         self.checkpoint_worker(worker.clone())

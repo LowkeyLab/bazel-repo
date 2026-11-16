@@ -5,6 +5,61 @@
 These results use controlled controller and native-adapter fixtures. They do not
 prove deployed integration or authorize activation or live research.
 
+### Current configuration after the main merge
+
+The November 16, 2026 validation starts from merge commit
+`2a7d31f56cc5e51757be568eba59bc4e820ad810`, including main commit
+`4c24677b726aa1b26bdc57ca4416873ebde89be6`. These checks use the assigned
+checkout and its current dependency configuration, not the historical alternate tree.
+The earlier dependency-patch and Nix `zstd` failures no longer block these checks.
+The records below this section describe earlier runs. Scratch cleanup removed
+their original local evidence paths. This run does not reconstruct those receipts.
+
+The current Nix shell builds successfully. Its Linux filesystem wrapper for Bazel cannot
+create a namespace in this container. A temporary `bazel` link selects the same
+Nix-provided Bazelisk directly inside that shell. Bazel still selects version
+`9.3.2` and all configured language toolchains. Four build jobs, `GOMAXPROCS=2`,
+and `ActiveProcessorCount=4` avoid host process exhaustion during Gazelle builds.
+The required `asd-ste100` skill remains unavailable.
+
+Hosted review found that a terminal handoff action outcome omits private result
+contents. Validating that public outcome prevented recovery before the controller
+could read the complete native receipt. Two new controller regressions failed with
+`terminal result missing` before correction. The controller now reads the exact
+private terminal receipt and compares its public identity, generation, status,
+epoch, and outcome with the original action evidence before validation and checkpoint.
+The regressions cover immediate completion, lost acknowledgement followed by
+execution recovery, and direct cancellation after restart. They retain the original
+submission, human-input stop, and exact cancellation target without exposing the
+private delivery result in public history. A third regression exercises the real
+native adapter with controlled RPC responses and an immediately terminal handoff.
+It also fails with `terminal result missing` before correction and passes after it.
+
+Current-config whole-tree formatting, Gazelle, and the focused package build pass.
+One final run without cached test results passes **61 worker tests**, **46 intake/adapter
+tests**, and **20 pool-wrapper command tests**, with no failures, ignored tests, or
+filtered tests. Package lint with the hard strategy exits `0`. Final lint
+also checks the documentation corrections. Full-repository build and lint
+still stop on unrelated Clojure dependency resolution for
+`clojure-1.12.6.pom.part.lock`. These gates fail before package validation.
+
+CI for the merge commit passes test, format, coverage, Rust CodeQL, and patch coverage
+at `91.78982%`. The first lint attempt timed out on an unchanged Ubuntu snapshot
+download. One failed-job retry completes the lint build, with prose warnings and
+one redundant test clone. This correction removes those findings without changing
+rules, dependencies, exclusions, or thresholds. Updated-head CI and hosted review
+remain separate gates.
+
+Current private evidence root: `/opt/data/workspace/recovery-3154/loop`.
+`red-terminal-handoff-test.log` and `green-terminal-handoff-test.log` retain the
+two controller regression results. `red-native-terminal-handoff-test.log` and
+`green-native-terminal-handoff-test.log` retain the real-adapter regression results.
+`final-testlogs/` retains all three final Rust harness logs.
+`round1-format.log`, `round1-build.log`, and `round1-lint-retry.log` retain focused
+gate output. `build-native-bazelisk.log` and `lint-native-bazelisk.log` retain the
+current-config full-repository failures. Hosted request state remains under
+`hosted-review-state/`. These results do not establish live integration or activation.
+
 ### Configuration and validation boundary
 
 - Assigned source base: `b1a060025608a529ed8014644c2d688ea23283bc`.
@@ -14,8 +69,8 @@ prove deployed integration or authorize activation or live research.
   A scratch override of that dependency exposed a second existing failure:
   `aspect_rules_js` declares module name `rules_js`.
 - All current-base Gazelle, formatting, full-test, full-build, and lint attempts
-  remain blocked before the changed Rust source is analyzed. No repository
-  dependency, patch, lint rule, or validation threshold was changed for this ticket.
+  remain blocked before analysis of the changed Rust source. This ticket changes no repository
+  dependency, patch, lint rule, or validation threshold.
 - To exercise the implementation, a separate scratch validation tree uses the
   repository archive at `59c7445cbdc9bff4ca6d776708e7340005f0235a` for dependency
   configuration. Its `tools/software_factory` and `tools/pool_receipt` paths are
@@ -26,7 +81,7 @@ prove deployed integration or authorize activation or live research.
   handoff admission `handoff-1` with generation `5`. Required research skills are
   `research` and `ask-matt`. The trusted fixture manifest is independent of caller
   omissions. Existing App, original pool, private-store, and isolation fixtures
-  remain in use. No live assignment is acquired or released by these tests.
+  remain in use. These tests acquire or release no live assignment.
 - Local validation clears remote execution, cache, and build-event endpoints;
   it uses four jobs, `GOMAXPROCS=2`, and JVM `ActiveProcessorCount=4`.
 - Nix and the required `asd-ste100` skill are unavailable. There is no Nix-shell
@@ -52,9 +107,9 @@ Current-base whole-repository gates remain blocked by the documented dependency 
 | Real human state              | Publish the unanswered question, checkpoint HumanInputRequired, invoke the loaded ask-matt workflow with a separate durable submission, and accept no worker-generated answer. | Passed across restart, lost handoff acknowledgement, unknown exact effect, waiting labels, and changed subsequent worker output. |
 | Implementation boundary       | Reject implementation worker substitution, generic PR publication, merge actions, arbitrary replacement prompts, and implementation or fabricated-answer output fields.        | Passed. Rejected terminal output remains retained after restart; changed worker output cannot repair authority.                  |
 | Native recovery and cessation | Lost create/submit acknowledgements retain the original run and pool receipt. Cancellation of the handoff targets its distinct exact admission and generation.                 | Passed without resending an uncertain native mutation.                                                                           |
-| Output prerequisites          | Empty findings, absent sources, and empty human questions cannot publish or complete.                                                                                          | Passed; no public findings record is emitted.                                                                                    |
+| Output prerequisites          | Empty findings, absent sources, and empty human questions cannot publish or complete.                                                                                          | Passed. The controller emits no public findings record.                                                                          |
 
-The behavioral red runs are retained in `red-admission.log`, `red-findings.log`,
+The evidence root retains the behavioral red runs in `red-admission.log`, `red-findings.log`,
 `red-human-authority.log`, and `red-handoff-identity.log`. They failed before their
 corresponding fixes. Subsequent `green-*.log` files retain slice results.
 
@@ -62,7 +117,7 @@ corresponding fixes. Subsequent `green-*.log` files retain slice results.
 
 Private evidence root: `/opt/data/cache/scratch/issue-3154`.
 
-- `final-results.json`: parsed test names/counts, configuration, source SHA-256
+- `final-results.json`: parsed test names/counts, configuration, source `SHA-256`
   bindings, validation boundary, and actual Clippy report results.
 - `testlogs/`: the nine final Rust harness logs and Bazel XML wrappers.
 - `lint-reports/`: the three actual Clippy reports and exit-code files.
@@ -79,7 +134,7 @@ The independent Standards and Spec review remains the parent delivery workflow's
 responsibility. Deployed host prerequisites, native capability/frozen-skill proof,
 App permissions, real human delivery, and the final readiness activation gate
 remain unresolved runtime prerequisites. No live worker, research fixture,
-GitHub publication, pool recovery, PR, merge, or activation was performed.
+GitHub publication, pool recovery, PR, merge, or activation occurred.
 
 ### Review corrections for issue #3154
 
@@ -116,14 +171,14 @@ Evidence under `/opt/data/cache/scratch/issue-3154`:
   `review-red-label-schema.log` retain behavioral failures before correction.
   Matching `review-green-*.log` files retain the passing slice results.
 - `review-final-results.json`, `review-testlogs/`, and `review-lint-reports/`
-  retain parsed counts, exact test names, source SHA-256 bindings, and raw reports.
+  retain parsed counts, exact test names, source `SHA-256` bindings, and raw reports.
 - `review-final-status.log`, `review-final-test.log`, `review-final-build.log`,
   `review-final-lint.log`, and `review-final-rust-format.log` retain the alternate
   gate results. `validate-focused.sh` and `collect-evidence.py` reproduce them.
 - `review-gazelle.log`, `review-final-gazelle.log`, and
   `review-current-{format,tests,build,lint}.log` retain failed current-base gates.
   They stop before source analysis because `aspect_rules_js` declares `rules_js`.
-  No dependencies, thresholds, or unrelated source files were changed.
+  The corrections change no dependencies, thresholds, or unrelated source files.
 
 The parent delivery workflow must still complete independent reviews. There was
 no push, live worker admission, issue mutation, PR, merge, or activation in this
@@ -146,19 +201,19 @@ Started handoffs with a missing generation or result still fail closed, includin
 cancelled outcomes. Waiting labels and the issue slot remain in place.
 
 The alternate dependency configuration passed **58 worker tests**, **46
-intake/adapter tests**, and **20 pool-wrapper tests** in each of three uncached
-runs: **372 individual executions**, with no failures or ignored tests. The
+intake/adapter tests**, and **20 pool-wrapper tests** in each of three
+runs without cached results: **372 individual executions**, with no failures or ignored tests. The
 focused package build and Bazel-managed Rust formatting passed. All three
 Clippy reports are empty with exit code `0`. Current-base Gazelle, whole-tree
 formatting, tests, build, and lint still stop before source analysis because
-`aspect_rules_js` declares `rules_js`. No dependency configuration was changed.
+`aspect_rules_js` declares `rules_js`. The correction changes no dependency configuration.
 
 Evidence root: `/opt/data/cache/scratch/issue-3154`.
-`spec-final-red.log` retains the expected distinct-admission failure;
+`spec-final-red.log` retains the expected distinct-admission failure.
 `spec-final-green.log` retains the passing regression. `spec-final-tests.log`,
 `spec-final-build.log`, `spec-final-lint.log`, and `spec-final-format.log` retain
 the alternate gate output. The nine Rust harness logs remain under the validation
-workspace's `bazel-testlogs`. `spec-final-gazelle.log` and
+tree under `bazel-testlogs`. `spec-final-gazelle.log` and
 `spec-current-{format,tests,build,lint}.log` retain the current-base blockers.
 These are fixture results, not deployed integration or activation evidence.
 
@@ -234,7 +289,7 @@ The focused package build, whole-tree formatting, Gazelle, and strict package li
 completed successfully. The parent repeated both test targets without cached
 results after correcting the independent Standards review's import-order finding.
 The independent Spec review reported no findings. Admission status strings and
-separate receipt validation remain wire-boundary design choices; the review's
+separate receipt validation remain wire-boundary design choices. The review's
 suggestions for typed statuses and shared receipt reads are non-blocking refactoring
 opportunities, not waived safety findings. The unavailable `asd-ste100` skill
 provides no strict-mode compliance evidence.
@@ -246,14 +301,14 @@ a timeout, followed by Bazel native-thread exhaustion. Capping the Bazel JVM wit
 The full build retry and full lint stop on Clojure dependency resolution:
 `clojure-1.12.6.pom.part.lock` is absent. The same dependency failure reproduced
 in the untouched planning checkout at `5886c059728a95fcd85ac0db19e454d0fbcff205`.
-No unrelated tests, dependencies, or checks were weakened.
+The work weakens no unrelated tests, dependencies, or checks.
 
 Parent evidence in the same private root: `parent-gates.json`,
 `parent-full-test.log`, `parent-full-build-retry.log`, `parent-full-lint.log`,
 `baseline-clojure.log`, `parent-review-gazelle-retry.log`,
 `parent-review-format-retry.log`, `parent-review-tests.log`, and
 `parent-focused-lint.log`. The initial formatter retry stopped on the Git
-intent-to-add index state; staging the reviewed new files allowed the unchanged
+intent-to-add index state. Staging the reviewed new files allowed the unchanged
 whole-tree formatter to pass.
 
 ### Hosted review corrections for issue #3153
@@ -279,7 +334,7 @@ The expanded suite passes **35 worker tests**, **44 intake tests**, and
 cancellation, cessation/effects separation, real publication routing, original
 reply recovery, and unprovisioned-host refusal. Local Bazel coverage measures
 native adapter line coverage at **94.27%**. This is not hosted patch coverage.
-The initial hosted patch result was **90.44%** against a **91.50%** target;
+The initial hosted patch result was **90.44%** against a **91.50%** target.
 updated hosted results remain a separate gate. No threshold or exclusion changed.
 
 Evidence: `cycle-1-controller-red.log`, `cycle-1-controller-green.log`,

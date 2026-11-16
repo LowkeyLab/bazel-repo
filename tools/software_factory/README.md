@@ -1,7 +1,7 @@
 # Software factory controller
 
 This Rust library implements issue #3152 for intake, issue #3153 for one native
-implementation worker, and issue #3154 for AFK research under specification #3151. It contains no service, scheduled entry, merge
+implementation worker, and issue #3154 for research without operator attendance under specification #3151. It contains no service, scheduled entry, merge
 implementation, or activation command. It does not start normal operation.
 
 ## Boundaries
@@ -166,7 +166,7 @@ derive undocumented native IDs, search for a newest session, or start a new run.
 `CapturedPoolInspector` reads the original private pool-receipt acquisition files
 and invokes only `assignment inspect` for the retained handle through the
 approved wrapper. Its constructor requires explicit approved private receipt and
-catalog directories; cleared subprocess environments do not select defaults.
+catalog directories. Cleared subprocess environments do not select defaults.
 It compares the original catalog authority, assignment, acquisition operation,
 repository, worktree, and lossless Unix path bytes. Pending, unknown, capture
 errors, changed identities, or non-UTF-8 `cwd` bytes stop admission. It never
@@ -176,7 +176,7 @@ Retained post-admission observation reads the authenticated exact session and
 admission even while execution inventory reports that issue occupied. It retains
 all other authorization checks and cannot send create or submit. New admission
 and PR publication still require execution clearance. Submission read verification preserves
-an acknowledged execution generation and authority epoch; only a queued admission
+an acknowledged execution generation and authority epoch. Only a queued admission
 without a generation can acquire its first generation.
 
 `GitHubPublications` reuses the existing GitHub `Transport` and requires a
@@ -248,7 +248,7 @@ Implementation workflow skills cannot replace research.
 
 The worker follows the explicitly loaded research workflow and originating issue
 contract. It returns public findings with source references. The native terminal
-`final_response` contains this JSON object; a directly structured object is also
+`final_response` contains this JSON object. A directly structured object is also
 accepted at the runtime boundary:
 
 ```json
@@ -261,9 +261,9 @@ accepted at the runtime boundary:
 
 These fields are public. They must not contain secrets, private pool captures, or
 private native receipts. Unknown output fields, including implementation PRs,
-merge authority, and worker-supplied human answers, are rejected. Empty findings,
-missing sources, and empty human questions are rejected. The retained terminal
-result cannot be replaced with a different answer after restart.
+merge authority, and worker-supplied human answers, cause rejection. Empty findings,
+missing sources, and empty human questions also cause rejection. The controller cannot replace the retained terminal
+result with a different answer after restart.
 
 Successful native execution enters `ResearchReady`, not `Implemented`. The
 controller publishes `ResearchFindings` through its existing authenticated history
@@ -271,8 +271,8 @@ path and reads back the exact comment, App identity, payload, and continuity.
 It then publishes and verifies `ResearchPublished`, which binds the confirmed
 comment identity and digest. Only then does it checkpoint `ResearchComplete`.
 Research completion is not a PR, merge, pool release, or activation decision.
-The receipt and issue slot remain retained under the existing stopped-job policy;
-this library does not add a release or replacement API.
+The receipt and issue slot remain retained under the existing stopped-job policy.
+This library does not add a release or replacement API.
 
 A non-null `human_question` remains unanswered. After findings publication and the
 `HumanInputRequired` checkpoint, the controller records a separate authenticated
@@ -280,15 +280,15 @@ label intent. The GitHub adapter adds `needs-info` and removes `ready-for-agent`
 on the exact originating issue. It preserves type and unrelated labels. Complete
 label read verification must confirm both conditions before the separate `ask-matt`
 submission. Partial writes, lost acknowledgements, and failed read verification retain the
-original action and stop dependent work. Recovery reads the exact issue; it never
+original action and stop dependent work. Recovery reads the exact issue. It never
 repeats an uncertain label mutation. Changed labels after a confirmed pause stop
 the handoff rather than granting another mutation or restoring readiness.
 
 The original reserved publication action identity binds the explicitly loaded
-`ask-matt` handoff rather than a PR. Its separate admission and generation are
-retained for exact cancellation. Cancellation first reconciles a handoff outcome
+`ask-matt` handoff rather than a PR. The controller retains its separate admission and generation
+for exact cancellation. Cancellation first reconciles a handoff outcome
 that was not checkpointed, then reads its current exact admission. Queued work
-can acquire its first generation; known generations cannot change. Cancellation
+can acquire its first generation. Known generations cannot change. Cancellation
 retries retain the original cancellation payload and still require separate
 cessation and effect-reconciliation evidence.
 
@@ -315,7 +315,7 @@ substitute for those host prerequisites.
 
 ### Research recovery and operation
 
-Owner: the Software Factory operator; a maintainer controls authority changes.
+Owner: the Software Factory operator. A maintainer controls authority changes.
 
 | Condition                                        | Required evidence and stop                                                                                                                                    | Resumption                                                                                                                                      |
 | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -327,4 +327,4 @@ Owner: the Software Factory operator; a maintainer controls authority changes.
 
 All research tests use controlled fixtures. They do not establish deployed native
 capabilities, App permissions, OS isolation, real human delivery, or production
-readiness. No live research fixture or activation is authorized by this work.
+readiness. This work authorizes no live research fixture or activation.
