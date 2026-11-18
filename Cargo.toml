@@ -104,6 +104,6 @@ tempfile = "=3.27.0"
 googletest = "=0.14.4"
 insta = { version = "=1.49.0", features = ["yaml"] }
 mockall = "=0.15.0"
-regex = "=1.13.1"
+regex = "=1.13.2"
 testcontainers-modules = { version = "=0.15.0", features = ["postgres"] }
 wiremock = "=0.6.5"
