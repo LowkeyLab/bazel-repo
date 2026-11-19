@@ -5899,6 +5899,11 @@
           "version": "v0.0.1"
         },
         {
+          "importpath": "github.com/bazelbuild/buildtools",
+          "sha256": "753d65d3c6e6590a394ae771d129c772eb99bc6ecc0cc277edadc0f6d7fba35d",
+          "version": "v0.0.0-20220531122519-a43aed7014c8"
+        },
+        {
           "importpath": "github.com/bazelbuild/bazel-gazelle",
           "sha256": "f5f4869f17ccc9728ce0005c8a241a3030f903e4364538eb69a490c0da4194b7",
           "version": "v0.50.0"
