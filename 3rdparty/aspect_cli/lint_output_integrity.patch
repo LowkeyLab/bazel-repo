@@ -1,0 +1,36 @@
+--- a/crates/aspect-cli/src/builtins/aspect/lint.axl
++++ b/crates/aspect-cli/src/builtins/aspect/lint.axl
+@@ -634,14 +634,14 @@
+         report = _read_lint_file(ctx, filepath, probe_timeout_ms, expected_len)
+         if report == None:
+             return None
+-        if "sarif-" in report:
++        # A rules_lint machine report is SARIF even if corrupt or missing $schema.
++        if detect_lint_tool(file.name) or "sarif-" in report:
+             sarif = parse_sarif(report)
+-            if not sarif:
+-                # The read was complete (length-gated), so a document that
+-                # still won't decode is malformed rather than in flight —
+-                # retrying can't help. Name it instead of dropping its
+-                # findings silently.
+-                warn(ctx.std, "Ignoring unparseable SARIF report: %s" % filepath)
++            if type(sarif) != "dict" or type(sarif.get("runs")) != "list":
++                # The length-gated read completed. Retrying won't repair the
++                # report, and a separate zero .exit_code cannot validate it.
++                error(ctx.std, "Malformed SARIF report: %s" % filepath)
++                data["malformed_sarif"] = True
+                 return {"interesting": False, "linter_exit_code": 0, "failed_tool": ""}
+             # Python type/annotation policy applies to every line and strategy.
+             diagnostics = sarif_diagnostics(sarif)
+@@ -1115,6 +1115,11 @@
+     # 12. Exit code. `not lint_tools_run` guards the silent zero-aspect case —
+     # a green `aspect lint` in CI must mean "passed", not "never ran".
+     if build_failed:
++        exit_code = 1
++    elif pending_files or skipped_remote_files:
++        error(ctx.std, "Lint results are incomplete: %d unreadable, %d without a local path." % (len(pending_files), skipped_remote_files))
++        exit_code = 1
++    elif data.get("malformed_sarif"):
+         exit_code = 1
+     elif not lint_tools_run:
+         if rc.flag_values("--aspects", command = "build"):

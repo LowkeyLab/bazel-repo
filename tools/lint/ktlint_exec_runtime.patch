@@ -1,0 +1,8 @@
+--- a/lint/ktlint.bzl
++++ b/lint/ktlint.bzl
+@@ -206,3 +206,5 @@
+             "_java_runtime": attr.label(
+                 default = "@rules_java//toolchains:current_java_runtime",
++                # Ktlint runs on the execution platform, not the target platform.
++                cfg = "exec",
+             ),

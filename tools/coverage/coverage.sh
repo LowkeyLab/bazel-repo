@@ -19,7 +19,46 @@
 set -euo pipefail
 
 # Require SHA256 for the artifact digests recorded by the producer.
-COVERAGE_BAZEL=(bazel --digest_function=SHA256)
+RUNNER_OUTPUT=""
+STRICT_ARGS=()
+STAGE=0
+if [[ ${1:-} == --buildbuddy-runner ]]; then
+	if [[ $# != 1 || ! -d ${BUILDBUDDY_ARTIFACTS_DIRECTORY:-} ]]; then
+		printf '%s\n' 'Use --buildbuddy-runner alone on a BuildBuddy remote runner.' >&2
+		exit 2
+	fi
+	shift
+	RUNNER_OUTPUT="$BUILDBUDDY_ARTIFACTS_DIRECTORY/coverage"
+	mkdir -- "$RUNNER_OUTPUT"
+	git rev-parse HEAD >"$RUNNER_OUTPUT/revision.txt"
+	STRICT_ARGS=(
+		--config=remote-linux
+		--spawn_strategy=remote
+		'--strategy_regexp=.*=remote'
+		--noremote_local_fallback
+		--remote_local_fallback_strategy=remote
+		--strategy=CoverageReport=remote
+	)
+fi
+
+coverage_bazel() {
+	local command=$1 status=0
+	shift
+	local flags=("${STRICT_ARGS[@]}")
+	if [[ -n $RUNNER_OUTPUT && $command != info ]]; then
+		STAGE=$((STAGE + 1))
+		local invocation_id
+		read -r invocation_id </proc/sys/kernel/random/uuid
+		flags+=("--invocation_id=$invocation_id" "--execution_log_compact_file=$RUNNER_OUTPUT/$STAGE-$command.binpb.zst")
+		printf '%q ' bazel --digest_function=SHA256 "$command" "${flags[@]}" "$@" >>"$RUNNER_OUTPUT/commands.txt"
+		printf '\n' >>"$RUNNER_OUTPUT/commands.txt"
+	fi
+	bazel --digest_function=SHA256 "$command" "${flags[@]}" "$@" || status=$?
+	if [[ -n $RUNNER_OUTPUT && $command != info ]]; then
+		printf '%s %s %s\n' "$STAGE" "$command" "$status" >>"$RUNNER_OUTPUT/status.txt"
+	fi
+	return "$status"
+}
 
 # When invoked via `bazel run`, change to the workspace root
 if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
@@ -63,13 +102,13 @@ for arg in "${ARGS[@]}"; do
 	esac
 done
 trap 'rm -f "$ROOTS_FILE" "$TEMP_EVENTS_FILE" "$ANALYZER_SCRIPT" "$JAVASCRIPT_COLLECTOR" "$JAVASCRIPT_MERGER"' EXIT
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
+coverage_bazel run "${INFO_ARGS[@]}" //tools/coverage:inventory -- \
 	--output coverage-inventory.json --roots-output "$ROOTS_FILE" "${INVENTORY_ARGS[@]}"
 mapfile -t COVERAGE_ROOTS <"$ROOTS_FILE"
-COVERAGE_DAT="$("${COVERAGE_BAZEL[@]}" info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_report.dat"
+COVERAGE_DAT="$(coverage_bazel info "${INFO_ARGS[@]}" output_path)/_coverage/_coverage_report.dat"
 
 echo "==> Running bazel coverage for: ${ARGS[*]}"
-"${COVERAGE_BAZEL[@]}" coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" --nozip_undeclared_test_outputs \
+coverage_bazel coverage "${ARGS[@]}" "${COVERAGE_ROOTS[@]}" "${EVENTS_ARGS[@]}" --nozip_undeclared_test_outputs \
 	--aspects=//tools/coverage:jvm.bzl%jvm_test_inputs,//tools/coverage:javascript.bzl%javascript_test_inputs \
 	--output_groups=+go_coverage_baselines,rust_coverage_baselines,jvm_coverage_baselines,jvm_test_inputs,javascript_test_inputs \
 	--nobuild_event_json_file_path_conversion 2>&1
@@ -87,29 +126,36 @@ fi
 # preserve those mode bits.
 cp "${COVERAGE_DAT}" "${COMBINED_LCOV}"
 chmod u+w "${COMBINED_LCOV}"
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
+coverage_bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --expected-output coverage-go-baselines.json
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
+coverage_bazel run "${INFO_ARGS[@]}" //tools/coverage:go_report -- \
 	--language rust --inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --expected-output coverage-rust-baselines.json
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" --script_path="$ANALYZER_SCRIPT" //tools/coverage:jvm_analyzer
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:jvm_report -- \
+coverage_bazel run "${INFO_ARGS[@]}" --script_path="$ANALYZER_SCRIPT" //tools/coverage:jvm_analyzer
+coverage_bazel run "${INFO_ARGS[@]}" //tools/coverage:jvm_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --evidence coverage-jvm \
 	--analyzer "$ANALYZER_SCRIPT"
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_COLLECTOR" //tools/coverage:javascript_baseline
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_MERGER" @bazel_tools//tools/test:lcov_merger
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:javascript_report -- \
+coverage_bazel run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_COLLECTOR" //tools/coverage:javascript_baseline
+coverage_bazel run "${INFO_ARGS[@]}" --script_path="$JAVASCRIPT_MERGER" @bazel_tools//tools/test:lcov_merger
+coverage_bazel run "${INFO_ARGS[@]}" //tools/coverage:javascript_report -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--events "$EVENTS_FILE" --evidence coverage-javascript \
 	--collector "$JAVASCRIPT_COLLECTOR" --merger "$JAVASCRIPT_MERGER"
-"${COVERAGE_BAZEL[@]}" run "${INFO_ARGS[@]}" //tools/coverage:reconcile -- \
+coverage_bazel run "${INFO_ARGS[@]}" //tools/coverage:reconcile -- \
 	--inventory coverage-inventory.json --report "${COMBINED_LCOV}" \
 	--go coverage-go-baselines.json --rust coverage-rust-baselines.json \
 	--jvm coverage-jvm/receipt.json --javascript coverage-javascript/receipt.json \
 	--output coverage-reconciliation.json
 echo "==> Combined lcov written to: ${COMBINED_LCOV}"
+
+# The remote interface returns the reconciled LCOV and its evidence, not HTML.
+if [[ -n $RUNNER_OUTPUT ]]; then
+	tar -czf "$RUNNER_OUTPUT/reports.tar.gz" -- "$COMBINED_LCOV" coverage-inventory.json \
+		coverage-{go,rust}-baselines.json coverage-{jvm,javascript} coverage-reconciliation.json
+	exit 0
+fi
 
 # Generate HTML report if genhtml is available
 if command -v genhtml &>/dev/null; then

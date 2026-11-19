@@ -29,6 +29,7 @@ git_override(
     commit = "dbae9025a77ef4d6f01e648abd87d7c2f6f1319a",
     patch_strip = 1,
     patches = [
+        "//tools/lint:ktlint_exec_runtime.patch",
         "//tools/lint:python_typing.patch",
         "//3rdparty/rules_lint:rules_js_module.patch",
         "//3rdparty/rules_lint:js_output_capture.patch",

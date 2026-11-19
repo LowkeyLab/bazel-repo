@@ -130,6 +130,7 @@ Keep ownership, validation, source reviews, and authorized merge execution in th
 ## Pool command output
 
 Use the [pool receipt wrapper](../../tools/pool_receipt/README.md) for bounded pool output and complete private command receipts.
+For isolated lint runs, follow [pooled lint validation](pooled-lint.md).
 Read lossless path bytes from the selected record before using a checkout path.
 Keep inherited ownership, capacity, and exact recovery approval rules in effect.
 

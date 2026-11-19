@@ -3,6 +3,7 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@rules_java//java:defs.bzl", "java_import")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tools/coverage:javascript.bzl", "js_test")
 load("//tools/coverage:jvm.bzl", "java_binary")
 load("//tools/coverage:rust.bzl", "rust_binary", "rust_library", "rust_test")
@@ -12,6 +13,14 @@ sh_binary(
     name = "coverage",
     srcs = ["coverage.sh"],
     visibility = ["//:__subpackages__"],
+)
+
+sh_test(
+    name = "remote_runner_test",
+    size = "small",
+    srcs = ["remote_runner_test.sh"],
+    args = ["$(location coverage.sh)"],
+    data = ["coverage.sh"],
 )
 
 py_binary(
