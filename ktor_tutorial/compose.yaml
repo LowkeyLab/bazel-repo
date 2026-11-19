@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+    image: postgres:18@sha256:37586cb420551a1d64a424c5d02e93642692499f70919dda80e4bdafbb0a9533
     container_name: ktor_tutorial_postgres
     environment:
       POSTGRES_USER: postgres
