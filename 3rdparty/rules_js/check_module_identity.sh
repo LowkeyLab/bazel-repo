@@ -36,8 +36,8 @@ done
 
 # Keep the production typing patch in the graph as well as the identity patches.
 mkdir -p "$fixture/tools/lint"
-cp "$repository/tools/lint/python_typing.patch" "$fixture/tools/lint/"
-printf 'exports_files(["python_typing.patch"])\n' >"$fixture/tools/lint/BUILD.bazel"
+cp "$repository/tools/lint/"{ktlint_exec_runtime,python_typing}.patch "$fixture/tools/lint/"
+printf 'exports_files(glob(["*.patch"]))\n' >"$fixture/tools/lint/BUILD.bazel"
 for package in rules_lint rules_esbuild rules_swc rules_ts rules_angular; do
 	mkdir -p "$fixture/3rdparty/$package"
 	cp "$repository/3rdparty/$package/rules_js_module.patch" "$fixture/3rdparty/$package/"
@@ -45,6 +45,7 @@ for package in rules_lint rules_esbuild rules_swc rules_ts rules_angular; do
 done
 cp "$repository/3rdparty/rules_lint/rust_rules_js_module.patch" "$fixture/3rdparty/rules_lint/"
 cp "$repository/3rdparty/rules_lint/js_output_capture.patch" "$fixture/3rdparty/rules_lint/"
+cp "$repository/3rdparty/rules_lint/no_files_sarif.patch" "$fixture/3rdparty/rules_lint/"
 cp "$repository/3rdparty/rules_angular/fix.patch" "$fixture/3rdparty/rules_angular/"
 mkdir -p "$fixture/tools/coverage"
 cp "$repository/tools/coverage/rules_js_runfiles.patch" "$fixture/tools/coverage/"

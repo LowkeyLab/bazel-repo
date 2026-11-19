@@ -1,5 +1,6 @@
 exports_files([
     "js_output_capture.patch",
+    "no_files_sarif.patch",
     "rules_js_module.patch",
     "rust_rules_js_module.patch",
 ])
