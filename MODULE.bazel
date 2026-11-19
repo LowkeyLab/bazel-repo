@@ -26,7 +26,7 @@ single_version_override(
 bazel_dep(name = "rules_lint")
 git_override(
     module_name = "rules_lint",
-    commit = "26c866a777f5fb09f18776f4364958b4e151045c",
+    commit = "dbae9025a77ef4d6f01e648abd87d7c2f6f1319a",
     patch_strip = 1,
     patches = [
         "//tools/lint:python_typing.patch",
