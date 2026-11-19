@@ -1,0 +1,21 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "scope_test",
+    srcs = ["scope_test.sh"],
+    args = ["$(rootpath snapshot.sh)"],
+    data = ["snapshot.sh"],
+)
+
+# The client supplies the archive only for an explicit all-scope check.
+sh_test(
+    name = "format_test",
+    size = "large",
+    srcs = ["format_test.sh"],
+    args = ["$(rootpath //tools/format:format)"],
+    data = ["//tools/format"] + glob(
+        ["input/workspace.tar"],
+        allow_empty = True,
+    ),
+    tags = ["manual"],
+)

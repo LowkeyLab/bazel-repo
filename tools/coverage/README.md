@@ -59,6 +59,40 @@ These tests supply controlled Git and Bazel protocol responses. They verify
 ownership, scope, and failure handling through the executable. Discovery
 acceptance retains real Git, Bazel, and collector execution.
 
+## Strict remote execution
+
+Install and authenticate the BuildBuddy CLI (`bb`) before submission. The Nix shell
+does not supply this command. Check that `nix develop --command bb version` succeeds. The account
+must have access to Remote Bazel, the repository, and private invocation artifacts.
+Use a Git commit that the runner can fetch. Do not mirror an uncommitted checkout.
+From the repository root, submit the **script** to the remote Linux runner:
+
+```bash
+nix develop --command bb remote --run_from_commit="$(git rev-parse HEAD)" \
+  --script='exec tools/coverage/coverage.sh --buildbuddy-runner'
+```
+
+The client submits the request and waits for its exit status. It does not run the
+report commands. The runner executes inventory, the full configured coverage
+selection, the existing report commands and their helpers, and final reconciliation
+in one checkout. This keeps the absolute build-event paths valid. The nested Bazel
+actions use `remote-linux`, remote spawn strategies, and no local fallback.
+The explicit `CoverageReport` strategy overrides the local merger setting.
+The final tools run as processes on the remote runner, not as individual Bazel
+spawns. Do not invoke the script directly on the client or set the runner's
+artifact variable there. Do not substitute a local invocation if submission fails.
+
+Keep the parent invocation ID and exit status. In its private artifacts, `coverage/`
+contains the revision, commands with child invocation IDs, stage exit statuses, and
+compact execution logs. Record the excluded tests. Inspect the logs for fresh remote
+execution, cache hits, and unexpected local spawns. A successful cache hit is not
+fresh execution. After success, `reports.tar.gz` contains the inventory, reconciled
+LCOV, Go and Rust baseline receipts, JVM and JavaScript evidence, and the final
+receipt. HTML is not generated. A missing artifact or nonzero status is not a pass.
+Keep credentials in private configuration. Do not publish raw logs or private evidence.
+See the BuildBuddy documentation for [Remote Bazel](https://www.buildbuddy.io/docs/remote-bazel/)
+and [runner artifacts](https://www.buildbuddy.io/docs/remote-runner-features/).
+
 ## Final source reconciliation
 
 The coverage command checks every eligible source after the collectors finish.

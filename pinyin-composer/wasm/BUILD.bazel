@@ -25,6 +25,15 @@ rust_library(
     ],
 )
 
+# This browser asset has no libc for LLVM's profile runtime. The native
+# wasm_lib tests collect coverage for the same Rust sources.
+platform(
+    name = "browser_asset_platform",
+    flags = ["--nocollect_code_coverage"],
+    parents = ["@rules_rs//rs/platforms:wasm32-unknown-unknown"],
+    visibility = ["//visibility:private"],
+)
+
 rust_shared_library(
     name = "wasm_cdylib",
     srcs = [
@@ -36,7 +45,7 @@ rust_shared_library(
     ],
     crate_name = "pinyin_composer_wasm",
     crate_root = "src/lib.rs",
-    platform = "@rules_rs//rs/platforms:wasm32-unknown-unknown",
+    platform = ":browser_asset_platform",
     tags = ["no-lint"],
     deps = [
         "@crates//:console_error_panic_hook",

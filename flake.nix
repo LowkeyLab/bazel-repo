@@ -37,6 +37,7 @@
             patches = (old.patches or [ ]) ++ [
               ./3rdparty/aspect_cli/delivery_versioned_flags.patch
               ./3rdparty/aspect_cli/python_typing.patch
+              ./3rdparty/aspect_cli/lint_output_integrity.patch
             ];
           });
           agent-browser = llm-agents.packages.${system}.agent-browser;

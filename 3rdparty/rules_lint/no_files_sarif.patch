@@ -1,0 +1,49 @@
+--- a/lint/private/lint_aspect.bzl
++++ b/lint/private/lint_aspect.bzl
+@@ -98,6 +98,7 @@
+                 exit_code = human_exit_code,
+             ),
+             machine = struct(
++                tool = mnemonic.removeprefix("AspectRulesLint"),
+                 out = machine_out,
+                 exit_code = machine_exit_code,
+             ),
+@@ -191,30 +192,17 @@
+         ctx: Bazel Rule or Aspect evaluation context
+         outputs: struct returned from output_files or patch_and_output_files
+     """
+-    commands = []
+-    commands.append("touch {}".format(outputs.human.out.path))
+-    commands.append("touch {}".format(outputs.machine.out.path))
+-
+-    outs = [outputs.human.out, outputs.machine.out]
+-
+-    # NB: if we write JSON machine-readable outputs, then an empty file won't be appropriate
++    ctx.actions.write(outputs.human.out, "")
++    ctx.actions.write(outputs.machine.out, json.encode({
++        "version": "2.1.0",
++        "runs": [{"tool": {"driver": {"name": outputs.machine.tool}}, "results": []}],
++    }))
+     if outputs.human.exit_code:
+-        commands.append("echo 0 > {}".format(outputs.human.exit_code.path))
+-        outs.append(outputs.human.exit_code)
+-
++        ctx.actions.write(outputs.human.exit_code, "0\n")
+     if outputs.machine.exit_code:
+-        commands.append("echo 0 > {}".format(outputs.machine.exit_code.path))
+-        outs.append(outputs.machine.exit_code)
+-
++        ctx.actions.write(outputs.machine.exit_code, "0\n")
+     if hasattr(outputs, "patch"):
+-        commands.append("touch {}".format(outputs.patch.path))
+-        outs.append(outputs.patch)
+-
+-    ctx.actions.run_shell(
+-        inputs = [],
+-        outputs = outs,
+-        command = " && ".join(commands),
+-    )
++        ctx.actions.write(outputs.patch, "")
+ 
+ SARIF_PARSER_TOOLCHAIN = Label("@rules_lint//tools/toolchains:sarif_parser_toolchain_type")
+ OPTIONAL_SARIF_PARSER_TOOLCHAIN = config_common.toolchain_type(SARIF_PARSER_TOOLCHAIN, mandatory = False)
