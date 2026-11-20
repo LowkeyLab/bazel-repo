@@ -779,7 +779,7 @@ oci_extension.pull(
 # Test fixtures: PostgreSQL 18 shared by all Testcontainers tests.
 oci_extension.pull(
     name = "test_postgres_18",
-    digest = "sha256:e754b839f447639b7004895f4d8a4bfcb4e9dbe3a1bc035f27f646562a16fd61",
+    digest = "sha256:eb63372c1e05c755f55fa30cbd07aecc443676fc6c0fa90b9002d01537841e1a",
     image = "docker.io/library/postgres",
     platforms = ["linux/amd64"],
     tag = "18",
