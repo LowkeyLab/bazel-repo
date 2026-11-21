@@ -26,7 +26,7 @@ single_version_override(
 bazel_dep(name = "rules_lint")
 git_override(
     module_name = "rules_lint",
-    commit = "fb45d7ce46a871d260709f1bbcf54a21f5ff0057",
+    commit = "aca3ab2ec303193864478db347c44b6a3acf88e8",
     patch_strip = 1,
     patches = [
         "//tools/lint:ktlint_exec_runtime.patch",
