@@ -5466,8 +5466,8 @@
         },
         {
           "importpath": "golang.org/x/mod",
-          "sha256": "92defdc3237bf4f850e9e5c7d7ad6d06b9ef6a10caa12c2c8e54150a4c370270",
-          "version": "v0.42.0"
+          "sha256": "5d7532210906b985f7a3eb81f3f1ee248aa7e7cf1e179fdd8c2b7715671e522c",
+          "version": "v0.43.0"
         },
         {
           "importpath": "golang.org/x/sync",
@@ -5481,8 +5481,8 @@
         },
         {
           "importpath": "golang.org/x/telemetry",
-          "sha256": "dbd1d6b5f97ff68705f11945f8b80e5275eb70dc434374b05504d3b830065a68",
-          "version": "v0.0.0-20261010193011-f71dc92da45e"
+          "sha256": "11e7510623883d44a48874b6c4b280f3e530bc35d799fbe4e9059ad2ac022ee5",
+          "version": "v0.0.0-20261116191925-e77a43154acb"
         },
         {
           "importpath": "golang.org/x/term",
@@ -5496,13 +5496,13 @@
         },
         {
           "importpath": "golang.org/x/tools",
-          "sha256": "b4272bcb2c99901b1878e04a56c8a584ac1dce9d5844a3c1cc68a627546fe6fe",
-          "version": "v0.52.0"
+          "sha256": "bca1e9ee923d2c490298a98ec17a0b4aebaa8f65e57114da73247a6267a52aef",
+          "version": "v0.53.0"
         },
         {
           "importpath": "golang.org/x/vuln",
-          "sha256": "9495a2000c06e8cf6770a80e715276a95008f41730bad3a08ed55f7fdd10a56b",
-          "version": "v1.9.0"
+          "sha256": "fe4b8927d0aa4fd6135b2e734b68aac7507cbb043dd16b6525eeb11b03336c6c",
+          "version": "v1.10.0"
         },
         {
           "importpath": "gopkg.in/warnings.v0",
