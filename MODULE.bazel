@@ -285,7 +285,7 @@ git_override(
 bazel_dep(name = "tar.bzl")
 git_override(
     module_name = "tar.bzl",
-    commit = "e41a1121c0822e60174507f748fd16239f69aa5c",
+    commit = "757d7f1d547688d44bdbda60cca2c5d73b7a140d",
     remote = "https://github.com/bazel-contrib/tar.bzl.git",
 )
 
