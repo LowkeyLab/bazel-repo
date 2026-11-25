@@ -273,7 +273,7 @@ git_override(
 bazel_dep(name = "rules_go")
 git_override(
     module_name = "rules_go",
-    commit = "e5a457da845621241d89a277c9dbf5dd14c3df7e",
+    commit = "be4138df6b01ff1b586502a980a6edf7544b8ec6",
     patch_strip = 1,
     patches = [
         "//tools/go:required_coverage.patch",
