@@ -194,7 +194,7 @@ bazel_dep(name = "rules_rs")
 bazel_dep(name = "llvm")
 git_override(
     module_name = "llvm",
-    commit = "6198ed8fd4c1400c93d142ece289b298cae81f87",
+    commit = "b47490a81a917625a853f69bbffd5a1a562743b9",
     remote = "https://github.com/hermeticbuild/hermetic-llvm.git",
 )
 
